@@ -1,4 +1,4 @@
-from core import ArmsCore
+from backend.core import ArmsCore
 
 def main():
     arms = ArmsCore()

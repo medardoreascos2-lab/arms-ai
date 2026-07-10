@@ -1,10 +1,10 @@
 class ArmsCore:
+
     def __init__(self):
-        self.name = "ARMS AI"
-        self.version = "0.0.1"
-        self.status = "ONLINE"
+        self.version = "0.2"
 
     def start(self):
-        print(f"{self.name} v{self.version}")
-        print(f"Estado del sistema: {self.status}")
-        print("ARMS Core iniciado correctamente.")
+        print("=" * 50)
+        print("ARMS AI iniciado")
+        print("Versión:", self.version)
+        print("=" * 50)
