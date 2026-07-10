@@ -2,6 +2,7 @@ from core import ArmsCore
 from market import MarketData
 from risk import RiskManager
 from connectors.market_connector import MarketConnector
+from backend.data_feed import DataFeed
 
 def main():
     arms = ArmsCore()
@@ -15,6 +16,10 @@ def main():
 
     connector = MarketConnector()
     connector.connect()
+    feed = DataFeed(symbol="NASDAQ / NQ")
+feed.update(price=21500.25, volume=1250, timeframe="1m")
+feed.show()
 
 if __name__ == "__main__":
     main()
+    
