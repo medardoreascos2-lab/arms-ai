@@ -5,6 +5,7 @@ from connectors.market_connector import MarketConnector
 from backend.data_feed import DataFeed
 from backend.trend_analyzer import TrendAnalyzer
 from indicators.ema_engine import EMAEngine
+from strategy.decision_engine import DecisionEngine
 
 def main():
     arms = ArmsCore()
@@ -46,6 +47,13 @@ trend.analyze(
 )
 
 trend.show()
+decision = DecisionEngine()
+decision.analyze(
+    trend=trend.trend,
+    price=23500.25,
+    ema=ema.ema
+)
+decision.show()
 
 if __name__ == "__main__":
     main()
