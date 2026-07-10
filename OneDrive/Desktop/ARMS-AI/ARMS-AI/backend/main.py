@@ -1,6 +1,7 @@
 from core import ArmsCore
 from market import MarketData
 from risk import RiskManager
+from connectors.market_connector import MarketConnector
 
 def main():
     arms = ArmsCore()
@@ -11,6 +12,9 @@ def main():
 
     risk = RiskManager(account_balance=17000, risk_percent=0.5)
     risk.show_risk()
+
+    connector = MarketConnector()
+    connector.connect()
 
 if __name__ == "__main__":
     main()
