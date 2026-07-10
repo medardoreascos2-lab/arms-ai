@@ -4,6 +4,7 @@ from risk import RiskManager
 from connectors.market_connector import MarketConnector
 from backend.data_feed import DataFeed
 from backend.trend_analyzer import TrendAnalyzer
+from indicators.ema_engine import EMAEngine
 
 def main():
     arms = ArmsCore()
@@ -20,6 +21,23 @@ def main():
     feed = DataFeed(symbol="NASDAQ / NQ")
 feed.update(price=21500.25, volume=1250, timeframe="1m")
 feed.show()
+ema = EMAEngine(period=50)
+
+prices = [
+    23500,
+    23505,
+    23512,
+    23520,
+    23528,
+    23535,
+    23541,
+    23548,
+    23552,
+    23560,
+] * 5   # genera 50 datos de prueba
+
+ema.calculate(prices)
+ema.show()
 trend = TrendAnalyzer()
 
 trend.analyze(
