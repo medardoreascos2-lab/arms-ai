@@ -10,22 +10,65 @@ from backend.services.data_collector import DataCollector
 
 
 def main():
+    # ==============================
+    # INICIO DEL SISTEMA
+    # ==============================
     arms = ArmsCore()
     arms.start()
 
-    market = MarketData(symbol="NASDAQ / NQ")
-    market.update_price(21500.25)
-
-    risk = RiskManager(account_balance=17000, risk_percent=0.5)
-    risk.show_risk()
-
+    # ==============================
+    # CONEXIÓN AL MERCADO
+    # ==============================
     connector = MarketConnector()
     connector.connect()
 
-    feed = DataFeed(symbol="NASDAQ / NQ")
-    feed.update(price=21500.25, volume=1250, timeframe="1m")
+    # ==============================
+    # OBTENER ÚLTIMA VELA
+    # ==============================
+    collector = DataCollector(provider="SIMULATED")
+
+    candle = collector.get_latest_candle(
+        symbol="NASDAQ / NQ",
+        timeframe="1m",
+    )
+
+    candle.show()
+
+    # Datos principales
+    current_price = candle.close
+    current_volume = candle.volume
+
+    # ==============================
+    # MARKET DATA
+    # ==============================
+    market = MarketData(symbol=candle.symbol)
+    market.update_price(current_price)
+
+    # ==============================
+    # RISK MANAGER
+    # ==============================
+    risk = RiskManager(
+        account_balance=17000,
+        risk_percent=0.5,
+    )
+    risk.show_risk()
+
+    # ==============================
+    # DATA FEED
+    # ==============================
+    feed = DataFeed(symbol=candle.symbol)
+
+    feed.update(
+        price=current_price,
+        volume=current_volume,
+        timeframe=candle.timeframe,
+    )
+
     feed.show()
 
+    # ==============================
+    # EMA ENGINE
+    # ==============================
     ema = EMAEngine(period=50)
 
     prices = [
@@ -44,29 +87,30 @@ def main():
     ema.calculate(prices)
     ema.show()
 
+    # ==============================
+    # TREND ANALYZER
+    # ==============================
     trend = TrendAnalyzer()
+
     trend.analyze(
-        current_price=21500.25,
+        current_price=current_price,
         ema50=ema.ema,
     )
+
     trend.show()
 
+    # ==============================
+    # DECISION ENGINE
+    # ==============================
     decision = DecisionEngine()
+
     decision.analyze(
         trend=trend.trend,
-        price=21500.25,
+        price=current_price,
         ema=ema.ema,
     )
+
     decision.show()
-
-    collector = DataCollector(provider="SIMULATED")
-
-    candle = collector.get_latest_candle(
-        symbol="NASDAQ / NQ",
-        timeframe="1m",
-    )
-
-    candle.show()
 
 
 if __name__ == "__main__":
