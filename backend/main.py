@@ -5,11 +5,11 @@ from backend.trend_analyzer import TrendAnalyzer
 from backend.connectors.market_connector import MarketConnector
 from backend.connectors.data_feed import DataFeed
 from backend.indicators.ema_engine import EMAEngine
+from backend.indicators.rsi_engine import RSIEngine
+from backend.indicators.atr_engine import ATREngine
 from backend.strategy.decision_engine import DecisionEngine
 from backend.services.data_collector import DataCollector
 from backend.services.candle_manager import CandleManager
-from backend.indicators.rsi_engine import RSIEngine
-from backend.indicators.atr_engine import ATREngine
 from backend.intelligence.trading_intelligence import TradingIntelligence
 from backend.risk_management.dynamic_risk_engine import DynamicRiskEngine
 from backend.risk_management.trade_levels import TradeLevels
@@ -18,15 +18,22 @@ from backend.models.trade_plan import TradePlan
 from backend.services.trade_logger import TradeLogger
 from backend.services.plan_history_analyzer import PlanHistoryAnalyzer
 from backend.services.execution_simulator import ExecutionSimulator
+from backend.services.simulated_trade_logger import SimulatedTradeLogger
 
 
 def main():
+    # ==============================
+    # INICIO
+    # ==============================
     arms = ArmsCore()
     arms.start()
 
     connector = MarketConnector()
     connector.connect()
 
+    # ==============================
+    # DATOS DEL MERCADO
+    # ==============================
     collector = DataCollector(provider="SIMULATED")
 
     candles = collector.get_historical_candles(
@@ -55,16 +62,6 @@ def main():
     market = MarketData(symbol=latest_candle.symbol)
     market.update_price(current_price)
 
-    risk = RiskManager(
-        account_balance=17000,
-        risk_percent=0.5,
-    )
-    risk.show_risk()
-
-    atr = ATREngine(period=14)
-    atr.calculate(candles)
-    atr.show()
-
     feed = DataFeed(symbol=latest_candle.symbol)
     feed.update(
         price=current_price,
@@ -73,6 +70,18 @@ def main():
     )
     feed.show()
 
+    # ==============================
+    # RIESGO BASE
+    # ==============================
+    risk = RiskManager(
+        account_balance=17000,
+        risk_percent=0.5,
+    )
+    risk.show_risk()
+
+    # ==============================
+    # INDICADORES
+    # ==============================
     close_prices = candle_manager.get_close_prices()
 
     ema = EMAEngine(period=50)
@@ -83,6 +92,13 @@ def main():
     rsi.calculate(close_prices)
     rsi.show()
 
+    atr = ATREngine(period=14)
+    atr.calculate(candles)
+    atr.show()
+
+    # ==============================
+    # TENDENCIA E INTELIGENCIA
+    # ==============================
     trend = TrendAnalyzer()
     trend.analyze(
         current_price=current_price,
@@ -91,7 +107,6 @@ def main():
     trend.show()
 
     intelligence = TradingIntelligence()
-
     intelligence.analyze(
         trend=trend.trend,
         current_price=current_price,
@@ -101,17 +116,17 @@ def main():
         atr=atr.atr,
         atr_status=atr.status,
     )
-
     intelligence.show()
 
     decision = DecisionEngine()
-
     decision.analyze(
         intelligence_recommendation=intelligence.recommendation
     )
-
     decision.show()
 
+    # ==============================
+    # RIESGO DINÁMICO Y NIVELES
+    # ==============================
     dynamic_risk = DynamicRiskEngine(
         account_balance=17000,
         risk_percent=0.5,
@@ -123,21 +138,21 @@ def main():
         atr=atr.atr,
         point_value=2.0,
     )
-
     dynamic_risk.show()
 
     trade_levels = TradeLevels()
-
     trade_levels.calculate(
         direction=decision.decision,
         entry_price=current_price,
         stop_distance=dynamic_risk.stop_distance,
         take_profit_distance=dynamic_risk.take_profit_distance,
     )
-
     trade_levels.show()
-    validator = TradeValidator()
 
+    # ==============================
+    # VALIDACIÓN
+    # ==============================
+    validator = TradeValidator()
     validator.validate(
         decision=decision.decision,
         confidence=intelligence.confidence,
@@ -145,9 +160,11 @@ def main():
         rsi_status=rsi.status,
         atr_status=atr.status,
     )
-
     validator.show()
 
+    # ==============================
+    # PLAN DE OPERACIÓN
+    # ==============================
     trade_plan = TradePlan(
         symbol=latest_candle.symbol,
         timeframe=latest_candle.timeframe,
@@ -164,20 +181,24 @@ def main():
 
     trade_plan.show()
 
+    # ==============================
+    # REGISTRO DEL PLAN
+    # ==============================
     logger = TradeLogger(
         file_path="data/trade_plans.jsonl"
     )
-
     logger.save(trade_plan)
     logger.show_confirmation()
 
     history_analyzer = PlanHistoryAnalyzer(
         file_path="data/trade_plans.jsonl"
     )
-
     history_analyzer.analyze()
     history_analyzer.show()
 
+    # ==============================
+    # SIMULACIÓN DE EJECUCIÓN
+    # ==============================
     simulator = ExecutionSimulator(
         point_value=2.0
     )
@@ -194,6 +215,13 @@ def main():
 
     if simulated_trade is not None:
         simulated_trade.show()
+
+        simulated_trade_logger = SimulatedTradeLogger(
+            file_path="data/simulated_trades.jsonl"
+        )
+
+        simulated_trade_logger.save(simulated_trade)
+        simulated_trade_logger.show_confirmation()
 
 
 if __name__ == "__main__":
