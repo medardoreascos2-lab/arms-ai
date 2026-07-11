@@ -8,7 +8,7 @@ from backend.indicators.ema_engine import EMAEngine
 from backend.strategy.decision_engine import DecisionEngine
 from backend.services.data_collector import DataCollector
 from backend.services.candle_manager import CandleManager
-
+from backend.indicators.rsi_engine import RSIEngine
 
 def main():
     arms = ArmsCore()
@@ -64,6 +64,10 @@ def main():
     ema = EMAEngine(period=50)
     ema.calculate(close_prices)
     ema.show()
+
+    rsi = RSIEngine(period=14)
+    rsi.calculate(close_prices)
+    rsi.show()
 
     trend = TrendAnalyzer()
     trend.analyze(
