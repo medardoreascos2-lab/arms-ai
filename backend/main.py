@@ -9,6 +9,7 @@ from backend.strategy.decision_engine import DecisionEngine
 from backend.services.data_collector import DataCollector
 from backend.services.candle_manager import CandleManager
 from backend.indicators.rsi_engine import RSIEngine
+from backend.indicators.atr_engine import ATREngine
 
 def main():
     arms = ArmsCore()
@@ -50,6 +51,10 @@ def main():
         risk_percent=0.5,
     )
     risk.show_risk()
+    
+    atr = ATREngine(period=14)
+    atr.calculate(candles)
+    atr.show()
 
     feed = DataFeed(symbol=latest_candle.symbol)
     feed.update(
