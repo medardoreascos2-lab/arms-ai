@@ -11,6 +11,8 @@ from backend.services.candle_manager import CandleManager
 from backend.indicators.rsi_engine import RSIEngine
 from backend.indicators.atr_engine import ATREngine
 from backend.intelligence.trading_intelligence import TradingIntelligence
+from backend.risk_management.dynamic_risk_engine import DynamicRiskEngine
+from backend.risk_management.trade_levels import TradeLevels
 
 
 def main():
@@ -104,6 +106,31 @@ def main():
     )
 
     decision.show()
+
+    dynamic_risk = DynamicRiskEngine(
+        account_balance=17000,
+        risk_percent=0.5,
+        stop_atr_multiplier=1.5,
+        reward_risk_ratio=2.0,
+    )
+
+    dynamic_risk.calculate(
+        atr=atr.atr,
+        point_value=2.0,
+    )
+
+    dynamic_risk.show()
+
+    trade_levels = TradeLevels()
+
+    trade_levels.calculate(
+        direction=decision.decision,
+        entry_price=current_price,
+        stop_distance=dynamic_risk.stop_distance,
+        take_profit_distance=dynamic_risk.take_profit_distance,
+    )
+
+    trade_levels.show()
 
 
 if __name__ == "__main__":
