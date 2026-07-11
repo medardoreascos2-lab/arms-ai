@@ -6,6 +6,7 @@ from backend.connectors.market_connector import MarketConnector
 from backend.connectors.data_feed import DataFeed
 from backend.indicators.ema_engine import EMAEngine
 from backend.strategy.decision_engine import DecisionEngine
+from backend.services.data_collector import DataCollector
 
 
 def main():
@@ -57,6 +58,15 @@ def main():
         ema=ema.ema,
     )
     decision.show()
+
+    collector = DataCollector(provider="SIMULATED")
+
+    candle = collector.get_latest_candle(
+        symbol="NASDAQ / NQ",
+        timeframe="1m",
+    )
+
+    candle.show()
 
 
 if __name__ == "__main__":
