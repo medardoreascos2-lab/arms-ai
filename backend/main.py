@@ -10,6 +10,7 @@ from backend.services.data_collector import DataCollector
 from backend.services.candle_manager import CandleManager
 from backend.indicators.rsi_engine import RSIEngine
 from backend.indicators.atr_engine import ATREngine
+from backend.intelligence.trading_intelligence import TradingIntelligence
 
 def main():
     arms = ArmsCore()
@@ -51,7 +52,7 @@ def main():
         risk_percent=0.5,
     )
     risk.show_risk()
-    
+
     atr = ATREngine(period=14)
     atr.calculate(candles)
     atr.show()
@@ -88,6 +89,20 @@ def main():
         ema=ema.ema,
     )
     decision.show()
+
+    intelligence = TradingIntelligence()
+
+    intelligence.analyze(
+        trend=trend.trend,
+        current_price=current_price,
+        ema=ema.ema,
+        rsi=rsi.rsi,
+        rsi_status=rsi.status,
+        atr=atr.atr,
+        atr_status=atr.status,
+    )
+
+    intelligence.show()
 
 
 if __name__ == "__main__":
