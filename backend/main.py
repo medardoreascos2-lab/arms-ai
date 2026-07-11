@@ -14,7 +14,8 @@ from backend.intelligence.trading_intelligence import TradingIntelligence
 from backend.risk_management.dynamic_risk_engine import DynamicRiskEngine
 from backend.risk_management.trade_levels import TradeLevels
 from backend.risk_management.trade_validator import TradeValidator
-
+from backend.models.trade_plan import TradePlan
+from backend.services.trade_logger import TradeLogger
 
 def main():
     arms = ArmsCore()
@@ -143,6 +144,29 @@ def main():
     )
 
     validator.show()
+
+    trade_plan = TradePlan(
+        symbol=latest_candle.symbol,
+        timeframe=latest_candle.timeframe,
+        decision=decision.decision,
+        confidence=intelligence.confidence,
+        entry_price=trade_levels.entry_price,
+        stop_loss=trade_levels.stop_loss,
+        take_profit=trade_levels.take_profit,
+        contracts=dynamic_risk.contracts,
+        risk_amount=dynamic_risk.risk_amount,
+        authorized=validator.is_valid,
+        reasons=validator.reasons,
+    )
+
+    trade_plan.show()
+
+    logger = TradeLogger(
+        file_path="data/trade_plans.jsonl"
+    )
+
+    logger.save(trade_plan)
+    logger.show_confirmation()
 
 
 if __name__ == "__main__":
