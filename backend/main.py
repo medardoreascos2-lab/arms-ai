@@ -7,6 +7,7 @@ from backend.connectors.data_feed import DataFeed
 from backend.indicators.ema_engine import EMAEngine
 from backend.strategy.decision_engine import DecisionEngine
 from backend.services.data_collector import DataCollector
+from backend.services.candle_manager import CandleManager
 
 
 def main():
@@ -33,6 +34,13 @@ def main():
     )
 
     candle.show()
+
+    # ==============================
+    # CANDLE MANAGER
+    # ==============================
+    candle_manager = CandleManager(max_candles=500)
+    candle_manager.add_candle(candle)
+    candle_manager.show_status()
 
     # Datos principales
     current_price = candle.close
