@@ -16,6 +16,7 @@ from backend.risk_management.trade_levels import TradeLevels
 from backend.risk_management.trade_validator import TradeValidator
 from backend.models.trade_plan import TradePlan
 from backend.services.trade_logger import TradeLogger
+from backend.services.plan_history_analyzer import PlanHistoryAnalyzer
 
 def main():
     arms = ArmsCore()
@@ -167,6 +168,13 @@ def main():
 
     logger.save(trade_plan)
     logger.show_confirmation()
+
+    history_analyzer = PlanHistoryAnalyzer(
+        file_path="data/trade_plans.jsonl"
+    )
+
+    history_analyzer.analyze()
+    history_analyzer.show()
 
 
 if __name__ == "__main__":
