@@ -17,6 +17,8 @@ from backend.risk_management.trade_validator import TradeValidator
 from backend.models.trade_plan import TradePlan
 from backend.services.trade_logger import TradeLogger
 from backend.services.plan_history_analyzer import PlanHistoryAnalyzer
+from backend.services.execution_simulator import ExecutionSimulator
+
 
 def main():
     arms = ArmsCore()
@@ -175,6 +177,23 @@ def main():
 
     history_analyzer.analyze()
     history_analyzer.show()
+
+    simulator = ExecutionSimulator(
+        point_value=2.0
+    )
+
+    next_candle = collector.get_latest_candle(
+        symbol=latest_candle.symbol,
+        timeframe=latest_candle.timeframe,
+    )
+
+    simulated_trade = simulator.execute(
+        trade_plan=trade_plan,
+        next_candle=next_candle,
+    )
+
+    if simulated_trade is not None:
+        simulated_trade.show()
 
 
 if __name__ == "__main__":
