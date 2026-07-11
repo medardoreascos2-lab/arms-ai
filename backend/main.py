@@ -12,6 +12,7 @@ from backend.indicators.rsi_engine import RSIEngine
 from backend.indicators.atr_engine import ATREngine
 from backend.intelligence.trading_intelligence import TradingIntelligence
 
+
 def main():
     arms = ArmsCore()
     arms.start()
@@ -82,14 +83,6 @@ def main():
     )
     trend.show()
 
-    decision = DecisionEngine()
-    decision.analyze(
-        trend=trend.trend,
-        price=current_price,
-        ema=ema.ema,
-    )
-    decision.show()
-
     intelligence = TradingIntelligence()
 
     intelligence.analyze(
@@ -103,6 +96,14 @@ def main():
     )
 
     intelligence.show()
+
+    decision = DecisionEngine()
+
+    decision.analyze(
+        intelligence_recommendation=intelligence.recommendation
+    )
+
+    decision.show()
 
 
 if __name__ == "__main__":
