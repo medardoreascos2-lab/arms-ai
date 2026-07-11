@@ -11,113 +11,73 @@ from backend.services.candle_manager import CandleManager
 
 
 def main():
-    # ==============================
-    # INICIO DEL SISTEMA
-    # ==============================
     arms = ArmsCore()
     arms.start()
 
-    # ==============================
-    # CONEXIÓN AL MERCADO
-    # ==============================
     connector = MarketConnector()
     connector.connect()
 
-    # ==============================
-    # OBTENER ÚLTIMA VELA
-    # ==============================
     collector = DataCollector(provider="SIMULATED")
 
-    candle = collector.get_latest_candle(
+    candles = collector.get_historical_candles(
         symbol="NASDAQ / NQ",
         timeframe="1m",
+        limit=100,
     )
 
-    candle.show()
-
-    # ==============================
-    # CANDLE MANAGER
-    # ==============================
     candle_manager = CandleManager(max_candles=500)
-    candle_manager.add_candle(candle)
+
+    for candle in candles:
+        candle_manager.add_candle(candle)
+
     candle_manager.show_status()
 
-    # Datos principales
-    current_price = candle.close
-    current_volume = candle.volume
+    latest_candle = candle_manager.get_latest_candle()
 
-    # ==============================
-    # MARKET DATA
-    # ==============================
-    market = MarketData(symbol=candle.symbol)
+    if latest_candle is None:
+        raise RuntimeError("No hay velas disponibles para analizar.")
+
+    latest_candle.show()
+
+    current_price = latest_candle.close
+    current_volume = latest_candle.volume
+
+    market = MarketData(symbol=latest_candle.symbol)
     market.update_price(current_price)
 
-    # ==============================
-    # RISK MANAGER
-    # ==============================
     risk = RiskManager(
         account_balance=17000,
         risk_percent=0.5,
     )
     risk.show_risk()
 
-    # ==============================
-    # DATA FEED
-    # ==============================
-    feed = DataFeed(symbol=candle.symbol)
-
+    feed = DataFeed(symbol=latest_candle.symbol)
     feed.update(
         price=current_price,
         volume=current_volume,
-        timeframe=candle.timeframe,
+        timeframe=latest_candle.timeframe,
     )
-
     feed.show()
 
-    # ==============================
-    # EMA ENGINE
-    # ==============================
+    close_prices = candle_manager.get_close_prices()
+
     ema = EMAEngine(period=50)
-
-    prices = [
-        23500,
-        23505,
-        23512,
-        23520,
-        23528,
-        23535,
-        23541,
-        23548,
-        23552,
-        23560,
-    ] * 5
-
-    ema.calculate(prices)
+    ema.calculate(close_prices)
     ema.show()
 
-    # ==============================
-    # TREND ANALYZER
-    # ==============================
     trend = TrendAnalyzer()
-
     trend.analyze(
         current_price=current_price,
         ema50=ema.ema,
     )
-
     trend.show()
 
-    # ==============================
-    # DECISION ENGINE
-    # ==============================
     decision = DecisionEngine()
-
     decision.analyze(
         trend=trend.trend,
         price=current_price,
         ema=ema.ema,
     )
-
     decision.show()
 
 
