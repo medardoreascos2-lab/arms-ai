@@ -13,6 +13,7 @@ from backend.indicators.atr_engine import ATREngine
 from backend.intelligence.trading_intelligence import TradingIntelligence
 from backend.risk_management.dynamic_risk_engine import DynamicRiskEngine
 from backend.risk_management.trade_levels import TradeLevels
+from backend.risk_management.trade_validator import TradeValidator
 
 
 def main():
@@ -131,6 +132,17 @@ def main():
     )
 
     trade_levels.show()
+    validator = TradeValidator()
+
+    validator.validate(
+        decision=decision.decision,
+        confidence=intelligence.confidence,
+        contracts=dynamic_risk.contracts,
+        rsi_status=rsi.status,
+        atr_status=atr.status,
+    )
+
+    validator.show()
 
 
 if __name__ == "__main__":
