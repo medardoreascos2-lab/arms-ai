@@ -20,6 +20,7 @@ from backend.services.plan_history_analyzer import PlanHistoryAnalyzer
 from backend.services.execution_simulator import ExecutionSimulator
 from backend.services.simulated_trade_logger import SimulatedTradeLogger
 from backend.smart_money.market_structure import MarketStructureEngine
+from backend.smart_money.bos_engine import BOSEngine
 
 
 def main():
@@ -103,6 +104,9 @@ def main():
     market_structure = MarketStructureEngine()
     market_structure.analyze(candles)
     market_structure.show()
+    bos = BOSEngine()
+    bos.analyze(candles)
+    bos.show()
 
     # ==============================
     # TENDENCIA E INTELIGENCIA
