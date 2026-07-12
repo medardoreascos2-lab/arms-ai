@@ -19,6 +19,7 @@ from backend.services.trade_logger import TradeLogger
 from backend.services.plan_history_analyzer import PlanHistoryAnalyzer
 from backend.services.execution_simulator import ExecutionSimulator
 from backend.services.simulated_trade_logger import SimulatedTradeLogger
+from backend.smart_money.market_structure import MarketStructureEngine
 
 
 def main():
@@ -91,6 +92,9 @@ def main():
     rsi = RSIEngine(period=14)
     rsi.calculate(close_prices)
     rsi.show()
+    market_structure = MarketStructureEngine()
+    market_structure.analyze(candles)
+    market_structure.show()
 
     atr = ATREngine(period=14)
     atr.calculate(candles)
