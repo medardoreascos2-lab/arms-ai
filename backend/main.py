@@ -22,7 +22,7 @@ from backend.services.simulated_trade_logger import SimulatedTradeLogger
 from backend.smart_money.market_structure import MarketStructureEngine
 from backend.smart_money.bos_engine import BOSEngine
 from backend.smart_money.choch_engine import CHoCHEngine
-
+from backend.smart_money.liquidity_engine import LiquidityEngine
 
 def main():
     # ==============================
@@ -99,9 +99,6 @@ def main():
     atr.calculate(candles)
     atr.show()
 
-    # ==============================
-    # SMART MONEY
-    # ==============================
         # ==============================
     # SMART MONEY
     # ==============================
@@ -119,6 +116,10 @@ def main():
         market_structure=market_structure.structure,
     )
     choch.show()
+
+    liquidity = LiquidityEngine(tolerance=1.0)
+    liquidity.analyze(candles)
+    liquidity.show()
     # ==============================
     # TENDENCIA E INTELIGENCIA
     # ==============================
