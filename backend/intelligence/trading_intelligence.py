@@ -17,6 +17,8 @@ class TradingIntelligence:
         market_structure: str,
         bos_detected: str,
         bos_direction: str,
+        choch_detected: str,
+        choch_direction: str,
     ) -> str:
         self.score = 0
         self.reasons = []
@@ -103,6 +105,30 @@ class TradingIntelligence:
                 self.reasons.append(
                     "El BOS contradice la tendencia principal."
                 )
+
+        # CHoCH
+        if choch_detected == "SÍ":
+            if choch_direction == "ALCISTA":
+                if trend == "BAJISTA":
+                    self.score += 20
+                    self.reasons.append(
+                        "CHoCH alcista indica posible cambio de tendencia."
+                    )
+                else:
+                    self.reasons.append(
+                        "CHoCH alcista detectado dentro de tendencia alcista."
+                    )
+
+            elif choch_direction == "BAJISTA":
+                if trend == "ALCISTA":
+                    self.score -= 20
+                    self.reasons.append(
+                        "CHoCH bajista advierte posible reversión."
+                    )
+                else:
+                    self.reasons.append(
+                        "CHoCH bajista detectado dentro de tendencia bajista."
+                    )
 
         # ATR
         if atr_status == "VOLATILIDAD MEDIA":

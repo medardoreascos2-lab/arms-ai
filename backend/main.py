@@ -141,6 +141,8 @@ def main():
         market_structure=market_structure.structure,
         bos_detected=bos.bos,
         bos_direction=bos.direction,
+        choch_detected=choch.choch,
+        choch_direction=choch.direction,
     )
     intelligence.show()
 
