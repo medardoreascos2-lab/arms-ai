@@ -14,6 +14,7 @@ class TradingIntelligence:
         rsi_status: str,
         atr: float,
         atr_status: str,
+        market_structure: str,
     ) -> str:
         self.score = 0
         self.reasons = []
@@ -21,38 +22,82 @@ class TradingIntelligence:
         # Tendencia y EMA
         if trend == "ALCISTA" and current_price > ema:
             self.score += 35
-            self.reasons.append("Precio sobre la EMA y tendencia alcista.")
+            self.reasons.append(
+                "Precio sobre la EMA y tendencia alcista."
+            )
 
         elif trend == "BAJISTA" and current_price < ema:
             self.score -= 35
-            self.reasons.append("Precio bajo la EMA y tendencia bajista.")
+            self.reasons.append(
+                "Precio bajo la EMA y tendencia bajista."
+            )
 
         # RSI
         if rsi_status == "NEUTRAL":
             if trend == "ALCISTA":
                 self.score += 20
-                self.reasons.append("RSI neutral permite buscar compras.")
+                self.reasons.append(
+                    "RSI neutral permite buscar compras."
+                )
+
             elif trend == "BAJISTA":
                 self.score -= 20
-                self.reasons.append("RSI neutral permite buscar ventas.")
+                self.reasons.append(
+                    "RSI neutral permite buscar ventas."
+                )
 
         elif rsi_status == "SOBRECOMPRA":
             self.score -= 15
-            self.reasons.append("RSI en sobrecompra: evitar compras tardías.")
+            self.reasons.append(
+                "RSI en sobrecompra: evitar compras tardías."
+            )
 
         elif rsi_status == "SOBREVENTA":
             self.score += 15
-            self.reasons.append("RSI en sobreventa: evitar ventas tardías.")
+            self.reasons.append(
+                "RSI en sobreventa: evitar ventas tardías."
+            )
+
+        # Market Structure
+        if market_structure == "ALCISTA":
+            if trend == "ALCISTA":
+                self.score += 15
+                self.reasons.append(
+                    "La estructura de mercado confirma el sesgo alcista."
+                )
+            else:
+                self.score -= 10
+                self.reasons.append(
+                    "La estructura alcista contradice la tendencia detectada."
+                )
+
+        elif market_structure == "BAJISTA":
+            if trend == "BAJISTA":
+                self.score -= 15
+                self.reasons.append(
+                    "La estructura de mercado confirma el sesgo bajista."
+                )
+            else:
+                self.score += 10
+                self.reasons.append(
+                    "La estructura bajista contradice la tendencia detectada."
+                )
 
         # ATR
         if atr_status == "VOLATILIDAD MEDIA":
-            self.reasons.append("Volatilidad adecuada para operar.")
+            self.reasons.append(
+                "Volatilidad adecuada para operar."
+            )
 
         elif atr_status == "VOLATILIDAD ALTA":
-            self.reasons.append("Volatilidad alta: reducir riesgo.")
+            self.reasons.append(
+                "Volatilidad alta: reducir riesgo."
+            )
 
         elif atr_status == "VOLATILIDAD BAJA":
-            self.reasons.append("Volatilidad baja: menor calidad de oportunidad.")
+            self.reasons.append(
+                "Volatilidad baja: menor calidad de oportunidad."
+            )
 
         self._set_recommendation()
         self._set_confidence()
@@ -62,8 +107,10 @@ class TradingIntelligence:
     def _set_recommendation(self) -> None:
         if self.score >= 40:
             self.recommendation = "BUSCAR COMPRAS"
+
         elif self.score <= -40:
             self.recommendation = "BUSCAR VENTAS"
+
         else:
             self.recommendation = "ESPERAR"
 
@@ -72,8 +119,10 @@ class TradingIntelligence:
 
         if absolute_score >= 50:
             self.confidence = "ALTA"
+
         elif absolute_score >= 30:
             self.confidence = "MEDIA"
+
         else:
             self.confidence = "BAJA"
 

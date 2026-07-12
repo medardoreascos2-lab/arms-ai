@@ -92,13 +92,17 @@ def main():
     rsi = RSIEngine(period=14)
     rsi.calculate(close_prices)
     rsi.show()
-    market_structure = MarketStructureEngine()
-    market_structure.analyze(candles)
-    market_structure.show()
 
     atr = ATREngine(period=14)
     atr.calculate(candles)
     atr.show()
+
+    # ==============================
+    # SMART MONEY
+    # ==============================
+    market_structure = MarketStructureEngine()
+    market_structure.analyze(candles)
+    market_structure.show()
 
     # ==============================
     # TENDENCIA E INTELIGENCIA
@@ -119,6 +123,7 @@ def main():
         rsi_status=rsi.status,
         atr=atr.atr,
         atr_status=atr.status,
+        market_structure=market_structure.structure,
     )
     intelligence.show()
 
