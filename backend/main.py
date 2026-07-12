@@ -104,6 +104,7 @@ def main():
     market_structure = MarketStructureEngine()
     market_structure.analyze(candles)
     market_structure.show()
+
     bos = BOSEngine()
     bos.analyze(candles)
     bos.show()
@@ -128,6 +129,8 @@ def main():
         atr=atr.atr,
         atr_status=atr.status,
         market_structure=market_structure.structure,
+        bos_detected=bos.bos,
+        bos_direction=bos.direction,
     )
     intelligence.show()
 
@@ -136,7 +139,6 @@ def main():
         intelligence_recommendation=intelligence.recommendation
     )
     decision.show()
-
     # ==============================
     # RIESGO DINÁMICO Y NIVELES
     # ==============================

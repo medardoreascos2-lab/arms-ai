@@ -15,6 +15,8 @@ class TradingIntelligence:
         atr: float,
         atr_status: str,
         market_structure: str,
+        bos_detected: str,
+        bos_direction: str,
     ) -> str:
         self.score = 0
         self.reasons = []
@@ -81,6 +83,25 @@ class TradingIntelligence:
                 self.score += 10
                 self.reasons.append(
                     "La estructura bajista contradice la tendencia detectada."
+                )
+
+        # BOS
+        if bos_detected == "SÍ":
+            if bos_direction == "ALCISTA" and trend == "ALCISTA":
+                self.score += 15
+                self.reasons.append(
+                    "BOS alcista confirma continuación de estructura."
+                )
+
+            elif bos_direction == "BAJISTA" and trend == "BAJISTA":
+                self.score -= 15
+                self.reasons.append(
+                    "BOS bajista confirma continuación de estructura."
+                )
+
+            else:
+                self.reasons.append(
+                    "El BOS contradice la tendencia principal."
                 )
 
         # ATR
