@@ -11,6 +11,7 @@ from backend.strategy.decision_engine import DecisionEngine
 from backend.services.data_collector import DataCollector
 from backend.services.candle_manager import CandleManager
 from backend.intelligence.trading_intelligence import TradingIntelligence
+from backend.intelligence.reasoning_engine import ReasoningEngine
 from backend.intelligence.confluence_engine import ConfluenceEngine
 from backend.risk_management.dynamic_risk_engine import DynamicRiskEngine
 from backend.risk_management.trade_levels import TradeLevels
@@ -273,7 +274,40 @@ def main():
 
     
 
-     # ==============================
+    # ==============================
+    # REASONING ENGINE
+    # ==============================
+    reasoning = ReasoningEngine()
+
+    liquidity_confirmed = (
+        liquidity.sweep_detected is True
+        or str(liquidity.sweep_detected).upper() == "SÍ"
+    )
+
+    reasoning_result = reasoning.evaluate(
+        trend=trend.trend,
+        market_structure=market_structure.structure,
+        bos_direction=(
+            bos.direction
+            if str(bos.bos).upper() == "SÍ"
+            else "NINGUNA"
+        ),
+        choch_direction=(
+            choch.direction
+            if str(choch.choch).upper() == "SÍ"
+            else "NINGUNA"
+        ),
+        liquidity_confirmed=liquidity_confirmed,
+        rsi_status=rsi.status,
+        atr_status=atr.status,
+        reward_risk_ratio=2.0,
+        risk_allowed=validator.is_valid,
+        session_allowed=True,
+    )
+
+    reasoning_result.show()
+
+    # ==============================
     # PROBABILITY ENGINE
     # ==============================
     probability_engine = ProbabilityEngine()
