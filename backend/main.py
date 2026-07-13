@@ -11,6 +11,7 @@ from backend.strategy.decision_engine import DecisionEngine
 from backend.services.data_collector import DataCollector
 from backend.services.candle_manager import CandleManager
 from backend.intelligence.trading_intelligence import TradingIntelligence
+from backend.intelligence.confluence_engine import ConfluenceEngine
 from backend.risk_management.dynamic_risk_engine import DynamicRiskEngine
 from backend.risk_management.trade_levels import TradeLevels
 from backend.risk_management.trade_validator import TradeValidator
@@ -23,6 +24,7 @@ from backend.smart_money.market_structure import MarketStructureEngine
 from backend.smart_money.bos_engine import BOSEngine
 from backend.smart_money.choch_engine import CHoCHEngine
 from backend.smart_money.liquidity_engine import LiquidityEngine
+
 
 def main():
     # ==============================
@@ -99,7 +101,7 @@ def main():
     atr.calculate(candles)
     atr.show()
 
-        # ==============================
+    # ==============================
     # SMART MONEY
     # ==============================
     market_structure = MarketStructureEngine()
@@ -120,6 +122,7 @@ def main():
     liquidity = LiquidityEngine(tolerance=1.0)
     liquidity.analyze(candles)
     liquidity.show()
+
     # ==============================
     # TENDENCIA E INTELIGENCIA
     # ==============================
@@ -152,6 +155,7 @@ def main():
         intelligence_recommendation=intelligence.recommendation
     )
     decision.show()
+
     # ==============================
     # RIESGO DINÁMICO Y NIVELES
     # ==============================
@@ -191,6 +195,82 @@ def main():
     validator.show()
 
     # ==============================
+    # CONFLUENCE ENGINE
+    # ==============================
+    confluence = ConfluenceEngine()
+
+    ema_direction = (
+        "ALCISTA"
+        if current_price > ema.ema
+        else "BAJISTA"
+        if current_price < ema.ema
+        else "NEUTRAL"
+    )
+
+    liquidity_data = {
+        "sweep_detected": liquidity.sweep_detected,
+        "direction": liquidity.sweep_direction,
+    }
+
+    atr_data = {
+        "value": atr.atr,
+        "status": atr.status,
+    }
+
+    risk_data = {
+        "approved": (
+            dynamic_risk.contracts > 0
+            and dynamic_risk.risk_amount > 0
+        )
+    }
+
+    confluence_result = confluence.evaluate(
+        trend=trend.trend,
+        ema=ema_direction,
+        rsi=rsi.rsi,
+        atr=atr_data,
+        structure=market_structure.structure,
+        bos=bos.direction if bos.bos else "NEUTRAL",
+        choch=choch.direction if choch.choch else "NEUTRAL",
+        liquidity=liquidity_data,
+        risk=risk_data,
+    )
+
+    print("------ CONFLUENCE ENGINE ------")
+    print(f"Dirección: {confluence_result.direction}")
+    print(f"Puntuación: {confluence_result.score:.2f}/100")
+    print(f"Calidad: {confluence_result.grade}")
+    print(
+        "Operación aprobada:",
+        "SÍ" if confluence_result.approved else "NO",
+    )
+    print(f"Acción final: {confluence_result.action}")
+
+    print("Desglose:")
+    for component, points in confluence_result.breakdown.items():
+        print(f"- {component}: {points:.2f}")
+
+    if confluence_result.confirmations:
+        print("Confirmaciones:")
+        for confirmation in confluence_result.confirmations:
+            print(f"- {confirmation}")
+
+    if confluence_result.warnings:
+        print("Advertencias:")
+        for warning in confluence_result.warnings:
+            print(f"- {warning}")
+
+    final_authorized = (
+        validator.is_valid
+        and confluence_result.approved
+    )
+
+    final_reasons = list(validator.reasons)
+
+    if not confluence_result.approved:
+        final_reasons.extend(confluence_result.warnings)
+
+    # ==============================
     # PLAN DE OPERACIÓN
     # ==============================
     trade_plan = TradePlan(
@@ -203,8 +283,8 @@ def main():
         take_profit=trade_levels.take_profit,
         contracts=dynamic_risk.contracts,
         risk_amount=dynamic_risk.risk_amount,
-        authorized=validator.is_valid,
-        reasons=validator.reasons,
+        authorized=final_authorized,
+        reasons=final_reasons,
     )
 
     trade_plan.show()

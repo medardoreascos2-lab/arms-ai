@@ -18,9 +18,6 @@ class ConfluenceEngine:
     """
     Combina las señales de los diferentes motores de ARMS AI
     y produce una evaluación única de la oportunidad.
-
-    Esta primera versión utiliza reglas y puntuaciones.
-    Más adelante podrá incorporar estadísticas y aprendizaje.
     """
 
     MAX_SCORE = 100.0
@@ -70,7 +67,9 @@ class ConfluenceEngine:
         if trend_points == 20.0:
             confirmations.append(f"Tendencia alineada: {direction}")
         else:
-            warnings.append("La tendencia principal no está completamente alineada")
+            warnings.append(
+                "La tendencia principal no está completamente alineada"
+            )
 
         # 2. EMAs: máximo 15 puntos
         ema_points = self._score_direction_alignment(
@@ -84,7 +83,9 @@ class ConfluenceEngine:
         if ema_points == 15.0:
             confirmations.append("EMAs alineadas con la dirección")
         else:
-            warnings.append("Las EMAs no confirman completamente la operación")
+            warnings.append(
+                "Las EMAs no confirman completamente la operación"
+            )
 
         # 3. Estructura de mercado: máximo 15 puntos
         structure_points = self._score_direction_alignment(
@@ -98,7 +99,9 @@ class ConfluenceEngine:
         if structure_points == 15.0:
             confirmations.append("Estructura de mercado confirmada")
         else:
-            warnings.append("La estructura de mercado es débil o contraria")
+            warnings.append(
+                "La estructura de mercado es débil o contraria"
+            )
 
         # 4. BOS: máximo 15 puntos
         bos_points = self._score_direction_alignment(
@@ -112,7 +115,9 @@ class ConfluenceEngine:
         if bos_points == 15.0:
             confirmations.append("BOS confirmado")
         else:
-            warnings.append("No existe un BOS claro en la dirección esperada")
+            warnings.append(
+                "No existe un BOS claro en la dirección esperada"
+            )
 
         # 5. CHoCH: máximo 10 puntos
         choch_points = self._score_optional_confirmation(
@@ -126,7 +131,9 @@ class ConfluenceEngine:
         if choch_points == 10.0:
             confirmations.append("CHoCH confirmado")
         elif choch_points == 0.0:
-            warnings.append("CHoCH contrario a la dirección de la operación")
+            warnings.append(
+                "CHoCH contrario a la dirección de la operación"
+            )
 
         # 6. Liquidez: máximo 10 puntos
         liquidity_points = self._score_liquidity(
@@ -138,19 +145,28 @@ class ConfluenceEngine:
         score += liquidity_points
 
         if liquidity_points >= 8.0:
-            confirmations.append("Barrido o reacción de liquidez confirmado")
+            confirmations.append(
+                "Barrido o reacción de liquidez confirmado"
+            )
         else:
-            warnings.append("No existe confirmación suficiente de liquidez")
+            warnings.append(
+                "No existe confirmación suficiente de liquidez"
+            )
 
         # 7. RSI: máximo 5 puntos
-        rsi_points = self._score_rsi(rsi=rsi, direction=direction)
+        rsi_points = self._score_rsi(
+            rsi=rsi,
+            direction=direction,
+        )
         breakdown["rsi"] = rsi_points
         score += rsi_points
 
         if rsi_points == 5.0:
             confirmations.append("RSI favorable")
         elif rsi_points == 0.0:
-            warnings.append("RSI desfavorable o en zona extrema")
+            warnings.append(
+                "RSI desfavorable o en zona extrema"
+            )
 
         # 8. ATR / volatilidad: máximo 5 puntos
         atr_points = self._score_atr(atr)
@@ -170,7 +186,9 @@ class ConfluenceEngine:
         if risk_approved:
             confirmations.append("Gestión de riesgo aprobada")
         else:
-            warnings.append("Operación bloqueada por gestión de riesgo")
+            warnings.append(
+                "Operación bloqueada por gestión de riesgo"
+            )
 
         score = round(min(score, self.MAX_SCORE), 2)
         grade = self._calculate_grade(score)
@@ -207,7 +225,13 @@ class ConfluenceEngine:
         bullish_votes = 0
         bearish_votes = 0
 
-        values = [trend, ema, structure, bos, choch]
+        values = [
+            trend,
+            ema,
+            structure,
+            bos,
+            choch,
+        ]
 
         for value in values:
             if value == "BUY":
@@ -266,20 +290,19 @@ class ConfluenceEngine:
         if direction == "NEUTRAL":
             return 0.0
 
-        if normalized_liquidity == direction:
-            return 10.0
-
         if isinstance(liquidity, bool):
             return 10.0 if liquidity else 0.0
 
         if isinstance(liquidity, dict):
-            detected = liquidity.get(
+            detected_value = liquidity.get(
                 "sweep_detected",
                 liquidity.get(
                     "liquidity_sweep",
                     liquidity.get("detected", False),
                 ),
             )
+
+            detected = self._normalize_boolean(detected_value)
 
             liquidity_direction = self._normalize_direction(
                 liquidity.get(
@@ -288,15 +311,27 @@ class ConfluenceEngine:
                 )
             )
 
-            if detected and liquidity_direction == direction:
+            if not detected:
+                return 0.0
+
+            if liquidity_direction == direction:
                 return 10.0
 
-            if detected and liquidity_direction == "NEUTRAL":
+            if liquidity_direction == "NEUTRAL":
                 return 7.0
+
+            return 0.0
+
+        if normalized_liquidity == direction:
+            return 10.0
 
         return 0.0
 
-    def _score_rsi(self, rsi: Any, direction: str) -> float:
+    def _score_rsi(
+        self,
+        rsi: Any,
+        direction: str,
+    ) -> float:
         rsi_value = self._extract_numeric_value(
             rsi,
             keys=("value", "rsi", "current"),
@@ -333,26 +368,52 @@ class ConfluenceEngine:
             status = str(
                 atr.get(
                     "status",
-                    atr.get("volatility", atr.get("condition", "")),
+                    atr.get(
+                        "volatility",
+                        atr.get("condition", ""),
+                    ),
                 )
             ).strip().upper()
 
-            if status in {
+            normal_statuses = {
                 "NORMAL",
                 "ADEQUATE",
                 "VALID",
                 "GOOD",
                 "MEDIUM",
-                "ALTA",
+                "MEDIA",
+                "VOLATILIDAD NORMAL",
+                "VOLATILIDAD MEDIA",
+                "VOLATILIDAD ADECUADA",
+            }
+
+            low_statuses = {
+                "LOW",
+                "BAJA",
+                "VOLATILIDAD BAJA",
+            }
+
+            excessive_statuses = {
+                "EXTREME",
+                "TOO_HIGH",
+                "EXCESSIVE",
                 "HIGH",
-            }:
+                "ALTA",
+                "VOLATILIDAD ALTA",
+                "VOLATILIDAD EXTREMA",
+            }
+
+            if status in normal_statuses:
                 return 5.0
 
-            if status in {"LOW", "BAJA"}:
-                return 2.0
-
-            if status in {"EXTREME", "TOO_HIGH", "EXCESSIVE"}:
+            if status in low_statuses:
                 return 1.0
+
+            if status in excessive_statuses:
+                return 1.0
+
+            if status:
+                return 0.0
 
         atr_value = self._extract_numeric_value(
             atr,
@@ -360,29 +421,38 @@ class ConfluenceEngine:
         )
 
         if atr_value is not None and atr_value > 0:
-            return 5.0
+            return 2.5
 
         return 0.0
 
-    def _score_risk(self, risk: Any) -> tuple[float, bool]:
+    def _score_risk(
+        self,
+        risk: Any,
+    ) -> tuple[float, bool]:
         if isinstance(risk, bool):
             return (5.0, True) if risk else (0.0, False)
 
         if isinstance(risk, dict):
-            approved = bool(
+            approved_value = risk.get(
+                "approved",
                 risk.get(
-                    "approved",
+                    "is_valid",
                     risk.get(
-                        "is_valid",
-                        risk.get(
-                            "allowed",
-                            risk.get("valid", False),
-                        ),
+                        "allowed",
+                        risk.get("valid", False),
                     ),
-                )
+                ),
             )
 
-            return (5.0, True) if approved else (0.0, False)
+            approved = self._normalize_boolean(
+                approved_value
+            )
+
+            return (
+                (5.0, True)
+                if approved
+                else (0.0, False)
+            )
 
         normalized = str(risk).strip().upper()
 
@@ -392,12 +462,60 @@ class ConfluenceEngine:
             "ALLOWED",
             "OK",
             "TRUE",
+            "SI",
+            "SÍ",
         }:
             return 5.0, True
 
         return 0.0, False
 
-    def _normalize_direction(self, value: Any) -> str:
+    def _normalize_boolean(
+        self,
+        value: Any,
+    ) -> bool:
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, (int, float)):
+            return value != 0
+
+        normalized = str(value).strip().upper()
+
+        true_values = {
+            "TRUE",
+            "YES",
+            "SI",
+            "SÍ",
+            "1",
+            "DETECTED",
+            "CONFIRMED",
+            "CONFIRMADO",
+        }
+
+        false_values = {
+            "FALSE",
+            "NO",
+            "0",
+            "NONE",
+            "NINGUNO",
+            "NINGUNA",
+            "NOT_DETECTED",
+            "NO_DETECTADO",
+            "",
+        }
+
+        if normalized in true_values:
+            return True
+
+        if normalized in false_values:
+            return False
+
+        return False
+
+    def _normalize_direction(
+        self,
+        value: Any,
+    ) -> str:
         if isinstance(value, dict):
             value = value.get(
                 "direction",
@@ -407,7 +525,10 @@ class ConfluenceEngine:
                         "signal",
                         value.get(
                             "bias",
-                            value.get("action", "NEUTRAL"),
+                            value.get(
+                                "action",
+                                "NEUTRAL",
+                            ),
                         ),
                     ),
                 ),
@@ -450,22 +571,28 @@ class ConfluenceEngine:
         data: Any,
         keys: tuple[str, ...],
     ) -> float | None:
-        if isinstance(data, (int, float)) and not isinstance(data, bool):
+        if (
+            isinstance(data, (int, float))
+            and not isinstance(data, bool)
+        ):
             return float(data)
 
         if isinstance(data, dict):
             for key in keys:
                 value = data.get(key)
 
-                if isinstance(value, (int, float)) and not isinstance(
-                    value,
-                    bool,
+                if (
+                    isinstance(value, (int, float))
+                    and not isinstance(value, bool)
                 ):
                     return float(value)
 
         return None
 
-    def _calculate_grade(self, score: float) -> str:
+    def _calculate_grade(
+        self,
+        score: float,
+    ) -> str:
         if score >= 95.0:
             return "A+"
 
