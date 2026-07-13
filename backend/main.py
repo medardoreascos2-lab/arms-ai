@@ -221,10 +221,7 @@ def main():
     }
 
     risk_data = {
-        "approved": (
-            dynamic_risk.contracts > 0
-            and dynamic_risk.risk_amount > 0
-        )
+        "approved": validator.is_valid,
     }
 
     confluence_result = confluence.evaluate(
