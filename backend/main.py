@@ -24,6 +24,7 @@ from backend.smart_money.market_structure import MarketStructureEngine
 from backend.smart_money.bos_engine import BOSEngine
 from backend.smart_money.choch_engine import CHoCHEngine
 from backend.smart_money.liquidity_engine import LiquidityEngine
+from backend.intelligence.probability_engine import ProbabilityEngine
 
 
 def main():
@@ -269,6 +270,57 @@ def main():
 
     if not confluence_result.approved:
         final_reasons.extend(confluence_result.warnings)
+
+    
+
+     # ==============================
+    # PROBABILITY ENGINE
+    # ==============================
+    probability_engine = ProbabilityEngine()
+
+    probability_result = probability_engine.evaluate(
+        confluence=confluence_result,
+    )
+
+    print("------ PROBABILITY ENGINE ------")
+    print(
+        f"Probabilidad estimada: "
+        f"{probability_result.probability:.2f}%"
+    )
+    print(f"Confianza: {probability_result.confidence}")
+    print(
+        "Operación aprobada:",
+        "SÍ" if probability_result.approved else "NO",
+    )
+    print(
+        f"Recomendación final: "
+        f"{probability_result.recommendation}"
+    )
+
+    print("Ajustes:")
+    for factor, adjustment in probability_result.adjustments.items():
+        sign = "+" if adjustment > 0 else ""
+        print(f"- {factor}: {sign}{adjustment:.2f}%")
+
+    if probability_result.positive_factors:
+        print("Factores positivos:")
+        for factor in probability_result.positive_factors:
+            print(f"- {factor}")
+
+    if probability_result.negative_factors:
+        print("Factores negativos:")
+        for factor in probability_result.negative_factors:
+            print(f"- {factor}")
+
+    final_authorized = (
+        final_authorized
+        and probability_result.approved
+    )
+
+    if not probability_result.approved:
+        final_reasons.extend(
+            probability_result.negative_factors
+        )
 
     # ==============================
     # PLAN DE OPERACIÓN
