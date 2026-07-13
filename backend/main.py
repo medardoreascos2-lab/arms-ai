@@ -26,6 +26,7 @@ from backend.smart_money.bos_engine import BOSEngine
 from backend.smart_money.choch_engine import CHoCHEngine
 from backend.smart_money.liquidity_engine import LiquidityEngine
 from backend.intelligence.probability_engine import ProbabilityEngine
+from backend.intelligence.decision_council import DecisionCouncil
 
 
 def main():
@@ -355,6 +356,21 @@ def main():
         final_reasons.extend(
             probability_result.negative_factors
         )
+
+    # ==============================
+    # DECISION COUNCIL
+    # ==============================
+    council = DecisionCouncil()
+
+    council_result = council.evaluate(
+        confluence=confluence_result,
+        probability=probability_result,
+        reasoning=reasoning_result,
+        risk_allowed=validator.is_valid,
+        session_allowed=True,
+    )
+
+    council_result.show()
 
     # ==============================
     # PLAN DE OPERACIÓN
