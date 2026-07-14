@@ -28,6 +28,8 @@ from backend.smart_money.choch_engine import CHoCHEngine
 from backend.smart_money.liquidity_engine import LiquidityEngine
 from backend.intelligence.probability_engine import ProbabilityEngine
 from backend.intelligence.decision_council import DecisionCouncil
+from backend.pipeline.arms_pipeline import ArmsPipeline
+from backend.pipeline.market_stage import MarketStage
 
 
 def main():
@@ -41,42 +43,34 @@ def main():
     connector.connect()
 
     # ==============================
-    # DATOS DEL MERCADO
+    # PIPELINE: DATOS DEL MERCADO
     # ==============================
     collector = DataCollector(provider="SIMULATED")
 
-    candles = collector.get_historical_candles(
-        symbol="NASDAQ / NQ",
-        timeframe="1m",
-        limit=100,
+    pipeline = ArmsPipeline(
+        stages=[
+            MarketStage(
+                collector=collector,
+                symbol="NASDAQ / NQ",
+                timeframe="1m",
+                candle_limit=100,
+                max_candles=500,
+            ),
+        ]
     )
 
-    candle_manager = CandleManager(max_candles=500)
+    market_context = pipeline.run()
 
-    for candle in candles:
-        candle_manager.add_candle(candle)
+    candles = market_context["candles"]
+    candle_manager = market_context["candle_manager"]
+    latest_candle = market_context["latest_candle"]
+    current_price = market_context["current_price"]
+    current_volume = market_context["current_volume"]
+    market = market_context["market"]
+    feed = market_context["feed"]
 
     candle_manager.show_status()
-
-    latest_candle = candle_manager.get_latest_candle()
-
-    if latest_candle is None:
-        raise RuntimeError("No hay velas disponibles para analizar.")
-
     latest_candle.show()
-
-    current_price = latest_candle.close
-    current_volume = latest_candle.volume
-
-    market = MarketData(symbol=latest_candle.symbol)
-    market.update_price(current_price)
-
-    feed = DataFeed(symbol=latest_candle.symbol)
-    feed.update(
-        price=current_price,
-        volume=current_volume,
-        timeframe=latest_candle.timeframe,
-    )
     feed.show()
 
     # ==============================
