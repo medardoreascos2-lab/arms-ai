@@ -30,6 +30,7 @@ from backend.intelligence.probability_engine import ProbabilityEngine
 from backend.intelligence.decision_council import DecisionCouncil
 from backend.pipeline.arms_pipeline import ArmsPipeline
 from backend.pipeline.market_stage import MarketStage
+from backend.pipeline.indicator_stage import IndicatorStage
 
 
 def main():
@@ -56,18 +57,28 @@ def main():
                 candle_limit=100,
                 max_candles=500,
             ),
+            IndicatorStage(
+                ema_period=50,
+                rsi_period=14,
+                atr_period=14,
+            ),
         ]
     )
 
-    market_context = pipeline.run()
+    pipeline_context = pipeline.run()
 
-    candles = market_context["candles"]
-    candle_manager = market_context["candle_manager"]
-    latest_candle = market_context["latest_candle"]
-    current_price = market_context["current_price"]
-    current_volume = market_context["current_volume"]
-    market = market_context["market"]
-    feed = market_context["feed"]
+    candles = pipeline_context["candles"]
+    candle_manager = pipeline_context["candle_manager"]
+    latest_candle = pipeline_context["latest_candle"]
+    current_price = pipeline_context["current_price"]
+    current_volume = pipeline_context["current_volume"]
+    market = pipeline_context["market"]
+    feed = pipeline_context["feed"]
+
+    close_prices = pipeline_context["close_prices"]
+    ema = pipeline_context["ema"]
+    rsi = pipeline_context["rsi"]
+    atr = pipeline_context["atr"]
 
     candle_manager.show_status()
     latest_candle.show()
@@ -83,20 +94,10 @@ def main():
     risk.show_risk()
 
     # ==============================
-    # INDICADORES
+    # INDICADORES DESDE PIPELINE
     # ==============================
-    close_prices = candle_manager.get_close_prices()
-
-    ema = EMAEngine(period=50)
-    ema.calculate(close_prices)
     ema.show()
-
-    rsi = RSIEngine(period=14)
-    rsi.calculate(close_prices)
     rsi.show()
-
-    atr = ATREngine(period=14)
-    atr.calculate(candles)
     atr.show()
 
     # ==============================
