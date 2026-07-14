@@ -1,3 +1,4 @@
+from backend.config_settings import ArmsSettings
 from backend.connectors.market_connector import MarketConnector
 from backend.core import ArmsCore
 from backend.pipeline.arms_pipeline import ArmsPipeline
@@ -14,6 +15,8 @@ from backend.services.data_collector import DataCollector
 
 
 def main() -> None:
+    settings = ArmsSettings()
+
     arms = ArmsCore()
     arms.start()
 
@@ -21,42 +24,52 @@ def main() -> None:
     connector.connect()
 
     collector = DataCollector(
-        provider="SIMULATED",
+        provider=settings.provider,
     )
 
     pipeline = ArmsPipeline(
         stages=[
             MarketStage(
                 collector=collector,
-                symbol="NASDAQ / NQ",
-                timeframe="1m",
-                candle_limit=100,
-                max_candles=500,
+                symbol=settings.symbol,
+                timeframe=settings.timeframe,
+                candle_limit=settings.candle_limit,
+                max_candles=settings.max_candles,
             ),
             IndicatorStage(
-                ema_period=50,
-                rsi_period=14,
-                atr_period=14,
+                ema_period=settings.ema_period,
+                rsi_period=settings.rsi_period,
+                atr_period=settings.atr_period,
             ),
             SmartMoneyStage(
-                liquidity_tolerance=1.0,
+                liquidity_tolerance=(
+                    settings.liquidity_tolerance
+                ),
             ),
             IntelligenceStage(),
             RiskStage(
-                account_balance=17000,
-                risk_percent=0.5,
-                stop_atr_multiplier=1.5,
-                reward_risk_ratio=2.0,
-                point_value=2.0,
+                account_balance=settings.account_balance,
+                risk_percent=settings.risk_percent,
+                stop_atr_multiplier=(
+                    settings.stop_atr_multiplier
+                ),
+                reward_risk_ratio=(
+                    settings.reward_risk_ratio
+                ),
+                point_value=settings.point_value,
             ),
             DecisionStage(
-                reward_risk_ratio=2.0,
+                reward_risk_ratio=(
+                    settings.reward_risk_ratio
+                ),
             ),
             TradePlanStage(),
             ExecutionStage(
-                trade_log_path="data/trade_plans.jsonl",
-                simulated_log_path="data/simulated_trades.jsonl",
-                point_value=2.0,
+                trade_log_path=settings.trade_log_path,
+                simulated_log_path=(
+                    settings.simulated_log_path
+                ),
+                point_value=settings.point_value,
             ),
             ReportingStage(),
         ]
@@ -65,6 +78,7 @@ def main() -> None:
     pipeline.run(
         initial_context={
             "collector": collector,
+            "settings": settings,
         }
     )
 
