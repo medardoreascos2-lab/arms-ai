@@ -31,6 +31,7 @@ from backend.intelligence.decision_council import DecisionCouncil
 from backend.pipeline.arms_pipeline import ArmsPipeline
 from backend.pipeline.market_stage import MarketStage
 from backend.pipeline.indicator_stage import IndicatorStage
+from backend.pipeline.smart_money_stage import SmartMoneyStage
 
 
 def main():
@@ -62,6 +63,9 @@ def main():
                 rsi_period=14,
                 atr_period=14,
             ),
+            SmartMoneyStage(
+                liquidity_tolerance=1.0,
+            ),
         ]
     )
 
@@ -79,6 +83,11 @@ def main():
     ema = pipeline_context["ema"]
     rsi = pipeline_context["rsi"]
     atr = pipeline_context["atr"]
+
+    market_structure = pipeline_context["market_structure"]
+    bos = pipeline_context["bos"]
+    choch = pipeline_context["choch"]
+    liquidity = pipeline_context["liquidity"]
 
     candle_manager.show_status()
     latest_candle.show()
@@ -101,25 +110,11 @@ def main():
     atr.show()
 
     # ==============================
-    # SMART MONEY
+    # SMART MONEY DESDE PIPELINE
     # ==============================
-    market_structure = MarketStructureEngine()
-    market_structure.analyze(candles)
     market_structure.show()
-
-    bos = BOSEngine()
-    bos.analyze(candles)
     bos.show()
-
-    choch = CHoCHEngine()
-    choch.analyze(
-        candles=candles,
-        market_structure=market_structure.structure,
-    )
     choch.show()
-
-    liquidity = LiquidityEngine(tolerance=1.0)
-    liquidity.analyze(candles)
     liquidity.show()
 
     # ==============================
