@@ -7,9 +7,11 @@ class TradePlanFactory:
     Convierte el resultado unificado del Decision Council
     en un TradePlan compatible con el resto del sistema.
 
-    Regla de seguridad:
-    si el Council no aprueba la operación, el plan se crea
-    sin contratos ni niveles ejecutables.
+    Reglas:
+    - Si la operación está aprobada, conserva motivos positivos.
+    - Si la operación está bloqueada, conserva únicamente
+      bloqueos y advertencias.
+    - Un plan bloqueado nunca mantiene contratos ni niveles.
     """
 
     def create(
@@ -58,13 +60,17 @@ class TradePlanFactory:
         self,
         council_result: DecisionCouncilResult,
     ) -> list[str]:
+        if council_result.approved:
+            source_items = council_result.reasons
+        else:
+            source_items = (
+                council_result.blockers
+                + council_result.warnings
+            )
+
         reasons: list[str] = []
 
-        for item in (
-            council_result.reasons
-            + council_result.blockers
-            + council_result.warnings
-        ):
+        for item in source_items:
             if item and item not in reasons:
                 reasons.append(item)
 
