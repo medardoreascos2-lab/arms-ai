@@ -32,6 +32,8 @@ from backend.pipeline.arms_pipeline import ArmsPipeline
 from backend.pipeline.market_stage import MarketStage
 from backend.pipeline.indicator_stage import IndicatorStage
 from backend.pipeline.smart_money_stage import SmartMoneyStage
+from backend.pipeline.intelligence_stage import IntelligenceStage
+from backend.pipeline.risk_stage import RiskStage
 
 
 def main():
@@ -66,6 +68,14 @@ def main():
             SmartMoneyStage(
                 liquidity_tolerance=1.0,
             ),
+            IntelligenceStage(),
+            RiskStage(
+                account_balance=17000,
+                risk_percent=0.5,
+                stop_atr_multiplier=1.5,
+                reward_risk_ratio=2.0,
+                point_value=2.0,
+            ),
         ]
     )
 
@@ -89,17 +99,22 @@ def main():
     choch = pipeline_context["choch"]
     liquidity = pipeline_context["liquidity"]
 
+    trend = pipeline_context["trend"]
+    intelligence = pipeline_context["intelligence"]
+    decision = pipeline_context["decision"]
+
+    risk = pipeline_context["risk_manager"]
+    dynamic_risk = pipeline_context["dynamic_risk"]
+    trade_levels = pipeline_context["trade_levels"]
+    validator = pipeline_context["validator"]
+
     candle_manager.show_status()
     latest_candle.show()
     feed.show()
 
     # ==============================
-    # RIESGO BASE
+    # RIESGO BASE DESDE PIPELINE
     # ==============================
-    risk = RiskManager(
-        account_balance=17000,
-        risk_percent=0.5,
-    )
     risk.show_risk()
 
     # ==============================
@@ -118,74 +133,17 @@ def main():
     liquidity.show()
 
     # ==============================
-    # TENDENCIA E INTELIGENCIA
+    # INTELIGENCIA DESDE PIPELINE
     # ==============================
-    trend = TrendAnalyzer()
-    trend.analyze(
-        current_price=current_price,
-        ema50=ema.ema,
-    )
     trend.show()
-
-    intelligence = TradingIntelligence()
-    intelligence.analyze(
-        trend=trend.trend,
-        current_price=current_price,
-        ema=ema.ema,
-        rsi=rsi.rsi,
-        rsi_status=rsi.status,
-        atr=atr.atr,
-        atr_status=atr.status,
-        market_structure=market_structure.structure,
-        bos_detected=bos.bos,
-        bos_direction=bos.direction,
-        choch_detected=choch.choch,
-        choch_direction=choch.direction,
-    )
     intelligence.show()
-
-    decision = DecisionEngine()
-    decision.analyze(
-        intelligence_recommendation=intelligence.recommendation
-    )
     decision.show()
 
     # ==============================
-    # RIESGO DINÁMICO Y NIVELES
+    # RIESGO Y VALIDACIÓN DESDE PIPELINE
     # ==============================
-    dynamic_risk = DynamicRiskEngine(
-        account_balance=17000,
-        risk_percent=0.5,
-        stop_atr_multiplier=1.5,
-        reward_risk_ratio=2.0,
-    )
-
-    dynamic_risk.calculate(
-        atr=atr.atr,
-        point_value=2.0,
-    )
     dynamic_risk.show()
-
-    trade_levels = TradeLevels()
-    trade_levels.calculate(
-        direction=decision.decision,
-        entry_price=current_price,
-        stop_distance=dynamic_risk.stop_distance,
-        take_profit_distance=dynamic_risk.take_profit_distance,
-    )
     trade_levels.show()
-
-    # ==============================
-    # VALIDACIÓN
-    # ==============================
-    validator = TradeValidator()
-    validator.validate(
-        decision=decision.decision,
-        confidence=intelligence.confidence,
-        contracts=dynamic_risk.contracts,
-        rsi_status=rsi.status,
-        atr_status=atr.status,
-    )
     validator.show()
 
     # ==============================
