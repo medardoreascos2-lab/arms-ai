@@ -7,6 +7,9 @@ from backend.models.reasoning_result import ReasoningResult
 class DecisionCouncil:
     """
     Coordina los motores de ARMS AI y emite una única decisión final.
+
+    Aunque una operación sea bloqueada por riesgo o sesión,
+    conserva los diagnósticos técnicos para explicar la decisión.
     """
 
     def evaluate(
@@ -24,16 +27,61 @@ class DecisionCouncil:
             reasoning_score=reasoning.quality_score,
         )
 
+        # ==============================
+        # CONSERVAR DIAGNÓSTICOS
+        # ==============================
+        self._extend_unique(
+            result.reasons,
+            confluence.confirmations,
+        )
+        self._extend_unique(
+            result.reasons,
+            probability.positive_factors,
+        )
+        self._extend_unique(
+            result.reasons,
+            reasoning.reasons,
+        )
+
+        self._extend_unique(
+            result.warnings,
+            confluence.warnings,
+        )
+        self._extend_unique(
+            result.warnings,
+            probability.negative_factors,
+        )
+
+        self._extend_unique(
+            result.blockers,
+            reasoning.blockers,
+        )
+
+        # ==============================
+        # BLOQUEOS OBLIGATORIOS
+        # ==============================
         if not risk_allowed:
-            result.blockers.append("Riesgo no autorizado.")
+            self._append_unique(
+                result.blockers,
+                "Riesgo no autorizado.",
+            )
 
         if not session_allowed:
-            result.blockers.append("Sesión no autorizada.")
+            self._append_unique(
+                result.blockers,
+                "Sesión no autorizada.",
+            )
 
-        if result.blockers:
-            result.votes_against += len(result.blockers)
+        if not risk_allowed or not session_allowed:
+            result.votes_against = max(
+                1,
+                len(result.blockers),
+            )
             return result
 
+        # ==============================
+        # NORMALIZAR DIRECCIONES
+        # ==============================
         confluence_direction = self._normalize_direction(
             confluence.direction
         )
@@ -54,16 +102,21 @@ class DecisionCouncil:
             if direction != "NEUTRAL"
         }
 
+        # ==============================
+        # CONFLICTO DE DIRECCIÓN
+        # ==============================
         if len(directions) > 1:
-            result.blockers.append(
-                "Conflicto de dirección entre motores."
+            self._append_unique(
+                result.blockers,
+                "Conflicto de dirección entre motores.",
             )
             result.votes_against += 1
             return result
 
         if not directions:
-            result.blockers.append(
-                "No existe una dirección operativa clara."
+            self._append_unique(
+                result.blockers,
+                "No existe una dirección operativa clara.",
             )
             result.votes_against += 1
             return result
@@ -71,26 +124,23 @@ class DecisionCouncil:
         direction = directions.pop()
         result.direction = direction
 
+        # ==============================
+        # VOTACIÓN DE LOS MOTORES
+        # ==============================
         if confluence.approved:
             result.votes_for += 1
-            result.reasons.extend(confluence.confirmations)
         else:
             result.votes_against += 1
-            result.warnings.extend(confluence.warnings)
 
         if probability.approved:
             result.votes_for += 1
-            result.reasons.extend(probability.positive_factors)
         else:
             result.votes_against += 1
-            result.warnings.extend(probability.negative_factors)
 
         if reasoning.authorized:
             result.votes_for += 1
-            result.reasons.extend(reasoning.reasons)
         else:
             result.votes_against += 1
-            result.blockers.extend(reasoning.blockers)
 
         approved = (
             result.votes_for == 3
@@ -103,6 +153,9 @@ class DecisionCouncil:
         if not approved:
             return result
 
+        # ==============================
+        # DECISIÓN FINAL
+        # ==============================
         result.approved = True
         result.action = direction
         result.grade = self._calculate_grade(
@@ -112,6 +165,22 @@ class DecisionCouncil:
         )
 
         return result
+
+    def _append_unique(
+        self,
+        target: list[str],
+        item: str,
+    ) -> None:
+        if item and item not in target:
+            target.append(item)
+
+    def _extend_unique(
+        self,
+        target: list[str],
+        items: list[str],
+    ) -> None:
+        for item in items:
+            self._append_unique(target, item)
 
     def _normalize_direction(self, value: str) -> str:
         normalized = str(value).strip().upper()

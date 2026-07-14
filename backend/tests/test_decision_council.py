@@ -153,3 +153,54 @@ def test_decision_council_rejects_direction_conflict():
     assert result.action == "NO_TRADE"
     assert result.votes_against >= 1
     assert "Conflicto de dirección entre motores." in result.blockers
+
+
+def test_decision_council_preserves_diagnostics_when_risk_blocks_trade():
+    council = DecisionCouncil()
+
+    confluence = ConfluenceResult(
+        score=71.0,
+        grade="C",
+        action="NO_TRADE",
+        direction="BUY",
+        approved=False,
+        confirmations=["Tendencia alineada."],
+        warnings=["No existe confirmación de liquidez."],
+        breakdown={},
+    )
+
+    probability = ProbabilityResult(
+        probability=23.0,
+        confidence="BAJA",
+        approved=False,
+        recommendation="NO_TRADE",
+        positive_factors=["Estructura confirmada."],
+        negative_factors=["Volatilidad inadecuada."],
+        adjustments={},
+    )
+
+    reasoning = ReasoningResult(
+        direction="COMPRA",
+        grade="A",
+        buy_score=70,
+        sell_score=15,
+        quality_score=70,
+        confidence="MEDIA",
+        authorized=False,
+        reasons=["Sesgo técnico comprador."],
+        blockers=["Volatilidad insuficiente."],
+    )
+
+    result = council.evaluate(
+        confluence=confluence,
+        probability=probability,
+        reasoning=reasoning,
+        risk_allowed=False,
+        session_allowed=True,
+    )
+
+    assert result.approved is False
+    assert "Riesgo no autorizado." in result.blockers
+    assert "Volatilidad insuficiente." in result.blockers
+    assert "No existe confirmación de liquidez." in result.warnings
+    assert "Volatilidad inadecuada." in result.warnings
