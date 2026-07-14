@@ -1,22 +1,25 @@
 from typing import Any
 
+from backend.backtesting.statistics_engine import StatisticsEngine
 from backend.models.backtest_result import BacktestResult
 from backend.models.candle import Candle
 
 
 class BacktestEngine:
     """
-    Primera versión del motor de backtesting.
-
-    Recorre todas las velas recibidas, ejecuta la pipeline
-    una vez por vela y acumula estadísticas básicas.
+    Ejecuta una pipeline sobre una secuencia de velas históricas
+    y acumula señales, operaciones y métricas de rendimiento.
     """
 
     def __init__(
         self,
         pipeline: Any,
+        statistics_engine: StatisticsEngine | None = None,
     ) -> None:
         self.pipeline = pipeline
+        self.statistics_engine = (
+            statistics_engine or StatisticsEngine()
+        )
 
     def run(
         self,
@@ -30,6 +33,8 @@ class BacktestEngine:
         result = BacktestResult(
             total_candles=len(candles),
         )
+
+        pnls: list[float] = []
 
         for candle in candles:
             pipeline_context = self.pipeline.run(
@@ -47,7 +52,25 @@ class BacktestEngine:
 
             if bool(trade_plan.authorized):
                 result.authorized_trades += 1
+
+                simulated_trade = pipeline_context.get(
+                    "simulated_trade"
+                )
+
+                if simulated_trade is not None:
+                    pnl = getattr(
+                        simulated_trade,
+                        "pnl",
+                        None,
+                    )
+
+                    if isinstance(pnl, (int, float)):
+                        pnls.append(float(pnl))
             else:
                 result.blocked_signals += 1
+
+        result.statistics = (
+            self.statistics_engine.calculate(pnls)
+        )
 
         return result

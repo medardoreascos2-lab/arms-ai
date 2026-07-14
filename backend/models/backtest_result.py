@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from backend.models.backtest_statistics import BacktestStatistics
 
 
 @dataclass
@@ -7,6 +9,9 @@ class BacktestResult:
     total_signals: int = 0
     authorized_trades: int = 0
     blocked_signals: int = 0
+    statistics: BacktestStatistics = field(
+        default_factory=BacktestStatistics
+    )
 
     def show(self) -> None:
         print("------ BACKTEST RESULT ------")
@@ -14,3 +19,5 @@ class BacktestResult:
         print(f"Señales evaluadas: {self.total_signals}")
         print(f"Operaciones autorizadas: {self.authorized_trades}")
         print(f"Señales bloqueadas: {self.blocked_signals}")
+
+        self.statistics.show()
