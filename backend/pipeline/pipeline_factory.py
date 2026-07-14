@@ -5,6 +5,7 @@ from backend.pipeline.execution_stage import ExecutionStage
 from backend.pipeline.indicator_stage import IndicatorStage
 from backend.pipeline.intelligence_stage import IntelligenceStage
 from backend.pipeline.market_stage import MarketStage
+from backend.pipeline.pipeline_mode import PipelineMode
 from backend.pipeline.reporting_stage import ReportingStage
 from backend.pipeline.risk_stage import RiskStage
 from backend.pipeline.smart_money_stage import SmartMoneyStage
@@ -14,8 +15,9 @@ from backend.services.data_collector import DataCollector
 
 class PipelineFactory:
     """
-    Construye la pipeline completa de ARMS AI a partir
-    de la configuración central y el colector de datos.
+    Construye pipelines de ARMS AI según el modo de ejecución.
+
+    Por ahora solo SIMULATION está implementado.
     """
 
     def __init__(
@@ -26,7 +28,21 @@ class PipelineFactory:
         self.settings = settings
         self.collector = collector
 
-    def create(self) -> ArmsPipeline:
+    def create(
+        self,
+        mode: PipelineMode = PipelineMode.SIMULATION,
+    ) -> ArmsPipeline:
+        if not isinstance(mode, PipelineMode):
+            mode = PipelineMode(mode)
+
+        if mode is PipelineMode.SIMULATION:
+            return self._create_simulation_pipeline()
+
+        raise NotImplementedError(
+            f"El modo {mode.value} todavía no está implementado."
+        )
+
+    def _create_simulation_pipeline(self) -> ArmsPipeline:
         settings = self.settings
 
         return ArmsPipeline(
