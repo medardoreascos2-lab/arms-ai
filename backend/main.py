@@ -36,6 +36,7 @@ from backend.pipeline.intelligence_stage import IntelligenceStage
 from backend.pipeline.risk_stage import RiskStage
 from backend.pipeline.decision_stage import DecisionStage
 from backend.pipeline.trade_plan_stage import TradePlanStage
+from backend.pipeline.execution_stage import ExecutionStage
 
 
 def main():
@@ -82,10 +83,19 @@ def main():
                 reward_risk_ratio=2.0,
             ),
             TradePlanStage(),
+            ExecutionStage(
+                trade_log_path="data/trade_plans.jsonl",
+                simulated_log_path="data/simulated_trades.jsonl",
+                point_value=2.0,
+            ),
         ]
     )
 
-    pipeline_context = pipeline.run()
+    pipeline_context = pipeline.run(
+        initial_context={
+            "collector": collector,
+        }
+    )
 
     candles = pipeline_context["candles"]
     candle_manager = pipeline_context["candle_manager"]
@@ -119,6 +129,13 @@ def main():
     probability_result = pipeline_context["probability_result"]
     council_result = pipeline_context["council_result"]
     trade_plan = pipeline_context["trade_plan"]
+
+    logger = pipeline_context["trade_logger"]
+    history_analyzer = pipeline_context["history_analyzer"]
+    simulated_trade = pipeline_context["simulated_trade"]
+    simulated_trade_logger = pipeline_context[
+        "simulated_trade_logger"
+    ]
 
     candle_manager.show_status()
     latest_candle.show()
@@ -225,46 +242,16 @@ def main():
     trade_plan.show()
 
     # ==============================
-    # REGISTRO DEL PLAN
+    # EJECUCIÓN DESDE PIPELINE
     # ==============================
-    logger = TradeLogger(
-        file_path="data/trade_plans.jsonl"
-    )
-    logger.save(trade_plan)
     logger.show_confirmation()
-
-    history_analyzer = PlanHistoryAnalyzer(
-        file_path="data/trade_plans.jsonl"
-    )
-    history_analyzer.analyze()
     history_analyzer.show()
-
-    # ==============================
-    # SIMULACIÓN DE EJECUCIÓN
-    # ==============================
-    simulator = ExecutionSimulator(
-        point_value=2.0
-    )
-
-    next_candle = collector.get_latest_candle(
-        symbol=latest_candle.symbol,
-        timeframe=latest_candle.timeframe,
-    )
-
-    simulated_trade = simulator.execute(
-        trade_plan=trade_plan,
-        next_candle=next_candle,
-    )
 
     if simulated_trade is not None:
         simulated_trade.show()
 
-        simulated_trade_logger = SimulatedTradeLogger(
-            file_path="data/simulated_trades.jsonl"
-        )
-
-        simulated_trade_logger.save(simulated_trade)
-        simulated_trade_logger.show_confirmation()
+        if simulated_trade_logger is not None:
+            simulated_trade_logger.show_confirmation()
 
 
 if __name__ == "__main__":
