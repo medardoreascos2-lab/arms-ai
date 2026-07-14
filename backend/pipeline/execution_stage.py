@@ -84,6 +84,7 @@ class ExecutionStage:
                 "trade_logger": logger,
                 "history_analyzer": history_analyzer,
                 "execution_simulator": simulator,
+                "execution_status": simulator.status_message,
                 "simulated_trade": simulated_trade,
                 "simulated_trade_logger": simulated_trade_logger,
             }

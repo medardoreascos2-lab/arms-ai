@@ -34,6 +34,8 @@ class ReportingStage:
         "trade_plan",
         "trade_logger",
         "history_analyzer",
+        "execution_simulator",
+        "execution_status",
         "simulated_trade",
         "simulated_trade_logger",
     )
@@ -74,6 +76,7 @@ class ReportingStage:
         trade_plan = context["trade_plan"]
         trade_logger = context["trade_logger"]
         history_analyzer = context["history_analyzer"]
+        execution_status = context["execution_status"]
         simulated_trade = context["simulated_trade"]
         simulated_trade_logger = context["simulated_trade_logger"]
 
@@ -152,11 +155,16 @@ class ReportingStage:
         # ==============================
         # SIMULACIÓN
         # ==============================
+        print("------ EXECUTION SIMULATOR ------")
+
         if simulated_trade is not None:
             simulated_trade.show()
 
             if simulated_trade_logger is not None:
                 simulated_trade_logger.show_confirmation()
+
+        elif execution_status:
+            print(execution_status)
 
         return context
 

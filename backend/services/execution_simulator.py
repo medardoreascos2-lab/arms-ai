@@ -13,15 +13,19 @@ class ExecutionSimulator:
             )
 
         self.point_value = point_value
+        self.status_message: str | None = None
 
     def execute(
         self,
         trade_plan: TradePlan,
         next_candle: Candle,
     ) -> SimulatedTrade | None:
+        self.status_message = None
+
         if not trade_plan.authorized:
-            print("------ EXECUTION SIMULATOR ------")
-            print("Operación no ejecutada: plan no autorizado.")
+            self.status_message = (
+                "Operación no ejecutada: plan no autorizado."
+            )
             return None
 
         if (
@@ -38,7 +42,10 @@ class ExecutionSimulator:
         result = "SIN RESULTADO"
         exit_price = next_candle.close
 
-        if trade_plan.decision == "BUSCAR COMPRAS":
+        if trade_plan.decision in {
+            "BUY",
+            "BUSCAR COMPRAS",
+        }:
             if next_candle.low <= trade_plan.stop_loss:
                 result = "STOP LOSS"
                 exit_price = trade_plan.stop_loss
@@ -53,7 +60,10 @@ class ExecutionSimulator:
 
             points = exit_price - trade_plan.entry_price
 
-        elif trade_plan.decision == "BUSCAR VENTAS":
+        elif trade_plan.decision in {
+            "SELL",
+            "BUSCAR VENTAS",
+        }:
             if next_candle.high >= trade_plan.stop_loss:
                 result = "STOP LOSS"
                 exit_price = trade_plan.stop_loss
@@ -69,8 +79,9 @@ class ExecutionSimulator:
             points = trade_plan.entry_price - exit_price
 
         else:
-            print("------ EXECUTION SIMULATOR ------")
-            print("Operación no ejecutada: decisión ESPERAR.")
+            self.status_message = (
+                "Operación no ejecutada: decisión no operativa."
+            )
             return None
 
         pnl = (
