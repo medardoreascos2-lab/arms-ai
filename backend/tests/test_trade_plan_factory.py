@@ -36,10 +36,11 @@ def test_factory_builds_authorized_buy_trade_plan():
     assert trade_plan.confidence == "MUY ALTA"
     assert trade_plan.authorized is True
     assert trade_plan.contracts == 2
+    assert trade_plan.entry_price == 21624.50
     assert "Configuración A+." in trade_plan.reasons
 
 
-def test_factory_builds_blocked_trade_plan():
+def test_factory_builds_safe_blocked_trade_plan():
     factory = TradePlanFactory()
 
     council_result = DecisionCouncilResult(
@@ -72,5 +73,10 @@ def test_factory_builds_blocked_trade_plan():
     assert trade_plan.decision == "NO_TRADE"
     assert trade_plan.confidence == "BAJA"
     assert trade_plan.authorized is False
+    assert trade_plan.contracts == 0
+    assert trade_plan.entry_price is None
+    assert trade_plan.stop_loss is None
+    assert trade_plan.take_profit is None
+    assert trade_plan.risk_amount == 0.0
     assert "Riesgo no autorizado." in trade_plan.reasons
     assert "Volatilidad insuficiente." in trade_plan.reasons

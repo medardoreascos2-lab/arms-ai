@@ -21,6 +21,7 @@ from backend.services.trade_logger import TradeLogger
 from backend.services.plan_history_analyzer import PlanHistoryAnalyzer
 from backend.services.execution_simulator import ExecutionSimulator
 from backend.services.simulated_trade_logger import SimulatedTradeLogger
+from backend.services.trade_plan_factory import TradePlanFactory
 from backend.smart_money.market_structure import MarketStructureEngine
 from backend.smart_money.bos_engine import BOSEngine
 from backend.smart_money.choch_engine import CHoCHEngine
@@ -372,18 +373,17 @@ def main():
     # ==============================
     # PLAN DE OPERACIÓN
     # ==============================
-    trade_plan = TradePlan(
+    trade_plan_factory = TradePlanFactory()
+
+    trade_plan = trade_plan_factory.create(
         symbol=latest_candle.symbol,
         timeframe=latest_candle.timeframe,
-        decision=decision.decision,
-        confidence=intelligence.confidence,
+        council_result=council_result,
         entry_price=trade_levels.entry_price,
         stop_loss=trade_levels.stop_loss,
         take_profit=trade_levels.take_profit,
         contracts=dynamic_risk.contracts,
         risk_amount=dynamic_risk.risk_amount,
-        authorized=final_authorized,
-        reasons=final_reasons,
     )
 
     trade_plan.show()

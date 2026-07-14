@@ -6,6 +6,10 @@ class TradePlanFactory:
     """
     Convierte el resultado unificado del Decision Council
     en un TradePlan compatible con el resto del sistema.
+
+    Regla de seguridad:
+    si el Council no aprueba la operación, el plan se crea
+    sin contratos ni niveles ejecutables.
     """
 
     def create(
@@ -21,6 +25,21 @@ class TradePlanFactory:
     ) -> TradePlan:
         reasons = self._build_reasons(council_result)
 
+        if not council_result.approved:
+            return TradePlan(
+                symbol=symbol,
+                timeframe=timeframe,
+                decision="NO_TRADE",
+                confidence=council_result.confidence,
+                entry_price=None,
+                stop_loss=None,
+                take_profit=None,
+                contracts=0,
+                risk_amount=0.0,
+                authorized=False,
+                reasons=reasons,
+            )
+
         return TradePlan(
             symbol=symbol,
             timeframe=timeframe,
@@ -31,7 +50,7 @@ class TradePlanFactory:
             take_profit=take_profit,
             contracts=contracts,
             risk_amount=risk_amount,
-            authorized=council_result.approved,
+            authorized=True,
             reasons=reasons,
         )
 
