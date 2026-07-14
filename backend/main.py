@@ -35,6 +35,7 @@ from backend.pipeline.smart_money_stage import SmartMoneyStage
 from backend.pipeline.intelligence_stage import IntelligenceStage
 from backend.pipeline.risk_stage import RiskStage
 from backend.pipeline.decision_stage import DecisionStage
+from backend.pipeline.trade_plan_stage import TradePlanStage
 
 
 def main():
@@ -80,6 +81,7 @@ def main():
             DecisionStage(
                 reward_risk_ratio=2.0,
             ),
+            TradePlanStage(),
         ]
     )
 
@@ -116,6 +118,7 @@ def main():
     reasoning_result = pipeline_context["reasoning_result"]
     probability_result = pipeline_context["probability_result"]
     council_result = pipeline_context["council_result"]
+    trade_plan = pipeline_context["trade_plan"]
 
     candle_manager.show_status()
     latest_candle.show()
@@ -217,21 +220,8 @@ def main():
     council_result.show()
 
     # ==============================
-    # PLAN DE OPERACIÓN
+    # PLAN DE OPERACIÓN DESDE PIPELINE
     # ==============================
-    trade_plan_factory = TradePlanFactory()
-
-    trade_plan = trade_plan_factory.create(
-        symbol=latest_candle.symbol,
-        timeframe=latest_candle.timeframe,
-        council_result=council_result,
-        entry_price=trade_levels.entry_price,
-        stop_loss=trade_levels.stop_loss,
-        take_profit=trade_levels.take_profit,
-        contracts=dynamic_risk.contracts,
-        risk_amount=dynamic_risk.risk_amount,
-    )
-
     trade_plan.show()
 
     # ==============================
