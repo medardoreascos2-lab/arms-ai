@@ -1,0 +1,70 @@
+from backend.config_settings import ArmsSettings
+from backend.pipeline.arms_pipeline import ArmsPipeline
+from backend.pipeline.pipeline_factory import PipelineFactory
+from backend.services.data_collector import DataCollector
+
+
+def test_pipeline_factory_builds_complete_pipeline():
+    settings = ArmsSettings()
+
+    collector = DataCollector(
+        provider=settings.provider,
+    )
+
+    factory = PipelineFactory(
+        settings=settings,
+        collector=collector,
+    )
+
+    pipeline = factory.create()
+
+    assert isinstance(pipeline, ArmsPipeline)
+    assert len(pipeline.stages) == 9
+
+    stage_names = [
+        stage.__class__.__name__
+        for stage in pipeline.stages
+    ]
+
+    assert stage_names == [
+        "MarketStage",
+        "IndicatorStage",
+        "SmartMoneyStage",
+        "IntelligenceStage",
+        "RiskStage",
+        "DecisionStage",
+        "TradePlanStage",
+        "ExecutionStage",
+        "ReportingStage",
+    ]
+
+
+def test_pipeline_factory_uses_settings_values():
+    settings = ArmsSettings(
+        symbol="ES",
+        timeframe="5m",
+        candle_limit=60,
+        max_candles=200,
+        account_balance=25000,
+        risk_percent=1.0,
+    )
+
+    collector = DataCollector(
+        provider=settings.provider,
+    )
+
+    pipeline = PipelineFactory(
+        settings=settings,
+        collector=collector,
+    ).create()
+
+    market_stage = pipeline.stages[0]
+    risk_stage = pipeline.stages[4]
+
+    assert market_stage.symbol == "ES"
+    assert market_stage.timeframe == "5m"
+    assert market_stage.candle_limit == 60
+    assert market_stage.max_candles == 200
+
+    assert risk_stage.account_balance == 25000
+    assert risk_stage.risk_percent == 1.0
