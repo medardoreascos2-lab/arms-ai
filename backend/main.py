@@ -34,6 +34,7 @@ from backend.pipeline.indicator_stage import IndicatorStage
 from backend.pipeline.smart_money_stage import SmartMoneyStage
 from backend.pipeline.intelligence_stage import IntelligenceStage
 from backend.pipeline.risk_stage import RiskStage
+from backend.pipeline.decision_stage import DecisionStage
 
 
 def main():
@@ -76,6 +77,9 @@ def main():
                 reward_risk_ratio=2.0,
                 point_value=2.0,
             ),
+            DecisionStage(
+                reward_risk_ratio=2.0,
+            ),
         ]
     )
 
@@ -107,6 +111,11 @@ def main():
     dynamic_risk = pipeline_context["dynamic_risk"]
     trade_levels = pipeline_context["trade_levels"]
     validator = pipeline_context["validator"]
+
+    confluence_result = pipeline_context["confluence_result"]
+    reasoning_result = pipeline_context["reasoning_result"]
+    probability_result = pipeline_context["probability_result"]
+    council_result = pipeline_context["council_result"]
 
     candle_manager.show_status()
     latest_candle.show()
@@ -147,44 +156,8 @@ def main():
     validator.show()
 
     # ==============================
-    # CONFLUENCE ENGINE
+    # DECISIÓN DESDE PIPELINE
     # ==============================
-    confluence = ConfluenceEngine()
-
-    ema_direction = (
-        "ALCISTA"
-        if current_price > ema.ema
-        else "BAJISTA"
-        if current_price < ema.ema
-        else "NEUTRAL"
-    )
-
-    liquidity_data = {
-        "sweep_detected": liquidity.sweep_detected,
-        "direction": liquidity.sweep_direction,
-    }
-
-    atr_data = {
-        "value": atr.atr,
-        "status": atr.status,
-    }
-
-    risk_data = {
-        "approved": validator.is_valid,
-    }
-
-    confluence_result = confluence.evaluate(
-        trend=trend.trend,
-        ema=ema_direction,
-        rsi=rsi.rsi,
-        atr=atr_data,
-        structure=market_structure.structure,
-        bos=bos.direction if bos.bos else "NEUTRAL",
-        choch=choch.direction if choch.choch else "NEUTRAL",
-        liquidity=liquidity_data,
-        risk=risk_data,
-    )
-
     print("------ CONFLUENCE ENGINE ------")
     print(f"Dirección: {confluence_result.direction}")
     print(f"Puntuación: {confluence_result.score:.2f}/100")
@@ -209,59 +182,7 @@ def main():
         for warning in confluence_result.warnings:
             print(f"- {warning}")
 
-    final_authorized = (
-        validator.is_valid
-        and confluence_result.approved
-    )
-
-    final_reasons = list(validator.reasons)
-
-    if not confluence_result.approved:
-        final_reasons.extend(confluence_result.warnings)
-
-    
-
-    # ==============================
-    # REASONING ENGINE
-    # ==============================
-    reasoning = ReasoningEngine()
-
-    liquidity_confirmed = (
-        liquidity.sweep_detected is True
-        or str(liquidity.sweep_detected).upper() == "SÍ"
-    )
-
-    reasoning_result = reasoning.evaluate(
-        trend=trend.trend,
-        market_structure=market_structure.structure,
-        bos_direction=(
-            bos.direction
-            if str(bos.bos).upper() == "SÍ"
-            else "NINGUNA"
-        ),
-        choch_direction=(
-            choch.direction
-            if str(choch.choch).upper() == "SÍ"
-            else "NINGUNA"
-        ),
-        liquidity_confirmed=liquidity_confirmed,
-        rsi_status=rsi.status,
-        atr_status=atr.status,
-        reward_risk_ratio=2.0,
-        risk_allowed=validator.is_valid,
-        session_allowed=True,
-    )
-
     reasoning_result.show()
-
-    # ==============================
-    # PROBABILITY ENGINE
-    # ==============================
-    probability_engine = ProbabilityEngine()
-
-    probability_result = probability_engine.evaluate(
-        confluence=confluence_result,
-    )
 
     print("------ PROBABILITY ENGINE ------")
     print(
@@ -292,29 +213,6 @@ def main():
         print("Factores negativos:")
         for factor in probability_result.negative_factors:
             print(f"- {factor}")
-
-    final_authorized = (
-        final_authorized
-        and probability_result.approved
-    )
-
-    if not probability_result.approved:
-        final_reasons.extend(
-            probability_result.negative_factors
-        )
-
-    # ==============================
-    # DECISION COUNCIL
-    # ==============================
-    council = DecisionCouncil()
-
-    council_result = council.evaluate(
-        confluence=confluence_result,
-        probability=probability_result,
-        reasoning=reasoning_result,
-        risk_allowed=validator.is_valid,
-        session_allowed=True,
-    )
 
     council_result.show()
 
