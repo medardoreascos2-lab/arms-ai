@@ -1,5 +1,9 @@
+from pathlib import Path
 from typing import Any
 
+from backend.backtesting.historical_data_loader import (
+    HistoricalDataLoader,
+)
 from backend.backtesting.statistics_engine import StatisticsEngine
 from backend.models.backtest_result import BacktestResult
 from backend.models.candle import Candle
@@ -7,18 +11,22 @@ from backend.models.candle import Candle
 
 class BacktestEngine:
     """
-    Ejecuta una pipeline sobre una secuencia de velas históricas
-    y acumula señales, operaciones y métricas de rendimiento.
+    Ejecuta una pipeline sobre velas históricas y acumula
+    señales, operaciones y métricas de rendimiento.
     """
 
     def __init__(
         self,
         pipeline: Any,
         statistics_engine: StatisticsEngine | None = None,
+        historical_data_loader: Any | None = None,
     ) -> None:
         self.pipeline = pipeline
         self.statistics_engine = (
             statistics_engine or StatisticsEngine()
+        )
+        self.historical_data_loader = (
+            historical_data_loader or HistoricalDataLoader()
         )
 
     def run(
@@ -74,3 +82,15 @@ class BacktestEngine:
         )
 
         return result
+
+    def run_from_csv(
+        self,
+        file_path: str | Path,
+    ) -> BacktestResult:
+        candles = self.historical_data_loader.load_csv(
+            file_path=file_path,
+        )
+
+        return self.run(
+            candles=candles,
+        )

@@ -175,3 +175,61 @@ def test_backtest_engine_rejects_empty_candle_list():
         match="candles",
     ):
         engine.run(candles=[])
+
+
+from backend.backtesting.historical_data_loader import HistoricalDataLoader
+
+
+def test_backtest_engine_runs_from_csv(tmp_path):
+    file_path = tmp_path / "candles.csv"
+
+    file_path.write_text(
+        "\n".join(
+            [
+                (
+                    "timestamp,symbol,timeframe,open,high,"
+                    "low,close,volume"
+                ),
+                (
+                    "2026-01-01T09:30:00,TEST,1m,"
+                    "100.0,101.0,99.5,100.5,1000"
+                ),
+                (
+                    "2026-01-01T09:31:00,TEST,1m,"
+                    "100.5,102.0,100.0,101.5,1200"
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    pipeline = DummyPipeline()
+    engine = BacktestEngine(pipeline=pipeline)
+
+    result = engine.run_from_csv(
+        file_path=file_path,
+    )
+
+    assert result.total_candles == 2
+    assert result.total_signals == 2
+    assert pipeline.calls == 2
+
+
+def test_backtest_engine_accepts_custom_loader(tmp_path):
+    class DummyLoader:
+        def load_csv(self, file_path):
+            return build_candles(3)
+
+    pipeline = DummyPipeline()
+
+    engine = BacktestEngine(
+        pipeline=pipeline,
+        historical_data_loader=DummyLoader(),
+    )
+
+    result = engine.run_from_csv(
+        file_path=tmp_path / "ignored.csv",
+    )
+
+    assert result.total_candles == 3
+    assert pipeline.calls == 3
