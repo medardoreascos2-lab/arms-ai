@@ -62,6 +62,7 @@ class BacktestMarketStage:
 
         market = MarketData(
             symbol=latest_candle.symbol,
+            verbose=False,
         )
         market.update_price(current_price)
 
