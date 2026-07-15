@@ -13,7 +13,7 @@ class BacktestEngine:
     """
     Ejecuta una pipeline sobre ventanas históricas crecientes,
     usa la vela siguiente para simular operaciones y acumula
-    estadísticas y operaciones ejecutadas.
+    estadísticas, trades y curva de equity.
     """
 
     def __init__(
@@ -22,10 +22,16 @@ class BacktestEngine:
         statistics_engine: StatisticsEngine | None = None,
         historical_data_loader: Any | None = None,
         minimum_candles: int = 1,
+        initial_balance: float = 17000.0,
     ) -> None:
         if minimum_candles <= 0:
             raise ValueError(
                 "minimum_candles debe ser mayor que cero."
+            )
+
+        if initial_balance <= 0:
+            raise ValueError(
+                "initial_balance debe ser mayor que cero."
             )
 
         self.pipeline = pipeline
@@ -36,6 +42,7 @@ class BacktestEngine:
             historical_data_loader or HistoricalDataLoader()
         )
         self.minimum_candles = minimum_candles
+        self.initial_balance = float(initial_balance)
 
     def run(
         self,
@@ -48,6 +55,7 @@ class BacktestEngine:
 
         result = BacktestResult(
             total_candles=len(candles),
+            initial_balance=self.initial_balance,
         )
 
         pnls: list[float] = []
@@ -104,7 +112,11 @@ class BacktestEngine:
             )
 
             if isinstance(pnl, (int, float)):
-                pnls.append(float(pnl))
+                pnl_value = float(pnl)
+                pnls.append(pnl_value)
+                result.equity_curve.add_trade(
+                    pnl=pnl_value,
+                )
 
         result.statistics = (
             self.statistics_engine.calculate(pnls)

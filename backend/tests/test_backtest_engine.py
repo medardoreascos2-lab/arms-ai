@@ -418,3 +418,84 @@ def test_backtest_result_show_includes_trade_count(capsys):
     output = capsys.readouterr().out
 
     assert "Operaciones registradas: 0" in output
+
+
+def test_backtest_result_contains_equity_curve():
+    from backend.backtesting.equity_curve import EquityCurve
+    from backend.models.backtest_result import BacktestResult
+
+    result = BacktestResult(
+        initial_balance=17000.0,
+    )
+
+    assert isinstance(
+        result.equity_curve,
+        EquityCurve,
+    )
+    assert result.equity_curve.balance == 17000.0
+
+
+def test_backtest_engine_builds_equity_curve_from_trades():
+    pipeline = DummyPipelineWithPnls(
+        pnls=[
+            100.0,
+            -50.0,
+            25.0,
+        ]
+    )
+
+    engine = BacktestEngine(
+        pipeline=pipeline,
+        minimum_candles=1,
+        initial_balance=17000.0,
+    )
+
+    result = engine.run(
+        candles=build_candles(4),
+    )
+
+    assert result.equity_curve.balance == 17075.0
+
+    assert [
+        point.balance
+        for point in result.equity_curve.points
+    ] == [
+        17100.0,
+        17050.0,
+        17075.0,
+    ]
+
+
+def test_backtest_engine_tracks_equity_drawdown():
+    pipeline = DummyPipelineWithPnls(
+        pnls=[
+            100.0,
+            -150.0,
+            200.0,
+        ]
+    )
+
+    engine = BacktestEngine(
+        pipeline=pipeline,
+        minimum_candles=1,
+        initial_balance=1000.0,
+    )
+
+    result = engine.run(
+        candles=build_candles(4),
+    )
+
+    assert result.equity_curve.balance == 1150.0
+    assert result.equity_curve.peak_balance == 1150.0
+    assert result.equity_curve.max_drawdown == 150.0
+
+
+def test_backtest_engine_rejects_invalid_initial_balance():
+    with pytest.raises(
+        ValueError,
+        match="initial_balance",
+    ):
+        BacktestEngine(
+            pipeline=DummyPipeline(),
+            initial_balance=0,
+        )
