@@ -2,6 +2,9 @@ from pathlib import Path
 import sys
 
 from backend.backtesting.backtest_engine import BacktestEngine
+from backend.backtesting.equity_curve_exporter import (
+    EquityCurveExporter,
+)
 from backend.backtesting.trade_journal_exporter import (
     TradeJournalExporter,
 )
@@ -22,7 +25,9 @@ def main(
     if not arguments:
         raise SystemExit(
             "Uso: py -m backend.backtesting.run_backtest "
-            "<archivo.csv> [--journal archivo.csv]"
+            "<archivo.csv> "
+            "[--journal archivo.csv] "
+            "[--equity archivo.csv]"
         )
 
     file_path = Path(arguments[0])
@@ -35,6 +40,9 @@ def main(
     journal_path = Path(
         "data/reports/trade_journal.csv"
     )
+    equity_path = Path(
+        "data/reports/equity_curve.csv"
+    )
 
     if "--journal" in arguments:
         index = arguments.index("--journal")
@@ -43,10 +51,22 @@ def main(
             journal_path = Path(
                 arguments[index + 1]
             )
-        except IndexError:
+        except IndexError as error:
             raise SystemExit(
                 "Falta la ruta del journal."
+            ) from error
+
+    if "--equity" in arguments:
+        index = arguments.index("--equity")
+
+        try:
+            equity_path = Path(
+                arguments[index + 1]
             )
+        except IndexError as error:
+            raise SystemExit(
+                "Falta la ruta de la curva de equity."
+            ) from error
 
     settings = ArmsSettings()
 
@@ -57,9 +77,16 @@ def main(
         mode=PipelineMode.BACKTEST,
     )
 
+    minimum_candles = max(
+        settings.ema_period,
+        settings.rsi_period + 1,
+        settings.atr_period + 1,
+    )
+
     engine = BacktestEngine(
         pipeline=pipeline,
-        minimum_candles=50,
+        minimum_candles=minimum_candles,
+        initial_balance=settings.account_balance,
     )
 
     result = engine.run_from_csv(
@@ -71,6 +98,11 @@ def main(
     TradeJournalExporter().export_csv(
         trades=result.trades,
         file_path=journal_path,
+    )
+
+    EquityCurveExporter().export_csv(
+        equity_curve=result.equity_curve,
+        file_path=equity_path,
     )
 
 

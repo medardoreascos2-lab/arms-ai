@@ -43,6 +43,7 @@ def test_run_backtest_accepts_existing_file(tmp_path, monkeypatch):
 
     class DummyResult:
         trades = []
+        equity_curve = object()
 
         def show(self):
             print("BACKTEST OK")
@@ -52,9 +53,11 @@ def test_run_backtest_accepts_existing_file(tmp_path, monkeypatch):
             self,
             pipeline,
             minimum_candles,
+            initial_balance,
         ):
             self.pipeline = pipeline
             self.minimum_candles = minimum_candles
+            self.initial_balance = initial_balance
 
         def run_from_csv(self, file_path):
             assert Path(file_path).exists()
@@ -64,6 +67,19 @@ def test_run_backtest_accepts_existing_file(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "backend.backtesting.run_backtest.BacktestEngine",
         DummyEngine,
+    )
+
+    class DummyEquityExporter:
+        def export_csv(
+            self,
+            equity_curve,
+            file_path,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.EquityCurveExporter",
+        DummyEquityExporter,
     )
 
     main([str(file_path)])
@@ -106,6 +122,7 @@ def test_run_backtest_builds_backtest_pipeline(
 
     class DummyResult:
         trades = []
+        equity_curve = object()
 
         def show(self):
             pass
@@ -115,9 +132,11 @@ def test_run_backtest_builds_backtest_pipeline(
             self,
             pipeline,
             minimum_candles,
+            initial_balance,
         ):
             captured["pipeline"] = pipeline
             captured["minimum_candles"] = minimum_candles
+            captured["initial_balance"] = initial_balance
 
         def run_from_csv(self, file_path):
             return DummyResult()
@@ -129,6 +148,19 @@ def test_run_backtest_builds_backtest_pipeline(
     monkeypatch.setattr(
         "backend.backtesting.run_backtest.BacktestEngine",
         DummyEngine,
+    )
+
+    class DummyEquityExporter:
+        def export_csv(
+            self,
+            equity_curve,
+            file_path,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.EquityCurveExporter",
+        DummyEquityExporter,
     )
 
     main([str(file_path)])
@@ -165,6 +197,7 @@ def test_run_backtest_exports_trade_journal(
 
     class DummyResult:
         trades = [object()]
+        equity_curve = object()
 
         def show(self):
             pass
@@ -174,6 +207,7 @@ def test_run_backtest_exports_trade_journal(
             self,
             pipeline,
             minimum_candles,
+            initial_balance,
         ):
             pass
 
@@ -192,6 +226,19 @@ def test_run_backtest_exports_trade_journal(
     monkeypatch.setattr(
         "backend.backtesting.run_backtest.TradeJournalExporter",
         DummyExporter,
+    )
+
+    class DummyEquityExporter:
+        def export_csv(
+            self,
+            equity_curve,
+            file_path,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.EquityCurveExporter",
+        DummyEquityExporter,
     )
 
     main(
@@ -232,6 +279,7 @@ def test_run_backtest_uses_default_journal_path(
 
     class DummyResult:
         trades = []
+        equity_curve = object()
 
         def show(self):
             pass
@@ -241,6 +289,7 @@ def test_run_backtest_uses_default_journal_path(
             self,
             pipeline,
             minimum_candles,
+            initial_balance,
         ):
             pass
 
@@ -260,8 +309,178 @@ def test_run_backtest_uses_default_journal_path(
         DummyExporter,
     )
 
+    class DummyEquityExporter:
+        def export_csv(
+            self,
+            equity_curve,
+            file_path,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.EquityCurveExporter",
+        DummyEquityExporter,
+    )
+
     main([str(file_path)])
 
     assert str(captured["file_path"]).replace("\\", "/") == (
         "data/reports/trade_journal.csv"
+    )
+
+
+def test_run_backtest_exports_equity_curve(
+    tmp_path,
+    monkeypatch,
+):
+    file_path = tmp_path / "candles.csv"
+    equity_path = tmp_path / "reports" / "equity.csv"
+
+    file_path.write_text(
+        "\n".join(
+            [
+                (
+                    "timestamp,symbol,timeframe,open,high,"
+                    "low,close,volume"
+                ),
+                (
+                    "2026-01-01T09:30:00,TEST,1m,"
+                    "100.0,101.0,99.5,100.5,1000"
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    captured = {}
+
+    class DummyResult:
+        trades = []
+        equity_curve = object()
+
+        def show(self):
+            pass
+
+    class DummyEngine:
+        def __init__(
+            self,
+            pipeline,
+            minimum_candles,
+            initial_balance,
+        ):
+            pass
+
+        def run_from_csv(self, file_path):
+            return DummyResult()
+
+    class DummyJournalExporter:
+        def export_csv(self, trades, file_path):
+            pass
+
+    class DummyEquityExporter:
+        def export_csv(
+            self,
+            equity_curve,
+            file_path,
+        ):
+            captured["equity_curve"] = equity_curve
+            captured["file_path"] = file_path
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestEngine",
+        DummyEngine,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.TradeJournalExporter",
+        DummyJournalExporter,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.EquityCurveExporter",
+        DummyEquityExporter,
+    )
+
+    main(
+        [
+            str(file_path),
+            "--equity",
+            str(equity_path),
+        ]
+    )
+
+    assert captured["equity_curve"] is DummyResult.equity_curve
+    assert captured["file_path"] == equity_path
+
+
+def test_run_backtest_uses_default_equity_path(
+    tmp_path,
+    monkeypatch,
+):
+    file_path = tmp_path / "candles.csv"
+
+    file_path.write_text(
+        "\n".join(
+            [
+                (
+                    "timestamp,symbol,timeframe,open,high,"
+                    "low,close,volume"
+                ),
+                (
+                    "2026-01-01T09:30:00,TEST,1m,"
+                    "100.0,101.0,99.5,100.5,1000"
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    captured = {}
+
+    class DummyResult:
+        trades = []
+        equity_curve = object()
+
+        def show(self):
+            pass
+
+    class DummyEngine:
+        def __init__(
+            self,
+            pipeline,
+            minimum_candles,
+            initial_balance,
+        ):
+            pass
+
+        def run_from_csv(self, file_path):
+            return DummyResult()
+
+    class DummyJournalExporter:
+        def export_csv(self, trades, file_path):
+            pass
+
+    class DummyEquityExporter:
+        def export_csv(
+            self,
+            equity_curve,
+            file_path,
+        ):
+            captured["file_path"] = file_path
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestEngine",
+        DummyEngine,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.TradeJournalExporter",
+        DummyJournalExporter,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.EquityCurveExporter",
+        DummyEquityExporter,
+    )
+
+    main([str(file_path)])
+
+    assert str(captured["file_path"]).replace("\\", "/") == (
+        "data/reports/equity_curve.csv"
     )
