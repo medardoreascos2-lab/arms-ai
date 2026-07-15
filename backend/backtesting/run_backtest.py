@@ -2,6 +2,9 @@ from pathlib import Path
 import sys
 
 from backend.backtesting.backtest_engine import BacktestEngine
+from backend.backtesting.backtest_summary_exporter import (
+    BacktestSummaryExporter,
+)
 from backend.backtesting.equity_curve_exporter import (
     EquityCurveExporter,
 )
@@ -27,7 +30,8 @@ def main(
             "Uso: py -m backend.backtesting.run_backtest "
             "<archivo.csv> "
             "[--journal archivo.csv] "
-            "[--equity archivo.csv]"
+            "[--equity archivo.csv] "
+            "[--summary archivo.json]"
         )
 
     file_path = Path(arguments[0])
@@ -42,6 +46,9 @@ def main(
     )
     equity_path = Path(
         "data/reports/equity_curve.csv"
+    )
+    summary_path = Path(
+        "data/reports/backtest_summary.json"
     )
 
     if "--journal" in arguments:
@@ -66,6 +73,18 @@ def main(
         except IndexError as error:
             raise SystemExit(
                 "Falta la ruta de la curva de equity."
+            ) from error
+
+    if "--summary" in arguments:
+        index = arguments.index("--summary")
+
+        try:
+            summary_path = Path(
+                arguments[index + 1]
+            )
+        except IndexError as error:
+            raise SystemExit(
+                "Falta la ruta del resumen."
             ) from error
 
     settings = ArmsSettings()
@@ -103,6 +122,14 @@ def main(
     EquityCurveExporter().export_csv(
         equity_curve=result.equity_curve,
         file_path=equity_path,
+    )
+
+    BacktestSummaryExporter().export_json(
+        result=result,
+        file_path=summary_path,
+        source_file=file_path,
+        journal_path=journal_path,
+        equity_path=equity_path,
     )
 
 
