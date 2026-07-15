@@ -367,3 +367,54 @@ def test_backtest_engine_does_not_evaluate_last_candle_without_future_data():
 
     assert pipeline.contexts == []
     assert result.total_signals == 0
+
+
+def test_backtest_engine_collects_simulated_trades():
+    pipeline = DummyPipelineWithPnls(
+        pnls=[
+            100.0,
+            -50.0,
+            25.0,
+        ]
+    )
+
+    engine = BacktestEngine(
+        pipeline=pipeline,
+        minimum_candles=1,
+    )
+
+    result = engine.run(
+        candles=build_candles(4),
+    )
+
+    assert len(result.trades) == 3
+    assert [trade.pnl for trade in result.trades] == [
+        100.0,
+        -50.0,
+        25.0,
+    ]
+
+
+def test_backtest_result_defaults_to_empty_trade_list():
+    from backend.models.backtest_result import BacktestResult
+
+    result = BacktestResult()
+
+    assert result.trades == []
+
+
+def test_backtest_result_show_includes_trade_count(capsys):
+    from backend.models.backtest_result import BacktestResult
+
+    result = BacktestResult(
+        total_candles=10,
+        total_signals=4,
+        authorized_trades=2,
+        blocked_signals=2,
+    )
+
+    result.show()
+
+    output = capsys.readouterr().out
+
+    assert "Operaciones registradas: 0" in output

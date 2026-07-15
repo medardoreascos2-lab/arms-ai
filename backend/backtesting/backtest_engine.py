@@ -11,8 +11,9 @@ from backend.models.candle import Candle
 
 class BacktestEngine:
     """
-    Ejecuta una pipeline sobre ventanas históricas crecientes
-    y usa la vela siguiente para simular la operación.
+    Ejecuta una pipeline sobre ventanas históricas crecientes,
+    usa la vela siguiente para simular operaciones y acumula
+    estadísticas y operaciones ejecutadas.
     """
 
     def __init__(
@@ -72,31 +73,38 @@ class BacktestEngine:
                 }
             )
 
-            trade_plan = pipeline_context.get("trade_plan")
+            trade_plan = pipeline_context.get(
+                "trade_plan"
+            )
 
             if trade_plan is None:
                 continue
 
             result.total_signals += 1
 
-            if bool(trade_plan.authorized):
-                result.authorized_trades += 1
-
-                simulated_trade = pipeline_context.get(
-                    "simulated_trade"
-                )
-
-                if simulated_trade is not None:
-                    pnl = getattr(
-                        simulated_trade,
-                        "pnl",
-                        None,
-                    )
-
-                    if isinstance(pnl, (int, float)):
-                        pnls.append(float(pnl))
-            else:
+            if not bool(trade_plan.authorized):
                 result.blocked_signals += 1
+                continue
+
+            result.authorized_trades += 1
+
+            simulated_trade = pipeline_context.get(
+                "simulated_trade"
+            )
+
+            if simulated_trade is None:
+                continue
+
+            result.trades.append(simulated_trade)
+
+            pnl = getattr(
+                simulated_trade,
+                "pnl",
+                None,
+            )
+
+            if isinstance(pnl, (int, float)):
+                pnls.append(float(pnl))
 
         result.statistics = (
             self.statistics_engine.calculate(pnls)

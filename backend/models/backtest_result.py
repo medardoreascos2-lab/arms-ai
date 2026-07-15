@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Any
 
 from backend.models.backtest_statistics import BacktestStatistics
 
@@ -9,6 +10,9 @@ class BacktestResult:
     total_signals: int = 0
     authorized_trades: int = 0
     blocked_signals: int = 0
+    trades: list[Any] = field(
+        default_factory=list
+    )
     statistics: BacktestStatistics = field(
         default_factory=BacktestStatistics
     )
@@ -19,5 +23,6 @@ class BacktestResult:
         print(f"Señales evaluadas: {self.total_signals}")
         print(f"Operaciones autorizadas: {self.authorized_trades}")
         print(f"Señales bloqueadas: {self.blocked_signals}")
+        print(f"Operaciones registradas: {len(self.trades)}")
 
         self.statistics.show()
