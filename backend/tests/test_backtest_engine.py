@@ -233,3 +233,76 @@ def test_backtest_engine_accepts_custom_loader(tmp_path):
 
     assert result.total_candles == 3
     assert pipeline.calls == 3
+
+
+class WindowTrackingPipeline:
+    def __init__(self):
+        self.windows: list[list[Candle]] = []
+
+    def run(self, initial_context=None):
+        window = list(
+            initial_context["backtest_candles"]
+        )
+        self.windows.append(window)
+
+        return {
+            "trade_plan": type(
+                "TradePlanStub",
+                (),
+                {
+                    "authorized": False,
+                    "decision": "NO_TRADE",
+                },
+            )(),
+            "simulated_trade": None,
+        }
+
+
+def test_backtest_engine_sends_growing_windows():
+    pipeline = WindowTrackingPipeline()
+
+    engine = BacktestEngine(
+        pipeline=pipeline,
+        minimum_candles=3,
+    )
+
+    candles = build_candles(5)
+
+    result = engine.run(candles=candles)
+
+    assert len(pipeline.windows) == 3
+
+    assert pipeline.windows[0] == candles[:3]
+    assert pipeline.windows[1] == candles[:4]
+    assert pipeline.windows[2] == candles[:5]
+
+    assert result.total_candles == 5
+    assert result.total_signals == 3
+
+
+def test_backtest_engine_skips_insufficient_history():
+    pipeline = WindowTrackingPipeline()
+
+    engine = BacktestEngine(
+        pipeline=pipeline,
+        minimum_candles=10,
+    )
+
+    result = engine.run(
+        candles=build_candles(5),
+    )
+
+    assert pipeline.windows == []
+    assert result.total_candles == 5
+    assert result.total_signals == 0
+
+
+def test_backtest_engine_rejects_invalid_minimum_candles():
+    with pytest.raises(
+        ValueError,
+        match="minimum_candles",
+    ):
+        BacktestEngine(
+            pipeline=WindowTrackingPipeline(),
+            minimum_candles=0,
+        )
