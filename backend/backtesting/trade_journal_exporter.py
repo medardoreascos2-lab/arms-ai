@@ -31,6 +31,7 @@ class TradeJournalExporter:
         file_path: str | Path,
     ) -> Path:
         path = Path(file_path)
+
         path.parent.mkdir(
             parents=True,
             exist_ok=True,
@@ -69,15 +70,15 @@ class TradeJournalExporter:
             None,
         )
 
-        duration_seconds = None
+        duration_seconds = ""
 
-        if (
-            opened_at is not None
-            and closed_at is not None
-        ):
-            duration_seconds = (
-                closed_at - opened_at
-            ).total_seconds()
+        if opened_at is not None and closed_at is not None:
+            duration_seconds = round(
+                (
+                    closed_at - opened_at
+                ).total_seconds(),
+                2,
+            )
 
         return {
             "opened_at": (
@@ -105,25 +106,33 @@ class TradeJournalExporter:
                 "direction",
                 "",
             ),
-            "entry_price": getattr(
-                trade,
-                "entry_price",
-                "",
+            "entry_price": self._round_value(
+                getattr(
+                    trade,
+                    "entry_price",
+                    "",
+                )
             ),
-            "stop_loss": getattr(
-                trade,
-                "stop_loss",
-                "",
+            "stop_loss": self._round_value(
+                getattr(
+                    trade,
+                    "stop_loss",
+                    "",
+                )
             ),
-            "take_profit": getattr(
-                trade,
-                "take_profit",
-                "",
+            "take_profit": self._round_value(
+                getattr(
+                    trade,
+                    "take_profit",
+                    "",
+                )
             ),
-            "exit_price": getattr(
-                trade,
-                "exit_price",
-                "",
+            "exit_price": self._round_value(
+                getattr(
+                    trade,
+                    "exit_price",
+                    "",
+                )
             ),
             "result": getattr(
                 trade,
@@ -135,19 +144,28 @@ class TradeJournalExporter:
                 "contracts",
                 "",
             ),
-            "point_value": getattr(
-                trade,
-                "point_value",
-                "",
+            "point_value": self._round_value(
+                getattr(
+                    trade,
+                    "point_value",
+                    "",
+                )
             ),
-            "pnl": getattr(
-                trade,
-                "pnl",
-                "",
+            "pnl": self._round_value(
+                getattr(
+                    trade,
+                    "pnl",
+                    "",
+                )
             ),
-            "duration_seconds": (
-                duration_seconds
-                if duration_seconds is not None
-                else ""
-            ),
+            "duration_seconds": duration_seconds,
         }
+
+    def _round_value(
+        self,
+        value: Any,
+    ) -> Any:
+        if isinstance(value, (int, float)):
+            return round(float(value), 2)
+
+        return value

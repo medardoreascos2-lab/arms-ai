@@ -50,6 +50,9 @@ def build_candle(
 def test_backtest_execution_stage_executes_authorized_plan():
     context = {
         "trade_plan": TradePlanStub(),
+        "backtest_candle": build_candle(
+            close=100.0,
+        ),
         "backtest_next_candle": build_candle(
             high=104.5,
             low=99.0,
@@ -79,6 +82,9 @@ def test_backtest_execution_stage_blocks_unauthorized_plan():
             take_profit=None,
             contracts=0,
         ),
+        "backtest_candle": build_candle(
+            close=100.0,
+        ),
         "backtest_next_candle": build_candle(),
     }
 
@@ -94,6 +100,9 @@ def test_backtest_execution_stage_blocks_unauthorized_plan():
 def test_backtest_execution_stage_preserves_context():
     context = {
         "trade_plan": TradePlanStub(),
+        "backtest_candle": build_candle(
+            close=100.0,
+        ),
         "backtest_next_candle": build_candle(),
         "session_allowed": True,
     }
@@ -121,5 +130,8 @@ def test_backtest_execution_stage_requires_next_candle():
         BacktestExecutionStage().run(
             {
                 "trade_plan": TradePlanStub(),
+                "backtest_candle": build_candle(
+                    close=100.0,
+                ),
             }
         )
