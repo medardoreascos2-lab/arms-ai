@@ -1,5 +1,8 @@
 from backend.config_settings import ArmsSettings
 from backend.pipeline.arms_pipeline import ArmsPipeline
+from backend.pipeline.backtest_execution_stage import (
+    BacktestExecutionStage,
+)
 from backend.pipeline.backtest_market_stage import BacktestMarketStage
 from backend.pipeline.decision_stage import DecisionStage
 from backend.pipeline.execution_stage import ExecutionStage
@@ -64,9 +67,7 @@ class PipelineFactory:
                 *self._create_analysis_stages(),
                 ExecutionStage(
                     trade_log_path=settings.trade_log_path,
-                    simulated_log_path=(
-                        settings.simulated_log_path
-                    ),
+                    simulated_log_path=settings.simulated_log_path,
                     point_value=settings.point_value,
                 ),
                 ReportingStage(),
@@ -82,6 +83,9 @@ class PipelineFactory:
                     max_candles=settings.max_candles,
                 ),
                 *self._create_analysis_stages(),
+                BacktestExecutionStage(
+                    point_value=settings.point_value,
+                ),
             ]
         )
 
@@ -95,26 +99,18 @@ class PipelineFactory:
                 atr_period=settings.atr_period,
             ),
             SmartMoneyStage(
-                liquidity_tolerance=(
-                    settings.liquidity_tolerance
-                ),
+                liquidity_tolerance=settings.liquidity_tolerance,
             ),
             IntelligenceStage(),
             RiskStage(
                 account_balance=settings.account_balance,
                 risk_percent=settings.risk_percent,
-                stop_atr_multiplier=(
-                    settings.stop_atr_multiplier
-                ),
-                reward_risk_ratio=(
-                    settings.reward_risk_ratio
-                ),
+                stop_atr_multiplier=settings.stop_atr_multiplier,
+                reward_risk_ratio=settings.reward_risk_ratio,
                 point_value=settings.point_value,
             ),
             DecisionStage(
-                reward_risk_ratio=(
-                    settings.reward_risk_ratio
-                ),
+                reward_risk_ratio=settings.reward_risk_ratio,
             ),
             TradePlanStage(),
         ]

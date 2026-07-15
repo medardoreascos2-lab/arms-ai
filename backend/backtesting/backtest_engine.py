@@ -12,7 +12,7 @@ from backend.models.candle import Candle
 class BacktestEngine:
     """
     Ejecuta una pipeline sobre ventanas históricas crecientes
-    y acumula señales, operaciones y métricas de rendimiento.
+    y usa la vela siguiente para simular la operación.
     """
 
     def __init__(
@@ -51,7 +51,7 @@ class BacktestEngine:
 
         pnls: list[float] = []
 
-        if len(candles) < self.minimum_candles:
+        if len(candles) <= self.minimum_candles:
             result.statistics = (
                 self.statistics_engine.calculate(pnls)
             )
@@ -59,14 +59,16 @@ class BacktestEngine:
 
         for end_index in range(
             self.minimum_candles,
-            len(candles) + 1,
+            len(candles),
         ):
             historical_window = candles[:end_index]
+            next_candle = candles[end_index]
 
             pipeline_context = self.pipeline.run(
                 initial_context={
                     "backtest_candles": historical_window,
                     "backtest_candle": historical_window[-1],
+                    "backtest_next_candle": next_candle,
                 }
             )
 

@@ -103,9 +103,9 @@ def test_backtest_engine_processes_all_candles():
         candles=build_candles(10),
     )
 
-    assert pipeline.calls == 10
+    assert pipeline.calls == 9
     assert result.total_candles == 10
-    assert result.total_signals == 10
+    assert result.total_signals == 9
 
 
 def test_backtest_engine_counts_authorized_trades():
@@ -116,7 +116,7 @@ def test_backtest_engine_counts_authorized_trades():
         candles=build_candles(6),
     )
 
-    assert result.authorized_trades == 3
+    assert result.authorized_trades == 2
     assert result.blocked_signals == 3
 
 
@@ -140,17 +140,17 @@ def test_backtest_engine_calculates_statistics_from_pnls():
 
     statistics = result.statistics
 
-    assert result.authorized_trades == 4
-    assert statistics.total_trades == 4
+    assert result.authorized_trades == 3
+    assert statistics.total_trades == 3
     assert statistics.winning_trades == 2
-    assert statistics.losing_trades == 2
-    assert statistics.net_profit == 175.0
-    assert statistics.win_rate == 50.0
+    assert statistics.losing_trades == 1
+    assert statistics.net_profit == 200.0
+    assert statistics.win_rate == 66.67
     assert statistics.profit_factor == pytest.approx(
-        250.0 / 75.0,
+        5.0,
         rel=1e-2,
     )
-    assert statistics.expectancy == 43.75
+    assert statistics.expectancy == 66.67
 
 
 def test_backtest_engine_ignores_missing_simulated_trade():
@@ -161,7 +161,7 @@ def test_backtest_engine_ignores_missing_simulated_trade():
         candles=build_candles(4),
     )
 
-    assert result.authorized_trades == 2
+    assert result.authorized_trades == 1
     assert result.statistics.total_trades == 0
     assert result.statistics.net_profit == 0.0
 
@@ -211,8 +211,8 @@ def test_backtest_engine_runs_from_csv(tmp_path):
     )
 
     assert result.total_candles == 2
-    assert result.total_signals == 2
-    assert pipeline.calls == 2
+    assert result.total_signals == 1
+    assert pipeline.calls == 1
 
 
 def test_backtest_engine_accepts_custom_loader(tmp_path):
@@ -232,7 +232,7 @@ def test_backtest_engine_accepts_custom_loader(tmp_path):
     )
 
     assert result.total_candles == 3
-    assert pipeline.calls == 3
+    assert pipeline.calls == 2
 
 
 class WindowTrackingPipeline:
@@ -270,14 +270,13 @@ def test_backtest_engine_sends_growing_windows():
 
     result = engine.run(candles=candles)
 
-    assert len(pipeline.windows) == 3
+    assert len(pipeline.windows) == 2
 
     assert pipeline.windows[0] == candles[:3]
     assert pipeline.windows[1] == candles[:4]
-    assert pipeline.windows[2] == candles[:5]
 
     assert result.total_candles == 5
-    assert result.total_signals == 3
+    assert result.total_signals == 2
 
 
 def test_backtest_engine_skips_insufficient_history():
@@ -306,3 +305,65 @@ def test_backtest_engine_rejects_invalid_minimum_candles():
             pipeline=WindowTrackingPipeline(),
             minimum_candles=0,
         )
+
+
+class NextCandleTrackingPipeline:
+    def __init__(self):
+        self.contexts = []
+
+    def run(self, initial_context=None):
+        self.contexts.append(initial_context)
+
+        return {
+            "trade_plan": type(
+                "TradePlanStub",
+                (),
+                {
+                    "authorized": False,
+                    "decision": "NO_TRADE",
+                },
+            )(),
+            "simulated_trade": None,
+        }
+
+
+def test_backtest_engine_passes_next_candle():
+    pipeline = NextCandleTrackingPipeline()
+
+    engine = BacktestEngine(
+        pipeline=pipeline,
+        minimum_candles=3,
+    )
+
+    candles = build_candles(5)
+
+    result = engine.run(candles=candles)
+
+    assert len(pipeline.contexts) == 2
+
+    first_context = pipeline.contexts[0]
+    second_context = pipeline.contexts[1]
+
+    assert first_context["backtest_candles"] == candles[:3]
+    assert first_context["backtest_next_candle"] == candles[3]
+
+    assert second_context["backtest_candles"] == candles[:4]
+    assert second_context["backtest_next_candle"] == candles[4]
+
+    assert result.total_signals == 2
+
+
+def test_backtest_engine_does_not_evaluate_last_candle_without_future_data():
+    pipeline = NextCandleTrackingPipeline()
+
+    engine = BacktestEngine(
+        pipeline=pipeline,
+        minimum_candles=3,
+    )
+
+    candles = build_candles(3)
+
+    result = engine.run(candles=candles)
+
+    assert pipeline.contexts == []
+    assert result.total_signals == 0

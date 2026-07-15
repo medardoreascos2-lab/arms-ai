@@ -114,6 +114,7 @@ def test_pipeline_factory_builds_backtest_pipeline_without_collector():
         "RiskStage",
         "DecisionStage",
         "TradePlanStage",
+        "BacktestExecutionStage",
     ]
 
 
@@ -152,3 +153,30 @@ def test_simulation_pipeline_requires_collector():
         factory.create(
             mode=PipelineMode.SIMULATION,
         )
+
+
+def test_backtest_pipeline_includes_execution_stage():
+    settings = ArmsSettings()
+
+    pipeline = PipelineFactory(
+        settings=settings,
+        collector=None,
+    ).create(
+        mode=PipelineMode.BACKTEST,
+    )
+
+    stage_names = [
+        stage.__class__.__name__
+        for stage in pipeline.stages
+    ]
+
+    assert stage_names == [
+        "BacktestMarketStage",
+        "IndicatorStage",
+        "SmartMoneyStage",
+        "IntelligenceStage",
+        "RiskStage",
+        "DecisionStage",
+        "TradePlanStage",
+        "BacktestExecutionStage",
+    ]
