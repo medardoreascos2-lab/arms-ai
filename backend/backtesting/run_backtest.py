@@ -1,7 +1,10 @@
-import sys
 from pathlib import Path
+import sys
 
 from backend.backtesting.backtest_engine import BacktestEngine
+from backend.backtesting.trade_journal_exporter import (
+    TradeJournalExporter,
+)
 from backend.config_settings import ArmsSettings
 from backend.pipeline.pipeline_factory import PipelineFactory
 from backend.pipeline.pipeline_mode import PipelineMode
@@ -19,7 +22,7 @@ def main(
     if not arguments:
         raise SystemExit(
             "Uso: py -m backend.backtesting.run_backtest "
-            "<archivo.csv>"
+            "<archivo.csv> [--journal archivo.csv]"
         )
 
     file_path = Path(arguments[0])
@@ -28,6 +31,22 @@ def main(
         raise FileNotFoundError(
             f"No existe el archivo: {file_path}"
         )
+
+    journal_path = Path(
+        "data/reports/trade_journal.csv"
+    )
+
+    if "--journal" in arguments:
+        index = arguments.index("--journal")
+
+        try:
+            journal_path = Path(
+                arguments[index + 1]
+            )
+        except IndexError:
+            raise SystemExit(
+                "Falta la ruta del journal."
+            )
 
     settings = ArmsSettings()
 
@@ -38,15 +57,9 @@ def main(
         mode=PipelineMode.BACKTEST,
     )
 
-    minimum_candles = max(
-        settings.ema_period,
-        settings.rsi_period + 1,
-        settings.atr_period + 1,
-    )
-
     engine = BacktestEngine(
         pipeline=pipeline,
-        minimum_candles=minimum_candles,
+        minimum_candles=50,
     )
 
     result = engine.run_from_csv(
@@ -54,6 +67,11 @@ def main(
     )
 
     result.show()
+
+    TradeJournalExporter().export_csv(
+        trades=result.trades,
+        file_path=journal_path,
+    )
 
 
 if __name__ == "__main__":
