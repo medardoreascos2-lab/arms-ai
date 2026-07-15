@@ -5,7 +5,6 @@ from backend.backtesting.backtest_engine import BacktestEngine
 from backend.config_settings import ArmsSettings
 from backend.pipeline.pipeline_factory import PipelineFactory
 from backend.pipeline.pipeline_mode import PipelineMode
-from backend.services.data_collector import DataCollector
 
 
 def main(
@@ -32,19 +31,22 @@ def main(
 
     settings = ArmsSettings()
 
-    collector = DataCollector(
-        provider=settings.provider,
-    )
-
     pipeline = PipelineFactory(
         settings=settings,
-        collector=collector,
+        collector=None,
     ).create(
-        mode=PipelineMode.SIMULATION,
+        mode=PipelineMode.BACKTEST,
+    )
+
+    minimum_candles = max(
+        settings.ema_period,
+        settings.rsi_period + 1,
+        settings.atr_period + 1,
     )
 
     engine = BacktestEngine(
         pipeline=pipeline,
+        minimum_candles=minimum_candles,
     )
 
     result = engine.run_from_csv(
