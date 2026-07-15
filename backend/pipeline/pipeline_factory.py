@@ -97,6 +97,8 @@ class PipelineFactory:
                 ema_period=settings.ema_period,
                 rsi_period=settings.rsi_period,
                 atr_period=settings.atr_period,
+                atr_low_threshold=settings.atr_low_threshold,
+                atr_high_threshold=settings.atr_high_threshold,
             ),
             SmartMoneyStage(
                 liquidity_tolerance=settings.liquidity_tolerance,

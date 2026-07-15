@@ -19,6 +19,8 @@ class ArmsSettings:
     ema_period: int = 50
     rsi_period: int = 14
     atr_period: int = 14
+    atr_low_threshold: float = 2.0
+    atr_high_threshold: float = 6.0
 
     liquidity_tolerance: float = 1.0
 
@@ -93,6 +95,17 @@ class ArmsSettings:
         if self.atr_period <= 0:
             raise ValueError(
                 "atr_period debe ser mayor que cero."
+            )
+
+        if self.atr_low_threshold < 0:
+            raise ValueError(
+                "atr_low_threshold no puede ser negativo."
+            )
+
+        if self.atr_high_threshold <= self.atr_low_threshold:
+            raise ValueError(
+                "atr_high_threshold debe ser mayor que "
+                "atr_low_threshold."
             )
 
         minimum_required_candles = max(
