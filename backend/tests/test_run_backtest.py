@@ -98,6 +98,24 @@ def test_run_backtest_accepts_existing_file(tmp_path, monkeypatch):
         DummySummaryExporter,
     )
 
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
+    )
+
     main([str(file_path)])
 
 
@@ -195,6 +213,24 @@ def test_run_backtest_builds_backtest_pipeline(
         DummySummaryExporter,
     )
 
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
+    )
+
     main([str(file_path)])
 
     assert captured["collector"] is None
@@ -287,6 +323,24 @@ def test_run_backtest_exports_trade_journal(
     monkeypatch.setattr(
         "backend.backtesting.run_backtest.BacktestSummaryExporter",
         DummySummaryExporter,
+    )
+
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
     )
 
     main(
@@ -386,6 +440,24 @@ def test_run_backtest_uses_default_journal_path(
         DummySummaryExporter,
     )
 
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
+    )
+
     main([str(file_path)])
 
     assert str(captured["file_path"]).replace("\\", "/") == (
@@ -477,6 +549,24 @@ def test_run_backtest_exports_equity_curve(
     monkeypatch.setattr(
         "backend.backtesting.run_backtest.BacktestSummaryExporter",
         DummySummaryExporter,
+    )
+
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
     )
 
     main(
@@ -575,6 +665,24 @@ def test_run_backtest_uses_default_equity_path(
         DummySummaryExporter,
     )
 
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
+    )
+
     main([str(file_path)])
 
     assert str(captured["file_path"]).replace("\\", "/") == (
@@ -664,6 +772,24 @@ def test_run_backtest_exports_summary(
     monkeypatch.setattr(
         "backend.backtesting.run_backtest.BacktestSummaryExporter",
         DummySummaryExporter,
+    )
+
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
     )
 
     main(
@@ -763,8 +889,273 @@ def test_run_backtest_uses_default_summary_path(
         DummySummaryExporter,
     )
 
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            pass
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
+    )
+
     main([str(file_path)])
 
     assert str(captured["file_path"]).replace("\\", "/") == (
         "data/reports/backtest_summary.json"
+    )
+
+
+def test_run_backtest_exports_dashboard(
+    tmp_path,
+    monkeypatch,
+):
+    file_path = tmp_path / "candles.csv"
+    dashboard_path = (
+        tmp_path
+        / "reports"
+        / "dashboard.html"
+    )
+
+    file_path.write_text(
+        "\n".join(
+            [
+                (
+                    "timestamp,symbol,timeframe,open,high,"
+                    "low,close,volume"
+                ),
+                (
+                    "2026-01-01T09:30:00,TEST,1m,"
+                    "100.0,101.0,99.5,100.5,1000"
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    captured = {}
+
+    class DummyResult:
+        trades = []
+        equity_curve = object()
+
+        def show(self):
+            pass
+
+    class DummyEngine:
+        def __init__(
+            self,
+            pipeline,
+            minimum_candles,
+            initial_balance,
+        ):
+            pass
+
+        def run_from_csv(self, file_path):
+            return DummyResult()
+
+    class DummyJournalExporter:
+        def export_csv(self, trades, file_path):
+            pass
+
+    class DummyEquityExporter:
+        def export_csv(
+            self,
+            equity_curve,
+            file_path,
+        ):
+            pass
+
+    class DummySummaryExporter:
+        def export_json(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+        ):
+            pass
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            captured["result"] = result
+            captured["file_path"] = file_path
+            captured["source_file"] = source_file
+            captured["journal_path"] = journal_path
+            captured["equity_path"] = equity_path
+            captured["summary_path"] = summary_path
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestEngine",
+        DummyEngine,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.TradeJournalExporter",
+        DummyJournalExporter,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.EquityCurveExporter",
+        DummyEquityExporter,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestSummaryExporter",
+        DummySummaryExporter,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
+    )
+
+    main(
+        [
+            str(file_path),
+            "--dashboard",
+            str(dashboard_path),
+        ]
+    )
+
+    assert captured["file_path"] == dashboard_path
+    assert captured["source_file"] == file_path
+
+    assert str(
+        captured["journal_path"]
+    ).replace("\\", "/") == (
+        "data/reports/trade_journal.csv"
+    )
+
+    assert str(
+        captured["equity_path"]
+    ).replace("\\", "/") == (
+        "data/reports/equity_curve.csv"
+    )
+
+    assert str(
+        captured["summary_path"]
+    ).replace("\\", "/") == (
+        "data/reports/backtest_summary.json"
+    )
+
+
+def test_run_backtest_uses_default_dashboard_path(
+    tmp_path,
+    monkeypatch,
+):
+    file_path = tmp_path / "candles.csv"
+
+    file_path.write_text(
+        "\n".join(
+            [
+                (
+                    "timestamp,symbol,timeframe,open,high,"
+                    "low,close,volume"
+                ),
+                (
+                    "2026-01-01T09:30:00,TEST,1m,"
+                    "100.0,101.0,99.5,100.5,1000"
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    captured = {}
+
+    class DummyResult:
+        trades = []
+        equity_curve = object()
+
+        def show(self):
+            pass
+
+    class DummyEngine:
+        def __init__(
+            self,
+            pipeline,
+            minimum_candles,
+            initial_balance,
+        ):
+            pass
+
+        def run_from_csv(self, file_path):
+            return DummyResult()
+
+    class DummyJournalExporter:
+        def export_csv(self, trades, file_path):
+            pass
+
+    class DummyEquityExporter:
+        def export_csv(
+            self,
+            equity_curve,
+            file_path,
+        ):
+            pass
+
+    class DummySummaryExporter:
+        def export_json(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+        ):
+            pass
+
+    class DummyDashboardExporter:
+        def export_html(
+            self,
+            result,
+            file_path,
+            source_file=None,
+            journal_path=None,
+            equity_path=None,
+            summary_path=None,
+        ):
+            captured["file_path"] = file_path
+
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestEngine",
+        DummyEngine,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.TradeJournalExporter",
+        DummyJournalExporter,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.EquityCurveExporter",
+        DummyEquityExporter,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestSummaryExporter",
+        DummySummaryExporter,
+    )
+    monkeypatch.setattr(
+        "backend.backtesting.run_backtest.BacktestDashboardExporter",
+        DummyDashboardExporter,
+    )
+
+    main([str(file_path)])
+
+    assert str(
+        captured["file_path"]
+    ).replace("\\", "/") == (
+        "data/reports/backtest_dashboard.html"
     )

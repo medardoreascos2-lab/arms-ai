@@ -1,6 +1,9 @@
 from pathlib import Path
 import sys
 
+from backend.backtesting.backtest_dashboard_exporter import (
+    BacktestDashboardExporter,
+)
 from backend.backtesting.backtest_engine import BacktestEngine
 from backend.backtesting.backtest_summary_exporter import (
     BacktestSummaryExporter,
@@ -31,7 +34,8 @@ def main(
             "<archivo.csv> "
             "[--journal archivo.csv] "
             "[--equity archivo.csv] "
-            "[--summary archivo.json]"
+            "[--summary archivo.json] "
+            "[--dashboard archivo.html]"
         )
 
     file_path = Path(arguments[0])
@@ -49,6 +53,9 @@ def main(
     )
     summary_path = Path(
         "data/reports/backtest_summary.json"
+    )
+    dashboard_path = Path(
+        "data/reports/backtest_dashboard.html"
     )
 
     if "--journal" in arguments:
@@ -85,6 +92,18 @@ def main(
         except IndexError as error:
             raise SystemExit(
                 "Falta la ruta del resumen."
+            ) from error
+
+    if "--dashboard" in arguments:
+        index = arguments.index("--dashboard")
+
+        try:
+            dashboard_path = Path(
+                arguments[index + 1]
+            )
+        except IndexError as error:
+            raise SystemExit(
+                "Falta la ruta del dashboard."
             ) from error
 
     settings = ArmsSettings()
@@ -130,6 +149,15 @@ def main(
         source_file=file_path,
         journal_path=journal_path,
         equity_path=equity_path,
+    )
+
+    BacktestDashboardExporter().export_html(
+        result=result,
+        file_path=dashboard_path,
+        source_file=file_path,
+        journal_path=journal_path,
+        equity_path=equity_path,
+        summary_path=summary_path,
     )
 
 
