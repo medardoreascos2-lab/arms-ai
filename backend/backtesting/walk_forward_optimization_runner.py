@@ -1,5 +1,9 @@
+from pathlib import Path
 from typing import Any, Callable
 
+from backend.backtesting.historical_data_loader import (
+    HistoricalDataLoader,
+)
 from backend.backtesting.walk_forward_optimization_report import (
     WalkForwardOptimizationReport,
 )
@@ -22,6 +26,7 @@ class WalkForwardOptimizationRunner:
             [list[Any]],
             WalkForwardOptimizationReport,
         ] | None = None,
+        historical_data_loader: Any | None = None,
     ) -> None:
         if splitter is None:
             raise TypeError(
@@ -45,6 +50,10 @@ class WalkForwardOptimizationRunner:
         self.report_factory = (
             report_factory
             or WalkForwardOptimizationReport.from_results
+        )
+        self.historical_data_loader = (
+            historical_data_loader
+            or HistoricalDataLoader()
         )
 
     def run(
@@ -82,4 +91,17 @@ class WalkForwardOptimizationRunner:
 
         return self.report_factory(
             optimization_results
+        )
+
+
+    def run_from_csv(
+        self,
+        file_path: str | Path,
+    ) -> WalkForwardOptimizationReport:
+        candles = self.historical_data_loader.load_csv(
+            file_path=file_path,
+        )
+
+        return self.run(
+            candles=candles,
         )
