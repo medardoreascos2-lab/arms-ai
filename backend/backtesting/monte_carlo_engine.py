@@ -16,6 +16,7 @@ class MonteCarloSimulation:
 @dataclass(frozen=True)
 class MonteCarloResult:
     simulations: list[MonteCarloSimulation]
+    method: str = "shuffle"
 
     @property
     def total_simulations(self) -> int:
@@ -24,22 +25,44 @@ class MonteCarloResult:
 
 class MonteCarloEngine:
     """
-    Ejecuta simulaciones Monte Carlo reordenando
-    aleatoriamente la secuencia histórica de P&L.
+    Ejecuta simulaciones Monte Carlo sobre una secuencia
+    histórica de resultados.
+
+    Métodos disponibles:
+
+    - shuffle:
+      Reordena todos los trades sin reemplazo. Conserva
+      siempre el beneficio neto total.
+
+    - bootstrap:
+      Muestrea trades con reemplazo. Puede cambiar el
+      beneficio final de cada simulación.
     """
+
+    VALID_METHODS = {
+        "shuffle",
+        "bootstrap",
+    }
 
     def __init__(
         self,
         simulations: int = 1000,
         seed: int | None = None,
+        method: str = "shuffle",
     ) -> None:
         if simulations <= 0:
             raise ValueError(
                 "simulations debe ser mayor que cero."
             )
 
+        if method not in self.VALID_METHODS:
+            raise ValueError(
+                "method debe ser 'shuffle' o 'bootstrap'."
+            )
+
         self.simulations = simulations
         self.seed = seed
+        self.method = method
 
     def run(
         self,
@@ -71,10 +94,9 @@ class MonteCarloEngine:
             1,
             self.simulations + 1,
         ):
-            sequence = list(normalized_pnls)
-
-            random_generator.shuffle(
-                sequence
+            sequence = self._build_sequence(
+                pnls=normalized_pnls,
+                random_generator=random_generator,
             )
 
             simulation = self._simulate_sequence(
@@ -89,7 +111,27 @@ class MonteCarloEngine:
 
         return MonteCarloResult(
             simulations=simulations,
+            method=self.method,
         )
+
+    def _build_sequence(
+        self,
+        pnls: list[float],
+        random_generator: random.Random,
+    ) -> list[float]:
+        if self.method == "shuffle":
+            sequence = list(pnls)
+
+            random_generator.shuffle(
+                sequence
+            )
+
+            return sequence
+
+        return [
+            random_generator.choice(pnls)
+            for _ in range(len(pnls))
+        ]
 
     def _simulate_sequence(
         self,

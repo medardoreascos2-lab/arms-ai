@@ -167,3 +167,132 @@ def test_monte_carlo_engine_rejects_invalid_initial_balance(
             pnls=[10.0],
             initial_balance=initial_balance,
         )
+
+
+def test_monte_carlo_engine_supports_bootstrap_method():
+    engine = MonteCarloEngine(
+        simulations=100,
+        seed=42,
+        method="bootstrap",
+    )
+
+    result = engine.run(
+        pnls=[
+            10.0,
+            -5.0,
+            20.0,
+        ],
+        initial_balance=1000.0,
+    )
+
+    assert result.total_simulations == 100
+
+    assert all(
+        len(simulation.trade_sequence) == 3
+        for simulation in result.simulations
+    )
+
+    final_balances = {
+        simulation.final_balance
+        for simulation in result.simulations
+    }
+
+    assert len(final_balances) > 1
+
+
+def test_bootstrap_is_reproducible_with_seed():
+    first = MonteCarloEngine(
+        simulations=25,
+        seed=123,
+        method="bootstrap",
+    ).run(
+        pnls=[
+            10.0,
+            -5.0,
+            20.0,
+            -2.0,
+        ],
+        initial_balance=1000.0,
+    )
+
+    second = MonteCarloEngine(
+        simulations=25,
+        seed=123,
+        method="bootstrap",
+    ).run(
+        pnls=[
+            10.0,
+            -5.0,
+            20.0,
+            -2.0,
+        ],
+        initial_balance=1000.0,
+    )
+
+    assert first.simulations == second.simulations
+
+
+def test_shuffle_remains_default_method():
+    implicit = MonteCarloEngine(
+        simulations=20,
+        seed=55,
+    ).run(
+        pnls=[
+            10.0,
+            -5.0,
+            20.0,
+        ],
+        initial_balance=1000.0,
+    )
+
+    explicit = MonteCarloEngine(
+        simulations=20,
+        seed=55,
+        method="shuffle",
+    ).run(
+        pnls=[
+            10.0,
+            -5.0,
+            20.0,
+        ],
+        initial_balance=1000.0,
+    )
+
+    assert implicit.simulations == explicit.simulations
+
+
+def test_monte_carlo_result_preserves_method():
+    result = MonteCarloEngine(
+        simulations=10,
+        seed=42,
+        method="bootstrap",
+    ).run(
+        pnls=[
+            10.0,
+            -5.0,
+        ],
+        initial_balance=1000.0,
+    )
+
+    assert result.method == "bootstrap"
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        "",
+        "invalid",
+        "noise",
+    ],
+)
+def test_monte_carlo_engine_rejects_invalid_method(
+    method,
+):
+    with pytest.raises(
+        ValueError,
+        match="method",
+    ):
+        MonteCarloEngine(
+            simulations=10,
+            method=method,
+        )
