@@ -96,6 +96,34 @@ def _read_float_option(
     return value
 
 
+def _read_method(
+    arguments: list[str],
+) -> str:
+    option = "--method"
+
+    if option not in arguments:
+        return "shuffle"
+
+    index = arguments.index(option)
+
+    try:
+        value = arguments[index + 1]
+    except IndexError as error:
+        raise SystemExit(
+            "Falta el valor de --method."
+        ) from error
+
+    if value not in {
+        "shuffle",
+        "bootstrap",
+    }:
+        raise SystemExit(
+            "--method debe ser 'shuffle' o 'bootstrap'."
+        )
+
+    return value
+
+
 def _read_optional_seed(
     arguments: list[str],
 ) -> int | None:
@@ -184,6 +212,7 @@ def main(
             "[--initial-balance número] "
             "[--ruin-balance número] "
             "[--seed número] "
+            "[--method shuffle|bootstrap] "
             "[--json archivo.json] "
             "[--csv archivo.csv] "
             "[--dashboard archivo.html]"
@@ -220,6 +249,10 @@ def main(
         arguments
     )
 
+    method = _read_method(
+        arguments
+    )
+
     json_path = _read_path_option(
         arguments=arguments,
         option="--json",
@@ -251,6 +284,7 @@ def main(
     result = MonteCarloEngine(
         simulations=simulations,
         seed=seed,
+        method=method,
     ).run(
         pnls=pnls,
         initial_balance=initial_balance,
@@ -262,6 +296,7 @@ def main(
     )
 
     print("------ MONTE CARLO RESULT ------")
+    print(f"Método: {method}")
     print(
         f"Simulaciones: {report.total_simulations}"
     )

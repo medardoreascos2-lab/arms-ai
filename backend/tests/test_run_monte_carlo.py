@@ -42,9 +42,11 @@ def test_run_monte_carlo_runs_analysis(
             self,
             simulations,
             seed=None,
+            method="shuffle",
         ):
             captured["simulations"] = simulations
             captured["seed"] = seed
+            captured["method"] = method
 
         def run(
             self,
@@ -154,6 +156,7 @@ def test_run_monte_carlo_uses_default_paths(
             self,
             simulations,
             seed=None,
+            method="shuffle",
         ):
             pass
 
