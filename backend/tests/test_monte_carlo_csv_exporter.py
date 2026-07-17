@@ -53,6 +53,7 @@ def test_monte_carlo_csv_exporter_writes_summary(
         for row in rows
     }
 
+    assert values["method"] == "shuffle"
     assert values["total_simulations"] == "1000"
     assert float(values["average_final_balance"]) == 11250.0
     assert float(values["median_final_balance"]) == 11180.0

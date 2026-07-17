@@ -178,3 +178,42 @@ def test_monte_carlo_report_rejects_invalid_ruin_balance(
             result=result,
             ruin_balance=ruin_balance,
         )
+
+
+def test_monte_carlo_report_preserves_simulation_method():
+    result = MonteCarloResult(
+        simulations=[
+            build_simulation(
+                1,
+                1100.0,
+                50.0,
+            )
+        ],
+        method="bootstrap",
+    )
+
+    report = MonteCarloReport.from_result(
+        result=result,
+        ruin_balance=800.0,
+    )
+
+    assert report.method == "bootstrap"
+
+
+def test_monte_carlo_report_uses_shuffle_as_default_method():
+    result = MonteCarloResult(
+        simulations=[
+            build_simulation(
+                1,
+                1100.0,
+                50.0,
+            )
+        ],
+    )
+
+    report = MonteCarloReport.from_result(
+        result=result,
+        ruin_balance=800.0,
+    )
+
+    assert report.method == "shuffle"

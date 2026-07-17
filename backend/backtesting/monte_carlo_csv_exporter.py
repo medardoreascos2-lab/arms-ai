@@ -56,8 +56,12 @@ class MonteCarloCsvExporter:
     def _build_rows(
         self,
         report: MonteCarloReport,
-    ) -> list[tuple[str, int | float]]:
+    ) -> list[tuple[str, str | int | float]]:
         return [
+            (
+                "method",
+                report.method,
+            ),
             (
                 "total_simulations",
                 report.total_simulations,

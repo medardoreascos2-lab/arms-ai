@@ -28,6 +28,7 @@ class MonteCarloReport:
     drawdown_percentile_50: float
     drawdown_percentile_95: float
     drawdown_percentile_99: float
+    method: str = "shuffle"
 
     @classmethod
     def from_result(
@@ -76,6 +77,7 @@ class MonteCarloReport:
         )
 
         return cls(
+            method=result.method,
             total_simulations=total_simulations,
             average_final_balance=round(
                 mean(final_balances),

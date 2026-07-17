@@ -47,6 +47,7 @@ def test_monte_carlo_json_exporter_writes_json(
         )
     )
 
+    assert data["method"] == "shuffle"
     assert data["total_simulations"] == 1000
     assert data["average_final_balance"] == 11250.0
     assert data["median_final_balance"] == 11180.0

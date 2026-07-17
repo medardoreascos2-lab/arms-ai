@@ -222,6 +222,11 @@ class MonteCarloDashboardExporter:
 
         <section class="grid">
             {self._metric_card(
+                "Simulation Method",
+                report.method,
+            )}
+
+            {self._metric_card(
                 "Total Simulations",
                 str(report.total_simulations),
             )}

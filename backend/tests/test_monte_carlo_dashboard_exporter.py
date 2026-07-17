@@ -58,6 +58,8 @@ def test_monte_carlo_dashboard_contains_summary(
     )
 
     assert "Monte Carlo Dashboard" in html
+    assert "Simulation Method" in html
+    assert "shuffle" in html
     assert "Total Simulations" in html
     assert "1000" in html
 

@@ -44,6 +44,7 @@ class MonteCarloJsonExporter:
         report: MonteCarloReport,
     ) -> dict[str, Any]:
         return {
+            "method": report.method,
             "total_simulations": report.total_simulations,
             "average_final_balance": self._round_value(
                 report.average_final_balance
