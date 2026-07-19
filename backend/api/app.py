@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from backend.api.routers.portfolio import router as portfolio_router
@@ -35,6 +36,25 @@ def create_app() -> FastAPI:
             content={
                 "error": {
                     "type": "TypeError",
+                    "message": str(exc),
+                }
+            },
+        )
+
+    @app.exception_handler(
+        RequestValidationError
+    )
+    async def request_validation_error_handler(
+        request: Request,
+        exc: RequestValidationError,
+    ):
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "type": (
+                        "RequestValidationError"
+                    ),
                     "message": str(exc),
                 }
             },

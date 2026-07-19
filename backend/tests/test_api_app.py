@@ -129,3 +129,41 @@ def test_type_error_handler_returns_json():
     handlers = app.exception_handlers
 
     assert TypeError in handlers
+
+
+def test_validation_error_uses_standard_format():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/simulate",
+        json={},
+    )
+
+    assert response.status_code == 422
+
+    payload = response.json()
+
+    assert payload["error"]["type"] == (
+        "RequestValidationError"
+    )
+
+
+def test_validation_error_contains_message():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/simulate",
+        json={},
+    )
+
+    payload = response.json()
+
+    assert isinstance(
+        payload["error"]["message"],
+        str,
+    )
+    assert payload["error"]["message"]
