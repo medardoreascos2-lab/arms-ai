@@ -65,3 +65,47 @@ def test_invalid_request_returns_422():
     )
 
     assert response.status_code == 422
+
+
+def test_post_optimize_returns_200():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/optimize",
+        json=build_payload(),
+    )
+
+    assert response.status_code == 200
+
+
+def test_post_optimize_returns_all_strategies():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/optimize",
+        json=build_payload(),
+    )
+
+    payload = response.json()
+
+    assert "minimum_variance" in payload
+    assert "maximum_sharpe" in payload
+    assert "risk_parity" in payload
+    assert payload["selected_strategy"]
+
+
+def test_post_optimize_rejects_invalid_request():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/optimize",
+        json={},
+    )
+
+    assert response.status_code == 422
