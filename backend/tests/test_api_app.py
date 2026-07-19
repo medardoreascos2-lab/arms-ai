@@ -96,3 +96,36 @@ def test_domain_error_response_has_json_content_type():
     ].startswith(
         "application/json"
     )
+
+
+def test_type_error_is_returned_as_bad_request():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/optimize",
+        json={
+            "returns": {
+                "A": [1, 2, 3],
+            },
+            "volatilities": {
+                "A": 0.10,
+            },
+            "expected_returns": {
+                "A": 0.08,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+
+
+def test_type_error_handler_returns_json():
+    from backend.api.app import create_app
+
+    app = create_app()
+
+    handlers = app.exception_handlers
+
+    assert TypeError in handlers

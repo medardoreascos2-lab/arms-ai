@@ -25,6 +25,36 @@ def create_app() -> FastAPI:
             },
         )
 
+    @app.exception_handler(TypeError)
+    async def type_error_handler(
+        request: Request,
+        exc: TypeError,
+    ):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": {
+                    "type": "TypeError",
+                    "message": str(exc),
+                }
+            },
+        )
+
+    @app.exception_handler(TypeError)
+    async def type_error_handler(
+        request: Request,
+        exc: TypeError,
+    ):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": {
+                    "type": "TypeError",
+                    "message": str(exc),
+                }
+            },
+        )
+
     app.include_router(portfolio_router)
 
     @app.get("/health")
