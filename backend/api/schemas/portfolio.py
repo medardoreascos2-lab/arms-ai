@@ -11,3 +11,13 @@ class PortfolioAnalyzeRequest(BaseModel):
         default=0.0,
         ge=0.0,
     )
+
+
+
+class PortfolioRebalanceRequest(BaseModel):
+    current_weights: dict[str, float]
+    target_weights: dict[str, float]
+    tolerance: float = Field(
+        default=0.0,
+        ge=0.0,
+    )

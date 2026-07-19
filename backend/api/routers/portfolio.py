@@ -2,12 +2,16 @@ from fastapi import APIRouter
 
 from backend.api.schemas.portfolio import (
     PortfolioAnalyzeRequest,
+    PortfolioRebalanceRequest,
 )
 from backend.application.analyze_portfolio import (
     AnalyzePortfolio,
 )
 from backend.application.optimize_portfolio import (
     OptimizePortfolio,
+)
+from backend.application.rebalance_portfolio import (
+    RebalancePortfolio,
 )
 from backend.portfolio.portfolio_correlation_matrix import (
     PortfolioCorrelationMatrix,
@@ -125,4 +129,39 @@ def optimize_portfolio(
                 .portfolio_volatility
             ),
         },
+    }
+
+
+
+@router.post("/rebalance")
+def rebalance_portfolio(
+    request: PortfolioRebalanceRequest,
+) -> dict:
+    report = RebalancePortfolio().execute(
+        current_weights=request.current_weights,
+        target_weights=request.target_weights,
+        tolerance=request.tolerance,
+    )
+
+    return {
+        "assets": list(
+            report.assets
+        ),
+        "current_weights": dict(
+            report.current_weights
+        ),
+        "target_weights": dict(
+            report.target_weights
+        ),
+        "trades": dict(
+            report.trades
+        ),
+        "turnover": report.turnover,
+        "overweight_assets": list(
+            report.overweight_assets
+        ),
+        "underweight_assets": list(
+            report.underweight_assets
+        ),
+        "tolerance": report.tolerance,
     }

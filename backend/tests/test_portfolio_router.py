@@ -109,3 +109,68 @@ def test_post_optimize_rejects_invalid_request():
     )
 
     assert response.status_code == 422
+
+
+def test_post_rebalance_returns_200():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/rebalance",
+        json={
+            "current_weights": {
+                "A": 50.0,
+                "B": 30.0,
+                "C": 20.0,
+            },
+            "target_weights": {
+                "A": 40.0,
+                "B": 40.0,
+                "C": 20.0,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+
+
+def test_post_rebalance_returns_trades():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/rebalance",
+        json={
+            "current_weights": {
+                "A": 50.0,
+                "B": 30.0,
+                "C": 20.0,
+            },
+            "target_weights": {
+                "A": 40.0,
+                "B": 40.0,
+                "C": 20.0,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert payload["turnover"] == 10.0
+    assert payload["trades"]["A"] == -10.0
+    assert payload["trades"]["B"] == 10.0
+
+
+def test_post_rebalance_rejects_invalid_request():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/rebalance",
+        json={},
+    )
+
+    assert response.status_code == 422
