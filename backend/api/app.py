@@ -3,6 +3,9 @@ from fastapi import FastAPI
 from backend.api.error_handlers import (
     register_exception_handlers,
 )
+from backend.api.logging_middleware import (
+    register_logging_middleware,
+)
 from backend.api.routers.portfolio import (
     router as portfolio_router,
 )
@@ -32,6 +35,10 @@ def create_app(
     )
 
     register_exception_handlers(
+        app
+    )
+
+    register_logging_middleware(
         app
     )
 
