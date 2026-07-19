@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from backend.api.schemas.portfolio import (
     PortfolioAnalyzeRequest,
     PortfolioRebalanceRequest,
+    PortfolioSimulateRequest,
 )
 from backend.application.analyze_portfolio import (
     AnalyzePortfolio,
@@ -12,6 +13,9 @@ from backend.application.optimize_portfolio import (
 )
 from backend.application.rebalance_portfolio import (
     RebalancePortfolio,
+)
+from backend.application.simulate_portfolio import (
+    SimulatePortfolio,
 )
 from backend.portfolio.portfolio_correlation_matrix import (
     PortfolioCorrelationMatrix,
@@ -164,4 +168,48 @@ def rebalance_portfolio(
             report.underweight_assets
         ),
         "tolerance": report.tolerance,
+    }
+
+
+
+@router.post("/simulate")
+def simulate_portfolio(
+    request: PortfolioSimulateRequest,
+) -> dict:
+    result = SimulatePortfolio().execute(
+        initial_value=request.initial_value,
+        mean_return=request.mean_return,
+        volatility=request.volatility,
+        periods=request.periods,
+        simulations=request.simulations,
+        seed=request.seed,
+    )
+
+    return {
+        "initial_value": result.initial_value,
+        "mean_return": result.mean_return,
+        "volatility": result.volatility,
+        "periods": result.periods,
+        "simulations": result.simulations,
+        "seed": result.seed,
+        "final_values": list(
+            result.final_values
+        ),
+        "mean_final_value": (
+            result.mean_final_value
+        ),
+        "median_final_value": (
+            result.median_final_value
+        ),
+        "minimum_final_value": (
+            result.minimum_final_value
+        ),
+        "maximum_final_value": (
+            result.maximum_final_value
+        ),
+        "percentile_5": result.percentile_5,
+        "percentile_95": result.percentile_95,
+        "probability_of_loss": (
+            result.probability_of_loss
+        ),
     }

@@ -21,3 +21,21 @@ class PortfolioRebalanceRequest(BaseModel):
         default=0.0,
         ge=0.0,
     )
+
+
+
+class PortfolioSimulateRequest(BaseModel):
+    initial_value: float = Field(
+        gt=0.0,
+    )
+    mean_return: float
+    volatility: float = Field(
+        ge=0.0,
+    )
+    periods: int = Field(
+        gt=0,
+    )
+    simulations: int = Field(
+        gt=0,
+    )
+    seed: int | None = None

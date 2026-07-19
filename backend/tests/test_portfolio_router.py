@@ -174,3 +174,60 @@ def test_post_rebalance_rejects_invalid_request():
     )
 
     assert response.status_code == 422
+
+
+def test_post_simulate_returns_200():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/simulate",
+        json={
+            "initial_value": 1000.0,
+            "mean_return": 0.01,
+            "volatility": 0.10,
+            "periods": 12,
+            "simulations": 100,
+            "seed": 42,
+        },
+    )
+
+    assert response.status_code == 200
+
+
+def test_post_simulate_returns_results():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/simulate",
+        json={
+            "initial_value": 1000.0,
+            "mean_return": 0.01,
+            "volatility": 0.10,
+            "periods": 12,
+            "simulations": 100,
+            "seed": 42,
+        },
+    )
+
+    payload = response.json()
+
+    assert payload["simulations"] == 100
+    assert len(payload["final_values"]) == 100
+    assert payload["mean_final_value"] > 0.0
+
+
+def test_post_simulate_rejects_invalid_request():
+    client = TestClient(
+        create_app()
+    )
+
+    response = client.post(
+        "/portfolio/simulate",
+        json={},
+    )
+
+    assert response.status_code == 422
