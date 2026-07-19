@@ -1,8 +1,11 @@
-from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
-from backend.api.routers.portfolio import router as portfolio_router
+from backend.api.error_handlers import (
+    register_exception_handlers,
+)
+from backend.api.routers.portfolio import (
+    router as portfolio_router,
+)
 
 
 def create_app() -> FastAPI:
@@ -11,71 +14,13 @@ def create_app() -> FastAPI:
         version="1.0.0",
     )
 
-    @app.exception_handler(ValueError)
-    async def value_error_handler(
-        request: Request,
-        exc: ValueError,
-    ):
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": {
-                    "type": "ValueError",
-                    "message": str(exc),
-                }
-            },
-        )
-
-    @app.exception_handler(TypeError)
-    async def type_error_handler(
-        request: Request,
-        exc: TypeError,
-    ):
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": {
-                    "type": "TypeError",
-                    "message": str(exc),
-                }
-            },
-        )
-
-    @app.exception_handler(
-        RequestValidationError
+    register_exception_handlers(
+        app
     )
-    async def request_validation_error_handler(
-        request: Request,
-        exc: RequestValidationError,
-    ):
-        return JSONResponse(
-            status_code=422,
-            content={
-                "error": {
-                    "type": (
-                        "RequestValidationError"
-                    ),
-                    "message": str(exc),
-                }
-            },
-        )
 
-    @app.exception_handler(TypeError)
-    async def type_error_handler(
-        request: Request,
-        exc: TypeError,
-    ):
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": {
-                    "type": "TypeError",
-                    "message": str(exc),
-                }
-            },
-        )
-
-    app.include_router(portfolio_router)
+    app.include_router(
+        portfolio_router
+    )
 
     @app.get("/health")
     def health() -> dict[str, str]:
