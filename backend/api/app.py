@@ -6,12 +6,29 @@ from backend.api.error_handlers import (
 from backend.api.routers.portfolio import (
     router as portfolio_router,
 )
+from backend.config.api_settings import (
+    APISettings,
+)
 
 
-def create_app() -> FastAPI:
+def create_app(
+    settings: APISettings | None = None,
+) -> FastAPI:
+    if settings is None:
+        settings = APISettings()
+
+    if not isinstance(
+        settings,
+        APISettings,
+    ):
+        raise TypeError(
+            "settings debe ser APISettings."
+        )
+
     app = FastAPI(
-        title="ARMS AI API",
-        version="1.0.0",
+        title=settings.title,
+        version=settings.version,
+        debug=settings.debug,
     )
 
     register_exception_handlers(

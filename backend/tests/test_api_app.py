@@ -167,3 +167,33 @@ def test_validation_error_contains_message():
         str,
     )
     assert payload["error"]["message"]
+
+
+def test_create_app_accepts_custom_settings():
+    from backend.config.api_settings import (
+        APISettings,
+    )
+
+    app = create_app(
+        APISettings(
+            title="Custom API",
+            version="2.0.0",
+            debug=True,
+        )
+    )
+
+    assert app.title == "Custom API"
+    assert app.version == "2.0.0"
+    assert app.debug is True
+
+
+def test_create_app_rejects_invalid_settings():
+    import pytest
+
+    with pytest.raises(
+        TypeError,
+        match="APISettings",
+    ):
+        create_app(
+            object()
+        )
