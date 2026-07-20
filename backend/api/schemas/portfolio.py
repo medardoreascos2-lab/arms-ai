@@ -39,3 +39,16 @@ class PortfolioSimulateRequest(BaseModel):
         gt=0,
     )
     seed: int | None = None
+
+
+class PortfolioMarketRequest(BaseModel):
+    symbols: list[str] = Field(
+        min_length=1,
+    )
+    period: str = "1y"
+    risk_free_rate: float = 0.0
+    current_weights: dict[str, float] | None = None
+    tolerance: float = Field(
+        default=0.0,
+        ge=0.0,
+    )

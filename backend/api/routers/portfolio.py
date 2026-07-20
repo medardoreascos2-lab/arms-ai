@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from backend.api.schemas.portfolio import (
     PortfolioAnalyzeRequest,
+    PortfolioMarketRequest,
     PortfolioRebalanceRequest,
     PortfolioSimulateRequest,
 )
@@ -22,6 +23,12 @@ from backend.portfolio.portfolio_correlation_matrix import (
 )
 from backend.portfolio.portfolio_covariance_matrix import (
     PortfolioCovarianceMatrix,
+)
+from backend.services.market_data import (
+    download_prices,
+)
+from backend.services.market_data_analysis import (
+    build_portfolio_inputs_from_prices,
 )
 
 
@@ -213,3 +220,31 @@ def simulate_portfolio(
             result.probability_of_loss
         ),
     }
+
+
+
+@router.post("/from-market")
+def analyze_portfolio_from_market(
+    request: PortfolioMarketRequest,
+) -> dict:
+    prices = download_prices(
+        request.symbols,
+        request.period,
+    )
+
+    inputs = (
+        build_portfolio_inputs_from_prices(
+            prices
+        )
+    )
+
+    return AnalyzePortfolio().execute(
+        returns=inputs["returns"],
+        volatilities=inputs["volatilities"],
+        expected_returns=inputs[
+            "expected_returns"
+        ],
+        risk_free_rate=request.risk_free_rate,
+        current_weights=request.current_weights,
+        tolerance=request.tolerance,
+    )
