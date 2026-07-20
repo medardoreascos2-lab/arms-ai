@@ -66,3 +66,10 @@ class PortfolioBacktestRequest(BaseModel):
         gt=0.0,
     )
     risk_free_rate: float = 0.0
+
+
+class RiskAnalyticsRequest(BaseModel):
+    returns: list[float] = Field(
+        min_length=1,
+    )
+    risk_free_rate: float = 0.0
