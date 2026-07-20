@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { EfficientFrontierChart } from "@/components/EfficientFrontierChart";
+import { EquityCurveChart } from "@/components/EquityCurveChart";
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
 import {
   PortfolioFormValues,
@@ -10,6 +11,7 @@ import {
 } from "@/components/PortfolioInputs";
 import {
   analyzePortfolioFromMarket,
+  backtestPortfolio,
   generateEfficientFrontier,
   optimizePortfolio,
   rebalancePortfolio,
@@ -53,6 +55,17 @@ type RebalancingResult = {
   underweight_assets: string[];
 };
 
+type BacktestResult = {
+  initial_value: number;
+  final_value: number;
+  equity_curve: number[];
+  total_return: number;
+  annualized_return: number;
+  annualized_volatility: number;
+  sharpe_ratio: number;
+  maximum_drawdown: number;
+};
+
 type SimulationResult = {
   initial_value: number;
   periods: number;
@@ -70,7 +83,8 @@ type Action =
   | "analyze"
   | "optimize"
   | "rebalance"
-  | "simulate";
+  | "simulate"
+  | "backtest";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -101,6 +115,9 @@ export default function Home() {
   const [simulation, setSimulation] =
     useState<SimulationResult | null>(null);
 
+  const [backtest, setBacktest] =
+    useState<BacktestResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -113,6 +130,7 @@ export default function Home() {
     setFrontier([]);
     setRebalancing(null);
     setSimulation(null);
+    setBacktest(null);
   }
 
   function handleError(
@@ -305,6 +323,55 @@ export default function Home() {
     }
   }
 
+  async function handleBacktest() {
+    setLoading("backtest");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const payload =
+        await backtestPortfolio({
+          symbols,
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          period: "1y",
+          initial_value: 1000,
+          risk_free_rate:
+            formValues.riskFreeRate,
+        });
+
+      setBacktest(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-6 md:p-10">
@@ -365,6 +432,15 @@ export default function Home() {
               disabled={loading !== null}
               className="bg-purple-600 hover:bg-purple-700"
               onClick={handleSimulate}
+            />
+
+            <ActionButton
+              label="Backtest"
+              loadingLabel="Backtesting..."
+              active={loading === "backtest"}
+              disabled={loading !== null}
+              className="bg-slate-800 hover:bg-slate-900"
+              onClick={handleBacktest}
             />
           </div>
 
@@ -495,6 +571,76 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Required Trades"
                   weights={rebalancing.trades}
+                />
+              </div>
+            </section>
+          )}
+
+          {backtest && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Portfolio Backtest
+              </h3>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Initial value"
+                  value={`$${backtest.initial_value.toFixed(
+                    2
+                  )}`}
+                />
+
+                <MetricCard
+                  label="Final value"
+                  value={`$${backtest.final_value.toFixed(
+                    2
+                  )}`}
+                />
+
+                <MetricCard
+                  label="Total return"
+                  value={`${(
+                    backtest.total_return * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Annualized return"
+                  value={`${(
+                    backtest.annualized_return
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Annualized volatility"
+                  value={`${(
+                    backtest.annualized_volatility
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Sharpe ratio"
+                  value={backtest.sharpe_ratio.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Maximum drawdown"
+                  value={`${(
+                    backtest.maximum_drawdown
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+              </div>
+
+              <div className="mt-6">
+                <EquityCurveChart
+                  values={
+                    backtest.equity_curve
+                  }
                 />
               </div>
             </section>

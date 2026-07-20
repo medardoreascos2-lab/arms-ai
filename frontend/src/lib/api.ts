@@ -84,3 +84,12 @@ export function generateEfficientFrontier(
     payload
   );
 }
+
+export function backtestPortfolio(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/backtest",
+    payload
+  );
+}
