@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { EfficientFrontierChart } from "@/components/EfficientFrontierChart";
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
 import {
   PortfolioFormValues,
@@ -9,6 +10,7 @@ import {
 } from "@/components/PortfolioInputs";
 import {
   analyzePortfolioFromMarket,
+  generateEfficientFrontier,
   optimizePortfolio,
   rebalancePortfolio,
   simulatePortfolio,
@@ -35,6 +37,12 @@ type OptimizationResult = {
     weights: Record<string, number>;
     risk_contributions: Record<string, number>;
   };
+};
+
+type FrontierPoint = {
+  expected_return: number;
+  volatility: number;
+  weights: Record<string, number>;
 };
 
 type RebalancingResult = {
@@ -84,6 +92,9 @@ export default function Home() {
   const [optimization, setOptimization] =
     useState<OptimizationResult | null>(null);
 
+  const [frontier, setFrontier] =
+    useState<FrontierPoint[]>([]);
+
   const [rebalancing, setRebalancing] =
     useState<RebalancingResult | null>(null);
 
@@ -99,6 +110,7 @@ export default function Home() {
   function clearResults() {
     setAnalysis(null);
     setOptimization(null);
+    setFrontier([]);
     setRebalancing(null);
     setSimulation(null);
   }
@@ -222,12 +234,27 @@ export default function Home() {
     clearResults();
 
     try {
-      const payload =
-        await optimizePortfolio(
-          buildPortfolioPayload()
-        );
+      const portfolioPayload =
+        buildPortfolioPayload();
 
-      setOptimization(payload);
+      const [
+        optimizationPayload,
+        frontierPayload,
+      ] = await Promise.all([
+        optimizePortfolio(
+          portfolioPayload
+        ),
+        generateEfficientFrontier(
+          portfolioPayload
+        ),
+      ]);
+
+      setOptimization(
+        optimizationPayload
+      );
+      setFrontier(
+        frontierPayload
+      );
     } catch (caughtError) {
       handleError(caughtError);
     } finally {
@@ -420,6 +447,14 @@ export default function Home() {
                   }
                 />
               </div>
+
+              {frontier.length > 0 && (
+                <div className="mt-6">
+                  <EfficientFrontierChart
+                    points={frontier}
+                  />
+                </div>
+              )}
             </section>
           )}
 

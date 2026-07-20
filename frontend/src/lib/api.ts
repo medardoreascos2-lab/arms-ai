@@ -75,3 +75,12 @@ export function analyzePortfolioFromMarket(
     payload
   );
 }
+
+export function generateEfficientFrontier(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/efficient-frontier",
+    payload
+  );
+}
