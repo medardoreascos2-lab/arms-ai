@@ -1,3 +1,5 @@
+import numpy as np
+
 from fastapi import APIRouter
 
 from backend.api.schemas.portfolio import (
@@ -23,6 +25,9 @@ from backend.portfolio.portfolio_correlation_matrix import (
 )
 from backend.portfolio.portfolio_covariance_matrix import (
     PortfolioCovarianceMatrix,
+)
+from backend.portfolio.efficient_frontier import (
+    EfficientFrontier,
 )
 from backend.services.market_data import (
     download_prices,
@@ -247,4 +252,51 @@ def analyze_portfolio_from_market(
         risk_free_rate=request.risk_free_rate,
         current_weights=request.current_weights,
         tolerance=request.tolerance,
+    )
+
+
+
+@router.post("/efficient-frontier")
+def generate_efficient_frontier(
+    request: PortfolioAnalyzeRequest,
+) -> list[dict[str, object]]:
+    assets = tuple(
+        request.expected_returns
+    )
+
+    returns_matrix = np.array(
+        [
+            request.returns[asset]
+            for asset in assets
+        ],
+        dtype=float,
+    )
+
+    correlation_matrix = np.corrcoef(
+        returns_matrix
+    )
+
+    volatilities = np.array(
+        [
+            request.volatilities[asset]
+            for asset in assets
+        ],
+        dtype=float,
+    )
+
+    covariance_matrix = (
+        np.outer(
+            volatilities,
+            volatilities,
+        )
+        * correlation_matrix
+    )
+
+    return EfficientFrontier.generate(
+        covariance_matrix=covariance_matrix,
+        expected_returns=(
+            request.expected_returns
+        ),
+        portfolios=1000,
+        seed=42,
     )
