@@ -2,13 +2,33 @@
 
 import { useState } from "react";
 
-import { analyzePortfolio } from "@/lib/api";
+import {
+  analyzePortfolio,
+  optimizePortfolio,
+} from "@/lib/api";
+import { PortfolioBarChart } from "@/components/PortfolioBarChart";
 
 type AnalysisResult = {
   strategy: string;
   risk_level: string;
   target_weights: Record<string, number>;
   explanation: string;
+};
+
+type OptimizationResult = {
+  selected_strategy: string;
+  minimum_variance: {
+    weights: Record<string, number>;
+    portfolio_volatility: number;
+  };
+  maximum_sharpe: {
+    weights: Record<string, number>;
+    sharpe_ratio: number;
+  };
+  risk_parity: {
+    weights: Record<string, number>;
+    risk_contributions: Record<string, number>;
+  };
 };
 
 const samplePortfolio = {
@@ -31,29 +51,56 @@ const samplePortfolio = {
 };
 
 export default function Home() {
-  const [result, setResult] =
+  const [analysis, setAnalysis] =
     useState<AnalysisResult | null>(null);
+  const [optimization, setOptimization] =
+    useState<OptimizationResult | null>(null);
   const [loading, setLoading] =
-    useState(false);
+    useState<"analyze" | "optimize" | null>(null);
   const [error, setError] =
     useState("");
 
   async function handleAnalyze() {
-    setLoading(true);
+    setLoading("analyze");
     setError("");
+    setOptimization(null);
 
     try {
       const payload = await analyzePortfolio(
         samplePortfolio
       );
 
-      setResult(payload);
-    } catch {
+      setAnalysis(payload);
+    } catch (caughtError) {
       setError(
-        "No fue posible conectar con la API."
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No fue posible conectar con la API."
       );
     } finally {
-      setLoading(false);
+      setLoading(null);
+    }
+  }
+
+  async function handleOptimize() {
+    setLoading("optimize");
+    setError("");
+    setAnalysis(null);
+
+    try {
+      const payload = await optimizePortfolio(
+        samplePortfolio
+      );
+
+      setOptimization(payload);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No fue posible conectar con la API."
+      );
+    } finally {
+      setLoading(null);
     }
   }
 
@@ -77,17 +124,25 @@ export default function Home() {
             Frontend conectado a FastAPI.
           </p>
 
-          <div className="mt-8 flex gap-4">
+          <div className="mt-8 flex flex-wrap gap-4">
             <button
               className="rounded bg-blue-600 px-5 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              disabled={loading}
+              disabled={loading !== null}
               onClick={handleAnalyze}
             >
-              {loading ? "Analyzing..." : "Analyze"}
+              {loading === "analyze"
+                ? "Analyzing..."
+                : "Analyze"}
             </button>
 
-            <button className="rounded bg-green-600 px-5 py-3 font-medium text-white">
-              Optimize
+            <button
+              className="rounded bg-green-600 px-5 py-3 font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              disabled={loading !== null}
+              onClick={handleOptimize}
+            >
+              {loading === "optimize"
+                ? "Optimizing..."
+                : "Optimize"}
             </button>
 
             <button className="rounded bg-amber-500 px-5 py-3 font-medium text-white">
@@ -105,7 +160,7 @@ export default function Home() {
             </p>
           )}
 
-          {result && (
+          {analysis && (
             <div className="mt-8 rounded-lg bg-slate-50 p-6">
               <h3 className="text-xl font-semibold">
                 Analysis Result
@@ -113,21 +168,61 @@ export default function Home() {
 
               <p className="mt-3">
                 Strategy:{" "}
-                <strong>{result.strategy}</strong>
+                <strong>{analysis.strategy}</strong>
               </p>
 
               <p className="mt-2">
                 Risk level:{" "}
-                <strong>{result.risk_level}</strong>
+                <strong>{analysis.risk_level}</strong>
               </p>
 
               <pre className="mt-4 overflow-auto rounded bg-slate-900 p-4 text-sm text-white">
                 {JSON.stringify(
-                  result.target_weights,
+                  analysis.target_weights,
                   null,
                   2
                 )}
               </pre>
+            </div>
+          )}
+
+          {optimization && (
+            <div className="mt-8 rounded-lg bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Optimization Result
+              </h3>
+
+              <p className="mt-3">
+                Selected strategy:{" "}
+                <strong>
+                  {optimization.selected_strategy}
+                </strong>
+              </p>
+
+              <div className="mt-6 grid gap-6 xl:grid-cols-3">
+                <PortfolioBarChart
+                  title="Minimum Variance"
+                  weights={
+                    optimization.minimum_variance
+                      .weights
+                  }
+                />
+
+                <PortfolioBarChart
+                  title="Maximum Sharpe"
+                  weights={
+                    optimization.maximum_sharpe
+                      .weights
+                  }
+                />
+
+                <PortfolioBarChart
+                  title="Risk Parity"
+                  weights={
+                    optimization.risk_parity.weights
+                  }
+                />
+              </div>
             </div>
           )}
         </div>

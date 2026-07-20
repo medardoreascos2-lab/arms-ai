@@ -1,8 +1,13 @@
-const API_URL = "http://127.0.0.1:8000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000";
 
-export async function analyzePortfolio(payload: unknown) {
+async function postJson(
+  path: string,
+  payload: unknown
+) {
   const response = await fetch(
-    `${API_URL}/portfolio/analyze`,
+    `${API_URL}${path}`,
     {
       method: "POST",
       headers: {
@@ -13,8 +18,33 @@ export async function analyzePortfolio(payload: unknown) {
   );
 
   if (!response.ok) {
-    throw new Error("API Error");
+    const errorPayload =
+      await response.json().catch(() => null);
+
+    const message =
+      errorPayload?.error?.message ??
+      `API Error: ${response.status}`;
+
+    throw new Error(message);
   }
 
   return response.json();
+}
+
+export function analyzePortfolio(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/analyze",
+    payload
+  );
+}
+
+export function optimizePortfolio(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/optimize",
+    payload
+  );
 }
