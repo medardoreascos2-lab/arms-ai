@@ -3,6 +3,7 @@ import numpy as np
 from fastapi import APIRouter
 
 from backend.api.schemas.portfolio import (
+    BenchmarkAnalyticsRequest,
     PortfolioAnalyzeRequest,
     PortfolioBacktestRequest,
     RiskAnalyticsRequest,
@@ -31,6 +32,9 @@ from backend.portfolio.portfolio_covariance_matrix import (
 )
 from backend.portfolio.portfolio_backtest import (
     PortfolioBacktest,
+)
+from backend.portfolio.benchmark_analytics import (
+    BenchmarkAnalytics,
 )
 from backend.portfolio.risk_analytics import (
     RiskAnalytics,
@@ -402,6 +406,104 @@ def risk_analytics_from_market(
         returns=[
             float(value)
             for value in portfolio_returns
+        ],
+        risk_free_rate=(
+            request.risk_free_rate
+        ),
+    )
+
+
+
+@router.post("/benchmark-analytics")
+def benchmark_analytics_from_market(
+    request: BenchmarkAnalyticsRequest,
+) -> dict[str, object]:
+    symbols = [
+        *request.symbols,
+        request.benchmark.strip().upper(),
+    ]
+
+    prices = download_prices(
+        symbols,
+        request.period,
+    )
+
+    normalized_weights = {
+        symbol.strip().upper(): float(weight)
+        for symbol, weight
+        in request.weights.items()
+    }
+
+    weight_sum = sum(
+        normalized_weights.values()
+    )
+
+    if abs(weight_sum - 1.0) > 1e-9:
+        raise ValueError(
+            "weights debe sumar 1.0."
+        )
+
+    benchmark_symbol = (
+        request.benchmark
+        .strip()
+        .upper()
+    )
+
+    required_assets = (
+        set(normalized_weights)
+        | {benchmark_symbol}
+    )
+
+    missing_assets = (
+        required_assets
+        - set(prices.columns)
+    )
+
+    if missing_assets:
+        raise ValueError(
+            "prices no contiene todos los activos requeridos."
+        )
+
+    returns_frame = (
+        prices[
+            list(normalized_weights)
+            + [benchmark_symbol]
+        ]
+        .astype(float)
+        .pct_change()
+        .dropna(how="any")
+    )
+
+    if returns_frame.empty:
+        raise ValueError(
+            "No fue posible calcular retornos."
+        )
+
+    portfolio_returns = (
+        returns_frame[
+            list(normalized_weights)
+        ]
+        .mul(
+            normalized_weights,
+            axis="columns",
+        )
+        .sum(axis=1)
+    )
+
+    benchmark_returns = (
+        returns_frame[
+            benchmark_symbol
+        ]
+    )
+
+    return BenchmarkAnalytics().calculate(
+        portfolio_returns=[
+            float(value)
+            for value in portfolio_returns.tolist()
+        ],
+        benchmark_returns=[
+            float(value)
+            for value in benchmark_returns.tolist()
         ],
         risk_free_rate=(
             request.risk_free_rate
