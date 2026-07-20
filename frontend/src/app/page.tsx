@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { BenchmarkComparisonChart } from "@/components/BenchmarkComparisonChart";
 import { EfficientFrontierChart } from "@/components/EfficientFrontierChart";
 import { EquityCurveChart } from "@/components/EquityCurveChart";
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
@@ -12,6 +13,7 @@ import {
 import {
   analyzePortfolioFromMarket,
   backtestPortfolio,
+  calculateBenchmarkAnalytics,
   calculateRiskAnalyticsFromMarket,
   generateEfficientFrontier,
   optimizePortfolio,
@@ -56,6 +58,15 @@ type RebalancingResult = {
   underweight_assets: string[];
 };
 
+type BenchmarkAnalyticsResult = {
+  beta: number;
+  alpha: number;
+  tracking_error: number;
+  information_ratio: number;
+  portfolio_curve: number[];
+  benchmark_curve: number[];
+};
+
 type RiskAnalyticsResult = {
   annualized_return: number;
   annualized_volatility: number;
@@ -97,7 +108,8 @@ type Action =
   | "rebalance"
   | "simulate"
   | "backtest"
-  | "risk";
+  | "risk"
+  | "benchmark";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -134,6 +146,9 @@ export default function Home() {
   const [riskAnalytics, setRiskAnalytics] =
     useState<RiskAnalyticsResult | null>(null);
 
+  const [benchmarkAnalytics, setBenchmarkAnalytics] =
+    useState<BenchmarkAnalyticsResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -148,6 +163,7 @@ export default function Home() {
     setSimulation(null);
     setBacktest(null);
     setRiskAnalytics(null);
+    setBenchmarkAnalytics(null);
   }
 
   function handleError(
@@ -388,6 +404,73 @@ export default function Home() {
     }
   }
 
+  async function handleBenchmarkAnalytics() {
+    setLoading("benchmark");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const weightSum =
+        normalizedWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          weightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights debe sumar 100."
+        );
+      }
+
+      const payload =
+        await calculateBenchmarkAnalytics({
+          symbols,
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          benchmark: "SPY",
+          period: "1y",
+          risk_free_rate:
+            formValues.riskFreeRate,
+        });
+
+      setBenchmarkAnalytics(
+        payload
+      );
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
   async function handleRiskAnalytics() {
     setLoading("risk");
     setError("");
@@ -532,6 +615,15 @@ export default function Home() {
               className="bg-rose-600 hover:bg-rose-700"
               onClick={handleRiskAnalytics}
             />
+
+            <ActionButton
+              label="Benchmark"
+              loadingLabel="Comparing..."
+              active={loading === "benchmark"}
+              disabled={loading !== null}
+              className="bg-cyan-600 hover:bg-cyan-700"
+              onClick={handleBenchmarkAnalytics}
+            />
           </div>
 
           {error && (
@@ -661,6 +753,58 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Required Trades"
                   weights={rebalancing.trades}
+                />
+              </div>
+            </section>
+          )}
+
+          {benchmarkAnalytics && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Portfolio vs Benchmark
+              </h3>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Beta"
+                  value={benchmarkAnalytics.beta.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Alpha"
+                  value={`${(
+                    benchmarkAnalytics.alpha
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Tracking error"
+                  value={`${(
+                    benchmarkAnalytics.tracking_error
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Information ratio"
+                  value={benchmarkAnalytics.information_ratio.toFixed(
+                    2
+                  )}
+                />
+              </div>
+
+              <div className="mt-6">
+                <BenchmarkComparisonChart
+                  portfolioCurve={
+                    benchmarkAnalytics.portfolio_curve
+                  }
+                  benchmarkCurve={
+                    benchmarkAnalytics.benchmark_curve
+                  }
+                  benchmarkLabel="SPY"
                 />
               </div>
             </section>

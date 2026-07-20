@@ -117,3 +117,12 @@ export function calculateRiskAnalyticsFromMarket(
     payload
   );
 }
+
+export function calculateBenchmarkAnalytics(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/benchmark-analytics",
+    payload
+  );
+}
