@@ -73,3 +73,13 @@ class RiskAnalyticsRequest(BaseModel):
         min_length=1,
     )
     risk_free_rate: float = 0.0
+
+
+
+class RiskAnalyticsMarketRequest(BaseModel):
+    symbols: list[str] = Field(
+        min_length=1,
+    )
+    weights: dict[str, float]
+    period: str = "1y"
+    risk_free_rate: float = 0.0

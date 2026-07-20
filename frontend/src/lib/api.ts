@@ -93,3 +93,27 @@ export function backtestPortfolio(
     payload
   );
 }
+
+export function calculateRiskAnalytics(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/risk-analytics",
+    payload
+  );
+}
+
+
+export function calculateRiskAnalyticsFromMarket(
+  payload: {
+    symbols: string[];
+    weights: Record<string, number>;
+    period?: string;
+    risk_free_rate?: number;
+  }
+) {
+  return postJson(
+    "/portfolio/risk-analytics-from-market",
+    payload
+  );
+}

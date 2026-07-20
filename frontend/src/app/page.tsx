@@ -12,6 +12,7 @@ import {
 import {
   analyzePortfolioFromMarket,
   backtestPortfolio,
+  calculateRiskAnalyticsFromMarket,
   generateEfficientFrontier,
   optimizePortfolio,
   rebalancePortfolio,
@@ -55,6 +56,17 @@ type RebalancingResult = {
   underweight_assets: string[];
 };
 
+type RiskAnalyticsResult = {
+  annualized_return: number;
+  annualized_volatility: number;
+  sharpe_ratio: number;
+  sortino_ratio: number;
+  maximum_drawdown: number;
+  calmar_ratio: number;
+  value_at_risk_95: number;
+  conditional_value_at_risk_95: number;
+};
+
 type BacktestResult = {
   initial_value: number;
   final_value: number;
@@ -84,7 +96,8 @@ type Action =
   | "optimize"
   | "rebalance"
   | "simulate"
-  | "backtest";
+  | "backtest"
+  | "risk";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -118,6 +131,9 @@ export default function Home() {
   const [backtest, setBacktest] =
     useState<BacktestResult | null>(null);
 
+  const [riskAnalytics, setRiskAnalytics] =
+    useState<RiskAnalyticsResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -131,6 +147,7 @@ export default function Home() {
     setRebalancing(null);
     setSimulation(null);
     setBacktest(null);
+    setRiskAnalytics(null);
   }
 
   function handleError(
@@ -371,6 +388,70 @@ export default function Home() {
     }
   }
 
+  async function handleRiskAnalytics() {
+    setLoading("risk");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const weightSum =
+        normalizedWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          weightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights debe sumar 100."
+        );
+      }
+
+      const payload =
+        await calculateRiskAnalyticsFromMarket({
+          symbols,
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          period: "1y",
+          risk_free_rate:
+            formValues.riskFreeRate,
+        });
+
+      setRiskAnalytics(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -441,6 +522,15 @@ export default function Home() {
               disabled={loading !== null}
               className="bg-slate-800 hover:bg-slate-900"
               onClick={handleBacktest}
+            />
+
+            <ActionButton
+              label="Risk Analytics"
+              loadingLabel="Calculating..."
+              active={loading === "risk"}
+              disabled={loading !== null}
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={handleRiskAnalytics}
             />
           </div>
 
@@ -571,6 +661,78 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Required Trades"
                   weights={rebalancing.trades}
+                />
+              </div>
+            </section>
+          )}
+
+          {riskAnalytics && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Risk Analytics
+              </h3>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Annualized return"
+                  value={`${(
+                    riskAnalytics.annualized_return
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Annualized volatility"
+                  value={`${(
+                    riskAnalytics.annualized_volatility
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Sharpe ratio"
+                  value={riskAnalytics.sharpe_ratio.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Sortino ratio"
+                  value={riskAnalytics.sortino_ratio.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Calmar ratio"
+                  value={riskAnalytics.calmar_ratio.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Maximum drawdown"
+                  value={`${(
+                    riskAnalytics.maximum_drawdown
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="VaR 95%"
+                  value={`${(
+                    riskAnalytics.value_at_risk_95
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="CVaR 95%"
+                  value={`${(
+                    riskAnalytics
+                      .conditional_value_at_risk_95
+                    * 100
+                  ).toFixed(2)}%`}
                 />
               </div>
             </section>
