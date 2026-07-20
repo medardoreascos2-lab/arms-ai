@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from backend.api.schemas.portfolio import (
     PortfolioAnalyzeRequest,
+    PortfolioBacktestRequest,
     PortfolioMarketRequest,
     PortfolioRebalanceRequest,
     PortfolioSimulateRequest,
@@ -25,6 +26,9 @@ from backend.portfolio.portfolio_correlation_matrix import (
 )
 from backend.portfolio.portfolio_covariance_matrix import (
     PortfolioCovarianceMatrix,
+)
+from backend.portfolio.portfolio_backtest import (
+    PortfolioBacktest,
 )
 from backend.portfolio.efficient_frontier import (
     EfficientFrontier,
@@ -299,4 +303,22 @@ def generate_efficient_frontier(
         ),
         portfolios=1000,
         seed=42,
+    )
+
+
+
+@router.post("/backtest")
+def backtest_portfolio(
+    request: PortfolioBacktestRequest,
+) -> dict[str, object]:
+    prices = download_prices(
+        request.symbols,
+        request.period,
+    )
+
+    return PortfolioBacktest().run(
+        prices=prices,
+        weights=request.weights,
+        initial_value=request.initial_value,
+        risk_free_rate=request.risk_free_rate,
     )

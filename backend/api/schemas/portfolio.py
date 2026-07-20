@@ -52,3 +52,17 @@ class PortfolioMarketRequest(BaseModel):
         default=0.0,
         ge=0.0,
     )
+
+
+
+class PortfolioBacktestRequest(BaseModel):
+    symbols: list[str] = Field(
+        min_length=1,
+    )
+    weights: dict[str, float]
+    period: str = "1y"
+    initial_value: float = Field(
+        default=1000.0,
+        gt=0.0,
+    )
+    risk_free_rate: float = 0.0
