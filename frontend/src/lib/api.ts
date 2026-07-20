@@ -48,3 +48,21 @@ export function optimizePortfolio(
     payload
   );
 }
+
+export function rebalancePortfolio(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/rebalance",
+    payload
+  );
+}
+
+export function simulatePortfolio(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/simulate",
+    payload
+  );
+}
