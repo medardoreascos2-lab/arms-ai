@@ -4,6 +4,10 @@ import { useState } from "react";
 
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
 import {
+  PortfolioFormValues,
+  PortfolioInputs,
+} from "@/components/PortfolioInputs";
+import {
   analyzePortfolio,
   optimizePortfolio,
   rebalancePortfolio,
@@ -60,49 +64,20 @@ type Action =
   | "rebalance"
   | "simulate";
 
-const samplePortfolio = {
-  returns: {
-    A: [0.01, 0.02, 0.03, 0.04],
-    B: [0.02, 0.01, 0.03, 0.05],
-    C: [0.03, 0.01, 0.02, 0.04],
-  },
-  volatilities: {
-    A: 0.1,
-    B: 0.2,
-    C: 0.3,
-  },
-  expected_returns: {
-    A: 0.08,
-    B: 0.12,
-    C: 0.18,
-  },
-  risk_free_rate: 0.02,
-};
-
-const sampleRebalancing = {
-  current_weights: {
-    A: 50,
-    B: 30,
-    C: 20,
-  },
-  target_weights: {
-    A: 40,
-    B: 40,
-    C: 20,
-  },
-  tolerance: 0,
-};
-
-const sampleSimulation = {
-  initial_value: 1000,
-  mean_return: 0.01,
-  volatility: 0.1,
-  periods: 12,
-  simulations: 500,
-  seed: 42,
+const initialFormValues: PortfolioFormValues = {
+  symbols: "AAPL, MSFT, NVDA",
+  volatilities: "0.20, 0.18, 0.35",
+  expectedReturns: "0.12, 0.10, 0.18",
+  currentWeights: "40, 35, 25",
+  riskFreeRate: 0.02,
 };
 
 export default function Home() {
+  const [formValues, setFormValues] =
+    useState<PortfolioFormValues>(
+      initialFormValues
+    );
+
   const [analysis, setAnalysis] =
     useState<AnalysisResult | null>(null);
 
@@ -128,12 +103,91 @@ export default function Home() {
     setSimulation(null);
   }
 
-  function handleError(caughtError: unknown) {
+  function handleError(
+    caughtError: unknown
+  ) {
     setError(
       caughtError instanceof Error
         ? caughtError.message
-        : "No fue posible conectar con la API."
+        : "No fue posible completar la operación."
     );
+  }
+
+  function buildPortfolioPayload() {
+    const symbols = parseSymbols(
+      formValues.symbols
+    );
+
+    const volatilities = parseNumbers(
+      formValues.volatilities
+    );
+
+    const expectedReturns = parseNumbers(
+      formValues.expectedReturns
+    );
+
+    validateLengths(
+      symbols,
+      volatilities,
+      expectedReturns
+    );
+
+    return {
+      returns: buildReturnSeries(symbols),
+      volatilities: toRecord(
+        symbols,
+        volatilities
+      ),
+      expected_returns: toRecord(
+        symbols,
+        expectedReturns
+      ),
+      risk_free_rate:
+        formValues.riskFreeRate,
+    };
+  }
+
+  function buildRebalancingPayload() {
+    const symbols = parseSymbols(
+      formValues.symbols
+    );
+
+    const currentWeights = parseNumbers(
+      formValues.currentWeights
+    );
+
+    if (
+      symbols.length
+      !== currentWeights.length
+    ) {
+      throw new Error(
+        "Assets y current weights deben tener la misma cantidad de valores."
+      );
+    }
+
+    const equalWeight =
+      100 / symbols.length;
+
+    const targetWeights =
+      Object.fromEntries(
+        symbols.map(
+          (symbol) => [
+            symbol,
+            Number(
+              equalWeight.toFixed(6)
+            ),
+          ]
+        )
+      );
+
+    return {
+      current_weights: toRecord(
+        symbols,
+        currentWeights
+      ),
+      target_weights: targetWeights,
+      tolerance: 0,
+    };
   }
 
   async function handleAnalyze() {
@@ -142,9 +196,10 @@ export default function Home() {
     clearResults();
 
     try {
-      const payload = await analyzePortfolio(
-        samplePortfolio
-      );
+      const payload =
+        await analyzePortfolio(
+          buildPortfolioPayload()
+        );
 
       setAnalysis(payload);
     } catch (caughtError) {
@@ -160,9 +215,10 @@ export default function Home() {
     clearResults();
 
     try {
-      const payload = await optimizePortfolio(
-        samplePortfolio
-      );
+      const payload =
+        await optimizePortfolio(
+          buildPortfolioPayload()
+        );
 
       setOptimization(payload);
     } catch (caughtError) {
@@ -178,9 +234,10 @@ export default function Home() {
     clearResults();
 
     try {
-      const payload = await rebalancePortfolio(
-        sampleRebalancing
-      );
+      const payload =
+        await rebalancePortfolio(
+          buildRebalancingPayload()
+        );
 
       setRebalancing(payload);
     } catch (caughtError) {
@@ -196,9 +253,15 @@ export default function Home() {
     clearResults();
 
     try {
-      const payload = await simulatePortfolio(
-        sampleSimulation
-      );
+      const payload =
+        await simulatePortfolio({
+          initial_value: 1000,
+          mean_return: 0.01,
+          volatility: 0.1,
+          periods: 12,
+          simulations: 500,
+          seed: 42,
+        });
 
       setSimulation(payload);
     } catch (caughtError) {
@@ -225,8 +288,13 @@ export default function Home() {
           </h2>
 
           <p className="mt-3 text-slate-600">
-            Frontend conectado a FastAPI.
+            Configura el portafolio y ejecuta el análisis.
           </p>
+
+          <PortfolioInputs
+            values={formValues}
+            onChange={setFormValues}
+          />
 
           <div className="mt-8 flex flex-wrap gap-4">
             <ActionButton
@@ -293,7 +361,9 @@ export default function Home() {
               <div className="mt-6">
                 <PortfolioBarChart
                   title="Target Weights"
-                  weights={analysis.target_weights}
+                  weights={
+                    analysis.target_weights
+                  }
                 />
               </div>
             </section>
@@ -308,7 +378,10 @@ export default function Home() {
               <p className="mt-3 text-slate-700">
                 Selected strategy:{" "}
                 <strong>
-                  {optimization.selected_strategy}
+                  {
+                    optimization
+                      .selected_strategy
+                  }
                 </strong>
               </p>
 
@@ -316,7 +389,8 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Minimum Variance"
                   weights={
-                    optimization.minimum_variance
+                    optimization
+                      .minimum_variance
                       .weights
                   }
                 />
@@ -324,7 +398,8 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Maximum Sharpe"
                   weights={
-                    optimization.maximum_sharpe
+                    optimization
+                      .maximum_sharpe
                       .weights
                   }
                 />
@@ -332,7 +407,8 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Risk Parity"
                   weights={
-                    optimization.risk_parity
+                    optimization
+                      .risk_parity
                       .weights
                   }
                 />
@@ -357,7 +433,8 @@ export default function Home() {
                 <MetricCard
                   label="Overweight"
                   value={
-                    rebalancing.overweight_assets
+                    rebalancing
+                      .overweight_assets
                       .join(", ") || "None"
                   }
                 />
@@ -365,7 +442,8 @@ export default function Home() {
                 <MetricCard
                   label="Underweight"
                   value={
-                    rebalancing.underweight_assets
+                    rebalancing
+                      .underweight_assets
                       .join(", ") || "None"
                   }
                 />
@@ -416,20 +494,6 @@ export default function Home() {
                 />
 
                 <MetricCard
-                  label="Minimum"
-                  value={`$${simulation.minimum_final_value.toFixed(
-                    2
-                  )}`}
-                />
-
-                <MetricCard
-                  label="Maximum"
-                  value={`$${simulation.maximum_final_value.toFixed(
-                    2
-                  )}`}
-                />
-
-                <MetricCard
                   label="Probability of loss"
                   value={`${simulation.probability_of_loss.toFixed(
                     2
@@ -446,6 +510,102 @@ export default function Home() {
         </section>
       </div>
     </main>
+  );
+}
+
+function parseSymbols(
+  value: string
+) {
+  const symbols = value
+    .split(",")
+    .map(
+      (symbol) =>
+        symbol.trim().toUpperCase()
+    )
+    .filter(Boolean);
+
+  if (!symbols.length) {
+    throw new Error(
+      "Debes introducir al menos un activo."
+    );
+  }
+
+  return symbols;
+}
+
+function parseNumbers(
+  value: string
+) {
+  const numbers = value
+    .split(",")
+    .map(
+      (item) =>
+        Number(item.trim())
+    );
+
+  if (
+    numbers.some(
+      (number) =>
+        !Number.isFinite(number)
+    )
+  ) {
+    throw new Error(
+      "Los valores numéricos contienen datos inválidos."
+    );
+  }
+
+  return numbers;
+}
+
+function validateLengths(
+  symbols: string[],
+  volatilities: number[],
+  expectedReturns: number[]
+) {
+  if (
+    symbols.length
+      !== volatilities.length
+    || symbols.length
+      !== expectedReturns.length
+  ) {
+    throw new Error(
+      "Assets, volatilities y expected returns deben tener la misma cantidad de valores."
+    );
+  }
+}
+
+function toRecord(
+  symbols: string[],
+  values: number[]
+) {
+  return Object.fromEntries(
+    symbols.map(
+      (symbol, index) => [
+        symbol,
+        values[index],
+      ]
+    )
+  );
+}
+
+function buildReturnSeries(
+  symbols: string[]
+) {
+  const patterns = [
+    [0.01, 0.02, 0.03, 0.04],
+    [0.02, 0.01, 0.03, 0.05],
+    [0.03, 0.01, 0.02, 0.04],
+  ];
+
+  return Object.fromEntries(
+    symbols.map(
+      (symbol, index) => [
+        symbol,
+        patterns[
+          index % patterns.length
+        ],
+      ]
+    )
   );
 }
 
