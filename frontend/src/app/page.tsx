@@ -8,7 +8,6 @@ import {
   PortfolioInputs,
 } from "@/components/PortfolioInputs";
 import {
-  analyzePortfolio,
   analyzePortfolioFromMarket,
   optimizePortfolio,
   rebalancePortfolio,
