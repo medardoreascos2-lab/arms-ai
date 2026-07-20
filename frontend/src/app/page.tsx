@@ -9,6 +9,7 @@ import {
 } from "@/components/PortfolioInputs";
 import {
   analyzePortfolio,
+  analyzePortfolioFromMarket,
   optimizePortfolio,
   rebalancePortfolio,
   simulatePortfolio,
@@ -196,10 +197,17 @@ export default function Home() {
     clearResults();
 
     try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
       const payload =
-        await analyzePortfolio(
-          buildPortfolioPayload()
-        );
+        await analyzePortfolioFromMarket({
+          symbols,
+          period: "1y",
+          risk_free_rate:
+            formValues.riskFreeRate,
+        });
 
       setAnalysis(payload);
     } catch (caughtError) {

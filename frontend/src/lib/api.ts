@@ -66,3 +66,12 @@ export function simulatePortfolio(
     payload
   );
 }
+
+export function analyzePortfolioFromMarket(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/from-market",
+    payload
+  );
+}
