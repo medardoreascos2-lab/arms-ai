@@ -314,7 +314,6 @@ def generate_efficient_frontier(
 @router.post("/backtest")
 def backtest_portfolio(
     request: PortfolioBacktestRequest,
-    RiskAnalyticsRequest,
 ) -> dict[str, object]:
     prices = download_prices(
         request.symbols,
