@@ -11,6 +11,7 @@ from backend.api.schemas.portfolio import (
     PortfolioBacktestRequest,
     RiskAnalyticsRequest,
     RiskAnalyticsMarketRequest,
+    RiskContributionRequest,
     RollingAnalyticsRequest,
     ScenarioAnalysisRequest,
     StressTestingRequest,
@@ -62,6 +63,9 @@ from backend.portfolio.stress_testing import (
 )
 from backend.portfolio.risk_analytics import (
     RiskAnalytics,
+)
+from backend.portfolio.risk_contribution import (
+    RiskContribution,
 )
 from backend.portfolio.efficient_frontier import (
     EfficientFrontier,
@@ -947,4 +951,69 @@ def scenario_analysis(
         weights=request.weights,
         scenario=request.scenario,
         initial_value=request.initial_value,
+    )
+
+
+
+@router.post("/risk-contribution")
+def risk_contribution_from_market(
+    request: RiskContributionRequest,
+) -> dict[str, object]:
+    prices = download_prices(
+        request.symbols,
+        request.period,
+    )
+
+    normalized_weights = {
+        symbol.strip().upper(): float(weight)
+        for symbol, weight
+        in request.weights.items()
+    }
+
+    weight_sum = sum(
+        normalized_weights.values()
+    )
+
+    if abs(weight_sum - 1.0) > 1e-9:
+        raise ValueError(
+            "weights debe sumar 1.0."
+        )
+
+    missing_assets = (
+        set(normalized_weights)
+        - set(prices.columns)
+    )
+
+    if missing_assets:
+        raise ValueError(
+            "prices no contiene todos los activos "
+            "definidos en weights."
+        )
+
+    returns_frame = (
+        prices[
+            list(normalized_weights)
+        ]
+        .astype(float)
+        .pct_change()
+        .dropna(how="any")
+    )
+
+    if returns_frame.empty:
+        raise ValueError(
+            "No fue posible calcular retornos."
+        )
+
+    covariance_matrix = (
+        returns_frame
+        .cov()
+        .to_numpy(
+            dtype=float
+        )
+        * 252
+    )
+
+    return RiskContribution().calculate(
+        covariance_matrix=covariance_matrix,
+        weights=normalized_weights,
     )

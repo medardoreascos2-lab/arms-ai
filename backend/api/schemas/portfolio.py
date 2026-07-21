@@ -162,3 +162,12 @@ class ScenarioAnalysisRequest(BaseModel):
         default=1000.0,
         gt=0.0,
     )
+
+
+
+class RiskContributionRequest(BaseModel):
+    symbols: list[str] = Field(
+        min_length=1,
+    )
+    weights: dict[str, float]
+    period: str = "1y"
