@@ -128,3 +128,17 @@ class CapmAnalyticsRequest(BaseModel):
     market: str = "SPY"
     period: str = "1y"
     risk_free_rate: float = 0.0
+
+
+
+class FamaFrenchAnalyticsRequest(BaseModel):
+    symbols: list[str] = Field(
+        min_length=1,
+    )
+    weights: dict[str, float]
+    market: str = "SPY"
+    small_cap: str = "IWM"
+    value: str = "IWD"
+    growth: str = "IWF"
+    period: str = "1y"
+    risk_free_rate: float = 0.0
