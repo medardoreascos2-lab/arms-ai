@@ -9,6 +9,7 @@ from backend.api.schemas.portfolio import (
     PortfolioBacktestRequest,
     RiskAnalyticsRequest,
     RiskAnalyticsMarketRequest,
+    RollingAnalyticsRequest,
     PortfolioMarketRequest,
     PortfolioRebalanceRequest,
     PortfolioSimulateRequest,
@@ -39,6 +40,9 @@ from backend.portfolio.benchmark_analytics import (
 )
 from backend.portfolio.drawdown_analytics import (
     DrawdownAnalytics,
+)
+from backend.portfolio.rolling_analytics import (
+    RollingAnalytics,
 )
 from backend.portfolio.risk_analytics import (
     RiskAnalytics,
@@ -580,4 +584,74 @@ def drawdown_analytics_from_market(
             float(value)
             for value in portfolio_returns
         ],
+    )
+
+
+
+@router.post("/rolling-analytics")
+def rolling_analytics_from_market(
+    request: RollingAnalyticsRequest,
+) -> dict[str, list[float]]:
+    prices = download_prices(
+        request.symbols,
+        request.period,
+    )
+
+    normalized_weights = {
+        symbol.strip().upper(): float(weight)
+        for symbol, weight
+        in request.weights.items()
+    }
+
+    weight_sum = sum(
+        normalized_weights.values()
+    )
+
+    if abs(weight_sum - 1.0) > 1e-9:
+        raise ValueError(
+            "weights debe sumar 1.0."
+        )
+
+    missing_assets = (
+        set(normalized_weights)
+        - set(prices.columns)
+    )
+
+    if missing_assets:
+        raise ValueError(
+            "prices no contiene todos los activos "
+            "definidos en weights."
+        )
+
+    returns_frame = (
+        prices[
+            list(normalized_weights)
+        ]
+        .astype(float)
+        .pct_change()
+        .dropna(how="any")
+    )
+
+    if returns_frame.empty:
+        raise ValueError(
+            "No fue posible calcular retornos."
+        )
+
+    portfolio_returns = (
+        returns_frame
+        .mul(
+            normalized_weights,
+            axis="columns",
+        )
+        .sum(axis=1)
+        .tolist()
+    )
+
+    return RollingAnalytics().calculate(
+        returns=[
+            float(value)
+            for value in portfolio_returns
+        ],
+        window=request.window,
+        risk_free_rate=request.risk_free_rate,
     )
