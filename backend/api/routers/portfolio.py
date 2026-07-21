@@ -12,6 +12,7 @@ from backend.api.schemas.portfolio import (
     RiskAnalyticsRequest,
     RiskAnalyticsMarketRequest,
     RollingAnalyticsRequest,
+    StressTestingRequest,
     PortfolioMarketRequest,
     PortfolioRebalanceRequest,
     PortfolioSimulateRequest,
@@ -51,6 +52,9 @@ from backend.portfolio.drawdown_analytics import (
 )
 from backend.portfolio.rolling_analytics import (
     RollingAnalytics,
+)
+from backend.portfolio.stress_testing import (
+    StressTesting,
 )
 from backend.portfolio.risk_analytics import (
     RiskAnalytics,
@@ -915,4 +919,16 @@ def fama_french_analytics_from_market(
         risk_free_rate=(
             request.risk_free_rate
         ),
+    )
+
+
+
+@router.post("/stress-test")
+def stress_test_portfolio(
+    request: StressTestingRequest,
+) -> dict[str, object]:
+    return StressTesting().calculate(
+        weights=request.weights,
+        shocks=request.shocks,
+        initial_value=request.initial_value,
     )

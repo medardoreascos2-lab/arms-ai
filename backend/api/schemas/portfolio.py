@@ -142,3 +142,13 @@ class FamaFrenchAnalyticsRequest(BaseModel):
     growth: str = "IWF"
     period: str = "1y"
     risk_free_rate: float = 0.0
+
+
+
+class StressTestingRequest(BaseModel):
+    weights: dict[str, float]
+    shocks: dict[str, float]
+    initial_value: float = Field(
+        default=1000.0,
+        gt=0.0,
+    )
