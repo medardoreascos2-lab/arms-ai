@@ -189,3 +189,12 @@ export function calculateRiskContribution(
     payload
   );
 }
+
+export function calculatePerformanceAttribution(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/performance-attribution",
+    payload
+  );
+}

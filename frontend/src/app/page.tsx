@@ -6,6 +6,7 @@ import { BenchmarkComparisonChart } from "@/components/BenchmarkComparisonChart"
 import { DrawdownChart } from "@/components/DrawdownChart";
 import { EfficientFrontierChart } from "@/components/EfficientFrontierChart";
 import { EquityCurveChart } from "@/components/EquityCurveChart";
+import { PerformanceAttributionChart } from "@/components/PerformanceAttributionChart";
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
 import { RiskContributionChart } from "@/components/RiskContributionChart";
 import { RollingAnalyticsChart } from "@/components/RollingAnalyticsChart";
@@ -22,6 +23,7 @@ import {
   calculateCapmAnalytics,
   calculateDrawdownAnalytics,
   calculateFamaFrenchAnalytics,
+  calculatePerformanceAttribution,
   calculateRiskAnalyticsFromMarket,
   calculateRiskContribution,
   calculateRollingAnalytics,
@@ -68,6 +70,21 @@ type RebalancingResult = {
   turnover: number;
   overweight_assets: string[];
   underweight_assets: string[];
+};
+
+type PerformanceAttributionResult = {
+  portfolio_return: number;
+  benchmark_return: number;
+  active_return: number;
+  allocation_effect: number;
+  selection_effect: number;
+  interaction_effect: number;
+  allocation_by_asset: Record<string, number>;
+  selection_by_asset: Record<string, number>;
+  interaction_by_asset: Record<string, number>;
+  asset_contributions: Record<string, number>;
+  best_asset: string;
+  worst_asset: string;
 };
 
 type RiskContributionResult = {
@@ -190,7 +207,8 @@ type Action =
   | "fama-french"
   | "stress"
   | "scenario"
-  | "risk-contribution";
+  | "risk-contribution"
+  | "attribution";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -251,6 +269,9 @@ export default function Home() {
   const [riskContribution, setRiskContribution] =
     useState<RiskContributionResult | null>(null);
 
+  const [performanceAttribution, setPerformanceAttribution] =
+    useState<PerformanceAttributionResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -273,6 +294,7 @@ export default function Home() {
     setStressTesting(null);
     setScenarioAnalysis(null);
     setRiskContribution(null);
+    setPerformanceAttribution(null);
   }
 
   function handleError(
@@ -506,6 +528,120 @@ export default function Home() {
         });
 
       setBacktest(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handlePerformanceAttribution() {
+    setLoading("attribution");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const portfolioWeights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      const benchmarkWeights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      const portfolioReturns = parseNumbers(
+        formValues.expectedReturns
+      );
+
+      const benchmarkReturns = parseNumbers(
+        formValues.volatilities
+      );
+
+      const lengths = [
+        portfolioWeights.length,
+        benchmarkWeights.length,
+        portfolioReturns.length,
+        benchmarkReturns.length,
+      ];
+
+      if (
+        lengths.some(
+          (length) => length !== symbols.length
+        )
+      ) {
+        throw new Error(
+          "Assets, weights y returns deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedPortfolioWeights =
+        portfolioWeights.map(
+          (weight) => weight / 100
+        );
+
+      const normalizedBenchmarkWeights =
+        benchmarkWeights.map(
+          (weight) => weight / 100
+        );
+
+      const portfolioWeightSum =
+        normalizedPortfolioWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      const benchmarkWeightSum =
+        normalizedBenchmarkWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          portfolioWeightSum - 1
+        ) > 0.000001
+        || Math.abs(
+          benchmarkWeightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights y target weights deben sumar 100."
+        );
+      }
+
+      const payload =
+        await calculatePerformanceAttribution({
+          portfolio_weights: toRecord(
+            symbols,
+            normalizedPortfolioWeights
+          ),
+          benchmark_weights: toRecord(
+            symbols,
+            normalizedBenchmarkWeights
+          ),
+          portfolio_returns: toRecord(
+            symbols,
+            portfolioReturns.map(
+              (value) => value / 100
+            )
+          ),
+          benchmark_returns: toRecord(
+            symbols,
+            benchmarkReturns.map(
+              (value) => value / 100
+            )
+          ),
+        });
+
+      setPerformanceAttribution(
+        payload
+      );
     } catch (caughtError) {
       handleError(caughtError);
     } finally {
@@ -1319,6 +1455,15 @@ export default function Home() {
               className="bg-violet-700 hover:bg-violet-800"
               onClick={handleRiskContribution}
             />
+
+            <ActionButton
+              label="Attribution"
+              loadingLabel="Calculating..."
+              active={loading === "attribution"}
+              disabled={loading !== null}
+              className="bg-sky-700 hover:bg-sky-800"
+              onClick={handlePerformanceAttribution}
+            />
           </div>
 
           {error && (
@@ -1449,6 +1594,172 @@ export default function Home() {
                   title="Required Trades"
                   weights={rebalancing.trades}
                 />
+              </div>
+            </section>
+          )}
+
+          {performanceAttribution && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Performance Attribution
+              </h3>
+
+              <p className="mt-3 text-slate-600">
+                Explicación del active return por asignación,
+                selección e interacción.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Portfolio return"
+                  value={`${(
+                    performanceAttribution.portfolio_return
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Benchmark return"
+                  value={`${(
+                    performanceAttribution.benchmark_return
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Active return"
+                  value={`${(
+                    performanceAttribution.active_return
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Allocation effect"
+                  value={`${(
+                    performanceAttribution.allocation_effect
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Selection effect"
+                  value={`${(
+                    performanceAttribution.selection_effect
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Interaction effect"
+                  value={`${(
+                    performanceAttribution.interaction_effect
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Best asset"
+                  value={
+                    performanceAttribution.best_asset
+                  }
+                />
+
+                <MetricCard
+                  label="Worst asset"
+                  value={
+                    performanceAttribution.worst_asset
+                  }
+                />
+              </div>
+
+              <div className="mt-6">
+                <PerformanceAttributionChart
+                  allocation={
+                    performanceAttribution.allocation_by_asset
+                  }
+                  selection={
+                    performanceAttribution.selection_by_asset
+                  }
+                  interaction={
+                    performanceAttribution.interaction_by_asset
+                  }
+                />
+              </div>
+
+              <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-100 text-slate-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left">
+                        Asset
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        Allocation
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        Selection
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        Interaction
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {Object.keys(
+                      performanceAttribution.asset_contributions
+                    ).map((asset) => (
+                      <tr
+                        key={asset}
+                        className="border-t border-slate-200"
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          {asset}
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {(
+                            performanceAttribution.allocation_by_asset[
+                              asset
+                            ] * 100
+                          ).toFixed(2)}
+                          %
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {(
+                            performanceAttribution.selection_by_asset[
+                              asset
+                            ] * 100
+                          ).toFixed(2)}
+                          %
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {(
+                            performanceAttribution.interaction_by_asset[
+                              asset
+                            ] * 100
+                          ).toFixed(2)}
+                          %
+                        </td>
+
+                        <td className="px-4 py-3 text-right font-semibold">
+                          {(
+                            performanceAttribution.asset_contributions[
+                              asset
+                            ] * 100
+                          ).toFixed(2)}
+                          %
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
           )}
