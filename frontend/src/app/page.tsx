@@ -7,6 +7,7 @@ import { DrawdownChart } from "@/components/DrawdownChart";
 import { EfficientFrontierChart } from "@/components/EfficientFrontierChart";
 import { EquityCurveChart } from "@/components/EquityCurveChart";
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
+import { RollingAnalyticsChart } from "@/components/RollingAnalyticsChart";
 import {
   PortfolioFormValues,
   PortfolioInputs,
@@ -17,6 +18,7 @@ import {
   calculateBenchmarkAnalytics,
   calculateDrawdownAnalytics,
   calculateRiskAnalyticsFromMarket,
+  calculateRollingAnalytics,
   generateEfficientFrontier,
   optimizePortfolio,
   rebalancePortfolio,
@@ -58,6 +60,12 @@ type RebalancingResult = {
   turnover: number;
   overweight_assets: string[];
   underweight_assets: string[];
+};
+
+type RollingAnalyticsResult = {
+  rolling_volatility: number[];
+  rolling_sharpe: number[];
+  rolling_drawdown: number[];
 };
 
 type DrawdownAnalyticsResult = {
@@ -121,7 +129,8 @@ type Action =
   | "backtest"
   | "risk"
   | "benchmark"
-  | "drawdown";
+  | "drawdown"
+  | "rolling";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -164,6 +173,9 @@ export default function Home() {
   const [drawdownAnalytics, setDrawdownAnalytics] =
     useState<DrawdownAnalyticsResult | null>(null);
 
+  const [rollingAnalytics, setRollingAnalytics] =
+    useState<RollingAnalyticsResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -180,6 +192,7 @@ export default function Home() {
     setRiskAnalytics(null);
     setBenchmarkAnalytics(null);
     setDrawdownAnalytics(null);
+    setRollingAnalytics(null);
   }
 
   function handleError(
@@ -413,6 +426,73 @@ export default function Home() {
         });
 
       setBacktest(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleRollingAnalytics() {
+    setLoading("rolling");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const weightSum =
+        normalizedWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          weightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights debe sumar 100."
+        );
+      }
+
+      const payload =
+        await calculateRollingAnalytics({
+          symbols,
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          period: "1y",
+          window: 30,
+          risk_free_rate:
+            formValues.riskFreeRate,
+        });
+
+      setRollingAnalytics(
+        payload
+      );
     } catch (caughtError) {
       handleError(caughtError);
     } finally {
@@ -713,6 +793,15 @@ export default function Home() {
               className="bg-red-600 hover:bg-red-700"
               onClick={handleDrawdownAnalytics}
             />
+
+            <ActionButton
+              label="Rolling"
+              loadingLabel="Calculating..."
+              active={loading === "rolling"}
+              disabled={loading !== null}
+              className="bg-indigo-600 hover:bg-indigo-700"
+              onClick={handleRollingAnalytics}
+            />
           </div>
 
           {error && (
@@ -842,6 +931,32 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Required Trades"
                   weights={rebalancing.trades}
+                />
+              </div>
+            </section>
+          )}
+
+          {rollingAnalytics && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Rolling Analytics
+              </h3>
+
+              <p className="mt-3 text-slate-600">
+                Métricas móviles calculadas con una ventana de 30 períodos.
+              </p>
+
+              <div className="mt-6">
+                <RollingAnalyticsChart
+                  rollingVolatility={
+                    rollingAnalytics.rolling_volatility
+                  }
+                  rollingSharpe={
+                    rollingAnalytics.rolling_sharpe
+                  }
+                  rollingDrawdown={
+                    rollingAnalytics.rolling_drawdown
+                  }
                 />
               </div>
             </section>

@@ -135,3 +135,12 @@ export function calculateDrawdownAnalytics(
     payload
   );
 }
+
+export function calculateRollingAnalytics(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/rolling-analytics",
+    payload
+  );
+}
