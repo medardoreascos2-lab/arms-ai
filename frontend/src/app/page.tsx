@@ -8,6 +8,7 @@ import { EfficientFrontierChart } from "@/components/EfficientFrontierChart";
 import { EquityCurveChart } from "@/components/EquityCurveChart";
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
 import { RollingAnalyticsChart } from "@/components/RollingAnalyticsChart";
+import { ScenarioImpactChart } from "@/components/ScenarioImpactChart";
 import { StressImpactChart } from "@/components/StressImpactChart";
 import {
   PortfolioFormValues,
@@ -25,6 +26,7 @@ import {
   generateEfficientFrontier,
   optimizePortfolio,
   rebalancePortfolio,
+  runScenarioAnalysis,
   runStressTest,
   simulatePortfolio,
 } from "@/lib/api";
@@ -64,6 +66,16 @@ type RebalancingResult = {
   turnover: number;
   overweight_assets: string[];
   underweight_assets: string[];
+};
+
+type ScenarioAnalysisResult = {
+  scenario: string;
+  initial_value: number;
+  final_value: number;
+  absolute_impact: number;
+  percentage_impact: number;
+  shocks: Record<string, number>;
+  asset_impacts: Record<string, number>;
 };
 
 type StressTestingResult = {
@@ -165,7 +177,8 @@ type Action =
   | "rolling"
   | "capm"
   | "fama-french"
-  | "stress";
+  | "stress"
+  | "scenario";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -220,6 +233,9 @@ export default function Home() {
   const [stressTesting, setStressTesting] =
     useState<StressTestingResult | null>(null);
 
+  const [scenarioAnalysis, setScenarioAnalysis] =
+    useState<ScenarioAnalysisResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -240,6 +256,7 @@ export default function Home() {
     setCapmAnalytics(null);
     setFamaFrenchAnalytics(null);
     setStressTesting(null);
+    setScenarioAnalysis(null);
   }
 
   function handleError(
@@ -473,6 +490,87 @@ export default function Home() {
         });
 
       setBacktest(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleScenarioAnalysis() {
+    setLoading("scenario");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const weightSum =
+        normalizedWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          weightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights debe sumar 100."
+        );
+      }
+
+      const selectedScenario =
+        window.prompt(
+          [
+            "Selecciona un escenario:",
+            "financial_crisis_2008",
+            "covid_2020",
+            "technology_shock",
+            "rate_hike",
+          ].join("\n"),
+          "financial_crisis_2008"
+        );
+
+      if (selectedScenario === null) {
+        return;
+      }
+
+      const payload =
+        await runScenarioAnalysis({
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          scenario:
+            selectedScenario.trim(),
+          initial_value: 1000,
+        });
+
+      setScenarioAnalysis(
+        payload
+      );
     } catch (caughtError) {
       handleError(caughtError);
     } finally {
@@ -1121,6 +1219,15 @@ export default function Home() {
               className="bg-orange-700 hover:bg-orange-800"
               onClick={handleStressTest}
             />
+
+            <ActionButton
+              label="Scenario"
+              loadingLabel="Applying..."
+              active={loading === "scenario"}
+              disabled={loading !== null}
+              className="bg-fuchsia-700 hover:bg-fuchsia-800"
+              onClick={handleScenarioAnalysis}
+            />
           </div>
 
           {error && (
@@ -1250,6 +1357,59 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Required Trades"
                   weights={rebalancing.trades}
+                />
+              </div>
+            </section>
+          )}
+
+          {scenarioAnalysis && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Scenario Analysis
+              </h3>
+
+              <p className="mt-3 text-slate-600">
+                Resultado del escenario {
+                  scenarioAnalysis.scenario
+                }.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Initial value"
+                  value={`$${scenarioAnalysis.initial_value.toFixed(
+                    2
+                  )}`}
+                />
+
+                <MetricCard
+                  label="Final value"
+                  value={`$${scenarioAnalysis.final_value.toFixed(
+                    2
+                  )}`}
+                />
+
+                <MetricCard
+                  label="Absolute impact"
+                  value={`$${scenarioAnalysis.absolute_impact.toFixed(
+                    2
+                  )}`}
+                />
+
+                <MetricCard
+                  label="Percentage impact"
+                  value={`${(
+                    scenarioAnalysis.percentage_impact
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+              </div>
+
+              <div className="mt-6">
+                <ScenarioImpactChart
+                  impacts={
+                    scenarioAnalysis.asset_impacts
+                  }
                 />
               </div>
             </section>

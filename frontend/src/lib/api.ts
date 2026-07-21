@@ -171,3 +171,12 @@ export function runStressTest(
     payload
   );
 }
+
+export function runScenarioAnalysis(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/scenario-analysis",
+    payload
+  );
+}

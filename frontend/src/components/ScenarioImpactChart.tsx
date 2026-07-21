@@ -1,0 +1,81 @@
+"use client";
+
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+type ScenarioImpactChartProps = {
+  impacts: Record<string, number>;
+};
+
+export function ScenarioImpactChart({
+  impacts,
+}: ScenarioImpactChartProps) {
+  const data = Object.entries(
+    impacts
+  ).map(([asset, impact]) => ({
+    asset,
+    impact,
+  }));
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-semibold text-slate-900">
+        Scenario Impact by Asset
+      </h3>
+
+      <p className="mt-2 text-sm text-slate-600">
+        Impacto económico estimado por activo.
+      </p>
+
+      <div className="mt-5 h-80 w-full">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+        >
+          <BarChart
+            data={data}
+            margin={{
+              top: 10,
+              right: 20,
+              bottom: 10,
+              left: 20,
+            }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+            />
+
+            <XAxis
+              dataKey="asset"
+            />
+
+            <YAxis
+              tickFormatter={(value) =>
+                `$${Number(value).toFixed(0)}`
+              }
+            />
+
+            <Tooltip
+              formatter={(value) =>
+                `$${Number(value).toFixed(2)}`
+              }
+            />
+
+            <Bar
+              dataKey="impact"
+              name="Impact"
+              fill="#b91c1c"
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
