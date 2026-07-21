@@ -162,3 +162,12 @@ export function calculateFamaFrenchAnalytics(
     payload
   );
 }
+
+export function runStressTest(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/stress-test",
+    payload
+  );
+}
