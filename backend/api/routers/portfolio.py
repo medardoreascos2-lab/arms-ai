@@ -8,6 +8,7 @@ from backend.api.schemas.portfolio import (
     DrawdownAnalyticsRequest,
     FamaFrenchAnalyticsRequest,
     PortfolioAnalyzeRequest,
+    PerformanceAttributionRequest,
     PortfolioBacktestRequest,
     RiskAnalyticsRequest,
     RiskAnalyticsMarketRequest,
@@ -36,6 +37,9 @@ from backend.portfolio.portfolio_correlation_matrix import (
 )
 from backend.portfolio.portfolio_covariance_matrix import (
     PortfolioCovarianceMatrix,
+)
+from backend.portfolio.performance_attribution import (
+    PerformanceAttribution,
 )
 from backend.portfolio.portfolio_backtest import (
     PortfolioBacktest,
@@ -1016,4 +1020,25 @@ def risk_contribution_from_market(
     return RiskContribution().calculate(
         covariance_matrix=covariance_matrix,
         weights=normalized_weights,
+    )
+
+
+
+@router.post("/performance-attribution")
+def performance_attribution(
+    request: PerformanceAttributionRequest,
+) -> dict[str, object]:
+    return PerformanceAttribution().calculate(
+        portfolio_weights=(
+            request.portfolio_weights
+        ),
+        benchmark_weights=(
+            request.benchmark_weights
+        ),
+        portfolio_returns=(
+            request.portfolio_returns
+        ),
+        benchmark_returns=(
+            request.benchmark_returns
+        ),
     )

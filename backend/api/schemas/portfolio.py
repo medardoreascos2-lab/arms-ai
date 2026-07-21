@@ -171,3 +171,11 @@ class RiskContributionRequest(BaseModel):
     )
     weights: dict[str, float]
     period: str = "1y"
+
+
+
+class PerformanceAttributionRequest(BaseModel):
+    portfolio_weights: dict[str, float]
+    benchmark_weights: dict[str, float]
+    portfolio_returns: dict[str, float]
+    benchmark_returns: dict[str, float]
