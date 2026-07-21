@@ -117,3 +117,14 @@ class RollingAnalyticsRequest(BaseModel):
         gt=0,
     )
     risk_free_rate: float = 0.0
+
+
+
+class CapmAnalyticsRequest(BaseModel):
+    symbols: list[str] = Field(
+        min_length=1,
+    )
+    weights: dict[str, float]
+    market: str = "SPY"
+    period: str = "1y"
+    risk_free_rate: float = 0.0

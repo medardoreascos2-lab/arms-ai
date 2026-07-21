@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from backend.api.schemas.portfolio import (
     BenchmarkAnalyticsRequest,
+    CapmAnalyticsRequest,
     DrawdownAnalyticsRequest,
     PortfolioAnalyzeRequest,
     PortfolioBacktestRequest,
@@ -37,6 +38,9 @@ from backend.portfolio.portfolio_backtest import (
 )
 from backend.portfolio.benchmark_analytics import (
     BenchmarkAnalytics,
+)
+from backend.portfolio.capm_analytics import (
+    CapmAnalytics,
 )
 from backend.portfolio.drawdown_analytics import (
     DrawdownAnalytics,
@@ -654,4 +658,102 @@ def rolling_analytics_from_market(
         ],
         window=request.window,
         risk_free_rate=request.risk_free_rate,
+    )
+
+
+
+@router.post("/capm-analytics")
+def capm_analytics_from_market(
+    request: CapmAnalyticsRequest,
+) -> dict[str, float]:
+    market_symbol = (
+        request.market
+        .strip()
+        .upper()
+    )
+
+    symbols = [
+        *request.symbols,
+        market_symbol,
+    ]
+
+    prices = download_prices(
+        symbols,
+        request.period,
+    )
+
+    normalized_weights = {
+        symbol.strip().upper(): float(weight)
+        for symbol, weight
+        in request.weights.items()
+    }
+
+    weight_sum = sum(
+        normalized_weights.values()
+    )
+
+    if abs(weight_sum - 1.0) > 1e-9:
+        raise ValueError(
+            "weights debe sumar 1.0."
+        )
+
+    required_assets = (
+        set(normalized_weights)
+        | {market_symbol}
+    )
+
+    missing_assets = (
+        required_assets
+        - set(prices.columns)
+    )
+
+    if missing_assets:
+        raise ValueError(
+            "prices no contiene todos los activos requeridos."
+        )
+
+    returns_frame = (
+        prices[
+            list(normalized_weights)
+            + [market_symbol]
+        ]
+        .astype(float)
+        .pct_change()
+        .dropna(how="any")
+    )
+
+    if returns_frame.empty:
+        raise ValueError(
+            "No fue posible calcular retornos."
+        )
+
+    portfolio_returns = (
+        returns_frame[
+            list(normalized_weights)
+        ]
+        .mul(
+            normalized_weights,
+            axis="columns",
+        )
+        .sum(axis=1)
+    )
+
+    market_returns = (
+        returns_frame[
+            market_symbol
+        ]
+    )
+
+    return CapmAnalytics().calculate(
+        portfolio_returns=[
+            float(value)
+            for value in portfolio_returns.tolist()
+        ],
+        market_returns=[
+            float(value)
+            for value in market_returns.tolist()
+        ],
+        risk_free_rate=(
+            request.risk_free_rate
+        ),
     )
