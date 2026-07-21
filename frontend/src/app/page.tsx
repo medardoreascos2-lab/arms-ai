@@ -18,6 +18,7 @@ import {
   calculateBenchmarkAnalytics,
   calculateCapmAnalytics,
   calculateDrawdownAnalytics,
+  calculateFamaFrenchAnalytics,
   calculateRiskAnalyticsFromMarket,
   calculateRollingAnalytics,
   generateEfficientFrontier,
@@ -61,6 +62,15 @@ type RebalancingResult = {
   turnover: number;
   overweight_assets: string[];
   underweight_assets: string[];
+};
+
+type FamaFrenchAnalyticsResult = {
+  alpha: number;
+  beta_market: number;
+  beta_smb: number;
+  beta_hml: number;
+  r_squared: number;
+  expected_return: number;
 };
 
 type CapmAnalyticsResult = {
@@ -141,7 +151,8 @@ type Action =
   | "benchmark"
   | "drawdown"
   | "rolling"
-  | "capm";
+  | "capm"
+  | "fama-french";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -190,6 +201,9 @@ export default function Home() {
   const [capmAnalytics, setCapmAnalytics] =
     useState<CapmAnalyticsResult | null>(null);
 
+  const [famaFrenchAnalytics, setFamaFrenchAnalytics] =
+    useState<FamaFrenchAnalyticsResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -208,6 +222,7 @@ export default function Home() {
     setDrawdownAnalytics(null);
     setRollingAnalytics(null);
     setCapmAnalytics(null);
+    setFamaFrenchAnalytics(null);
   }
 
   function handleError(
@@ -441,6 +456,76 @@ export default function Home() {
         });
 
       setBacktest(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleFamaFrenchAnalytics() {
+    setLoading("fama-french");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const weightSum =
+        normalizedWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          weightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights debe sumar 100."
+        );
+      }
+
+      const payload =
+        await calculateFamaFrenchAnalytics({
+          symbols,
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          market: "SPY",
+          small_cap: "IWM",
+          value: "IWD",
+          growth: "IWF",
+          period: "1y",
+          risk_free_rate:
+            formValues.riskFreeRate,
+        });
+
+      setFamaFrenchAnalytics(
+        payload
+      );
     } catch (caughtError) {
       handleError(caughtError);
     } finally {
@@ -893,6 +978,15 @@ export default function Home() {
               className="bg-teal-600 hover:bg-teal-700"
               onClick={handleCapmAnalytics}
             />
+
+            <ActionButton
+              label="Fama-French"
+              loadingLabel="Calculating..."
+              active={loading === "fama-french"}
+              disabled={loading !== null}
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={handleFamaFrenchAnalytics}
+            />
           </div>
 
           {error && (
@@ -1022,6 +1116,65 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Required Trades"
                   weights={rebalancing.trades}
+                />
+              </div>
+            </section>
+          )}
+
+          {famaFrenchAnalytics && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Fama-French Analytics
+              </h3>
+
+              <p className="mt-3 text-slate-600">
+                Exposición del portafolio a mercado, tamaño y valor.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <MetricCard
+                  label="Alpha"
+                  value={`${(
+                    famaFrenchAnalytics.alpha
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Beta market"
+                  value={famaFrenchAnalytics.beta_market.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Beta SMB"
+                  value={famaFrenchAnalytics.beta_smb.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Beta HML"
+                  value={famaFrenchAnalytics.beta_hml.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="R²"
+                  value={`${(
+                    famaFrenchAnalytics.r_squared
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Expected return"
+                  value={`${(
+                    famaFrenchAnalytics.expected_return
+                    * 100
+                  ).toFixed(2)}%`}
                 />
               </div>
             </section>

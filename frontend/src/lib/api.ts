@@ -153,3 +153,12 @@ export function calculateCapmAnalytics(
     payload
   );
 }
+
+export function calculateFamaFrenchAnalytics(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/fama-french-analytics",
+    payload
+  );
+}
