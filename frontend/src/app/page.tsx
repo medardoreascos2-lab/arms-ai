@@ -16,6 +16,7 @@ import {
   analyzePortfolioFromMarket,
   backtestPortfolio,
   calculateBenchmarkAnalytics,
+  calculateCapmAnalytics,
   calculateDrawdownAnalytics,
   calculateRiskAnalyticsFromMarket,
   calculateRollingAnalytics,
@@ -60,6 +61,15 @@ type RebalancingResult = {
   turnover: number;
   overweight_assets: string[];
   underweight_assets: string[];
+};
+
+type CapmAnalyticsResult = {
+  beta: number;
+  jensens_alpha: number;
+  capm_expected_return: number;
+  market_risk_premium: number;
+  treynor_ratio: number;
+  modigliani_m2: number;
 };
 
 type RollingAnalyticsResult = {
@@ -130,7 +140,8 @@ type Action =
   | "risk"
   | "benchmark"
   | "drawdown"
-  | "rolling";
+  | "rolling"
+  | "capm";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -176,6 +187,9 @@ export default function Home() {
   const [rollingAnalytics, setRollingAnalytics] =
     useState<RollingAnalyticsResult | null>(null);
 
+  const [capmAnalytics, setCapmAnalytics] =
+    useState<CapmAnalyticsResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -193,6 +207,7 @@ export default function Home() {
     setBenchmarkAnalytics(null);
     setDrawdownAnalytics(null);
     setRollingAnalytics(null);
+    setCapmAnalytics(null);
   }
 
   function handleError(
@@ -426,6 +441,73 @@ export default function Home() {
         });
 
       setBacktest(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleCapmAnalytics() {
+    setLoading("capm");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const weightSum =
+        normalizedWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          weightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights debe sumar 100."
+        );
+      }
+
+      const payload =
+        await calculateCapmAnalytics({
+          symbols,
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          market: "SPY",
+          period: "1y",
+          risk_free_rate:
+            formValues.riskFreeRate,
+        });
+
+      setCapmAnalytics(
+        payload
+      );
     } catch (caughtError) {
       handleError(caughtError);
     } finally {
@@ -802,6 +884,15 @@ export default function Home() {
               className="bg-indigo-600 hover:bg-indigo-700"
               onClick={handleRollingAnalytics}
             />
+
+            <ActionButton
+              label="CAPM"
+              loadingLabel="Calculating..."
+              active={loading === "capm"}
+              disabled={loading !== null}
+              className="bg-teal-600 hover:bg-teal-700"
+              onClick={handleCapmAnalytics}
+            />
           </div>
 
           {error && (
@@ -931,6 +1022,66 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Required Trades"
                   weights={rebalancing.trades}
+                />
+              </div>
+            </section>
+          )}
+
+          {capmAnalytics && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                CAPM Analytics
+              </h3>
+
+              <p className="mt-3 text-slate-600">
+                Métricas del portafolio frente al mercado SPY.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <MetricCard
+                  label="Beta"
+                  value={capmAnalytics.beta.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Jensen's alpha"
+                  value={`${(
+                    capmAnalytics.jensens_alpha
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="CAPM expected return"
+                  value={`${(
+                    capmAnalytics.capm_expected_return
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Market risk premium"
+                  value={`${(
+                    capmAnalytics.market_risk_premium
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Treynor ratio"
+                  value={capmAnalytics.treynor_ratio.toFixed(
+                    2
+                  )}
+                />
+
+                <MetricCard
+                  label="Modigliani M²"
+                  value={`${(
+                    capmAnalytics.modigliani_m2
+                    * 100
+                  ).toFixed(2)}%`}
                 />
               </div>
             </section>

@@ -144,3 +144,12 @@ export function calculateRollingAnalytics(
     payload
   );
 }
+
+export function calculateCapmAnalytics(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/capm-analytics",
+    payload
+  );
+}
