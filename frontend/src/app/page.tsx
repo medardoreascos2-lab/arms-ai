@@ -7,6 +7,7 @@ import { DrawdownChart } from "@/components/DrawdownChart";
 import { EfficientFrontierChart } from "@/components/EfficientFrontierChart";
 import { EquityCurveChart } from "@/components/EquityCurveChart";
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
+import { RiskContributionChart } from "@/components/RiskContributionChart";
 import { RollingAnalyticsChart } from "@/components/RollingAnalyticsChart";
 import { ScenarioImpactChart } from "@/components/ScenarioImpactChart";
 import { StressImpactChart } from "@/components/StressImpactChart";
@@ -22,6 +23,7 @@ import {
   calculateDrawdownAnalytics,
   calculateFamaFrenchAnalytics,
   calculateRiskAnalyticsFromMarket,
+  calculateRiskContribution,
   calculateRollingAnalytics,
   generateEfficientFrontier,
   optimizePortfolio,
@@ -66,6 +68,15 @@ type RebalancingResult = {
   turnover: number;
   overweight_assets: string[];
   underweight_assets: string[];
+};
+
+type RiskContributionResult = {
+  portfolio_volatility: number;
+  marginal_contributions: Record<string, number>;
+  absolute_contributions: Record<string, number>;
+  percentage_contributions: Record<string, number>;
+  highest_risk_asset: string;
+  lowest_risk_asset: string;
 };
 
 type ScenarioAnalysisResult = {
@@ -178,7 +189,8 @@ type Action =
   | "capm"
   | "fama-french"
   | "stress"
-  | "scenario";
+  | "scenario"
+  | "risk-contribution";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -236,6 +248,9 @@ export default function Home() {
   const [scenarioAnalysis, setScenarioAnalysis] =
     useState<ScenarioAnalysisResult | null>(null);
 
+  const [riskContribution, setRiskContribution] =
+    useState<RiskContributionResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -257,6 +272,7 @@ export default function Home() {
     setFamaFrenchAnalytics(null);
     setStressTesting(null);
     setScenarioAnalysis(null);
+    setRiskContribution(null);
   }
 
   function handleError(
@@ -490,6 +506,70 @@ export default function Home() {
         });
 
       setBacktest(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleRiskContribution() {
+    setLoading("risk-contribution");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const weightSum =
+        normalizedWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          weightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights debe sumar 100."
+        );
+      }
+
+      const payload =
+        await calculateRiskContribution({
+          symbols,
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          period: "1y",
+        });
+
+      setRiskContribution(
+        payload
+      );
     } catch (caughtError) {
       handleError(caughtError);
     } finally {
@@ -1228,6 +1308,17 @@ export default function Home() {
               className="bg-fuchsia-700 hover:bg-fuchsia-800"
               onClick={handleScenarioAnalysis}
             />
+
+            <ActionButton
+              label="Risk Contribution"
+              loadingLabel="Calculating..."
+              active={
+                loading === "risk-contribution"
+              }
+              disabled={loading !== null}
+              className="bg-violet-700 hover:bg-violet-800"
+              onClick={handleRiskContribution}
+            />
           </div>
 
           {error && (
@@ -1358,6 +1449,107 @@ export default function Home() {
                   title="Required Trades"
                   weights={rebalancing.trades}
                 />
+              </div>
+            </section>
+          )}
+
+          {riskContribution && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Risk Contribution
+              </h3>
+
+              <p className="mt-3 text-slate-600">
+                Distribución del riesgo total entre los activos.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <MetricCard
+                  label="Portfolio volatility"
+                  value={`${(
+                    riskContribution.portfolio_volatility
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Highest risk asset"
+                  value={
+                    riskContribution.highest_risk_asset
+                  }
+                />
+
+                <MetricCard
+                  label="Lowest risk asset"
+                  value={
+                    riskContribution.lowest_risk_asset
+                  }
+                />
+              </div>
+
+              <div className="mt-6">
+                <RiskContributionChart
+                  contributions={
+                    riskContribution.percentage_contributions
+                  }
+                />
+              </div>
+
+              <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-100 text-slate-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left">
+                        Asset
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        Marginal
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        Absolute
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        Percentage
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {Object.keys(
+                      riskContribution.percentage_contributions
+                    ).map((asset) => (
+                      <tr
+                        key={asset}
+                        className="border-t border-slate-200"
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          {asset}
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {riskContribution.marginal_contributions[
+                            asset
+                          ].toFixed(4)}
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {riskContribution.absolute_contributions[
+                            asset
+                          ].toFixed(4)}
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {(
+                            riskContribution.percentage_contributions[
+                              asset
+                            ] * 100
+                          ).toFixed(2)}
+                          %
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
           )}

@@ -180,3 +180,12 @@ export function runScenarioAnalysis(
     payload
   );
 }
+
+export function calculateRiskContribution(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/risk-contribution",
+    payload
+  );
+}
