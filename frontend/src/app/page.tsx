@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { BenchmarkComparisonChart } from "@/components/BenchmarkComparisonChart";
+import { DrawdownChart } from "@/components/DrawdownChart";
 import { EfficientFrontierChart } from "@/components/EfficientFrontierChart";
 import { EquityCurveChart } from "@/components/EquityCurveChart";
 import { PortfolioBarChart } from "@/components/PortfolioBarChart";
@@ -14,6 +15,7 @@ import {
   analyzePortfolioFromMarket,
   backtestPortfolio,
   calculateBenchmarkAnalytics,
+  calculateDrawdownAnalytics,
   calculateRiskAnalyticsFromMarket,
   generateEfficientFrontier,
   optimizePortfolio,
@@ -56,6 +58,15 @@ type RebalancingResult = {
   turnover: number;
   overweight_assets: string[];
   underweight_assets: string[];
+};
+
+type DrawdownAnalyticsResult = {
+  equity_curve: number[];
+  drawdown_curve: number[];
+  maximum_drawdown: number;
+  maximum_drawdown_duration: number;
+  peak_index: number;
+  trough_index: number;
 };
 
 type BenchmarkAnalyticsResult = {
@@ -109,7 +120,8 @@ type Action =
   | "simulate"
   | "backtest"
   | "risk"
-  | "benchmark";
+  | "benchmark"
+  | "drawdown";
 
 const initialFormValues: PortfolioFormValues = {
   symbols: "AAPL, MSFT, NVDA",
@@ -149,6 +161,9 @@ export default function Home() {
   const [benchmarkAnalytics, setBenchmarkAnalytics] =
     useState<BenchmarkAnalyticsResult | null>(null);
 
+  const [drawdownAnalytics, setDrawdownAnalytics] =
+    useState<DrawdownAnalyticsResult | null>(null);
+
   const [loading, setLoading] =
     useState<Action | null>(null);
 
@@ -164,6 +179,7 @@ export default function Home() {
     setBacktest(null);
     setRiskAnalytics(null);
     setBenchmarkAnalytics(null);
+    setDrawdownAnalytics(null);
   }
 
   function handleError(
@@ -404,6 +420,70 @@ export default function Home() {
     }
   }
 
+  async function handleDrawdownAnalytics() {
+    setLoading("drawdown");
+    setError("");
+    clearResults();
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const weights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      if (
+        symbols.length !== weights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const normalizedWeights =
+        weights.map(
+          (weight) => weight / 100
+        );
+
+      const weightSum =
+        normalizedWeights.reduce(
+          (total, weight) =>
+            total + weight,
+          0
+        );
+
+      if (
+        Math.abs(
+          weightSum - 1
+        ) > 0.000001
+      ) {
+        throw new Error(
+          "Current weights debe sumar 100."
+        );
+      }
+
+      const payload =
+        await calculateDrawdownAnalytics({
+          symbols,
+          weights: toRecord(
+            symbols,
+            normalizedWeights
+          ),
+          period: "1y",
+        });
+
+      setDrawdownAnalytics(
+        payload
+      );
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
   async function handleBenchmarkAnalytics() {
     setLoading("benchmark");
     setError("");
@@ -624,6 +704,15 @@ export default function Home() {
               className="bg-cyan-600 hover:bg-cyan-700"
               onClick={handleBenchmarkAnalytics}
             />
+
+            <ActionButton
+              label="Drawdown"
+              loadingLabel="Calculating..."
+              active={loading === "drawdown"}
+              disabled={loading !== null}
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleDrawdownAnalytics}
+            />
           </div>
 
           {error && (
@@ -753,6 +842,51 @@ export default function Home() {
                 <PortfolioBarChart
                   title="Required Trades"
                   weights={rebalancing.trades}
+                />
+              </div>
+            </section>
+          )}
+
+          {drawdownAnalytics && (
+            <section className="mt-8 rounded-xl bg-slate-50 p-6">
+              <h3 className="text-xl font-semibold">
+                Drawdown Analytics
+              </h3>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Maximum drawdown"
+                  value={`${(
+                    drawdownAnalytics.maximum_drawdown
+                    * 100
+                  ).toFixed(2)}%`}
+                />
+
+                <MetricCard
+                  label="Maximum duration"
+                  value={`${drawdownAnalytics.maximum_drawdown_duration} periods`}
+                />
+
+                <MetricCard
+                  label="Peak index"
+                  value={
+                    drawdownAnalytics.peak_index
+                  }
+                />
+
+                <MetricCard
+                  label="Trough index"
+                  value={
+                    drawdownAnalytics.trough_index
+                  }
+                />
+              </div>
+
+              <div className="mt-6">
+                <DrawdownChart
+                  values={
+                    drawdownAnalytics.drawdown_curve
+                  }
                 />
               </div>
             </section>

@@ -126,3 +126,12 @@ export function calculateBenchmarkAnalytics(
     payload
   );
 }
+
+export function calculateDrawdownAnalytics(
+  payload: unknown
+) {
+  return postJson(
+    "/portfolio/drawdown-analytics",
+    payload
+  );
+}
