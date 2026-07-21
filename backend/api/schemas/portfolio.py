@@ -152,3 +152,13 @@ class StressTestingRequest(BaseModel):
         default=1000.0,
         gt=0.0,
     )
+
+
+
+class ScenarioAnalysisRequest(BaseModel):
+    weights: dict[str, float]
+    scenario: str
+    initial_value: float = Field(
+        default=1000.0,
+        gt=0.0,
+    )

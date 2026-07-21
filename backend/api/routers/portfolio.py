@@ -12,6 +12,7 @@ from backend.api.schemas.portfolio import (
     RiskAnalyticsRequest,
     RiskAnalyticsMarketRequest,
     RollingAnalyticsRequest,
+    ScenarioAnalysisRequest,
     StressTestingRequest,
     PortfolioMarketRequest,
     PortfolioRebalanceRequest,
@@ -52,6 +53,9 @@ from backend.portfolio.drawdown_analytics import (
 )
 from backend.portfolio.rolling_analytics import (
     RollingAnalytics,
+)
+from backend.portfolio.scenario_analysis import (
+    ScenarioAnalysis,
 )
 from backend.portfolio.stress_testing import (
     StressTesting,
@@ -930,5 +934,17 @@ def stress_test_portfolio(
     return StressTesting().calculate(
         weights=request.weights,
         shocks=request.shocks,
+        initial_value=request.initial_value,
+    )
+
+
+
+@router.post("/scenario-analysis")
+def scenario_analysis(
+    request: ScenarioAnalysisRequest,
+) -> dict[str, object]:
+    return ScenarioAnalysis().calculate(
+        weights=request.weights,
+        scenario=request.scenario,
         initial_value=request.initial_value,
     )
