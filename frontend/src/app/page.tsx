@@ -18,6 +18,7 @@ import {
 } from "@/components/PortfolioInputs";
 import {
   analyzePortfolioFromMarket,
+  askAiCopilot,
   backtestPortfolio,
   calculateBenchmarkAnalytics,
   calculateCapmAnalytics,
@@ -33,6 +34,7 @@ import {
   runScenarioAnalysis,
   runStressTest,
   simulatePortfolio,
+  type AiCopilotResult,
 } from "@/lib/api";
 
 type AnalysisResult = {
@@ -195,6 +197,7 @@ type SimulationResult = {
 
 type Action =
   | "analyze"
+  | "copilot"
   | "optimize"
   | "rebalance"
   | "simulate"
@@ -271,6 +274,12 @@ export default function Home() {
 
   const [performanceAttribution, setPerformanceAttribution] =
     useState<PerformanceAttributionResult | null>(null);
+
+  const [copilotQuestion, setCopilotQuestion] =
+    useState("");
+
+  const [copilotResult, setCopilotResult] =
+    useState<AiCopilotResult | null>(null);
 
   const [loading, setLoading] =
     useState<Action | null>(null);
@@ -1302,6 +1311,100 @@ export default function Home() {
   }
 
 
+  async function handleAskCopilot() {
+    const normalizedQuestion =
+      copilotQuestion.trim();
+
+    if (!normalizedQuestion) {
+      setError(
+        "Escribe una pregunta para ARMS AI."
+      );
+      return;
+    }
+
+    setLoading("copilot");
+    setError("");
+    setCopilotResult(null);
+
+    try {
+      const symbols = parseSymbols(
+        formValues.symbols
+      );
+
+      const currentWeights = parseNumbers(
+        formValues.currentWeights
+      );
+
+      const volatilities = parseNumbers(
+        formValues.volatilities
+      );
+
+      const expectedReturns = parseNumbers(
+        formValues.expectedReturns
+      );
+
+      validateLengths(
+        symbols,
+        volatilities,
+        expectedReturns
+      );
+
+      if (
+        symbols.length
+        !== currentWeights.length
+      ) {
+        throw new Error(
+          "Assets y current weights deben tener la misma cantidad de valores."
+        );
+      }
+
+      const weights = toRecord(
+        symbols,
+        currentWeights.map(
+          (weight) => weight / 100
+        )
+      );
+
+      const averageVolatility =
+        volatilities.reduce(
+          (total, value) => total + value,
+          0
+        ) / volatilities.length;
+
+      const averageExpectedReturn =
+        expectedReturns.reduce(
+          (total, value) => total + value,
+          0
+        ) / expectedReturns.length;
+
+      const estimatedSharpe =
+        averageVolatility > 0
+          ? (
+              averageExpectedReturn
+              - formValues.riskFreeRate
+            ) / averageVolatility
+          : 0;
+
+      const payload = await askAiCopilot({
+        question: normalizedQuestion,
+        weights,
+        metrics: {
+          volatility: averageVolatility,
+          sharpe_ratio: estimatedSharpe,
+          beta: 1,
+          drawdown: -averageVolatility,
+        },
+      });
+
+      setCopilotResult(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-6 md:p-10">
@@ -1312,6 +1415,152 @@ export default function Home() {
         <p className="mt-4 text-slate-600">
           Artificial Risk Management System
         </p>
+
+        <section className="mt-10 rounded-xl bg-slate-900 p-6 text-white shadow-xl md:p-8">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-semibold uppercase tracking-widest text-cyan-400">
+              Intelligent Assistant
+            </p>
+
+            <h2 className="text-3xl font-bold">
+              ARMS AI Copilot
+            </h2>
+
+            <p className="max-w-3xl text-slate-300">
+              Pregunta sobre el riesgo, la composición o el rendimiento estimado de tu portafolio.
+            </p>
+          </div>
+
+          <div className="mt-6">
+            <label
+              htmlFor="copilot-question"
+              className="text-sm font-medium text-slate-200"
+            >
+              Pregunta para ARMS AI
+            </label>
+
+            <textarea
+              id="copilot-question"
+              value={copilotQuestion}
+              onChange={(event) =>
+                setCopilotQuestion(
+                  event.target.value
+                )
+              }
+              placeholder="Ejemplo: ¿Cómo puedo reducir el riesgo de este portafolio?"
+              rows={4}
+              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-800 p-4 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAskCopilot}
+            disabled={loading !== null}
+            className="mt-4 rounded-lg bg-cyan-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading === "copilot"
+              ? "Analizando..."
+              : "Preguntar a ARMS AI"}
+          </button>
+
+          {copilotResult && (
+            <div className="mt-8 space-y-6">
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
+                <p className="text-sm font-semibold uppercase tracking-wide text-cyan-400">
+                  Respuesta
+                </p>
+
+                <p className="mt-3 whitespace-pre-wrap leading-7 text-slate-200">
+                  {copilotResult.content}
+                </p>
+
+                <p className="mt-4 text-xs text-slate-500">
+                  Proveedor: {copilotResult.provider}
+                  {" · "}
+                  Modelo: {copilotResult.model}
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
+                  <p className="text-sm text-slate-400">
+                    Portfolio Score
+                  </p>
+
+                  <p className="mt-2 text-4xl font-bold text-white">
+                    {copilotResult.decision.score}
+                    <span className="text-lg text-slate-400">
+                      /100
+                    </span>
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
+                  <p className="text-sm text-slate-400">
+                    Nivel de riesgo
+                  </p>
+
+                  <p className="mt-2 text-2xl font-bold capitalize text-white">
+                    {copilotResult.decision.risk_level}
+                  </p>
+                </div>
+              </div>
+
+              {copilotResult.decision.recommendations.length > 0 && (
+                <div className="rounded-xl border border-emerald-900 bg-emerald-950/40 p-5">
+                  <h3 className="text-lg font-semibold text-emerald-300">
+                    Recomendaciones
+                  </h3>
+
+                  <ul className="mt-3 space-y-2 text-emerald-100">
+                    {copilotResult.decision.recommendations.map(
+                      (recommendation) => (
+                        <li
+                          key={recommendation}
+                          className="flex gap-2"
+                        >
+                          <span aria-hidden="true">
+                            ✓
+                          </span>
+                          <span>
+                            {recommendation}
+                          </span>
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {copilotResult.decision.alerts.length > 0 && (
+                <div className="rounded-xl border border-amber-900 bg-amber-950/40 p-5">
+                  <h3 className="text-lg font-semibold text-amber-300">
+                    Alertas
+                  </h3>
+
+                  <ul className="mt-3 space-y-2 text-amber-100">
+                    {copilotResult.decision.alerts.map(
+                      (alert) => (
+                        <li
+                          key={alert}
+                          className="flex gap-2"
+                        >
+                          <span aria-hidden="true">
+                            !
+                          </span>
+                          <span>
+                            {alert}
+                          </span>
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
 
         <section className="mt-10 rounded-xl bg-white p-6 shadow md:p-8">
           <h2 className="text-2xl font-semibold text-slate-900">

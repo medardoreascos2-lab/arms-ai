@@ -198,3 +198,34 @@ export function calculatePerformanceAttribution(
     payload
   );
 }
+
+
+export type AiCopilotPayload = {
+  question: string;
+  weights: Record<string, number>;
+  metrics: Record<string, number>;
+};
+
+export type AiCopilotDecision = {
+  score: number;
+  risk_level: string;
+  recommendations: string[];
+  alerts: string[];
+  summary?: string;
+};
+
+export type AiCopilotResult = {
+  provider: string;
+  model: string;
+  content: string;
+  decision: AiCopilotDecision;
+};
+
+export function askAiCopilot(
+  payload: AiCopilotPayload
+): Promise<AiCopilotResult> {
+  return postJson(
+    "/ai/copilot",
+    payload
+  );
+}
