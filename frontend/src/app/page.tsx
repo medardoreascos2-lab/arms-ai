@@ -18,6 +18,7 @@ import {
 } from "@/components/PortfolioInputs";
 import {
   analyzePortfolioFromMarket,
+  analyzeTradingContext,
   askAiCopilot,
   backtestPortfolio,
   calculateBenchmarkAnalytics,
@@ -35,6 +36,7 @@ import {
   runStressTest,
   simulatePortfolio,
   type AiCopilotResult,
+  type TradingContextResult,
 } from "@/lib/api";
 
 type AnalysisResult = {
@@ -198,6 +200,7 @@ type SimulationResult = {
 type Action =
   | "analyze"
   | "copilot"
+  | "trading-context"
   | "optimize"
   | "rebalance"
   | "simulate"
@@ -280,6 +283,9 @@ export default function Home() {
 
   const [copilotResult, setCopilotResult] =
     useState<AiCopilotResult | null>(null);
+
+  const [tradingContext, setTradingContext] =
+    useState<TradingContextResult | null>(null);
 
   const [loading, setLoading] =
     useState<Action | null>(null);
@@ -1405,6 +1411,65 @@ export default function Home() {
   }
 
 
+  function buildTradingCandles() {
+    const total = 60;
+    const startTime = Date.UTC(
+      2026,
+      6,
+      22,
+      9,
+      30
+    );
+
+    return Array.from(
+      { length: total },
+      (_, index) => {
+        const base =
+          21600 + index * 1.5;
+
+        return {
+          symbol: "NQ",
+          timeframe: "5m",
+          open: base,
+          high: base + 4,
+          low: base - 2,
+          close: base + 2.5,
+          volume: 1000 + index * 10,
+          timestamp: new Date(
+            startTime
+            + index * 5 * 60 * 1000
+          ).toISOString(),
+        };
+      }
+    );
+  }
+
+  async function handleAnalyzeTradingContext() {
+    setLoading("trading-context");
+    setError("");
+    setTradingContext(null);
+
+    try {
+      const payload =
+        await analyzeTradingContext({
+          symbol: "NQ",
+          timeframe: "5m",
+          candles: buildTradingCandles(),
+          account_balance: 17000,
+          risk_percent: 0.5,
+          point_value: 2,
+          reward_risk_ratio: 2,
+        });
+
+      setTradingContext(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-6 md:p-10">
@@ -1552,6 +1617,299 @@ export default function Home() {
                           <span>
                             {alert}
                           </span>
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-10 rounded-xl bg-white p-6 shadow-xl md:p-8">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">
+                Trading Intelligence
+              </p>
+
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">
+                ARMS AI Trading Dashboard
+              </h2>
+
+              <p className="mt-2 max-w-3xl text-slate-600">
+                Ejecuta el pipeline completo de análisis técnico, Smart Money, probabilidad y riesgo.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAnalyzeTradingContext}
+              disabled={loading !== null}
+              className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading === "trading-context"
+                ? "Analizando mercado..."
+                : "Analizar mercado"}
+            </button>
+          </div>
+
+          {!tradingContext && (
+            <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+              <p className="font-medium text-slate-700">
+                Todavía no se ha ejecutado el análisis de trading.
+              </p>
+
+              <p className="mt-2 text-sm text-slate-500">
+                La primera prueba usa 60 velas simuladas del NQ en temporalidad de 5 minutos.
+              </p>
+            </div>
+          )}
+
+          {tradingContext && (
+            <div className="mt-8 space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <TradingMetricCard
+                  label="Símbolo"
+                  value={tradingContext.symbol}
+                />
+
+                <TradingMetricCard
+                  label="Temporalidad"
+                  value={tradingContext.timeframe}
+                />
+
+                <TradingMetricCard
+                  label="Precio actual"
+                  value={formatNumber(
+                    tradingContext.current_price
+                  )}
+                />
+
+                <TradingMetricCard
+                  label="Tendencia"
+                  value={tradingContext.trend}
+                />
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Indicadores
+                </h3>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <TradingMetricCard
+                    label={`EMA ${
+                      tradingContext.indicators.ema_period
+                      ?? ""
+                    }`}
+                    value={formatNumber(
+                      tradingContext.indicators.ema
+                    )}
+                  />
+
+                  <TradingMetricCard
+                    label="RSI"
+                    value={formatNumber(
+                      tradingContext.indicators.rsi
+                    )}
+                    helper={
+                      tradingContext.indicators.rsi_status
+                    }
+                  />
+
+                  <TradingMetricCard
+                    label="ATR"
+                    value={formatNumber(
+                      tradingContext.indicators.atr
+                    )}
+                    helper={
+                      tradingContext.indicators.atr_status
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Estructura y Smart Money
+                </h3>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <TradingMetricCard
+                    label="Estructura"
+                    value={
+                      tradingContext.market_structure.direction
+                    }
+                    helper={`${
+                      tradingContext.market_structure.high_type
+                    } / ${
+                      tradingContext.market_structure.low_type
+                    }`}
+                  />
+
+                  <TradingMetricCard
+                    label="BOS"
+                    value={
+                      tradingContext.smart_money.bos.detected
+                        ? "Detectado"
+                        : "No detectado"
+                    }
+                    helper={
+                      tradingContext.smart_money.bos.direction
+                    }
+                  />
+
+                  <TradingMetricCard
+                    label="CHoCH"
+                    value={
+                      tradingContext.smart_money.choch.detected
+                        ? "Detectado"
+                        : "No detectado"
+                    }
+                    helper={
+                      tradingContext.smart_money.choch.direction
+                    }
+                  />
+
+                  <TradingMetricCard
+                    label="Liquidez"
+                    value={
+                      tradingContext.smart_money.liquidity.detected
+                        ? "Barrido detectado"
+                        : "Sin barrido"
+                    }
+                    helper={
+                      tradingContext.smart_money.liquidity.direction
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Decisión y probabilidad
+                </h3>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <TradingMetricCard
+                    label="Score"
+                    value={`${formatNumber(
+                      tradingContext.decision.score
+                    )}/100`}
+                  />
+
+                  <TradingMetricCard
+                    label="Calificación"
+                    value={tradingContext.decision.grade}
+                  />
+
+                  <TradingMetricCard
+                    label="Acción"
+                    value={tradingContext.decision.action}
+                  />
+
+                  <TradingMetricCard
+                    label="Probabilidad"
+                    value={`${formatNumber(
+                      tradingContext.probability.value
+                    )}%`}
+                    helper={
+                      tradingContext.probability.confidence
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Riesgo y niveles
+                </h3>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <TradingMetricCard
+                    label="Estado del riesgo"
+                    value={
+                      tradingContext.risk.approved
+                        ? "Aprobado"
+                        : "Bloqueado"
+                    }
+                  />
+
+                  <TradingMetricCard
+                    label="Contratos"
+                    value={String(
+                      tradingContext.risk.contracts
+                    )}
+                  />
+
+                  <TradingMetricCard
+                    label="Riesgo máximo"
+                    value={`$${formatNumber(
+                      tradingContext.risk.risk_amount
+                    )}`}
+                  />
+
+                  <TradingMetricCard
+                    label="R:R"
+                    value="1:2"
+                  />
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <TradingMetricCard
+                    label="Entrada"
+                    value={formatNumber(
+                      tradingContext.trade.entry_price
+                    )}
+                  />
+
+                  <TradingMetricCard
+                    label="Stop Loss"
+                    value={formatNumber(
+                      tradingContext.trade.stop_loss
+                    )}
+                  />
+
+                  <TradingMetricCard
+                    label="Take Profit"
+                    value={formatNumber(
+                      tradingContext.trade.take_profit
+                    )}
+                  />
+                </div>
+              </div>
+
+              {tradingContext.decision.confirmations.length > 0 && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                  <h3 className="font-semibold text-emerald-900">
+                    Confirmaciones
+                  </h3>
+
+                  <ul className="mt-3 space-y-2 text-sm text-emerald-800">
+                    {tradingContext.decision.confirmations.map(
+                      (confirmation) => (
+                        <li key={confirmation}>
+                          ✓ {confirmation}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {tradingContext.decision.warnings.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+                  <h3 className="font-semibold text-amber-900">
+                    Advertencias
+                  </h3>
+
+                  <ul className="mt-3 space-y-2 text-sm text-amber-800">
+                    {tradingContext.decision.warnings.map(
+                      (warning) => (
+                        <li key={warning}>
+                          ! {warning}
                         </li>
                       )
                     )}
@@ -2762,6 +3120,48 @@ function buildReturnSeries(
     )
   );
 }
+
+function formatNumber(
+  value: number,
+): string {
+  return new Intl.NumberFormat(
+    "en-US",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  ).format(value);
+}
+
+
+function TradingMetricCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper?: string | null;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+      <p className="text-sm font-medium text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-bold text-slate-900">
+        {value}
+      </p>
+
+      {helper && (
+        <p className="mt-2 text-sm text-slate-500">
+          {helper}
+        </p>
+      )}
+    </div>
+  );
+}
+
 
 function ActionButton({
   label,

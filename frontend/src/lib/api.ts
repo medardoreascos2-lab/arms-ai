@@ -229,3 +229,107 @@ export function askAiCopilot(
     payload
   );
 }
+
+
+export type TradingCandlePayload = {
+  symbol: string;
+  timeframe: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  timestamp: string;
+};
+
+export type TradingContextPayload = {
+  symbol: string;
+  timeframe: string;
+  candles: TradingCandlePayload[];
+  account_balance: number;
+  risk_percent: number;
+  point_value: number;
+  reward_risk_ratio: number;
+};
+
+export type TradingContextResult = {
+  symbol: string;
+  timeframe: string;
+  current_price: number;
+  trend: string;
+
+  indicators: {
+    ema: number;
+    ema_period: number | null;
+    rsi: number;
+    rsi_status: string | null;
+    atr: number;
+    atr_status: string | null;
+  };
+
+  market_structure: {
+    direction: string;
+    high_type: string;
+    low_type: string;
+  };
+
+  smart_money: {
+    bos: {
+      detected: boolean;
+      direction: string;
+    };
+    choch: {
+      detected: boolean;
+      direction: string;
+    };
+    liquidity: {
+      detected: boolean;
+      direction: string;
+      level: number | null;
+      equal_highs: boolean;
+      equal_lows: boolean;
+    };
+  };
+
+  decision: {
+    score: number;
+    grade: string;
+    action: string;
+    direction: string;
+    approved: boolean;
+    confirmations: string[];
+    warnings: string[];
+  };
+
+  probability: {
+    value: number;
+    confidence: string;
+    approved: boolean;
+    recommendation: string;
+    positive_factors: string[];
+    negative_factors: string[];
+  };
+
+  risk: {
+    approved: boolean;
+    risk_amount: number;
+    stop_distance: number;
+    take_profit_distance: number;
+    contracts: number;
+  };
+
+  trade: {
+    entry_price: number;
+    stop_loss: number;
+    take_profit: number;
+  };
+};
+
+export function analyzeTradingContext(
+  payload: TradingContextPayload
+): Promise<TradingContextResult> {
+  return postJson(
+    "/ai/trading-context",
+    payload
+  );
+}
