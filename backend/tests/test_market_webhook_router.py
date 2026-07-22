@@ -44,6 +44,9 @@ def test_market_webhook_stores_candle():
 
     response = client.post(
         "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
         json=build_payload(),
     )
 
@@ -85,11 +88,17 @@ def test_market_webhook_replaces_same_timestamp():
 
     first_response = client.post(
         "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
         json=first,
     )
 
     second_response = client.post(
         "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
         json=second,
     )
 
@@ -204,6 +213,9 @@ def test_market_webhook_auto_analyzes_at_minimum():
     for index in range(50):
         last_response = client.post(
             "/market/webhook",
+            headers={
+                "X-ARMS-TOKEN": "development-secret",
+            },
             json=build_candle_payload(
                 index
             ),
@@ -247,6 +259,9 @@ def test_market_webhook_does_not_analyze_before_minimum():
     for index in range(49):
         response = client.post(
             "/market/webhook",
+            headers={
+                "X-ARMS-TOKEN": "development-secret",
+            },
             json=build_candle_payload(
                 index
             ),

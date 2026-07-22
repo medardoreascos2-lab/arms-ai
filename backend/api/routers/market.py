@@ -1,5 +1,8 @@
+from secrets import compare_digest
+
 from fastapi import (
     APIRouter,
+    Header,
     HTTPException,
     Query,
     Request,
@@ -67,7 +70,27 @@ def get_live_store(
 def receive_market_webhook(
     payload: MarketWebhookRequest,
     request: Request,
+    x_arms_token: str | None = Header(
+        default=None,
+        alias="X-ARMS-TOKEN",
+    ),
 ) -> dict[str, object]:
+    expected_token = str(
+        request.app.state.webhook_token
+    )
+
+    if (
+        x_arms_token is None
+        or not compare_digest(
+            x_arms_token,
+            expected_token,
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de webhook inválido.",
+        )
+
     store = get_live_store(
         request
     )

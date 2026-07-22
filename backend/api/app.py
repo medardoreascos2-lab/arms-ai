@@ -87,6 +87,10 @@ def create_app(
         live_analysis_store
     )
 
+    app.state.webhook_token = (
+        settings.webhook_token
+    )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
