@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import { BenchmarkComparisonChart } from "@/components/BenchmarkComparisonChart";
 import { DrawdownChart } from "@/components/DrawdownChart";
@@ -288,6 +291,12 @@ export default function Home() {
 
   const [tradingContext, setTradingContext] =
     useState<TradingContextResult | null>(null);
+
+  const [liveMonitoring, setLiveMonitoring] =
+    useState(false);
+
+  const [lastLiveUpdate, setLastLiveUpdate] =
+    useState<string | null>(null);
 
   const [loading, setLoading] =
     useState<Action | null>(null);
@@ -1492,6 +1501,59 @@ export default function Home() {
   }
 
 
+  useEffect(() => {
+    if (!liveMonitoring) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function refreshLatestAnalysis() {
+      try {
+        const payload =
+          await getLatestMarketAnalysis(
+            "NQ",
+            "5m"
+          );
+
+        if (!cancelled) {
+          setTradingContext(payload);
+          setLastLiveUpdate(
+            new Date().toISOString()
+          );
+        }
+      } catch (caughtError) {
+        if (
+          caughtError instanceof Error
+          && caughtError.message.includes(
+            "No existe un análisis"
+          )
+        ) {
+          return;
+        }
+
+        if (!cancelled) {
+          handleError(caughtError);
+        }
+      }
+    }
+
+    void refreshLatestAnalysis();
+
+    const intervalId = window.setInterval(
+      () => {
+        void refreshLatestAnalysis();
+      },
+      5000
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [liveMonitoring]);
+
+
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-6 md:p-10">
@@ -1663,6 +1725,37 @@ export default function Home() {
               <p className="mt-2 max-w-3xl text-slate-600">
                 Ejecuta el pipeline completo de análisis técnico, Smart Money, probabilidad y riesgo.
               </p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium ${
+                    liveMonitoring
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      liveMonitoring
+                        ? "bg-emerald-500"
+                        : "bg-slate-400"
+                    }`}
+                  />
+
+                  {liveMonitoring
+                    ? "Monitoreo automático activo"
+                    : "Monitoreo automático detenido"}
+                </span>
+
+                {lastLiveUpdate && (
+                  <span className="text-slate-500">
+                    Última actualización:{" "}
+                    {new Date(
+                      lastLiveUpdate
+                    ).toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -1686,6 +1779,24 @@ export default function Home() {
                 {loading === "latest-analysis"
                   ? "Cargando..."
                   : "Cargar último análisis"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setLiveMonitoring(
+                    (current) => !current
+                  )
+                }
+                className={`rounded-lg px-6 py-3 font-semibold text-white transition ${
+                  liveMonitoring
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : "bg-slate-500 hover:bg-slate-600"
+                }`}
+              >
+                {liveMonitoring
+                  ? "Monitoreo en vivo: ACTIVO"
+                  : "Activar monitoreo en vivo"}
               </button>
             </div>
           </div>

@@ -257,6 +257,7 @@ export type TradingContextResult = {
   timeframe: string;
   current_price: number;
   trend: string;
+  analyzed_at?: string;
 
   indicators: {
     ema: number;
