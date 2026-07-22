@@ -7,6 +7,9 @@ from backend.api.error_handlers import (
 from backend.api.logging_middleware import (
     register_logging_middleware,
 )
+from backend.api.routers.ai import (
+    router as ai_router,
+)
 from backend.api.routers.portfolio import (
     router as portfolio_router,
 )
@@ -56,6 +59,10 @@ def create_app(
 
     app.include_router(
         portfolio_router
+    )
+
+    app.include_router(
+        ai_router
     )
 
     @app.get("/health")
