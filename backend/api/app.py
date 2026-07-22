@@ -10,16 +10,24 @@ from backend.api.logging_middleware import (
 from backend.api.routers.ai import (
     router as ai_router,
 )
+from backend.api.routers.market import (
+    router as market_router,
+)
 from backend.api.routers.portfolio import (
     router as portfolio_router,
 )
 from backend.config.api_settings import (
     APISettings,
 )
+from backend.services.live_candle_store import (
+    LiveCandleStore,
+)
 
 
 def create_app(
     settings: APISettings | None = None,
+    live_candle_store: LiveCandleStore
+    | None = None,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -32,10 +40,28 @@ def create_app(
             "settings debe ser APISettings."
         )
 
+    if live_candle_store is None:
+        live_candle_store = (
+            LiveCandleStore()
+        )
+
+    if not isinstance(
+        live_candle_store,
+        LiveCandleStore,
+    ):
+        raise TypeError(
+            "live_candle_store debe ser "
+            "LiveCandleStore."
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
         debug=settings.debug,
+    )
+
+    app.state.live_candle_store = (
+        live_candle_store
     )
 
     app.add_middleware(
@@ -63,6 +89,10 @@ def create_app(
 
     app.include_router(
         ai_router
+    )
+
+    app.include_router(
+        market_router
     )
 
     @app.get("/health")
