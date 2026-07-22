@@ -1,41 +1,24 @@
 from fastapi import (
     APIRouter,
     HTTPException,
+    Query,
     Request,
     status,
 )
 
-from backend.ai.trading.trading_copilot_service import (
-    TradingCopilotService,
-)
 from backend.api.schemas.market import (
     LiveMarketAnalysisRequest,
     MarketWebhookRequest,
 )
 from backend.models.candle import Candle
-from backend.pipeline.arms_pipeline import (
-    ArmsPipeline,
-)
-from backend.pipeline.backtest_market_stage import (
-    BacktestMarketStage,
-)
-from backend.pipeline.decision_stage import (
-    DecisionStage,
-)
-from backend.pipeline.indicator_stage import (
-    IndicatorStage,
-)
-from backend.pipeline.intelligence_stage import (
-    IntelligenceStage,
-)
-from backend.pipeline.risk_stage import (
-    RiskStage,
-)
-from backend.pipeline.smart_money_stage import (
-    SmartMoneyStage,
+from backend.services.live_analysis_store import (
+    LiveAnalysisStore,
 )
 from backend.services.live_candle_store import (
     LiveCandleStore,
+)
+from backend.services.live_market_analysis_service import (
+    LiveMarketAnalysisService,
 )
 
 
@@ -43,6 +26,22 @@ router = APIRouter(
     prefix="/market",
     tags=["market"],
 )
+
+
+def get_live_analysis_store(
+    request: Request,
+) -> LiveAnalysisStore:
+    store = request.app.state.live_analysis_store
+
+    if not isinstance(
+        store,
+        LiveAnalysisStore,
+    ):
+        raise RuntimeError(
+            "LiveAnalysisStore no está configurado."
+        )
+
+    return store
 
 
 def get_live_store(
@@ -86,6 +85,33 @@ def receive_market_webhook(
 
     store.add(candle)
 
+    analysis_generated = False
+
+    analysis_store = get_live_analysis_store(
+        request
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=store,
+        analysis_store=analysis_store,
+    )
+
+    if service.can_analyze(
+        symbol=candle.symbol,
+        timeframe=candle.timeframe,
+    ):
+        service.analyze(
+            symbol=candle.symbol,
+            timeframe=candle.timeframe,
+            candle_limit=50,
+            account_balance=17000.0,
+            risk_percent=0.5,
+            point_value=2.0,
+            reward_risk_ratio=2.0,
+        )
+
+        analysis_generated = True
+
     return {
         "status": "stored",
         "symbol": candle.symbol,
@@ -97,6 +123,7 @@ def receive_market_webhook(
             symbol=candle.symbol,
             timeframe=candle.timeframe,
         ),
+        "analysis_generated": analysis_generated,
     }
 
 
@@ -107,75 +134,67 @@ def analyze_live_market(
     payload: LiveMarketAnalysisRequest,
     request: Request,
 ) -> dict[str, object]:
-    store = get_live_store(
+    candle_store = get_live_store(
         request
     )
 
-    symbol = payload.symbol.strip()
-    timeframe = payload.timeframe.strip()
-
-    candles = store.get_latest(
-        symbol=symbol,
-        timeframe=timeframe,
-        limit=payload.candle_limit,
+    analysis_store = get_live_analysis_store(
+        request
     )
 
-    minimum_required = 50
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
 
-    if len(candles) < minimum_required:
+    try:
+        return service.analyze(
+            symbol=payload.symbol.strip(),
+            timeframe=payload.timeframe.strip(),
+            candle_limit=payload.candle_limit,
+            account_balance=payload.account_balance,
+            risk_percent=payload.risk_percent,
+            point_value=payload.point_value,
+            reward_risk_ratio=(
+                payload.reward_risk_ratio
+            ),
+        )
+    except ValueError as error:
         raise HTTPException(
             status_code=400,
+            detail=str(error),
+        ) from error
+
+
+@router.get("/latest-analysis")
+def get_latest_market_analysis(
+    request: Request,
+    symbol: str = Query(
+        ...,
+        min_length=1,
+    ),
+    timeframe: str = Query(
+        ...,
+        min_length=1,
+    ),
+) -> dict[str, object]:
+    analysis_store = get_live_analysis_store(
+        request
+    )
+
+    analysis = analysis_store.get_latest(
+        symbol=symbol,
+        timeframe=timeframe,
+    )
+
+    if analysis is None:
+        raise HTTPException(
+            status_code=404,
             detail=(
-                "No hay suficientes velas "
-                f"para analizar {symbol} "
-                f"en {timeframe}. "
-                f"Se requieren al menos "
-                f"{minimum_required} velas "
-                f"y existen {len(candles)}."
+                "No existe un análisis disponible "
+                f"para {symbol} "
+                f"en {timeframe}."
             ),
         )
 
-    pipeline = ArmsPipeline(
-        stages=[
-            BacktestMarketStage(
-                max_candles=max(
-                    500,
-                    len(candles),
-                ),
-            ),
-            IndicatorStage(),
-            SmartMoneyStage(),
-            IntelligenceStage(),
-            RiskStage(
-                account_balance=(
-                    payload.account_balance
-                ),
-                risk_percent=(
-                    payload.risk_percent
-                ),
-                reward_risk_ratio=(
-                    payload.reward_risk_ratio
-                ),
-                point_value=(
-                    payload.point_value
-                ),
-            ),
-            DecisionStage(
-                reward_risk_ratio=(
-                    payload.reward_risk_ratio
-                ),
-            ),
-        ]
-    )
-
-    context = pipeline.run(
-        initial_context={
-            "symbol": symbol,
-            "timeframe": timeframe,
-            "backtest_candles": candles,
-        }
-    )
-
-    return TradingCopilotService().build_context(
-        context
-    )
+    return analysis

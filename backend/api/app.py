@@ -19,6 +19,9 @@ from backend.api.routers.portfolio import (
 from backend.config.api_settings import (
     APISettings,
 )
+from backend.services.live_analysis_store import (
+    LiveAnalysisStore,
+)
 from backend.services.live_candle_store import (
     LiveCandleStore,
 )
@@ -27,6 +30,8 @@ from backend.services.live_candle_store import (
 def create_app(
     settings: APISettings | None = None,
     live_candle_store: LiveCandleStore
+    | None = None,
+    live_analysis_store: LiveAnalysisStore
     | None = None,
 ) -> FastAPI:
     if settings is None:
@@ -54,6 +59,20 @@ def create_app(
             "LiveCandleStore."
         )
 
+    if live_analysis_store is None:
+        live_analysis_store = (
+            LiveAnalysisStore()
+        )
+
+    if not isinstance(
+        live_analysis_store,
+        LiveAnalysisStore,
+    ):
+        raise TypeError(
+            "live_analysis_store debe ser "
+            "LiveAnalysisStore."
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
@@ -62,6 +81,10 @@ def create_app(
 
     app.state.live_candle_store = (
         live_candle_store
+    )
+
+    app.state.live_analysis_store = (
+        live_analysis_store
     )
 
     app.add_middleware(

@@ -333,3 +333,37 @@ export function analyzeTradingContext(
     payload
   );
 }
+
+
+export function getLatestMarketAnalysis(
+  symbol: string,
+  timeframe: string
+): Promise<TradingContextResult> {
+  const params = new URLSearchParams({
+    symbol,
+    timeframe,
+  });
+
+  return fetch(
+    `${API_URL}/market/latest-analysis?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  ).then(async (response) => {
+    if (!response.ok) {
+      const errorPayload =
+        await response.json().catch(() => null);
+
+      const detail =
+        errorPayload?.detail
+        ?? "No fue posible obtener el último análisis.";
+
+      throw new Error(detail);
+    }
+
+    return response.json();
+  });
+}

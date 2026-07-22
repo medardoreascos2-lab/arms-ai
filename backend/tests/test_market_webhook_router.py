@@ -146,3 +146,124 @@ def test_market_webhook_rejects_negative_volume():
     )
 
     assert response.status_code == 422
+
+
+def build_candle_payload(
+    index: int,
+) -> dict[str, object]:
+    from datetime import timedelta
+
+    payload = build_payload()
+
+    base = 21600.0 + index * 1.5
+    start = datetime(
+        2026,
+        7,
+        22,
+        9,
+        30,
+        tzinfo=timezone.utc,
+    )
+
+    payload.update(
+        {
+            "open": base,
+            "high": base + 4.0,
+            "low": base - 2.0,
+            "close": base + 2.5,
+            "volume": 1000.0 + index * 10,
+            "timestamp": (
+                start
+                + timedelta(
+                    minutes=index * 5
+                )
+            ).isoformat(),
+        }
+    )
+
+    return payload
+
+
+def test_market_webhook_auto_analyzes_at_minimum():
+    from backend.services.live_analysis_store import (
+        LiveAnalysisStore,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    client = TestClient(
+        create_app(
+            live_candle_store=candle_store,
+            live_analysis_store=analysis_store,
+        )
+    )
+
+    last_response = None
+
+    for index in range(50):
+        last_response = client.post(
+            "/market/webhook",
+            json=build_candle_payload(
+                index
+            ),
+        )
+
+    assert last_response is not None
+    assert last_response.status_code == 201
+
+    body = last_response.json()
+
+    assert body["count"] == 50
+    assert body["analysis_generated"] is True
+
+    analysis = analysis_store.get_latest(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert analysis is not None
+    assert analysis["symbol"] == "NQ"
+    assert analysis["timeframe"] == "5m"
+
+
+def test_market_webhook_does_not_analyze_before_minimum():
+    from backend.services.live_analysis_store import (
+        LiveAnalysisStore,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    client = TestClient(
+        create_app(
+            live_candle_store=candle_store,
+            live_analysis_store=analysis_store,
+        )
+    )
+
+    response = None
+
+    for index in range(49):
+        response = client.post(
+            "/market/webhook",
+            json=build_candle_payload(
+                index
+            ),
+        )
+
+    assert response is not None
+    assert response.status_code == 201
+    assert (
+        response.json()[
+            "analysis_generated"
+        ]
+        is False
+    )
+
+    analysis = analysis_store.get_latest(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert analysis is None

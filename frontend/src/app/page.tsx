@@ -30,6 +30,7 @@ import {
   calculateRiskContribution,
   calculateRollingAnalytics,
   generateEfficientFrontier,
+  getLatestMarketAnalysis,
   optimizePortfolio,
   rebalancePortfolio,
   runScenarioAnalysis,
@@ -201,6 +202,7 @@ type Action =
   | "analyze"
   | "copilot"
   | "trading-context"
+  | "latest-analysis"
   | "optimize"
   | "rebalance"
   | "simulate"
@@ -1470,6 +1472,26 @@ export default function Home() {
   }
 
 
+  async function handleLoadLatestAnalysis() {
+    setLoading("latest-analysis");
+    setError("");
+
+    try {
+      const payload =
+        await getLatestMarketAnalysis(
+          "NQ",
+          "5m"
+        );
+
+      setTradingContext(payload);
+    } catch (caughtError) {
+      handleError(caughtError);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-6 md:p-10">
@@ -1643,16 +1665,29 @@ export default function Home() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleAnalyzeTradingContext}
-              disabled={loading !== null}
-              className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading === "trading-context"
-                ? "Analizando mercado..."
-                : "Analizar mercado"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleAnalyzeTradingContext}
+                disabled={loading !== null}
+                className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading === "trading-context"
+                  ? "Analizando mercado..."
+                  : "Analizar mercado"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLoadLatestAnalysis}
+                disabled={loading !== null}
+                className="rounded-lg bg-slate-800 px-6 py-3 font-semibold text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading === "latest-analysis"
+                  ? "Cargando..."
+                  : "Cargar último análisis"}
+              </button>
+            </div>
           </div>
 
           {!tradingContext && (
