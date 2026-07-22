@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import (
     BaseModel,
     Field,
+    field_validator,
     model_validator,
 )
 
@@ -22,6 +23,42 @@ class MarketWebhookRequest(BaseModel):
         ge=0,
     )
     timestamp: datetime
+
+    @field_validator(
+        "symbol",
+        mode="before",
+    )
+    @classmethod
+    def normalize_symbol(
+        cls,
+        value: object,
+    ) -> str:
+        normalized = str(value).strip().upper()
+
+        if not normalized:
+            raise ValueError(
+                "symbol no puede estar vacío."
+            )
+
+        return normalized
+
+    @field_validator(
+        "timeframe",
+        mode="before",
+    )
+    @classmethod
+    def normalize_timeframe(
+        cls,
+        value: object,
+    ) -> str:
+        normalized = str(value).strip().lower()
+
+        if not normalized:
+            raise ValueError(
+                "timeframe no puede estar vacío."
+            )
+
+        return normalized
 
     @model_validator(
         mode="after"
