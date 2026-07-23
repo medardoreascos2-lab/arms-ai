@@ -36,6 +36,9 @@ from backend.services.live_analysis_store import (
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
 )
+from backend.execution.execution_decision_engine import (
+    ExecutionDecisionEngine,
+)
 from backend.execution.trade_execution_engine import (
     TradeExecutionEngine,
 )
@@ -95,6 +98,9 @@ class LiveMarketAnalysisService:
         position_sizing_engine:
         PositionSizingEngine
         | None = None,
+        execution_decision_engine:
+        ExecutionDecisionEngine
+        | None = None,
     ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -122,6 +128,23 @@ class LiveMarketAnalysisService:
         )
         self.position_sizing_engine = (
             position_sizing_engine
+        )
+
+        if (
+            execution_decision_engine
+            is not None
+            and not isinstance(
+                execution_decision_engine,
+                ExecutionDecisionEngine,
+            )
+        ):
+            raise TypeError(
+                "execution_decision_engine debe ser "
+                "ExecutionDecisionEngine."
+            )
+
+        self.execution_decision_engine = (
+            execution_decision_engine
         )
 
     def can_analyze(
@@ -331,10 +354,73 @@ class LiveMarketAnalysisService:
                         account_risk["approved"]
                     )
 
-                if (
+                execution_decision_approved = (
                     position_sizing_approved
                     and account_risk_approved
+                )
+
+                if (
+                    self.execution_decision_engine
+                    is not None
                 ):
+                    raw_confidence = float(
+                        execution.get(
+                            "confidence",
+                            0.0,
+                        )
+                    )
+
+                    if raw_confidence > 1.0:
+                        raw_confidence = (
+                            raw_confidence
+                            / 100.0
+                        )
+
+                    raw_confidence = min(
+                        1.0,
+                        max(
+                            0.0,
+                            raw_confidence,
+                        ),
+                    )
+
+                    contracts = int(
+                        execution.get(
+                            "contracts",
+                            0,
+                        )
+                    )
+
+                    execution_decision = (
+                        self.execution_decision_engine
+                        .evaluate(
+                            signal_accepted=bool(
+                                execution["accepted"]
+                            ),
+                            signal_confidence=(
+                                raw_confidence
+                            ),
+                            risk_approved=(
+                                account_risk_approved
+                            ),
+                            sizing_approved=(
+                                position_sizing_approved
+                            ),
+                            contracts=contracts,
+                        )
+                    )
+
+                    result["execution_decision"] = (
+                        execution_decision
+                    )
+
+                    execution_decision_approved = bool(
+                        execution_decision[
+                            "approved"
+                        ]
+                    )
+
+                if execution_decision_approved:
                     if (
                         self.executable_signal_store
                         is not None

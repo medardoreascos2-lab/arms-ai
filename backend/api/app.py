@@ -22,6 +22,9 @@ from backend.api.routers.portfolio import (
 from backend.config.api_settings import (
     APISettings,
 )
+from backend.execution.execution_decision_engine import (
+    ExecutionDecisionEngine,
+)
 from backend.execution.position_manager import (
     PositionManager,
 )
@@ -78,6 +81,9 @@ def create_app(
     | None = None,
     position_sizing_engine:
     PositionSizingEngine
+    | None = None,
+    execution_decision_engine:
+    ExecutionDecisionEngine
     | None = None,
 ) -> FastAPI:
     if settings is None:
@@ -244,6 +250,22 @@ def create_app(
             "PositionSizingEngine."
         )
 
+    if execution_decision_engine is None:
+        execution_decision_engine = (
+            ExecutionDecisionEngine(
+                minimum_confidence=0.70,
+            )
+        )
+
+    if not isinstance(
+        execution_decision_engine,
+        ExecutionDecisionEngine,
+    ):
+        raise TypeError(
+            "execution_decision_engine debe ser "
+            "ExecutionDecisionEngine."
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
@@ -288,6 +310,10 @@ def create_app(
 
     app.state.position_sizing_engine = (
         position_sizing_engine
+    )
+
+    app.state.execution_decision_engine = (
+        execution_decision_engine
     )
 
     app.state.webhook_token = (

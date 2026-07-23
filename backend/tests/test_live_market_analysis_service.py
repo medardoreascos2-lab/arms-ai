@@ -1293,3 +1293,239 @@ def test_falls_back_to_manual_point_value_for_unsupported_symbol():
 
         assert "symbol" not in sizing
         assert sizing["risk_per_contract"] > 0
+
+
+def test_execution_decision_allows_approved_trade():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert "execution_decision" in result
+        assert (
+            result["execution_decision"][
+                "decision"
+            ]
+            == "EXECUTE"
+        )
+        assert (
+            result["execution_decision"][
+                "approved"
+            ]
+            is True
+        )
+        assert "trade_execution" in result
+
+
+def test_execution_decision_blocks_rejected_sizing():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=100.0,
+        risk_percent=0.5,
+        point_value=20.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert (
+            result["position_sizing"][
+                "approved"
+            ]
+            is False
+        )
+        assert (
+            result["execution_decision"][
+                "decision"
+            ]
+            == "BLOCK"
+        )
+        assert (
+            "position_sizing_rejected"
+            in result["execution_decision"][
+                "reasons"
+            ]
+        )
+        assert "trade_execution" not in result
+
+
+def test_execution_decision_waits_for_low_confidence():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=1.0,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        confidence = float(
+            result["execution"].get(
+                "confidence",
+                0.0,
+            )
+        )
+
+        if confidence < 1.0:
+            assert (
+                result["execution_decision"][
+                    "decision"
+                ]
+                == "WAIT"
+            )
+            assert "trade_execution" not in result
+
+
+def test_omits_execution_decision_when_not_configured():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "execution_decision" not in result

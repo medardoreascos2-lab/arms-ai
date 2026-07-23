@@ -16,6 +16,9 @@ from backend.api.schemas.market import (
     LiveMarketAnalysisRequest,
     MarketWebhookRequest,
 )
+from backend.execution.execution_decision_engine import (
+    ExecutionDecisionEngine,
+)
 from backend.execution.position_manager import (
     PositionManager,
 )
@@ -235,6 +238,12 @@ def receive_market_webhook(
         )
     )
 
+    execution_decision_engine = (
+        get_execution_decision_engine(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=store,
         analysis_store=analysis_store,
@@ -261,6 +270,9 @@ def receive_market_webhook(
         ),
         position_sizing_engine=(
             position_sizing_engine
+        ),
+        execution_decision_engine=(
+            execution_decision_engine
         ),
     )
 
@@ -353,6 +365,12 @@ def analyze_live_market(
         )
     )
 
+    execution_decision_engine = (
+        get_execution_decision_engine(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=candle_store,
         analysis_store=analysis_store,
@@ -379,6 +397,9 @@ def analyze_live_market(
         ),
         position_sizing_engine=(
             position_sizing_engine
+        ),
+        execution_decision_engine=(
+            execution_decision_engine
         ),
     )
 
@@ -433,6 +454,25 @@ def get_latest_market_analysis(
         )
 
     return analysis
+
+
+def get_execution_decision_engine(
+    request: Request,
+) -> ExecutionDecisionEngine:
+    engine = (
+        request.app.state.execution_decision_engine
+    )
+
+    if not isinstance(
+        engine,
+        ExecutionDecisionEngine,
+    ):
+        raise RuntimeError(
+            "ExecutionDecisionEngine "
+            "no está configurado."
+        )
+
+    return engine
 
 
 def get_position_sizing_engine(
