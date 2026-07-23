@@ -1529,3 +1529,455 @@ def test_omits_execution_decision_when_not_configured():
     )
 
     assert "execution_decision" not in result
+
+
+def test_includes_market_regime_in_execution_decision():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.market_analysis.market_regime_engine import (
+        MarketRegimeEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        market_regime_engine=MarketRegimeEngine(
+            trend_threshold=0.60,
+            high_volatility_threshold=0.80,
+            low_volatility_threshold=0.20,
+            compression_threshold=0.15,
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "market_regime" in result
+
+    if result["execution"]["accepted"]:
+        assert "execution_decision" in result
+        assert (
+            result["execution_decision"][
+                "market_regime"
+            ]
+            == result["market_regime"][
+                "regime"
+            ]
+        )
+        assert (
+            result["execution_decision"][
+                "market_tradable"
+            ]
+            == result["market_regime"][
+                "tradable"
+            ]
+        )
+
+
+def test_market_regime_blocks_non_tradable_market():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.market_analysis.market_regime_engine import (
+        MarketRegimeEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    class AlwaysNoTradeMarketRegimeEngine(
+        MarketRegimeEngine
+    ):
+        def evaluate(
+            self,
+            *,
+            directional_strength: float,
+            volatility_score: float,
+            compression_score: float,
+        ) -> dict[str, object]:
+            return {
+                "regime": "NO_TRADE",
+                "tradable": False,
+                "direction": "NEUTRAL",
+                "confidence": 1.0,
+                "risk_multiplier": 0.0,
+            }
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        market_regime_engine=(
+            AlwaysNoTradeMarketRegimeEngine(
+                trend_threshold=0.60,
+                high_volatility_threshold=0.80,
+                low_volatility_threshold=0.20,
+                compression_threshold=0.15,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert result["market_regime"]["tradable"] is False
+
+    if result["execution"]["accepted"]:
+        assert (
+            result["execution_decision"][
+                "decision"
+            ]
+            == "BLOCK"
+        )
+        assert (
+            "market_not_tradable"
+            in result["execution_decision"][
+                "reasons"
+            ]
+        )
+        assert "trade_execution" not in result
+
+
+def test_omits_market_regime_when_not_configured():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "market_regime" not in result
+
+
+def test_includes_confluence_v2_result():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.market_analysis.market_regime_engine import (
+        MarketRegimeEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        market_regime_engine=MarketRegimeEngine(
+            trend_threshold=0.60,
+            high_volatility_threshold=0.80,
+            low_volatility_threshold=0.20,
+            compression_threshold=0.15,
+        ),
+        confluence_engine_v2=ConfluenceEngineV2(),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "confluence_v2" in result
+    assert 0.0 <= result["confluence_v2"]["score"] <= 100.0
+    assert result["confluence_v2"]["grade"] in {
+        "A+",
+        "A",
+        "B",
+        "C",
+    }
+
+
+def test_confluence_v2_blocks_execution_when_risk_rejects():
+    from backend.account_risk.account_risk_guard import (
+        AccountRiskGuard,
+    )
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+        account_risk_guard=AccountRiskGuard(
+            daily_loss_limit=3000.0,
+            max_trades_per_day=4,
+            max_consecutive_losses=3,
+            max_open_positions=1,
+            max_risk_per_trade=1.0,
+        ),
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        confluence_engine_v2=ConfluenceEngineV2(),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert result["account_risk"]["approved"] is False
+        assert result["confluence_v2"]["decision"] == "BLOCK"
+        assert (
+            "account_risk_rejected"
+            in result["confluence_v2"][
+                "blocking_reasons"
+            ]
+        )
+        assert "trade_execution" not in result
+
+
+def test_confluence_v2_prevents_execution_for_low_grade():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    class AlwaysLowConfluenceEngine(
+        ConfluenceEngineV2
+    ):
+        def evaluate(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "approved": False,
+                "status": "REJECTED",
+                "decision": "REJECT",
+                "score": 40.0,
+                "grade": "C",
+                "contributions": {},
+                "weights": {},
+                "blocking_reasons": [],
+            }
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        confluence_engine_v2=(
+            AlwaysLowConfluenceEngine()
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert result["confluence_v2"]["grade"] == "C"
+        assert result["confluence_v2"]["approved"] is False
+        assert "trade_execution" not in result
+
+
+def test_omits_confluence_v2_when_not_configured():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "confluence_v2" not in result

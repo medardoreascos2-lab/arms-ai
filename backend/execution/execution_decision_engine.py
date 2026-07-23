@@ -43,6 +43,10 @@ class ExecutionDecisionEngine:
         risk_approved: bool,
         sizing_approved: bool,
         contracts: int,
+        market_tradable: bool
+        | None = None,
+        market_regime: str
+        | None = None,
     ) -> dict[str, object]:
         confidence = float(
             signal_confidence
@@ -68,6 +72,21 @@ class ExecutionDecisionEngine:
             )
 
         reasons: list[str] = []
+        warnings: list[str] = []
+
+        normalized_market_regime = None
+
+        if market_regime is not None:
+            normalized_market_regime = (
+                str(
+                    market_regime
+                )
+                .strip()
+                .upper()
+            )
+
+            if not normalized_market_regime:
+                normalized_market_regime = None
 
         if not signal_accepted:
             reasons.append(
@@ -97,10 +116,34 @@ class ExecutionDecisionEngine:
                 "invalid_contracts"
             )
 
+        if market_tradable is False:
+            reasons.append(
+                "market_not_tradable"
+            )
+
+        if (
+            market_tradable is True
+            and normalized_market_regime
+            == "RANGE"
+        ):
+            reasons.append(
+                "market_range"
+            )
+
+        if (
+            market_tradable is True
+            and normalized_market_regime
+            == "HIGH_VOLATILITY"
+        ):
+            warnings.append(
+                "high_volatility"
+            )
+
         blocking_reasons = {
             "account_risk_rejected",
             "position_sizing_rejected",
             "invalid_contracts",
+            "market_not_tradable",
         }
 
         has_blocking_reason = any(
@@ -131,5 +174,12 @@ class ExecutionDecisionEngine:
             "contracts": (
                 normalized_contracts
             ),
+            "market_tradable": (
+                market_tradable
+            ),
+            "market_regime": (
+                normalized_market_regime
+            ),
             "reasons": reasons,
+            "warnings": warnings,
         }

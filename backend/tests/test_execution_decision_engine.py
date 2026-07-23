@@ -179,3 +179,101 @@ def test_rejects_invalid_minimum_confidence():
         ExecutionDecisionEngine(
             minimum_confidence=1.5,
         )
+
+
+def test_blocks_when_market_is_not_tradable():
+    engine = build_engine()
+
+    result = engine.evaluate(
+        signal_accepted=True,
+        signal_confidence=0.90,
+        risk_approved=True,
+        sizing_approved=True,
+        contracts=2,
+        market_tradable=False,
+        market_regime="NO_TRADE",
+    )
+
+    assert result["approved"] is False
+    assert result["decision"] == "BLOCK"
+    assert (
+        "market_not_tradable"
+        in result["reasons"]
+    )
+    assert result["market_regime"] == "NO_TRADE"
+
+
+def test_waits_when_market_is_ranging():
+    engine = build_engine()
+
+    result = engine.evaluate(
+        signal_accepted=True,
+        signal_confidence=0.90,
+        risk_approved=True,
+        sizing_approved=True,
+        contracts=2,
+        market_tradable=True,
+        market_regime="RANGE",
+    )
+
+    assert result["approved"] is False
+    assert result["decision"] == "WAIT"
+    assert (
+        "market_range"
+        in result["reasons"]
+    )
+
+
+def test_executes_in_trending_market():
+    engine = build_engine()
+
+    result = engine.evaluate(
+        signal_accepted=True,
+        signal_confidence=0.90,
+        risk_approved=True,
+        sizing_approved=True,
+        contracts=2,
+        market_tradable=True,
+        market_regime="TREND_UP",
+    )
+
+    assert result["approved"] is True
+    assert result["decision"] == "EXECUTE"
+    assert result["market_regime"] == "TREND_UP"
+
+
+def test_allows_high_volatility_with_warning():
+    engine = build_engine()
+
+    result = engine.evaluate(
+        signal_accepted=True,
+        signal_confidence=0.90,
+        risk_approved=True,
+        sizing_approved=True,
+        contracts=2,
+        market_tradable=True,
+        market_regime="HIGH_VOLATILITY",
+    )
+
+    assert result["approved"] is True
+    assert result["decision"] == "EXECUTE"
+    assert (
+        "high_volatility"
+        in result["warnings"]
+    )
+
+
+def test_keeps_backward_compatibility_without_market_regime():
+    engine = build_engine()
+
+    result = engine.evaluate(
+        signal_accepted=True,
+        signal_confidence=0.90,
+        risk_approved=True,
+        sizing_approved=True,
+        contracts=2,
+    )
+
+    assert result["approved"] is True
+    assert result["decision"] == "EXECUTE"
+    assert result["market_regime"] is None

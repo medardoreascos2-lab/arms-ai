@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from backend.market_analysis.market_regime_engine import (
+    MarketRegimeEngine,
+)
+
 from backend.account_risk.account_risk_guard import (
     AccountRiskGuard,
 )
@@ -38,6 +42,9 @@ from backend.execution.signal_execution_manager import (
 )
 from backend.execution.execution_decision_engine import (
     ExecutionDecisionEngine,
+)
+from backend.intelligence.confluence_engine_v2 import (
+    ConfluenceEngineV2,
 )
 from backend.execution.trade_execution_engine import (
     TradeExecutionEngine,
@@ -101,7 +108,14 @@ class LiveMarketAnalysisService:
         execution_decision_engine:
         ExecutionDecisionEngine
         | None = None,
-    ) -> None:
+        market_regime_engine:
+        MarketRegimeEngine
+        | None = None,
+    
+        confluence_engine_v2:
+        ConfluenceEngineV2
+        | None = None,
+) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
         self.signal_store = signal_store
@@ -147,6 +161,41 @@ class LiveMarketAnalysisService:
             execution_decision_engine
         )
 
+
+        if (
+            confluence_engine_v2
+            is not None
+            and not isinstance(
+                confluence_engine_v2,
+                ConfluenceEngineV2,
+            )
+        ):
+            raise TypeError(
+                "confluence_engine_v2 debe ser "
+                "ConfluenceEngineV2."
+            )
+
+        self.confluence_engine_v2 = (
+            confluence_engine_v2
+        )
+
+        if (
+            market_regime_engine
+            is not None
+            and not isinstance(
+                market_regime_engine,
+                MarketRegimeEngine,
+            )
+        ):
+            raise TypeError(
+                "market_regime_engine debe ser "
+                "MarketRegimeEngine."
+            )
+
+        self.market_regime_engine = (
+            market_regime_engine
+        )
+
     def can_analyze(
         self,
         *,
@@ -165,6 +214,405 @@ class LiveMarketAnalysisService:
                 timeframe=timeframe,
             )
             >= required
+        )
+
+    def _evaluate_market_regime(
+        self,
+        candles: list[object],
+    ) -> dict[str, object]:
+        if self.market_regime_engine is None:
+            raise RuntimeError(
+                "MarketRegimeEngine "
+                "no está configurado."
+            )
+
+        closes = [
+            float(
+                getattr(
+                    candle,
+                    "close",
+                )
+            )
+            for candle in candles
+        ]
+
+        highs = [
+            float(
+                getattr(
+                    candle,
+                    "high",
+                )
+            )
+            for candle in candles
+        ]
+
+        lows = [
+            float(
+                getattr(
+                    candle,
+                    "low",
+                )
+            )
+            for candle in candles
+        ]
+
+        if len(closes) < 2:
+            directional_strength = 0.0
+        else:
+            net_movement = (
+                closes[-1]
+                - closes[0]
+            )
+
+            total_movement = sum(
+                abs(
+                    current
+                    - previous
+                )
+                for previous, current
+                in zip(
+                    closes,
+                    closes[1:],
+                )
+            )
+
+            if total_movement <= 0:
+                directional_strength = 0.0
+            else:
+                directional_strength = (
+                    net_movement
+                    / total_movement
+                )
+
+        directional_strength = min(
+            1.0,
+            max(
+                -1.0,
+                directional_strength,
+            ),
+        )
+
+        average_price = (
+            sum(closes)
+            / len(closes)
+        )
+
+        average_range = (
+            sum(
+                high - low
+                for high, low
+                in zip(
+                    highs,
+                    lows,
+                )
+            )
+            / len(closes)
+        )
+
+        if average_price <= 0:
+            volatility_score = 0.0
+        else:
+            volatility_score = (
+                average_range
+                / average_price
+                * 1000.0
+            )
+
+        volatility_score = min(
+            1.0,
+            max(
+                0.0,
+                volatility_score,
+            ),
+        )
+
+        complete_range = (
+            max(highs)
+            - min(lows)
+        )
+
+        recent_window = min(
+            10,
+            len(candles),
+        )
+
+        recent_range = (
+            max(
+                highs[-recent_window:]
+            )
+            - min(
+                lows[-recent_window:]
+            )
+        )
+
+        if complete_range <= 0:
+            compression_score = 1.0
+        else:
+            compression_score = (
+                1.0
+                - min(
+                    1.0,
+                    recent_range
+                    / complete_range,
+                )
+            )
+
+        compression_score = min(
+            1.0,
+            max(
+                0.0,
+                compression_score,
+            ),
+        )
+
+        regime = (
+            self.market_regime_engine.evaluate(
+                directional_strength=(
+                    directional_strength
+                ),
+                volatility_score=(
+                    volatility_score
+                ),
+                compression_score=(
+                    compression_score
+                ),
+            )
+        )
+
+        return {
+            **regime,
+            "directional_strength": (
+                directional_strength
+            ),
+            "volatility_score": (
+                volatility_score
+            ),
+            "compression_score": (
+                compression_score
+            ),
+        }
+
+
+    def _evaluate_confluence_v2(
+        self,
+        *,
+        result: dict[str, object],
+        candles: list[object],
+        risk_approved: bool,
+        sizing_approved: bool,
+        market_regime_result:
+        dict[str, object]
+        | None,
+    ) -> dict[str, object]:
+        if self.confluence_engine_v2 is None:
+            raise RuntimeError(
+                "ConfluenceEngineV2 "
+                "no está configurado."
+            )
+
+        trend_text = str(
+            result.get(
+                "trend",
+                "",
+            )
+        ).strip().upper()
+
+        trend_score = (
+            1.0
+            if trend_text in {
+                "ALCISTA",
+                "BAJISTA",
+                "BULLISH",
+                "BEARISH",
+            }
+            else 0.50
+        )
+
+        structure_score = (
+            1.0
+            if (
+                result.get(
+                    "market_structure"
+                )
+                or result.get(
+                    "structure"
+                )
+            )
+            else 0.50
+        )
+
+        liquidity_score = (
+            1.0
+            if (
+                result.get(
+                    "liquidity"
+                )
+                or result.get(
+                    "liquidity_analysis"
+                )
+            )
+            else 0.50
+        )
+
+        fvg_score = (
+            1.0
+            if (
+                result.get(
+                    "fvg"
+                )
+                or result.get(
+                    "fair_value_gap"
+                )
+            )
+            else 0.50
+        )
+
+        ema_alignment_score = (
+            1.0
+            if (
+                result.get(
+                    "ema"
+                )
+                or result.get(
+                    "ema_alignment"
+                )
+            )
+            else 0.50
+        )
+
+        probability_data = (
+            result.get(
+                "probability"
+            )
+            or result.get(
+                "confidence"
+            )
+            or 0.50
+        )
+
+        if isinstance(
+            probability_data,
+            dict,
+        ):
+            probability_data = (
+                probability_data.get(
+                    "probability",
+                    probability_data.get(
+                        "confidence",
+                        0.50,
+                    ),
+                )
+            )
+
+        try:
+            probability_score = float(
+                probability_data
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            probability_score = 0.50
+
+        if probability_score > 1.0:
+            probability_score = (
+                probability_score
+                / 100.0
+            )
+
+        probability_score = min(
+            1.0,
+            max(
+                0.0,
+                probability_score,
+            ),
+        )
+
+        if market_regime_result is None:
+            market_regime_score = 0.50
+            market_tradable = True
+        else:
+            market_regime_score = float(
+                market_regime_result.get(
+                    "confidence",
+                    0.50,
+                )
+            )
+
+            market_regime_score = min(
+                1.0,
+                max(
+                    0.0,
+                    market_regime_score,
+                ),
+            )
+
+            market_tradable = bool(
+                market_regime_result.get(
+                    "tradable",
+                    True,
+                )
+            )
+
+        volumes = [
+            float(
+                getattr(
+                    candle,
+                    "volume",
+                    0.0,
+                )
+            )
+            for candle in candles
+        ]
+
+        if volumes and sum(
+            volumes
+        ) > 0:
+            average_volume = (
+                sum(volumes)
+                / len(volumes)
+            )
+
+            volume_score = min(
+                1.0,
+                max(
+                    0.0,
+                    volumes[-1]
+                    / average_volume,
+                ),
+            )
+        else:
+            volume_score = 0.50
+
+        return (
+            self.confluence_engine_v2
+            .evaluate(
+                trend_score=trend_score,
+                structure_score=(
+                    structure_score
+                ),
+                liquidity_score=(
+                    liquidity_score
+                ),
+                fvg_score=fvg_score,
+                ema_alignment_score=(
+                    ema_alignment_score
+                ),
+                market_regime_score=(
+                    market_regime_score
+                ),
+                probability_score=(
+                    probability_score
+                ),
+                volume_score=volume_score,
+                risk_approved=risk_approved,
+                sizing_approved=(
+                    sizing_approved
+                ),
+                market_tradable=(
+                    market_tradable
+                ),
+            )
         )
 
     def analyze(
@@ -237,6 +685,22 @@ class LiveMarketAnalysisService:
         )
 
         result["signal"] = signal
+
+        market_regime_result = None
+
+        if (
+            self.market_regime_engine
+            is not None
+        ):
+            market_regime_result = (
+                self._evaluate_market_regime(
+                    candles
+                )
+            )
+
+            result["market_regime"] = (
+                market_regime_result
+            )
 
         if (
             self.execution_manager
@@ -407,6 +871,26 @@ class LiveMarketAnalysisService:
                                 position_sizing_approved
                             ),
                             contracts=contracts,
+                            market_tradable=(
+                                bool(
+                                    market_regime_result[
+                                        "tradable"
+                                    ]
+                                )
+                                if market_regime_result
+                                is not None
+                                else None
+                            ),
+                            market_regime=(
+                                str(
+                                    market_regime_result[
+                                        "regime"
+                                    ]
+                                )
+                                if market_regime_result
+                                is not None
+                                else None
+                            ),
                         )
                     )
 
@@ -472,5 +956,27 @@ class LiveMarketAnalysisService:
         self.analysis_store.save(
             result
         )
+
+        if (
+            self.confluence_engine_v2
+            is not None
+        ):
+            confluence_v2_result = (
+                self._evaluate_confluence_v2(
+                    result=result,
+                    candles=candles,
+                    risk_approved=True,
+                    sizing_approved=True,
+                    market_regime_result=(
+                        locals().get(
+                            "market_regime_result"
+                        )
+                    ),
+                )
+            )
+
+            result["confluence_v2"] = (
+                confluence_v2_result
+            )
 
         return result
