@@ -263,6 +263,42 @@ class ProbabilityEngineV2:
             "probability": probability,
             "confidence": confidence,
             "grade": grade,
+            "inputs": {
+                "smart_money_score": (
+                    components[
+                        "smart_money_score"
+                    ]
+                ),
+                "trend_score": (
+                    components[
+                        "trend_score"
+                    ]
+                ),
+                "market_regime_score": (
+                    components[
+                        "market_regime_score"
+                    ]
+                ),
+                "confluence_score": (
+                    components[
+                        "confluence_score"
+                    ]
+                ),
+                "volume_score": (
+                    components[
+                        "volume_score"
+                    ]
+                ),
+                "risk_approved": bool(
+                    risk_approved
+                ),
+                "sizing_approved": bool(
+                    sizing_approved
+                ),
+                "market_tradable": bool(
+                    market_tradable
+                ),
+            },
             "contributions": (
                 contributions
             ),

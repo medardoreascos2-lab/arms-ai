@@ -2434,3 +2434,306 @@ def test_weak_smart_money_structure_keeps_conservative_scores():
     assert contributions["structure"] <= 7.5
     assert contributions["liquidity"] <= 5.0
     assert contributions["fvg"] <= 5.0
+
+
+def test_includes_probability_v2_result():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.market_analysis.market_regime_engine import (
+        MarketRegimeEngine,
+    )
+    from backend.smart_money.smart_money_engine_v2 import (
+        SmartMoneyEngineV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.80,
+                very_high_threshold=0.90,
+                high_threshold=0.80,
+                medium_threshold=0.65,
+            )
+        ),
+        market_regime_engine=(
+            MarketRegimeEngine(
+                trend_threshold=0.60,
+                high_volatility_threshold=0.80,
+                low_volatility_threshold=0.20,
+                compression_threshold=0.15,
+            )
+        ),
+        smart_money_engine_v2=(
+            SmartMoneyEngineV2()
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "probability_v2" in result
+
+    probability = result[
+        "probability_v2"
+    ]
+
+    assert (
+        0.0
+        <= probability["probability"]
+        <= 1.0
+    )
+
+    assert probability["confidence"] in {
+        "VERY_HIGH",
+        "HIGH",
+        "MEDIUM",
+        "LOW",
+    }
+
+    assert probability["grade"] in {
+        "A+",
+        "A",
+        "B",
+        "C",
+    }
+
+    assert probability["decision"] in {
+        "EXECUTE",
+        "WAIT",
+        "REJECT",
+        "BLOCK",
+    }
+
+
+def test_probability_v2_uses_confluence_score():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.80,
+                very_high_threshold=0.90,
+                high_threshold=0.80,
+                medium_threshold=0.65,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "confluence_v2" in result
+    assert "probability_v2" in result
+
+    probability = result[
+        "probability_v2"
+    ]
+
+    expected_confluence_score = round(
+        float(
+            result["confluence_v2"][
+                "score"
+            ]
+        )
+        / 100.0,
+        4,
+    )
+
+    assert (
+        probability["inputs"][
+            "confluence_score"
+        ]
+        == expected_confluence_score
+    )
+
+
+def test_probability_v2_respects_market_block():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.market_analysis.market_regime_engine import (
+        MarketRegimeEngine,
+    )
+
+    class NoTradeMarketRegimeEngine(
+        MarketRegimeEngine
+    ):
+        def evaluate(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "regime": "NO_TRADE",
+                "tradable": False,
+                "direction": "NEUTRAL",
+                "confidence": 1.0,
+                "risk_multiplier": 0.0,
+            }
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.80,
+                very_high_threshold=0.90,
+                high_threshold=0.80,
+                medium_threshold=0.65,
+            )
+        ),
+        market_regime_engine=(
+            NoTradeMarketRegimeEngine(
+                trend_threshold=0.60,
+                high_volatility_threshold=0.80,
+                low_volatility_threshold=0.20,
+                compression_threshold=0.15,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    probability = result[
+        "probability_v2"
+    ]
+
+    assert probability["approved"] is False
+    assert probability["decision"] == "BLOCK"
+    assert probability["status"] == "BLOCKED"
+
+    assert (
+        "market_not_tradable"
+        in probability[
+            "blocking_reasons"
+        ]
+    )
+
+
+def test_omits_probability_v2_when_not_configured():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "probability_v2" not in result
+
+
+def test_rejects_invalid_probability_engine_v2():
+    with pytest.raises(
+        TypeError,
+        match="probability_engine_v2",
+    ):
+        LiveMarketAnalysisService(
+            candle_store=LiveCandleStore(),
+            analysis_store=LiveAnalysisStore(),
+            probability_engine_v2=object(),
+        )

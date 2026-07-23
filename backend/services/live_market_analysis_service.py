@@ -46,6 +46,9 @@ from backend.execution.execution_decision_engine import (
 from backend.intelligence.confluence_engine_v2 import (
     ConfluenceEngineV2,
 )
+from backend.intelligence.probability_engine_v2 import (
+    ProbabilityEngineV2,
+)
 from backend.execution.trade_execution_engine import (
     TradeExecutionEngine,
 )
@@ -121,6 +124,9 @@ class LiveMarketAnalysisService:
 
         smart_money_engine_v2:
         SmartMoneyEngineV2
+        | None = None,
+        probability_engine_v2:
+        ProbabilityEngineV2
         | None = None,
 ) -> None:
         self.candle_store = candle_store
@@ -202,6 +208,24 @@ class LiveMarketAnalysisService:
 
         self.smart_money_engine_v2 = (
             smart_money_engine_v2
+        )
+
+
+        if (
+            probability_engine_v2
+            is not None
+            and not isinstance(
+                probability_engine_v2,
+                ProbabilityEngineV2,
+            )
+        ):
+            raise TypeError(
+                "probability_engine_v2 debe ser "
+                "ProbabilityEngineV2."
+            )
+
+        self.probability_engine_v2 = (
+            probability_engine_v2
         )
 
         if (
@@ -1327,6 +1351,96 @@ class LiveMarketAnalysisService:
             result["smart_money_v2"] = (
                 self._evaluate_smart_money_v2(
                     candles
+                )
+            )
+
+
+        if (
+            self.probability_engine_v2
+            is not None
+        ):
+            smart_money = result.get(
+                "smart_money_v2",
+                {},
+            )
+
+            confluence = result.get(
+                "confluence_v2",
+                {},
+            )
+
+            market_regime = result.get(
+                "market_regime",
+                {},
+            )
+
+            trend_score = (
+                1.0
+                if result.get(
+                    "trend"
+                )
+                in {
+                    "ALCISTA",
+                    "BAJISTA",
+                }
+                else 0.50
+            )
+
+            smart_money_score = (
+                confluence.get(
+                    "structure_score",
+                    0.50,
+                )
+            )
+
+            raw_confluence_score = float(
+                confluence.get(
+                    "score",
+                    50.0,
+                )
+            )
+
+            confluence_score = round(
+                (
+                    raw_confluence_score
+                    / 100.0
+                    if raw_confluence_score
+                    > 1.0
+                    else raw_confluence_score
+                ),
+                4,
+            )
+
+            market_regime_score = (
+                market_regime.get(
+                    "confidence",
+                    0.50,
+                )
+            )
+
+            volume_score = (
+                1.0
+                if result.get(
+                    "volume"
+                )
+                else 0.50
+            )
+
+            result[
+                "probability_v2"
+            ] = (
+                self.probability_engine_v2.evaluate(
+                    smart_money_score=smart_money_score,
+                    trend_score=trend_score,
+                    market_regime_score=market_regime_score,
+                    confluence_score=confluence_score,
+                    volume_score=volume_score,
+                    risk_approved=True,
+                    sizing_approved=True,
+                    market_tradable=market_regime.get(
+                        "tradable",
+                        True,
+                    ),
                 )
             )
 
