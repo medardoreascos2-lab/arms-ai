@@ -103,6 +103,109 @@ class PositionManager:
 
         return deepcopy(position)
 
+    def reduce_position(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        contracts_to_close: int,
+        exit_price: float,
+        point_value: float,
+    ) -> dict[str, Any]:
+        if contracts_to_close <= 0:
+            raise ValueError(
+                "contracts_to_close debe ser mayor que cero."
+            )
+
+        if point_value <= 0:
+            raise ValueError(
+                "point_value debe ser mayor que cero."
+            )
+
+        key = (
+            str(symbol).strip().upper(),
+            str(timeframe).strip().lower(),
+        )
+
+        position = self._positions.get(
+            key
+        )
+
+        if position is None:
+            raise ValueError(
+                "No existe una posición abierta."
+            )
+
+        current_contracts = int(
+            position["contracts"]
+        )
+
+        if contracts_to_close >= current_contracts:
+            raise ValueError(
+                "La reducción debe ser parcial."
+            )
+
+        entry_price = float(
+            position["entry_price"]
+        )
+
+        side = str(
+            position["side"]
+        ).strip().upper()
+
+        normalized_exit_price = float(
+            exit_price
+        )
+
+        if side == "LONG":
+            pnl_points = (
+                normalized_exit_price
+                - entry_price
+            )
+        elif side == "SHORT":
+            pnl_points = (
+                entry_price
+                - normalized_exit_price
+            )
+        else:
+            raise ValueError(
+                "side inválido."
+            )
+
+        contracts_remaining = (
+            current_contracts
+            - contracts_to_close
+        )
+
+        realized_pnl = (
+            pnl_points
+            * contracts_to_close
+            * float(point_value)
+        )
+
+        position["contracts"] = (
+            contracts_remaining
+        )
+
+        return {
+            "symbol": position["symbol"],
+            "timeframe": position["timeframe"],
+            "side": position["side"],
+            "status": "PARTIAL",
+            "exit_price": (
+                normalized_exit_price
+            ),
+            "contracts_closed": (
+                contracts_to_close
+            ),
+            "contracts_remaining": (
+                contracts_remaining
+            ),
+            "pnl_points": pnl_points,
+            "realized_pnl": realized_pnl,
+        }
+
+
     def update_stop_loss(
         self,
         *,

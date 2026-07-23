@@ -271,3 +271,280 @@ def test_rejects_invalid_point_value():
             trailing_activation_points=30.0,
             trailing_distance_points=20.0,
         )
+
+
+def test_executes_partial_take_profit():
+    manager = PositionManager()
+    history_store = TradeHistoryStore()
+
+    manager.open_position(
+        build_trade(
+            action="BUY",
+            take_profit=21791.0,
+        )
+    )
+
+    engine = TradeManagementEngine(
+        position_manager=manager,
+        trade_history_store=history_store,
+        point_value=2.0,
+        break_even_trigger_points=20.0,
+        break_even_offset_points=0.0,
+        trailing_activation_points=40.0,
+        trailing_distance_points=20.0,
+        partial_trigger_points=30.0,
+        partial_contracts_to_close=1,
+    )
+
+    result = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21725.0,
+        low=21715.0,
+        close=21721.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "OPEN"
+    assert "partial_take_profit" in result
+    assert (
+        result["partial_take_profit"]["executed"]
+        is True
+    )
+    assert (
+        result["partial_take_profit"][
+            "contracts_closed"
+        ]
+        == 1
+    )
+    assert (
+        result["partial_take_profit"][
+            "contracts_remaining"
+        ]
+        == 1
+    )
+
+    position = manager.get_open_position(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert position is not None
+    assert position["contracts"] == 1
+
+
+def test_partial_take_profit_executes_only_once():
+    manager = PositionManager()
+    history_store = TradeHistoryStore()
+
+    manager.open_position(
+        build_trade(
+            action="BUY",
+            take_profit=21791.0,
+        )
+    )
+
+    engine = TradeManagementEngine(
+        position_manager=manager,
+        trade_history_store=history_store,
+        point_value=2.0,
+        break_even_trigger_points=20.0,
+        break_even_offset_points=0.0,
+        trailing_activation_points=40.0,
+        trailing_distance_points=20.0,
+        partial_trigger_points=30.0,
+        partial_contracts_to_close=1,
+    )
+
+    first = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21725.0,
+        low=21715.0,
+        close=21721.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    second = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21735.0,
+        low=21720.0,
+        close=21731.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert (
+        first["partial_take_profit"]["executed"]
+        is True
+    )
+    assert (
+        second["partial_take_profit"]["executed"]
+        is False
+    )
+    assert (
+        second["partial_take_profit"]["status"]
+        == "ALREADY_EXECUTED"
+    )
+
+
+def test_partial_take_profit_supports_short():
+    manager = PositionManager()
+    history_store = TradeHistoryStore()
+
+    manager.open_position(
+        build_trade(
+            action="SELL",
+            take_profit=21591.0,
+        )
+    )
+
+    engine = TradeManagementEngine(
+        position_manager=manager,
+        trade_history_store=history_store,
+        point_value=2.0,
+        break_even_trigger_points=20.0,
+        break_even_offset_points=0.0,
+        trailing_activation_points=40.0,
+        trailing_distance_points=20.0,
+        partial_trigger_points=30.0,
+        partial_contracts_to_close=1,
+    )
+
+    result = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21670.0,
+        low=21655.0,
+        close=21661.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "OPEN"
+    assert (
+        result["partial_take_profit"]["executed"]
+        is True
+    )
+    assert (
+        result["partial_take_profit"][
+            "realized_pnl"
+        ]
+        == 60.0
+    )
+
+
+def test_skips_partial_when_position_has_one_contract():
+    manager = PositionManager()
+    history_store = TradeHistoryStore()
+
+    trade = build_trade(
+        action="BUY",
+        take_profit=21791.0,
+    )
+
+    trade["contracts"] = 1
+
+    manager.open_position(
+        trade
+    )
+
+    engine = TradeManagementEngine(
+        position_manager=manager,
+        trade_history_store=history_store,
+        point_value=2.0,
+        break_even_trigger_points=20.0,
+        break_even_offset_points=0.0,
+        trailing_activation_points=40.0,
+        trailing_distance_points=20.0,
+        partial_trigger_points=30.0,
+        partial_contracts_to_close=1,
+    )
+
+    result = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21725.0,
+        low=21715.0,
+        close=21721.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "OPEN"
+    assert (
+        result["partial_take_profit"][
+            "executed"
+        ]
+        is False
+    )
+    assert (
+        result["partial_take_profit"][
+            "status"
+        ]
+        == "INSUFFICIENT_CONTRACTS"
+    )
+
+    position = manager.get_open_position(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert position is not None
+    assert position["contracts"] == 1
+
+
+def test_webhook_does_not_fail_partial_with_one_contract():
+    manager = PositionManager()
+    history_store = TradeHistoryStore()
+
+    trade = build_trade(
+        action="BUY",
+        take_profit=21791.0,
+    )
+
+    trade["contracts"] = 1
+
+    manager.open_position(
+        trade
+    )
+
+    engine = TradeManagementEngine(
+        position_manager=manager,
+        trade_history_store=history_store,
+        point_value=2.0,
+        break_even_trigger_points=20.0,
+        break_even_offset_points=0.0,
+        trailing_activation_points=40.0,
+        trailing_distance_points=20.0,
+        partial_trigger_points=30.0,
+        partial_contracts_to_close=1,
+    )
+
+    result = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21735.0,
+        low=21715.0,
+        close=21731.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "OPEN"
+    assert (
+        result["partial_take_profit"][
+            "status"
+        ]
+        == "INSUFFICIENT_CONTRACTS"
+    )
+    assert "trailing_stop" in result

@@ -467,3 +467,121 @@ def test_webhook_keeps_position_open_when_levels_not_reached():
         )
         is not None
     )
+
+
+def test_webhook_executes_partial_take_profit():
+    from datetime import (
+        datetime,
+        timezone,
+    )
+
+    from backend.execution.position_manager import (
+        PositionManager,
+    )
+    from backend.services.trade_history_store import (
+        TradeHistoryStore,
+    )
+
+    position_manager = PositionManager()
+    trade_history_store = TradeHistoryStore()
+
+    position_manager.open_position(
+        {
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "action": "BUY",
+            "entry_price": 21691.0,
+            "stop_loss": 21672.25,
+            "take_profit": 21791.0,
+            "contracts": 2,
+            "executed": True,
+            "status": "SIMULATED",
+            "mode": "SIMULATED",
+            "executed_at": datetime(
+                2026,
+                7,
+                22,
+                9,
+                30,
+                tzinfo=timezone.utc,
+            ),
+        }
+    )
+
+    client = TestClient(
+        create_app(
+            position_manager=position_manager,
+            trade_history_store=trade_history_store,
+        )
+    )
+
+    response = client.post(
+        "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
+        json={
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "open": 21715.0,
+            "high": 21725.0,
+            "low": 21710.0,
+            "close": 21721.0,
+            "volume": 1000.0,
+            "timestamp": datetime(
+                2026,
+                7,
+                22,
+                10,
+                0,
+                tzinfo=timezone.utc,
+            ).isoformat(),
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    management = body["position_monitor"]
+
+    assert (
+        management["partial_take_profit"][
+            "executed"
+        ]
+        is True
+    )
+    assert (
+        management["partial_take_profit"][
+            "contracts_closed"
+        ]
+        == 1
+    )
+    assert (
+        management["partial_take_profit"][
+            "contracts_remaining"
+        ]
+        == 1
+    )
+    assert (
+        management["partial_take_profit"][
+            "realized_pnl"
+        ]
+        == 60.0
+    )
+
+    position = position_manager.get_open_position(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert position is not None
+    assert position["contracts"] == 1
+
+    history = trade_history_store.get_history(
+        symbol="NQ",
+        timeframe="5m",
+        limit=10,
+    )
+
+    assert history == []

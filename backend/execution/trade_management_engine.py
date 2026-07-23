@@ -6,6 +6,9 @@ from typing import Any
 from backend.execution.break_even_engine import (
     BreakEvenEngine,
 )
+from backend.execution.partial_take_profit_engine import (
+    PartialTakeProfitEngine,
+)
 from backend.execution.position_manager import (
     PositionManager,
 )
@@ -41,6 +44,10 @@ class TradeManagementEngine:
         break_even_offset_points: float,
         trailing_activation_points: float,
         trailing_distance_points: float,
+        partial_trigger_points: float
+        | None = None,
+        partial_contracts_to_close: int
+        | None = None,
     ) -> None:
         if point_value <= 0:
             raise ValueError(
@@ -101,6 +108,41 @@ class TradeManagementEngine:
             )
         )
 
+        self.partial_take_profit_engine = None
+
+        if (
+            partial_trigger_points
+            is not None
+            or partial_contracts_to_close
+            is not None
+        ):
+            if (
+                partial_trigger_points
+                is None
+                or partial_contracts_to_close
+                is None
+            ):
+                raise ValueError(
+                    "partial_trigger_points y "
+                    "partial_contracts_to_close "
+                    "deben proporcionarse juntos."
+                )
+
+            self.partial_take_profit_engine = (
+                PartialTakeProfitEngine(
+                    position_manager=(
+                        position_manager
+                    ),
+                    trigger_points=(
+                        partial_trigger_points
+                    ),
+                    contracts_to_close=(
+                        partial_contracts_to_close
+                    ),
+                    point_value=point_value,
+                )
+            )
+
         self.position_monitor = (
             PositionMonitor(
                 position_manager=(
@@ -129,7 +171,22 @@ class TradeManagementEngine:
         close: float,
         evaluated_at: datetime,
     ) -> dict[str, Any]:
-        return (
+        partial_take_profit = None
+
+        if (
+            self.partial_take_profit_engine
+            is not None
+        ):
+            partial_take_profit = (
+                self.partial_take_profit_engine
+                .evaluate_price(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    current_price=close,
+                )
+            )
+
+        result = (
             self.position_monitor
             .evaluate_candle(
                 symbol=symbol,
@@ -140,3 +197,10 @@ class TradeManagementEngine:
                 evaluated_at=evaluated_at,
             )
         )
+
+        if partial_take_profit is not None:
+            result["partial_take_profit"] = (
+                partial_take_profit
+            )
+
+        return result

@@ -156,6 +156,8 @@ def receive_market_webhook(
             break_even_offset_points=0.0,
             trailing_activation_points=30.0,
             trailing_distance_points=20.0,
+            partial_trigger_points=30.0,
+            partial_contracts_to_close=1,
         )
     )
 
