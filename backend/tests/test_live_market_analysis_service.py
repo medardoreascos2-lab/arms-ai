@@ -1981,3 +1981,135 @@ def test_omits_confluence_v2_when_not_configured():
     )
 
     assert "confluence_v2" not in result
+
+
+def test_includes_smart_money_v2_analysis():
+    from backend.smart_money.smart_money_engine_v2 import (
+        SmartMoneyEngineV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        smart_money_engine_v2=(
+            SmartMoneyEngineV2()
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "smart_money_v2" in result
+
+    smart_money = result[
+        "smart_money_v2"
+    ]
+
+    assert "structure" in smart_money
+    assert "fvg" in smart_money
+    assert "order_block" in smart_money
+    assert "price_zone" in smart_money
+    assert "equal_levels" in smart_money
+
+    assert smart_money["structure"][
+        "event"
+    ] in {
+        "BOS",
+        "CHOCH",
+        "LIQUIDITY_SWEEP",
+        "RANGE",
+    }
+
+
+def test_smart_money_v2_uses_latest_candles():
+    from backend.smart_money.smart_money_engine_v2 import (
+        SmartMoneyEngineV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        smart_money_engine_v2=(
+            SmartMoneyEngineV2()
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    smart_money = result[
+        "smart_money_v2"
+    ]
+
+    assert (
+        smart_money["structure"][
+            "close_price"
+        ]
+        == result["current_price"]
+    )
+
+
+def test_omits_smart_money_v2_when_not_configured():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "smart_money_v2" not in result
+
+
+def test_rejects_invalid_smart_money_engine_v2():
+    with pytest.raises(
+        TypeError,
+        match="smart_money_engine_v2",
+    ):
+        LiveMarketAnalysisService(
+            candle_store=LiveCandleStore(),
+            analysis_store=LiveAnalysisStore(),
+            smart_money_engine_v2=object(),
+        )

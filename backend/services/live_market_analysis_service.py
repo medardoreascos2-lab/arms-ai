@@ -67,6 +67,9 @@ from backend.services.signal_history_store import (
 from backend.risk_management.position_sizing_engine import (
     PositionSizingEngine,
 )
+from backend.smart_money.smart_money_engine_v2 import (
+    SmartMoneyEngineV2,
+)
 from backend.services.trade_history_store import (
     TradeHistoryStore,
 )
@@ -114,6 +117,10 @@ class LiveMarketAnalysisService:
     
         confluence_engine_v2:
         ConfluenceEngineV2
+        | None = None,
+
+        smart_money_engine_v2:
+        SmartMoneyEngineV2
         | None = None,
 ) -> None:
         self.candle_store = candle_store
@@ -177,6 +184,24 @@ class LiveMarketAnalysisService:
 
         self.confluence_engine_v2 = (
             confluence_engine_v2
+        )
+
+
+        if (
+            smart_money_engine_v2
+            is not None
+            and not isinstance(
+                smart_money_engine_v2,
+                SmartMoneyEngineV2,
+            )
+        ):
+            raise TypeError(
+                "smart_money_engine_v2 debe ser "
+                "SmartMoneyEngineV2."
+            )
+
+        self.smart_money_engine_v2 = (
+            smart_money_engine_v2
         )
 
         if (
@@ -615,6 +640,214 @@ class LiveMarketAnalysisService:
             )
         )
 
+    def _evaluate_smart_money_v2(
+        self,
+        candles: list[object],
+    ) -> dict[str, object]:
+        if self.smart_money_engine_v2 is None:
+            raise RuntimeError(
+                "SmartMoneyEngineV2 "
+                "no está configurado."
+            )
+
+        if len(candles) < 3:
+            raise ValueError(
+                "Se requieren al menos "
+                "tres velas."
+            )
+
+        first = candles[-3]
+        second = candles[-2]
+        third = candles[-1]
+
+        first_open = float(
+            getattr(
+                first,
+                "open",
+            )
+        )
+        first_high = float(
+            getattr(
+                first,
+                "high",
+            )
+        )
+        first_low = float(
+            getattr(
+                first,
+                "low",
+            )
+        )
+        first_close = float(
+            getattr(
+                first,
+                "close",
+            )
+        )
+
+        second_open = float(
+            getattr(
+                second,
+                "open",
+            )
+        )
+        second_high = float(
+            getattr(
+                second,
+                "high",
+            )
+        )
+        second_low = float(
+            getattr(
+                second,
+                "low",
+            )
+        )
+        second_close = float(
+            getattr(
+                second,
+                "close",
+            )
+        )
+
+        third_high = float(
+            getattr(
+                third,
+                "high",
+            )
+        )
+        third_low = float(
+            getattr(
+                third,
+                "low",
+            )
+        )
+        third_close = float(
+            getattr(
+                third,
+                "close",
+            )
+        )
+
+        previous_direction = None
+
+        if second_close > second_open:
+            previous_direction = "BULLISH"
+        elif second_close < second_open:
+            previous_direction = "BEARISH"
+
+        structure = (
+            self.smart_money_engine_v2
+            .evaluate(
+                previous_high=second_high,
+                previous_low=second_low,
+                current_high=third_high,
+                current_low=third_low,
+                close_price=third_close,
+                previous_direction=(
+                    previous_direction
+                ),
+            )
+        )
+
+        fvg = (
+            self.smart_money_engine_v2
+            .detect_fvg(
+                first_high=first_high,
+                first_low=first_low,
+                second_high=second_high,
+                second_low=second_low,
+                third_high=third_high,
+                third_low=third_low,
+            )
+        )
+
+        impulse_direction = (
+            structure["direction"]
+            if structure["direction"]
+            in {
+                "BULLISH",
+                "BEARISH",
+            }
+            else (
+                previous_direction
+                or (
+                    "BULLISH"
+                    if first_close
+                    >= first_open
+                    else "BEARISH"
+                )
+            )
+        )
+
+        order_block = (
+            self.smart_money_engine_v2
+            .detect_order_block(
+                candle_open=second_open,
+                candle_high=second_high,
+                candle_low=second_low,
+                candle_close=second_close,
+                impulse_direction=(
+                    impulse_direction
+                ),
+            )
+        )
+
+        range_high = max(
+            float(
+                getattr(
+                    candle,
+                    "high",
+                )
+            )
+            for candle in candles
+        )
+
+        range_low = min(
+            float(
+                getattr(
+                    candle,
+                    "low",
+                )
+            )
+            for candle in candles
+        )
+
+        price_zone = (
+            self.smart_money_engine_v2
+            .evaluate_price_zone(
+                range_high=range_high,
+                range_low=range_low,
+                current_price=third_close,
+            )
+        )
+
+        equal_levels = (
+            self.smart_money_engine_v2
+            .detect_equal_levels(
+                first_high=second_high,
+                second_high=third_high,
+                first_low=second_low,
+                second_low=third_low,
+                tolerance=0.25,
+            )
+        )
+
+        return {
+            "structure": structure,
+            "fvg": fvg,
+            "order_block": (
+                order_block
+            ),
+            "price_zone": (
+                price_zone
+            ),
+            "equal_levels": (
+                equal_levels
+            ),
+        }
+
+
     def analyze(
         self,
         *,
@@ -977,6 +1210,16 @@ class LiveMarketAnalysisService:
 
             result["confluence_v2"] = (
                 confluence_v2_result
+            )
+
+        if (
+            self.smart_money_engine_v2
+            is not None
+        ):
+            result["smart_money_v2"] = (
+                self._evaluate_smart_money_v2(
+                    candles
+                )
             )
 
         return result
