@@ -24,6 +24,9 @@ from backend.pipeline.risk_stage import (
 from backend.pipeline.smart_money_stage import (
     SmartMoneyStage,
 )
+from backend.services.executable_signal_store import (
+    ExecutableSignalStore,
+)
 from backend.services.live_analysis_store import (
     LiveAnalysisStore,
 )
@@ -59,6 +62,9 @@ class LiveMarketAnalysisService:
         execution_manager:
         SignalExecutionManager
         | None = None,
+        executable_signal_store:
+        ExecutableSignalStore
+        | None = None,
     ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -68,6 +74,9 @@ class LiveMarketAnalysisService:
         )
         self.execution_manager = (
             execution_manager
+        )
+        self.executable_signal_store = (
+            executable_signal_store
         )
 
     def can_analyze(
@@ -165,11 +174,22 @@ class LiveMarketAnalysisService:
             self.execution_manager
             is not None
         ):
-            result["execution"] = (
+            execution = (
                 self.execution_manager.evaluate(
                     signal
                 )
             )
+
+            result["execution"] = execution
+
+            if (
+                execution["accepted"]
+                and self.executable_signal_store
+                is not None
+            ):
+                self.executable_signal_store.save(
+                    execution
+                )
 
         if self.signal_store is not None:
             self.signal_store.save(

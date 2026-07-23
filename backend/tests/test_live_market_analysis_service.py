@@ -457,3 +457,118 @@ def test_rejects_duplicate_signal_inside_cooldown():
     else:
         assert first["execution"]["accepted"] is False
         assert second["execution"]["accepted"] is False
+
+
+def test_saves_only_accepted_execution():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.services.executable_signal_store import (
+        ExecutableSignalStore,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+    executable_store = ExecutableSignalStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        executable_signal_store=(
+            executable_store
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    saved = executable_store.get_latest(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    if result["execution"]["accepted"]:
+        assert saved is not None
+        assert saved == result["execution"]
+    else:
+        assert saved is None
+
+
+def test_does_not_replace_executable_signal_with_duplicate():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.services.executable_signal_store import (
+        ExecutableSignalStore,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+    executable_store = ExecutableSignalStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        executable_signal_store=(
+            executable_store
+        ),
+    )
+
+    first = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    saved_before = executable_store.get_latest(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    second = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    saved_after = executable_store.get_latest(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    if (
+        first["execution"]["accepted"]
+        and second["execution"]["status"]
+        == "DUPLICATE"
+    ):
+        assert saved_before is not None
+        assert saved_after == saved_before
