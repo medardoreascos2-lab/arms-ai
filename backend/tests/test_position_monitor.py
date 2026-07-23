@@ -403,3 +403,288 @@ def test_closes_at_break_even_after_stop_was_moved():
     assert second["exit_price"] == 21691.0
     assert second["pnl_points"] == 0.0
     assert second["pnl"] == 0.0
+
+
+def test_closes_long_when_candle_high_touches_take_profit():
+    _, monitor = build_monitor(
+        action="BUY"
+    )
+
+    result = monitor.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21730.0,
+        low=21695.0,
+        close=21700.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "CLOSED"
+    assert result["close_reason"] == "TAKE_PROFIT"
+    assert result["exit_price"] == 21728.50
+
+
+def test_closes_long_when_candle_low_touches_stop_loss():
+    _, monitor = build_monitor(
+        action="BUY"
+    )
+
+    result = monitor.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21700.0,
+        low=21670.0,
+        close=21690.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "CLOSED"
+    assert result["close_reason"] == "STOP_LOSS"
+    assert result["exit_price"] == 21672.25
+
+
+def test_closes_short_when_candle_low_touches_take_profit():
+    _, monitor = build_monitor(
+        action="SELL"
+    )
+
+    result = monitor.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21700.0,
+        low=21650.0,
+        close=21680.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "CLOSED"
+    assert result["close_reason"] == "TAKE_PROFIT"
+    assert result["exit_price"] == 21653.50
+
+
+def test_closes_short_when_candle_high_touches_stop_loss():
+    _, monitor = build_monitor(
+        action="SELL"
+    )
+
+    result = monitor.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21715.0,
+        low=21690.0,
+        close=21700.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "CLOSED"
+    assert result["close_reason"] == "STOP_LOSS"
+    assert result["exit_price"] == 21709.75
+
+
+def test_keeps_position_open_when_candle_does_not_touch_levels():
+    _, monitor = build_monitor(
+        action="BUY"
+    )
+
+    result = monitor.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21705.0,
+        low=21690.0,
+        close=21700.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "OPEN"
+    assert result["closed"] is False
+
+
+def test_moves_trailing_stop_before_monitoring_exit():
+    from backend.execution.trailing_stop_engine import (
+        TrailingStopEngine,
+    )
+
+    manager = PositionManager()
+
+    manager.open_position(
+        {
+            **build_trade(
+                action="BUY"
+            ),
+            "take_profit": 21791.0,
+        }
+    )
+
+    trailing_stop_engine = TrailingStopEngine(
+        position_manager=manager,
+        activation_points=30.0,
+        distance_points=20.0,
+    )
+
+    monitor = PositionMonitor(
+        position_manager=manager,
+        point_value=2.0,
+        trailing_stop_engine=(
+            trailing_stop_engine
+        ),
+    )
+
+    result = monitor.evaluate_price(
+        symbol="NQ",
+        timeframe="5m",
+        current_price=21731.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "OPEN"
+    assert result["closed"] is False
+    assert "trailing_stop" in result
+    assert (
+        result["trailing_stop"]["moved"]
+        is True
+    )
+    assert (
+        result["trailing_stop"]["stop_loss"]
+        == 21711.0
+    )
+
+    position = manager.get_open_position(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert position is not None
+    assert position["stop_loss"] == 21711.0
+
+
+def test_closes_on_trailing_stop_after_price_reversal():
+    from backend.execution.trailing_stop_engine import (
+        TrailingStopEngine,
+    )
+
+    manager = PositionManager()
+
+    manager.open_position(
+        {
+            **build_trade(
+                action="BUY"
+            ),
+            "take_profit": 21791.0,
+        }
+    )
+
+    trailing_stop_engine = TrailingStopEngine(
+        position_manager=manager,
+        activation_points=30.0,
+        distance_points=20.0,
+    )
+
+    monitor = PositionMonitor(
+        position_manager=manager,
+        point_value=2.0,
+        trailing_stop_engine=(
+            trailing_stop_engine
+        ),
+    )
+
+    first = monitor.evaluate_price(
+        symbol="NQ",
+        timeframe="5m",
+        current_price=21731.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert first["status"] == "OPEN"
+
+    second = monitor.evaluate_price(
+        symbol="NQ",
+        timeframe="5m",
+        current_price=21710.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert second["status"] == "CLOSED"
+    assert second["close_reason"] == "STOP_LOSS"
+    assert second["exit_price"] == 21711.0
+    assert second["pnl_points"] == 20.0
+    assert second["pnl"] == 80.0
+
+
+def test_trailing_stop_does_not_override_better_stop():
+    from backend.execution.trailing_stop_engine import (
+        TrailingStopEngine,
+    )
+
+    manager = PositionManager()
+
+    manager.open_position(
+        {
+            **build_trade(
+                action="BUY"
+            ),
+            "take_profit": 21791.0,
+        }
+    )
+
+    manager.update_stop_loss(
+        symbol="NQ",
+        timeframe="5m",
+        stop_loss=21720.0,
+    )
+
+    trailing_stop_engine = TrailingStopEngine(
+        position_manager=manager,
+        activation_points=30.0,
+        distance_points=20.0,
+    )
+
+    monitor = PositionMonitor(
+        position_manager=manager,
+        point_value=2.0,
+        trailing_stop_engine=(
+            trailing_stop_engine
+        ),
+    )
+
+    result = monitor.evaluate_price(
+        symbol="NQ",
+        timeframe="5m",
+        current_price=21731.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "OPEN"
+    assert (
+        result["trailing_stop"]["moved"]
+        is False
+    )
+    assert (
+        result["trailing_stop"]["status"]
+        == "UNCHANGED"
+    )
+
+    position = manager.get_open_position(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert position is not None
+    assert position["stop_loss"] == 21720.0

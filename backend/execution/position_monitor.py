@@ -9,6 +9,9 @@ from backend.execution.break_even_engine import (
 from backend.execution.position_manager import (
     PositionManager,
 )
+from backend.execution.trailing_stop_engine import (
+    TrailingStopEngine,
+)
 from backend.services.trade_history_store import (
     TradeHistoryStore,
 )
@@ -32,6 +35,9 @@ class PositionMonitor:
         break_even_engine:
         BreakEvenEngine
         | None = None,
+        trailing_stop_engine:
+        TrailingStopEngine
+        | None = None,
     ) -> None:
         if point_value <= 0:
             raise ValueError(
@@ -45,6 +51,109 @@ class PositionMonitor:
         )
         self.break_even_engine = (
             break_even_engine
+        )
+        self.trailing_stop_engine = (
+            trailing_stop_engine
+        )
+
+    def evaluate_candle(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        high: float,
+        low: float,
+        close: float,
+        evaluated_at: datetime,
+    ) -> dict[str, Any]:
+        high_price = float(high)
+        low_price = float(low)
+        close_price = float(close)
+
+        if low_price > high_price:
+            raise ValueError(
+                "low no puede ser mayor que high."
+            )
+
+        position = (
+            self.position_manager.get_open_position(
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+        )
+
+        if position is None:
+            return {
+                "status": "NO_POSITION",
+                "closed": False,
+            }
+
+        side = str(
+            position["side"]
+        ).strip().upper()
+
+        stop_loss = float(
+            position["stop_loss"]
+        )
+
+        take_profit = float(
+            position["take_profit"]
+        )
+
+        if side == "LONG":
+            # Política conservadora:
+            # si la vela toca SL y TP,
+            # se considera primero el SL.
+            if low_price <= stop_loss:
+                return self._close_and_store(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    exit_price=stop_loss,
+                    closed_at=evaluated_at,
+                    reason="STOP_LOSS",
+                )
+
+            if high_price >= take_profit:
+                return self._close_and_store(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    exit_price=take_profit,
+                    closed_at=evaluated_at,
+                    reason="TAKE_PROFIT",
+                )
+
+        elif side == "SHORT":
+            # Política conservadora:
+            # si la vela toca SL y TP,
+            # se considera primero el SL.
+            if high_price >= stop_loss:
+                return self._close_and_store(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    exit_price=stop_loss,
+                    closed_at=evaluated_at,
+                    reason="STOP_LOSS",
+                )
+
+            if low_price <= take_profit:
+                return self._close_and_store(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    exit_price=take_profit,
+                    closed_at=evaluated_at,
+                    reason="TAKE_PROFIT",
+                )
+
+        else:
+            raise ValueError(
+                "side inválido."
+            )
+
+        return self.evaluate_price(
+            symbol=symbol,
+            timeframe=timeframe,
+            current_price=close_price,
+            evaluated_at=evaluated_at,
         )
 
     def evaluate_price(
@@ -93,6 +202,37 @@ class PositionMonitor:
                     "status": "NO_POSITION",
                     "closed": False,
                     "break_even": break_even,
+                }
+
+        trailing_stop = None
+
+        if (
+            self.trailing_stop_engine
+            is not None
+        ):
+            trailing_stop = (
+                self.trailing_stop_engine.evaluate_price(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    current_price=current_price,
+                )
+            )
+
+            position = (
+                self.position_manager.get_open_position(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                )
+            )
+
+            if position is None:
+                return {
+                    "status": "NO_POSITION",
+                    "closed": False,
+                    "break_even": break_even,
+                    "trailing_stop": (
+                        trailing_stop
+                    ),
                 }
 
         side = position["side"]
@@ -144,6 +284,7 @@ class PositionMonitor:
             "status": "OPEN",
             "closed": False,
             "break_even": break_even,
+            "trailing_stop": trailing_stop,
             **position,
         }
 

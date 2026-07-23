@@ -16,14 +16,11 @@ from backend.api.schemas.market import (
     LiveMarketAnalysisRequest,
     MarketWebhookRequest,
 )
-from backend.execution.break_even_engine import (
-    BreakEvenEngine,
-)
 from backend.execution.position_manager import (
     PositionManager,
 )
-from backend.execution.position_monitor import (
-    PositionMonitor,
+from backend.execution.trade_management_engine import (
+    TradeManagementEngine,
 )
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
@@ -148,28 +145,27 @@ def receive_market_webhook(
         )
     )
 
-    break_even_engine = BreakEvenEngine(
-        position_manager=position_manager,
-        trigger_points=20.0,
-        offset_points=0.0,
-    )
-
-    position_monitor = PositionMonitor(
-        position_manager=position_manager,
-        point_value=2.0,
-        trade_history_store=(
-            trade_history_store
-        ),
-        break_even_engine=(
-            break_even_engine
-        ),
+    trade_management_engine = (
+        TradeManagementEngine(
+            position_manager=position_manager,
+            trade_history_store=(
+                trade_history_store
+            ),
+            point_value=2.0,
+            break_even_trigger_points=20.0,
+            break_even_offset_points=0.0,
+            trailing_activation_points=30.0,
+            trailing_distance_points=20.0,
+        )
     )
 
     position_monitor_result = (
-        position_monitor.evaluate_price(
+        trade_management_engine.evaluate_candle(
             symbol=candle.symbol,
             timeframe=candle.timeframe,
-            current_price=candle.close,
+            high=candle.high,
+            low=candle.low,
+            close=candle.close,
             evaluated_at=candle.timestamp,
         )
     )
