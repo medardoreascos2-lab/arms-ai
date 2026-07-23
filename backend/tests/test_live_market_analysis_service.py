@@ -270,3 +270,190 @@ def test_saved_analysis_contains_signal():
         "SELL",
         "WAIT",
     }
+
+
+def test_saves_generated_signal_in_live_signal_store():
+    from backend.services.live_signal_store import (
+        LiveSignalStore,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+    signal_store = LiveSignalStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        signal_store=signal_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    saved_signal = signal_store.get_latest(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert saved_signal is not None
+    assert saved_signal == result["signal"]
+    assert saved_signal["action"] in {
+        "BUY",
+        "SELL",
+        "WAIT",
+    }
+
+
+def test_appends_generated_signal_to_history():
+    from backend.services.live_signal_store import (
+        LiveSignalStore,
+    )
+    from backend.services.signal_history_store import (
+        SignalHistoryStore,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+    signal_store = LiveSignalStore()
+    history_store = SignalHistoryStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        signal_store=signal_store,
+        signal_history_store=history_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    history = history_store.get_history(
+        symbol="NQ",
+        timeframe="5m",
+        limit=10,
+    )
+
+    assert len(history) == 1
+    assert history[0] == result["signal"]
+    assert "generated_at" in history[0]
+
+
+def test_evaluates_generated_signal_for_execution():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    execution_manager = SignalExecutionManager(
+        cooldown_minutes=15
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=execution_manager,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "execution" in result
+
+    execution = result["execution"]
+
+    assert execution["action"] in {
+        "BUY",
+        "SELL",
+        "WAIT",
+    }
+    assert "accepted" in execution
+    assert "status" in execution
+
+
+def test_rejects_duplicate_signal_inside_cooldown():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    execution_manager = SignalExecutionManager(
+        cooldown_minutes=15
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=execution_manager,
+    )
+
+    first = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    second = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if first["signal"]["action"] in {
+        "BUY",
+        "SELL",
+    }:
+        assert first["execution"]["accepted"] is True
+        assert second["execution"]["accepted"] is False
+        assert second["execution"]["status"] == "DUPLICATE"
+    else:
+        assert first["execution"]["accepted"] is False
+        assert second["execution"]["accepted"] is False

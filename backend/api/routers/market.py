@@ -13,6 +13,9 @@ from backend.api.schemas.market import (
     LiveMarketAnalysisRequest,
     MarketWebhookRequest,
 )
+from backend.execution.signal_execution_manager import (
+    SignalExecutionManager,
+)
 from backend.models.candle import Candle
 from backend.services.live_analysis_store import (
     LiveAnalysisStore,
@@ -22,6 +25,12 @@ from backend.services.live_candle_store import (
 )
 from backend.services.live_market_analysis_service import (
     LiveMarketAnalysisService,
+)
+from backend.services.live_signal_store import (
+    LiveSignalStore,
+)
+from backend.services.signal_history_store import (
+    SignalHistoryStore,
 )
 
 
@@ -114,9 +123,32 @@ def receive_market_webhook(
         request
     )
 
+    signal_store = get_live_signal_store(
+        request
+    )
+
+    signal_history_store = (
+        get_signal_history_store(
+            request
+        )
+    )
+
+    execution_manager = (
+        get_signal_execution_manager(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=store,
         analysis_store=analysis_store,
+        signal_store=signal_store,
+        signal_history_store=(
+            signal_history_store
+        ),
+        execution_manager=(
+            execution_manager
+        ),
     )
 
     if service.can_analyze(
@@ -165,9 +197,32 @@ def analyze_live_market(
         request
     )
 
+    signal_store = get_live_signal_store(
+        request
+    )
+
+    signal_history_store = (
+        get_signal_history_store(
+            request
+        )
+    )
+
+    execution_manager = (
+        get_signal_execution_manager(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=candle_store,
         analysis_store=analysis_store,
+        signal_store=signal_store,
+        signal_history_store=(
+            signal_history_store
+        ),
+        execution_manager=(
+            execution_manager
+        ),
     )
 
     try:
@@ -221,3 +276,131 @@ def get_latest_market_analysis(
         )
 
     return analysis
+
+
+def get_signal_execution_manager(
+    request: Request,
+) -> SignalExecutionManager:
+    manager = (
+        request.app.state.signal_execution_manager
+    )
+
+    if not isinstance(
+        manager,
+        SignalExecutionManager,
+    ):
+        raise RuntimeError(
+            "SignalExecutionManager no está configurado."
+        )
+
+    return manager
+
+
+def get_signal_history_store(
+    request: Request,
+) -> SignalHistoryStore:
+    store = request.app.state.signal_history_store
+
+    if not isinstance(
+        store,
+        SignalHistoryStore,
+    ):
+        raise RuntimeError(
+            "SignalHistoryStore no está configurado."
+        )
+
+    return store
+
+
+def get_live_signal_store(
+    request: Request,
+) -> LiveSignalStore:
+    store = request.app.state.live_signal_store
+
+    if not isinstance(
+        store,
+        LiveSignalStore,
+    ):
+        raise RuntimeError(
+            "LiveSignalStore no está configurado."
+        )
+
+    return store
+
+
+@router.get("/latest-signal")
+def get_latest_market_signal(
+    request: Request,
+    symbol: str = Query(
+        ...,
+        min_length=1,
+    ),
+    timeframe: str = Query(
+        ...,
+        min_length=1,
+    ),
+) -> dict[str, object]:
+    signal_store = get_live_signal_store(
+        request
+    )
+
+    signal = signal_store.get_latest(
+        symbol=symbol,
+        timeframe=timeframe,
+    )
+
+    if signal is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No existe una señal disponible "
+                f"para {symbol} "
+                f"en {timeframe}."
+            ),
+        )
+
+    return signal
+
+
+@router.get("/signals")
+def get_market_signal_history(
+    request: Request,
+    symbol: str = Query(
+        ...,
+        min_length=1,
+    ),
+    timeframe: str = Query(
+        ...,
+        min_length=1,
+    ),
+    limit: int = Query(
+        50,
+        ge=1,
+        le=500,
+    ),
+) -> dict[str, object]:
+    normalized_symbol = (
+        symbol.strip().upper()
+    )
+
+    normalized_timeframe = (
+        timeframe.strip().lower()
+    )
+
+    history_store = get_signal_history_store(
+        request
+    )
+
+    signals = history_store.get_history(
+        symbol=normalized_symbol,
+        timeframe=normalized_timeframe,
+        limit=limit,
+    )
+
+    return {
+        "symbol": normalized_symbol,
+        "timeframe": normalized_timeframe,
+        "count": len(signals),
+        "signals": signals,
+    }
+

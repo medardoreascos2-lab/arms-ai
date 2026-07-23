@@ -27,11 +27,20 @@ from backend.pipeline.smart_money_stage import (
 from backend.services.live_analysis_store import (
     LiveAnalysisStore,
 )
+from backend.execution.signal_execution_manager import (
+    SignalExecutionManager,
+)
 from backend.signals.signal_engine import (
     SignalEngine,
 )
 from backend.services.live_candle_store import (
     LiveCandleStore,
+)
+from backend.services.live_signal_store import (
+    LiveSignalStore,
+)
+from backend.services.signal_history_store import (
+    SignalHistoryStore,
 )
 
 
@@ -43,9 +52,23 @@ class LiveMarketAnalysisService:
         *,
         candle_store: LiveCandleStore,
         analysis_store: LiveAnalysisStore,
+        signal_store: LiveSignalStore
+        | None = None,
+        signal_history_store: SignalHistoryStore
+        | None = None,
+        execution_manager:
+        SignalExecutionManager
+        | None = None,
     ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
+        self.signal_store = signal_store
+        self.signal_history_store = (
+            signal_history_store
+        )
+        self.execution_manager = (
+            execution_manager
+        )
 
     def can_analyze(
         self,
@@ -132,7 +155,34 @@ class LiveMarketAnalysisService:
             result
         )
 
+        signal["generated_at"] = (
+            result["analyzed_at"]
+        )
+
         result["signal"] = signal
+
+        if (
+            self.execution_manager
+            is not None
+        ):
+            result["execution"] = (
+                self.execution_manager.evaluate(
+                    signal
+                )
+            )
+
+        if self.signal_store is not None:
+            self.signal_store.save(
+                signal
+            )
+
+        if (
+            self.signal_history_store
+            is not None
+        ):
+            self.signal_history_store.append(
+                signal
+            )
 
         self.analysis_store.save(
             result
