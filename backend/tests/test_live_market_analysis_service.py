@@ -2113,3 +2113,324 @@ def test_rejects_invalid_smart_money_engine_v2():
             analysis_store=LiveAnalysisStore(),
             smart_money_engine_v2=object(),
         )
+
+
+def test_confluence_v2_uses_smart_money_scores():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.smart_money.smart_money_engine_v2 import (
+        SmartMoneyEngineV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        smart_money_engine_v2=(
+            SmartMoneyEngineV2()
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "smart_money_v2" in result
+    assert "confluence_v2" in result
+
+    contributions = (
+        result["confluence_v2"][
+            "contributions"
+        ]
+    )
+
+    assert (
+        contributions["structure"]
+        >= 7.5
+    )
+
+    assert (
+        contributions["liquidity"]
+        >= 5.0
+    )
+
+    assert (
+        contributions["fvg"]
+        >= 5.0
+    )
+
+
+def test_strong_smart_money_structure_raises_score():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.smart_money.smart_money_engine_v2 import (
+        SmartMoneyEngineV2,
+    )
+
+    class StrongSmartMoneyEngine(
+        SmartMoneyEngineV2
+    ):
+        def evaluate(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "bos": True,
+                "choch": False,
+                "liquidity_sweep": True,
+                "sweep_side": "BUY_SIDE",
+                "event": "BOS",
+                "direction": "BULLISH",
+                "broken_level": 100.0,
+                "previous_direction": "BULLISH",
+                "previous_high": 100.0,
+                "previous_low": 90.0,
+                "current_high": 102.0,
+                "current_low": 95.0,
+                "close_price": 101.0,
+            }
+
+        def detect_fvg(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "fvg": True,
+                "direction": "BULLISH",
+                "gap_low": 100.0,
+                "gap_high": 102.0,
+                "gap_size": 2.0,
+            }
+
+        def detect_order_block(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "order_block": True,
+                "direction": "BULLISH",
+                "source_candle": "BEARISH",
+                "zone_low": 95.0,
+                "zone_high": 100.0,
+                "zone_size": 5.0,
+            }
+
+        def evaluate_price_zone(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "zone": "DISCOUNT",
+                "equilibrium": 100.0,
+                "position_percent": 25.0,
+            }
+
+        def detect_equal_levels(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "equal_highs": True,
+                "equal_lows": False,
+                "liquidity_type": "BUY_SIDE",
+                "high_difference": 0.10,
+                "low_difference": 2.0,
+                "tolerance": 0.25,
+            }
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        smart_money_engine_v2=(
+            StrongSmartMoneyEngine()
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    contributions = (
+        result["confluence_v2"][
+            "contributions"
+        ]
+    )
+
+    assert contributions["structure"] == 15.0
+    assert contributions["liquidity"] == 10.0
+    assert contributions["fvg"] == 10.0
+
+
+def test_weak_smart_money_structure_keeps_conservative_scores():
+    from backend.execution.execution_decision_engine import (
+        ExecutionDecisionEngine,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.smart_money.smart_money_engine_v2 import (
+        SmartMoneyEngineV2,
+    )
+
+    class WeakSmartMoneyEngine(
+        SmartMoneyEngineV2
+    ):
+        def evaluate(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "bos": False,
+                "choch": False,
+                "liquidity_sweep": False,
+                "sweep_side": None,
+                "event": "RANGE",
+                "direction": "RANGE",
+                "broken_level": None,
+                "previous_direction": None,
+                "previous_high": 100.0,
+                "previous_low": 90.0,
+                "current_high": 99.0,
+                "current_low": 91.0,
+                "close_price": 95.0,
+            }
+
+        def detect_fvg(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "fvg": False,
+                "direction": "NONE",
+                "gap_low": None,
+                "gap_high": None,
+                "gap_size": 0.0,
+            }
+
+        def detect_order_block(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "order_block": False,
+                "direction": "NONE",
+                "source_candle": "DOJI",
+                "zone_low": None,
+                "zone_high": None,
+                "zone_size": 0.0,
+            }
+
+        def evaluate_price_zone(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "zone": "EQUILIBRIUM",
+                "equilibrium": 100.0,
+                "position_percent": 50.0,
+            }
+
+        def detect_equal_levels(
+            self,
+            **kwargs: object,
+        ) -> dict[str, object]:
+            return {
+                "equal_highs": False,
+                "equal_lows": False,
+                "liquidity_type": "NONE",
+                "high_difference": 1.0,
+                "low_difference": 1.0,
+                "tolerance": 0.25,
+            }
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_decision_engine=(
+            ExecutionDecisionEngine(
+                minimum_confidence=0.0,
+            )
+        ),
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        smart_money_engine_v2=(
+            WeakSmartMoneyEngine()
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    contributions = (
+        result["confluence_v2"][
+            "contributions"
+        ]
+    )
+
+    assert contributions["structure"] <= 7.5
+    assert contributions["liquidity"] <= 5.0
+    assert contributions["fvg"] <= 5.0

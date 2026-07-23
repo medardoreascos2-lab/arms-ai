@@ -453,44 +453,152 @@ class LiveMarketAnalysisService:
             else 0.50
         )
 
-        structure_score = (
-            1.0
-            if (
-                result.get(
-                    "market_structure"
-                )
-                or result.get(
-                    "structure"
-                )
+        smart_money_data = (
+            result.get(
+                "smart_money_v2"
             )
-            else 0.50
         )
 
-        liquidity_score = (
-            1.0
-            if (
-                result.get(
-                    "liquidity"
-                )
-                or result.get(
-                    "liquidity_analysis"
+        if (
+            self.smart_money_engine_v2
+            is not None
+        ):
+            smart_money_data = (
+                self._evaluate_smart_money_v2(
+                    candles
                 )
             )
-            else 0.50
-        )
 
-        fvg_score = (
-            1.0
-            if (
-                result.get(
-                    "fvg"
-                )
-                or result.get(
-                    "fair_value_gap"
+            result["smart_money_v2"] = (
+                smart_money_data
+            )
+
+        if isinstance(
+            smart_money_data,
+            dict,
+        ):
+            smart_structure = (
+                smart_money_data.get(
+                    "structure",
+                    {},
                 )
             )
-            else 0.50
-        )
+
+            smart_fvg = (
+                smart_money_data.get(
+                    "fvg",
+                    {},
+                )
+            )
+
+            smart_order_block = (
+                smart_money_data.get(
+                    "order_block",
+                    {},
+                )
+            )
+
+            smart_equal_levels = (
+                smart_money_data.get(
+                    "equal_levels",
+                    {},
+                )
+            )
+
+            has_structure_confirmation = bool(
+                smart_structure.get(
+                    "bos",
+                    False,
+                )
+                or smart_structure.get(
+                    "choch",
+                    False,
+                )
+                or smart_order_block.get(
+                    "order_block",
+                    False,
+                )
+            )
+
+            has_liquidity_confirmation = bool(
+                smart_structure.get(
+                    "liquidity_sweep",
+                    False,
+                )
+                or smart_equal_levels.get(
+                    "equal_highs",
+                    False,
+                )
+                or smart_equal_levels.get(
+                    "equal_lows",
+                    False,
+                )
+            )
+
+            has_fvg_confirmation = bool(
+                smart_fvg.get(
+                    "fvg",
+                    False,
+                )
+            )
+
+            structure_score = (
+                1.0
+                if has_structure_confirmation
+                else 0.50
+            )
+
+            liquidity_score = (
+                1.0
+                if has_liquidity_confirmation
+                else 0.50
+            )
+
+            fvg_score = (
+                1.0
+                if has_fvg_confirmation
+                else 0.50
+            )
+
+        else:
+            structure_score = (
+                1.0
+                if (
+                    result.get(
+                        "market_structure"
+                    )
+                    or result.get(
+                        "structure"
+                    )
+                )
+                else 0.50
+            )
+
+            liquidity_score = (
+                1.0
+                if (
+                    result.get(
+                        "liquidity"
+                    )
+                    or result.get(
+                        "liquidity_analysis"
+                    )
+                )
+                else 0.50
+            )
+
+            fvg_score = (
+                1.0
+                if (
+                    result.get(
+                        "fvg"
+                    )
+                    or result.get(
+                        "fair_value_gap"
+                    )
+                )
+                else 0.50
+            )
 
         ema_alignment_score = (
             1.0
