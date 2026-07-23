@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from backend.account_risk.account_risk_guard import (
+    AccountRiskGuard,
+)
 from backend.ai.trading.trading_copilot_service import (
     TradingCopilotService,
 )
@@ -51,6 +54,9 @@ from backend.services.live_signal_store import (
 from backend.services.signal_history_store import (
     SignalHistoryStore,
 )
+from backend.services.trade_history_store import (
+    TradeHistoryStore,
+)
 
 
 class LiveMarketAnalysisService:
@@ -77,6 +83,12 @@ class LiveMarketAnalysisService:
         position_manager:
         PositionManager
         | None = None,
+        account_risk_guard:
+        AccountRiskGuard
+        | None = None,
+        trade_history_store:
+        TradeHistoryStore
+        | None = None,
     ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -95,6 +107,12 @@ class LiveMarketAnalysisService:
         )
         self.position_manager = (
             position_manager
+        )
+        self.account_risk_guard = (
+            account_risk_guard
+        )
+        self.trade_history_store = (
+            trade_history_store
         )
 
     def can_analyze(
@@ -203,40 +221,109 @@ class LiveMarketAnalysisService:
             if (
                 execution["accepted"]
             ):
-                if (
-                    self.executable_signal_store
-                    is not None
-                ):
-                    self.executable_signal_store.save(
-                        execution
-                    )
+                account_risk_approved = True
 
                 if (
-                    self.trade_execution_engine
+                    self.account_risk_guard
                     is not None
                 ):
-                    trade = (
-                        self.trade_execution_engine.execute(
-                            execution
-                        )
-                    )
-
-                    result["trade_execution"] = trade
+                    open_positions = 0
 
                     if (
                         self.position_manager
                         is not None
+                        and self.position_manager.get_open_position(
+                            symbol=symbol,
+                            timeframe=timeframe,
+                        )
+                        is not None
                     ):
-                        try:
-                            result["position"] = (
-                                self.position_manager.open_position(
-                                    trade
+                        open_positions = 1
+
+                    proposed_risk = (
+                        account_balance
+                        * risk_percent
+                        / 100.0
+                    )
+
+                    trades_today: list[
+                        dict[str, object]
+                    ] = []
+
+                    if (
+                        self.trade_history_store
+                        is not None
+                    ):
+                        history = (
+                            self.trade_history_store.get_history(
+                                symbol=symbol,
+                                timeframe=timeframe,
+                                limit=500,
+                            )
+                        )
+
+                        analysis_date = (
+                            result["analyzed_at"].date()
+                        )
+
+                        trades_today = [
+                            trade
+                            for trade in history
+                            if trade["closed_at"].date()
+                            == analysis_date
+                        ]
+
+                    account_risk = (
+                        self.account_risk_guard.evaluate(
+                            trades_today=trades_today,
+                            open_positions=open_positions,
+                            proposed_risk=proposed_risk,
+                        )
+                    )
+
+                    result["account_risk"] = (
+                        account_risk
+                    )
+
+                    account_risk_approved = bool(
+                        account_risk["approved"]
+                    )
+
+                if account_risk_approved:
+                    if (
+                        self.executable_signal_store
+                        is not None
+                    ):
+                        self.executable_signal_store.save(
+                            execution
+                        )
+
+                    if (
+                        self.trade_execution_engine
+                        is not None
+                    ):
+                        trade = (
+                            self.trade_execution_engine.execute(
+                                execution
+                            )
+                        )
+
+                        result["trade_execution"] = trade
+
+                        if (
+                            self.position_manager
+                            is not None
+                        ):
+                            try:
+                                result["position"] = (
+                                    self.position_manager.open_position(
+                                        trade
+                                    )
                                 )
-                            )
-                        except ValueError as exc:
-                            result["position_error"] = (
-                                str(exc)
-                            )
+                            except ValueError as exc:
+                                result["position_error"] = (
+                                    str(exc)
+                                )
 
         if self.signal_store is not None:
             self.signal_store.save(

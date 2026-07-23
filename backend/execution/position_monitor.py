@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from backend.execution.break_even_engine import (
+    BreakEvenEngine,
+)
 from backend.execution.position_manager import (
     PositionManager,
 )
@@ -26,6 +29,9 @@ class PositionMonitor:
         trade_history_store:
         TradeHistoryStore
         | None = None,
+        break_even_engine:
+        BreakEvenEngine
+        | None = None,
     ) -> None:
         if point_value <= 0:
             raise ValueError(
@@ -36,6 +42,9 @@ class PositionMonitor:
         self.point_value = point_value
         self.trade_history_store = (
             trade_history_store
+        )
+        self.break_even_engine = (
+            break_even_engine
         )
 
     def evaluate_price(
@@ -57,6 +66,34 @@ class PositionMonitor:
                 "status": "NO_POSITION",
                 "closed": False,
             }
+
+        break_even = None
+
+        if (
+            self.break_even_engine
+            is not None
+        ):
+            break_even = (
+                self.break_even_engine.evaluate_price(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    current_price=current_price,
+                )
+            )
+
+            position = (
+                self.position_manager.get_open_position(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                )
+            )
+
+            if position is None:
+                return {
+                    "status": "NO_POSITION",
+                    "closed": False,
+                    "break_even": break_even,
+                }
 
         side = position["side"]
 
@@ -106,6 +143,7 @@ class PositionMonitor:
         return {
             "status": "OPEN",
             "closed": False,
+            "break_even": break_even,
             **position,
         }
 

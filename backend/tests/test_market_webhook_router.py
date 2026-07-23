@@ -282,3 +282,188 @@ def test_market_webhook_does_not_analyze_before_minimum():
     )
 
     assert analysis is None
+
+
+def test_webhook_monitors_open_position():
+    from datetime import (
+        datetime,
+        timezone,
+    )
+
+    from backend.execution.position_manager import (
+        PositionManager,
+    )
+    from backend.services.trade_history_store import (
+        TradeHistoryStore,
+    )
+
+    position_manager = PositionManager()
+    trade_history_store = TradeHistoryStore()
+
+    position_manager.open_position(
+        {
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "action": "BUY",
+            "entry_price": 21691.0,
+            "stop_loss": 21672.25,
+            "take_profit": 21728.50,
+            "contracts": 2,
+            "executed": True,
+            "status": "SIMULATED",
+            "mode": "SIMULATED",
+            "executed_at": datetime(
+                2026,
+                7,
+                22,
+                9,
+                30,
+                tzinfo=timezone.utc,
+            ),
+        }
+    )
+
+    client = TestClient(
+        create_app(
+            position_manager=position_manager,
+            trade_history_store=trade_history_store,
+        )
+    )
+
+    response = client.post(
+        "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
+        json={
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "open": 21720.0,
+            "high": 21731.0,
+            "low": 21718.0,
+            "close": 21730.0,
+            "volume": 1000.0,
+            "timestamp": datetime(
+                2026,
+                7,
+                22,
+                10,
+                0,
+                tzinfo=timezone.utc,
+            ).isoformat(),
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert "position_monitor" in body
+    assert (
+        body["position_monitor"]["status"]
+        == "CLOSED"
+    )
+    assert (
+        body["position_monitor"]["close_reason"]
+        == "TAKE_PROFIT"
+    )
+
+    assert (
+        position_manager.get_open_position(
+            symbol="NQ",
+            timeframe="5m",
+        )
+        is None
+    )
+
+    history = trade_history_store.get_history(
+        symbol="NQ",
+        timeframe="5m",
+        limit=10,
+    )
+
+    assert len(history) == 1
+
+
+def test_webhook_keeps_position_open_when_levels_not_reached():
+    from datetime import (
+        datetime,
+        timezone,
+    )
+
+    from backend.execution.position_manager import (
+        PositionManager,
+    )
+
+    position_manager = PositionManager()
+
+    position_manager.open_position(
+        {
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "action": "BUY",
+            "entry_price": 21691.0,
+            "stop_loss": 21672.25,
+            "take_profit": 21728.50,
+            "contracts": 2,
+            "executed": True,
+            "status": "SIMULATED",
+            "mode": "SIMULATED",
+            "executed_at": datetime(
+                2026,
+                7,
+                22,
+                9,
+                30,
+                tzinfo=timezone.utc,
+            ),
+        }
+    )
+
+    client = TestClient(
+        create_app(
+            position_manager=position_manager
+        )
+    )
+
+    response = client.post(
+        "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
+        json={
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "open": 21700.0,
+            "high": 21705.0,
+            "low": 21695.0,
+            "close": 21700.0,
+            "volume": 1000.0,
+            "timestamp": datetime(
+                2026,
+                7,
+                22,
+                10,
+                0,
+                tzinfo=timezone.utc,
+            ).isoformat(),
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert "position_monitor" in body
+    assert (
+        body["position_monitor"]["status"]
+        == "OPEN"
+    )
+
+    assert (
+        position_manager.get_open_position(
+            symbol="NQ",
+            timeframe="5m",
+        )
+        is not None
+    )

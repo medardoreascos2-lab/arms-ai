@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.account_risk.account_risk_guard import (
+    AccountRiskGuard,
+)
 from backend.api.error_handlers import (
     register_exception_handlers,
 )
@@ -66,6 +69,9 @@ def create_app(
     | None = None,
     trade_history_store:
     TradeHistoryStore
+    | None = None,
+    account_risk_guard:
+    AccountRiskGuard
     | None = None,
 ) -> FastAPI:
     if settings is None:
@@ -195,6 +201,26 @@ def create_app(
             "TradeHistoryStore."
         )
 
+    if account_risk_guard is None:
+        account_risk_guard = (
+            AccountRiskGuard(
+                daily_loss_limit=3000.0,
+                max_trades_per_day=4,
+                max_consecutive_losses=3,
+                max_open_positions=1,
+                max_risk_per_trade=250.0,
+            )
+        )
+
+    if not isinstance(
+        account_risk_guard,
+        AccountRiskGuard,
+    ):
+        raise TypeError(
+            "account_risk_guard debe ser "
+            "AccountRiskGuard."
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
@@ -231,6 +257,10 @@ def create_app(
 
     app.state.trade_history_store = (
         trade_history_store
+    )
+
+    app.state.account_risk_guard = (
+        account_risk_guard
     )
 
     app.state.webhook_token = (

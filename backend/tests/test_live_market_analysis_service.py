@@ -801,3 +801,221 @@ def test_does_not_open_second_position_same_market():
 
     assert "position_error" in second
     assert "posición abierta" in second["position_error"]
+
+
+def test_blocks_trade_when_account_risk_guard_rejects():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.account_risk.account_risk_guard import (
+        AccountRiskGuard,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    risk_guard = AccountRiskGuard(
+        daily_loss_limit=3000.0,
+        max_trades_per_day=4,
+        max_consecutive_losses=3,
+        max_open_positions=1,
+        max_risk_per_trade=50.0,
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        account_risk_guard=risk_guard,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert "account_risk" in result
+        assert (
+            result["account_risk"]["approved"]
+            is False
+        )
+        assert (
+            "max_risk_per_trade"
+            in result["account_risk"]["reasons"]
+        )
+        assert "trade_execution" not in result
+
+
+def test_executes_trade_when_account_risk_guard_approves():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.account_risk.account_risk_guard import (
+        AccountRiskGuard,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    risk_guard = AccountRiskGuard(
+        daily_loss_limit=3000.0,
+        max_trades_per_day=4,
+        max_consecutive_losses=3,
+        max_open_positions=1,
+        max_risk_per_trade=250.0,
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        account_risk_guard=risk_guard,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert "account_risk" in result
+        assert (
+            result["account_risk"]["approved"]
+            is True
+        )
+        assert "trade_execution" in result
+
+
+def test_account_risk_guard_uses_trade_history():
+    from datetime import (
+        datetime,
+        timezone,
+    )
+
+    from backend.account_risk.account_risk_guard import (
+        AccountRiskGuard,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.services.trade_history_store import (
+        TradeHistoryStore,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+    trade_history_store = TradeHistoryStore()
+
+    populate_store(
+        candle_store
+    )
+
+    trade_history_store.append(
+        {
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "side": "LONG",
+            "status": "CLOSED",
+            "closed": True,
+            "entry_price": 21600.0,
+            "exit_price": 21500.0,
+            "stop_loss": 21500.0,
+            "take_profit": 21800.0,
+            "contracts": 1,
+            "opened_at": datetime(
+                2026,
+                7,
+                22,
+                9,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            "closed_at": datetime(
+                2026,
+                7,
+                22,
+                9,
+                30,
+                tzinfo=timezone.utc,
+            ),
+            "close_reason": "STOP_LOSS",
+            "pnl_points": -100.0,
+            "pnl": -3000.0,
+        }
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        account_risk_guard=AccountRiskGuard(
+            daily_loss_limit=3000.0,
+            max_trades_per_day=4,
+            max_consecutive_losses=3,
+            max_open_positions=1,
+            max_risk_per_trade=250.0,
+        ),
+        trade_history_store=trade_history_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert result["account_risk"]["approved"] is False
+        assert (
+            "daily_loss_limit"
+            in result["account_risk"]["reasons"]
+        )
+        assert result["account_risk"]["trade_count"] == 1
+        assert "trade_execution" not in result

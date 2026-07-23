@@ -9,12 +9,21 @@ from fastapi import (
     status,
 )
 
+from backend.account_risk.account_risk_guard import (
+    AccountRiskGuard,
+)
 from backend.api.schemas.market import (
     LiveMarketAnalysisRequest,
     MarketWebhookRequest,
 )
+from backend.execution.break_even_engine import (
+    BreakEvenEngine,
+)
 from backend.execution.position_manager import (
     PositionManager,
+)
+from backend.execution.position_monitor import (
+    PositionMonitor,
 )
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
@@ -129,6 +138,42 @@ def receive_market_webhook(
 
     store.add(candle)
 
+    position_manager = get_position_manager(
+        request
+    )
+
+    trade_history_store = (
+        get_trade_history_store(
+            request
+        )
+    )
+
+    break_even_engine = BreakEvenEngine(
+        position_manager=position_manager,
+        trigger_points=20.0,
+        offset_points=0.0,
+    )
+
+    position_monitor = PositionMonitor(
+        position_manager=position_manager,
+        point_value=2.0,
+        trade_history_store=(
+            trade_history_store
+        ),
+        break_even_engine=(
+            break_even_engine
+        ),
+    )
+
+    position_monitor_result = (
+        position_monitor.evaluate_price(
+            symbol=candle.symbol,
+            timeframe=candle.timeframe,
+            current_price=candle.close,
+            evaluated_at=candle.timestamp,
+        )
+    )
+
     analysis_generated = False
 
     analysis_store = get_live_analysis_store(
@@ -163,6 +208,12 @@ def receive_market_webhook(
         )
     )
 
+    account_risk_guard = (
+        get_account_risk_guard(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=store,
         analysis_store=analysis_store,
@@ -178,6 +229,14 @@ def receive_market_webhook(
         ),
         position_manager=(
             position_manager
+        ),
+        account_risk_guard=(
+            account_risk_guard
+        ),
+        trade_history_store=(
+            get_trade_history_store(
+                request
+            )
         ),
     )
 
@@ -209,6 +268,9 @@ def receive_market_webhook(
             timeframe=candle.timeframe,
         ),
         "analysis_generated": analysis_generated,
+        "position_monitor": (
+            position_monitor_result
+        ),
     }
 
 
@@ -255,6 +317,12 @@ def analyze_live_market(
         )
     )
 
+    account_risk_guard = (
+        get_account_risk_guard(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=candle_store,
         analysis_store=analysis_store,
@@ -270,6 +338,14 @@ def analyze_live_market(
         ),
         position_manager=(
             position_manager
+        ),
+        account_risk_guard=(
+            account_risk_guard
+        ),
+        trade_history_store=(
+            get_trade_history_store(
+                request
+            )
         ),
     )
 
@@ -324,6 +400,24 @@ def get_latest_market_analysis(
         )
 
     return analysis
+
+
+def get_account_risk_guard(
+    request: Request,
+) -> AccountRiskGuard:
+    guard = (
+        request.app.state.account_risk_guard
+    )
+
+    if not isinstance(
+        guard,
+        AccountRiskGuard,
+    ):
+        raise RuntimeError(
+            "AccountRiskGuard no está configurado."
+        )
+
+    return guard
 
 
 def get_trade_history_store(

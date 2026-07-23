@@ -299,3 +299,107 @@ def test_does_not_save_open_position_in_history():
 
     assert result["status"] == "OPEN"
     assert history == []
+
+
+def test_moves_stop_to_break_even_before_monitoring_exit():
+    from backend.execution.break_even_engine import (
+        BreakEvenEngine,
+    )
+
+    manager = PositionManager()
+
+    manager.open_position(
+        build_trade(
+            action="BUY"
+        )
+    )
+
+    break_even_engine = BreakEvenEngine(
+        position_manager=manager,
+        trigger_points=20.0,
+        offset_points=0.0,
+    )
+
+    monitor = PositionMonitor(
+        position_manager=manager,
+        point_value=2.0,
+        break_even_engine=break_even_engine,
+    )
+
+    result = monitor.evaluate_price(
+        symbol="NQ",
+        timeframe="5m",
+        current_price=21711.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert result["status"] == "OPEN"
+    assert result["closed"] is False
+    assert "break_even" in result
+    assert result["break_even"]["moved"] is True
+    assert (
+        result["break_even"]["stop_loss"]
+        == 21691.0
+    )
+
+    position = manager.get_open_position(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert position is not None
+    assert position["stop_loss"] == 21691.0
+
+
+def test_closes_at_break_even_after_stop_was_moved():
+    from backend.execution.break_even_engine import (
+        BreakEvenEngine,
+    )
+
+    manager = PositionManager()
+
+    manager.open_position(
+        build_trade(
+            action="BUY"
+        )
+    )
+
+    break_even_engine = BreakEvenEngine(
+        position_manager=manager,
+        trigger_points=20.0,
+        offset_points=0.0,
+    )
+
+    monitor = PositionMonitor(
+        position_manager=manager,
+        point_value=2.0,
+        break_even_engine=break_even_engine,
+    )
+
+    first = monitor.evaluate_price(
+        symbol="NQ",
+        timeframe="5m",
+        current_price=21711.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert first["status"] == "OPEN"
+
+    second = monitor.evaluate_price(
+        symbol="NQ",
+        timeframe="5m",
+        current_price=21690.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert second["status"] == "CLOSED"
+    assert second["close_reason"] == "STOP_LOSS"
+    assert second["exit_price"] == 21691.0
+    assert second["pnl_points"] == 0.0
+    assert second["pnl"] == 0.0

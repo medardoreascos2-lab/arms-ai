@@ -103,6 +103,75 @@ class PositionManager:
 
         return deepcopy(position)
 
+    def update_stop_loss(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        stop_loss: float,
+    ) -> dict[str, Any]:
+        key = (
+            str(symbol).strip().upper(),
+            str(timeframe).strip().lower(),
+        )
+
+        position = self._positions.get(
+            key
+        )
+
+        if position is None:
+            raise ValueError(
+                "No existe una posición abierta."
+            )
+
+        new_stop = float(
+            stop_loss
+        )
+
+        entry_price = float(
+            position["entry_price"]
+        )
+
+        take_profit = float(
+            position["take_profit"]
+        )
+
+        side = str(
+            position["side"]
+        ).strip().upper()
+
+        if side == "LONG":
+            if new_stop >= take_profit:
+                raise ValueError(
+                    "stop_loss debe estar por debajo "
+                    "del take_profit."
+                )
+        elif side == "SHORT":
+            if new_stop <= take_profit:
+                raise ValueError(
+                    "stop_loss debe estar por encima "
+                    "del take_profit."
+                )
+        else:
+            raise ValueError(
+                "side inválido."
+            )
+
+        previous_stop_loss = float(
+            position["stop_loss"]
+        )
+
+        position["stop_loss"] = new_stop
+
+        return {
+            **deepcopy(position),
+            "previous_stop_loss": (
+                previous_stop_loss
+            ),
+            "entry_price": entry_price,
+        }
+
+
     def close_position(
         self,
         *,
