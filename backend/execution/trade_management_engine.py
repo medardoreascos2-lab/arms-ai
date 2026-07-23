@@ -6,6 +6,9 @@ from typing import Any
 from backend.execution.break_even_engine import (
     BreakEvenEngine,
 )
+from backend.execution.exit_decision_engine import (
+    ExitDecisionEngine,
+)
 from backend.execution.partial_take_profit_engine import (
     PartialTakeProfitEngine,
 )
@@ -48,6 +51,9 @@ class TradeManagementEngine:
         | None = None,
         partial_contracts_to_close: int
         | None = None,
+        exit_decision_engine:
+        ExitDecisionEngine
+        | None = None,
     ) -> None:
         if point_value <= 0:
             raise ValueError(
@@ -78,6 +84,23 @@ class TradeManagementEngine:
 
         self.trade_history_store = (
             trade_history_store
+        )
+
+        if (
+            exit_decision_engine
+            is not None
+            and not isinstance(
+                exit_decision_engine,
+                ExitDecisionEngine,
+            )
+        ):
+            raise TypeError(
+                "exit_decision_engine debe ser "
+                "ExitDecisionEngine."
+            )
+
+        self.exit_decision_engine = (
+            exit_decision_engine
         )
 
         self.break_even_engine = (
@@ -170,6 +193,10 @@ class TradeManagementEngine:
         low: float,
         close: float,
         evaluated_at: datetime,
+        directional_momentum: float
+        | None = None,
+        adverse_structure: bool
+        | None = None,
     ) -> dict[str, Any]:
         partial_take_profit = None
 
@@ -202,5 +229,65 @@ class TradeManagementEngine:
             result["partial_take_profit"] = (
                 partial_take_profit
             )
+
+        if (
+            self.exit_decision_engine
+            is not None
+            and directional_momentum
+            is not None
+            and adverse_structure
+            is not None
+            and result["status"] == "OPEN"
+        ):
+            position = (
+                self.position_manager
+                .get_open_position(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                )
+            )
+
+            if position is not None:
+                entry_price = float(
+                    position["entry_price"]
+                )
+
+                side = str(
+                    position["side"]
+                ).strip().upper()
+
+                close_price = float(
+                    close
+                )
+
+                if side == "LONG":
+                    unrealized_points = (
+                        close_price
+                        - entry_price
+                    )
+                elif side == "SHORT":
+                    unrealized_points = (
+                        entry_price
+                        - close_price
+                    )
+                else:
+                    raise ValueError(
+                        "side inválido."
+                    )
+
+                result["exit_decision"] = (
+                    self.exit_decision_engine
+                    .evaluate(
+                        directional_momentum=(
+                            directional_momentum
+                        ),
+                        unrealized_points=(
+                            unrealized_points
+                        ),
+                        adverse_structure=(
+                            adverse_structure
+                        ),
+                    )
+                )
 
         return result

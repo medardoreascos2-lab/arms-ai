@@ -548,3 +548,173 @@ def test_webhook_does_not_fail_partial_with_one_contract():
         == "INSUFFICIENT_CONTRACTS"
     )
     assert "trailing_stop" in result
+
+
+def test_includes_hold_exit_decision():
+    from backend.execution.exit_decision_engine import (
+        ExitDecisionEngine,
+    )
+
+    manager = PositionManager()
+    history_store = TradeHistoryStore()
+
+    manager.open_position(
+        build_trade()
+    )
+
+    engine = TradeManagementEngine(
+        position_manager=manager,
+        trade_history_store=history_store,
+        point_value=2.0,
+        break_even_trigger_points=20.0,
+        break_even_offset_points=0.0,
+        trailing_activation_points=30.0,
+        trailing_distance_points=20.0,
+        exit_decision_engine=ExitDecisionEngine(
+            hold_momentum_threshold=0.30,
+            exit_momentum_threshold=-0.30,
+            protect_min_profit_points=10.0,
+        ),
+    )
+
+    result = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21710.0,
+        low=21700.0,
+        close=21708.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+        directional_momentum=0.75,
+        adverse_structure=False,
+    )
+
+    assert result["status"] == "OPEN"
+    assert "exit_decision" in result
+    assert (
+        result["exit_decision"]["decision"]
+        == "HOLD"
+    )
+    assert (
+        result["exit_decision"]["reason"]
+        == "Momentum favorable"
+    )
+
+
+def test_includes_protect_exit_decision():
+    from backend.execution.exit_decision_engine import (
+        ExitDecisionEngine,
+    )
+
+    manager = PositionManager()
+    history_store = TradeHistoryStore()
+
+    manager.open_position(
+        build_trade()
+    )
+
+    engine = TradeManagementEngine(
+        position_manager=manager,
+        trade_history_store=history_store,
+        point_value=2.0,
+        break_even_trigger_points=20.0,
+        break_even_offset_points=0.0,
+        trailing_activation_points=30.0,
+        trailing_distance_points=20.0,
+        exit_decision_engine=ExitDecisionEngine(
+            hold_momentum_threshold=0.30,
+            exit_momentum_threshold=-0.30,
+            protect_min_profit_points=10.0,
+        ),
+    )
+
+    result = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21725.0,
+        low=21715.0,
+        close=21721.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+        directional_momentum=0.10,
+        adverse_structure=False,
+    )
+
+    assert result["status"] == "OPEN"
+    assert (
+        result["exit_decision"]["decision"]
+        == "PROTECT"
+    )
+
+
+def test_includes_exit_recommendation_without_closing_position():
+    from backend.execution.exit_decision_engine import (
+        ExitDecisionEngine,
+    )
+
+    manager = PositionManager()
+    history_store = TradeHistoryStore()
+
+    manager.open_position(
+        build_trade()
+    )
+
+    engine = TradeManagementEngine(
+        position_manager=manager,
+        trade_history_store=history_store,
+        point_value=2.0,
+        break_even_trigger_points=20.0,
+        break_even_offset_points=0.0,
+        trailing_activation_points=30.0,
+        trailing_distance_points=20.0,
+        exit_decision_engine=ExitDecisionEngine(
+            hold_momentum_threshold=0.30,
+            exit_momentum_threshold=-0.30,
+            protect_min_profit_points=10.0,
+        ),
+    )
+
+    result = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21699.0,
+        low=21685.0,
+        close=21696.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+        directional_momentum=-0.70,
+        adverse_structure=True,
+    )
+
+    assert result["status"] == "OPEN"
+    assert (
+        result["exit_decision"]["decision"]
+        == "EXIT"
+    )
+
+    position = manager.get_open_position(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert position is not None
+
+
+def test_omits_exit_decision_when_not_configured():
+    _, _, engine = build_engine()
+
+    result = engine.evaluate_candle(
+        symbol="NQ",
+        timeframe="5m",
+        high=21710.0,
+        low=21700.0,
+        close=21708.0,
+        evaluated_at=datetime.now(
+            timezone.utc
+        ),
+    )
+
+    assert "exit_decision" not in result

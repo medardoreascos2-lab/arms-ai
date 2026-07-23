@@ -19,6 +19,9 @@ from backend.api.schemas.market import (
 from backend.execution.position_manager import (
     PositionManager,
 )
+from backend.execution.exit_decision_engine import (
+    ExitDecisionEngine,
+)
 from backend.execution.trade_management_engine import (
     TradeManagementEngine,
 )
@@ -158,6 +161,11 @@ def receive_market_webhook(
             trailing_distance_points=20.0,
             partial_trigger_points=30.0,
             partial_contracts_to_close=1,
+            exit_decision_engine=ExitDecisionEngine(
+                hold_momentum_threshold=0.30,
+                exit_momentum_threshold=-0.30,
+                protect_min_profit_points=10.0,
+            ),
         )
     )
 
@@ -169,6 +177,12 @@ def receive_market_webhook(
             low=candle.low,
             close=candle.close,
             evaluated_at=candle.timestamp,
+            directional_momentum=(
+                payload.directional_momentum
+            ),
+            adverse_structure=(
+                payload.adverse_structure
+            ),
         )
     )
 

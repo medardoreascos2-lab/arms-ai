@@ -9,6 +9,8 @@ from pydantic import (
 
 
 class MarketWebhookRequest(BaseModel):
+    directional_momentum: float | None = None
+    adverse_structure: bool | None = None
     symbol: str = Field(
         min_length=1,
     )

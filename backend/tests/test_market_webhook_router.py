@@ -585,3 +585,173 @@ def test_webhook_executes_partial_take_profit():
     )
 
     assert history == []
+
+
+def test_webhook_includes_exit_decision_recommendation():
+    from datetime import (
+        datetime,
+        timezone,
+    )
+
+    from backend.execution.position_manager import (
+        PositionManager,
+    )
+
+    position_manager = PositionManager()
+
+    position_manager.open_position(
+        {
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "action": "BUY",
+            "entry_price": 21691.0,
+            "stop_loss": 21672.25,
+            "take_profit": 21791.0,
+            "contracts": 1,
+            "executed": True,
+            "status": "SIMULATED",
+            "mode": "SIMULATED",
+            "executed_at": datetime(
+                2026,
+                7,
+                22,
+                9,
+                30,
+                tzinfo=timezone.utc,
+            ),
+        }
+    )
+
+    client = TestClient(
+        create_app(
+            position_manager=position_manager
+        )
+    )
+
+    response = client.post(
+        "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
+        json={
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "open": 21700.0,
+            "high": 21710.0,
+            "low": 21700.0,
+            "close": 21708.0,
+            "volume": 1000.0,
+            "timestamp": datetime(
+                2026,
+                7,
+                22,
+                10,
+                0,
+                tzinfo=timezone.utc,
+            ).isoformat(),
+            "directional_momentum": 0.75,
+            "adverse_structure": False,
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    management = body["position_monitor"]
+
+    assert "exit_decision" in management
+    assert (
+        management["exit_decision"]["decision"]
+        == "HOLD"
+    )
+    assert (
+        management["exit_decision"]["reason"]
+        == "Momentum favorable"
+    )
+
+
+def test_webhook_returns_exit_recommendation_without_closing():
+    from datetime import (
+        datetime,
+        timezone,
+    )
+
+    from backend.execution.position_manager import (
+        PositionManager,
+    )
+
+    position_manager = PositionManager()
+
+    position_manager.open_position(
+        {
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "action": "BUY",
+            "entry_price": 21691.0,
+            "stop_loss": 21672.25,
+            "take_profit": 21791.0,
+            "contracts": 1,
+            "executed": True,
+            "status": "SIMULATED",
+            "mode": "SIMULATED",
+            "executed_at": datetime(
+                2026,
+                7,
+                22,
+                9,
+                30,
+                tzinfo=timezone.utc,
+            ),
+        }
+    )
+
+    client = TestClient(
+        create_app(
+            position_manager=position_manager
+        )
+    )
+
+    response = client.post(
+        "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
+        json={
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "open": 21698.0,
+            "high": 21699.0,
+            "low": 21685.0,
+            "close": 21696.0,
+            "volume": 1000.0,
+            "timestamp": datetime(
+                2026,
+                7,
+                22,
+                10,
+                0,
+                tzinfo=timezone.utc,
+            ).isoformat(),
+            "directional_momentum": -0.70,
+            "adverse_structure": True,
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    management = body["position_monitor"]
+
+    assert (
+        management["exit_decision"]["decision"]
+        == "EXIT"
+    )
+
+    position = position_manager.get_open_position(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert position is not None
