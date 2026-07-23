@@ -572,3 +572,112 @@ def test_does_not_replace_executable_signal_with_duplicate():
     ):
         assert saved_before is not None
         assert saved_after == saved_before
+
+
+def test_executes_accepted_signal_in_simulated_mode():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert "trade_execution" in result
+        assert (
+            result["trade_execution"]["executed"]
+            is True
+        )
+        assert (
+            result["trade_execution"]["status"]
+            == "SIMULATED"
+        )
+        assert (
+            result["trade_execution"]["mode"]
+            == "SIMULATED"
+        )
+    else:
+        assert "trade_execution" not in result
+
+
+def test_does_not_execute_duplicate_signal():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+    )
+
+    first = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    second = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if (
+        first["execution"]["accepted"]
+        and second["execution"]["status"]
+        == "DUPLICATE"
+    ):
+        assert "trade_execution" in first
+        assert "trade_execution" not in second

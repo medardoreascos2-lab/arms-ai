@@ -22,6 +22,9 @@ from backend.config.api_settings import (
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
 )
+from backend.execution.trade_execution_engine import (
+    TradeExecutionEngine,
+)
 from backend.services.live_analysis_store import (
     LiveAnalysisStore,
 )
@@ -48,6 +51,9 @@ def create_app(
     | None = None,
     signal_execution_manager:
     SignalExecutionManager
+    | None = None,
+    trade_execution_engine:
+    TradeExecutionEngine
     | None = None,
 ) -> FastAPI:
     if settings is None:
@@ -133,6 +139,22 @@ def create_app(
             "SignalExecutionManager."
         )
 
+    if trade_execution_engine is None:
+        trade_execution_engine = (
+            TradeExecutionEngine(
+                mode="SIMULATED"
+            )
+        )
+
+    if not isinstance(
+        trade_execution_engine,
+        TradeExecutionEngine,
+    ):
+        raise TypeError(
+            "trade_execution_engine debe ser "
+            "TradeExecutionEngine."
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
@@ -157,6 +179,10 @@ def create_app(
 
     app.state.signal_execution_manager = (
         signal_execution_manager
+    )
+
+    app.state.trade_execution_engine = (
+        trade_execution_engine
     )
 
     app.state.webhook_token = (

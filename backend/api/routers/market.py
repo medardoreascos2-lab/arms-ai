@@ -16,6 +16,9 @@ from backend.api.schemas.market import (
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
 )
+from backend.execution.trade_execution_engine import (
+    TradeExecutionEngine,
+)
 from backend.models.candle import Candle
 from backend.services.live_analysis_store import (
     LiveAnalysisStore,
@@ -139,6 +142,12 @@ def receive_market_webhook(
         )
     )
 
+    trade_execution_engine = (
+        get_trade_execution_engine(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=store,
         analysis_store=analysis_store,
@@ -148,6 +157,9 @@ def receive_market_webhook(
         ),
         execution_manager=(
             execution_manager
+        ),
+        trade_execution_engine=(
+            trade_execution_engine
         ),
     )
 
@@ -213,6 +225,12 @@ def analyze_live_market(
         )
     )
 
+    trade_execution_engine = (
+        get_trade_execution_engine(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=candle_store,
         analysis_store=analysis_store,
@@ -222,6 +240,9 @@ def analyze_live_market(
         ),
         execution_manager=(
             execution_manager
+        ),
+        trade_execution_engine=(
+            trade_execution_engine
         ),
     )
 
@@ -276,6 +297,24 @@ def get_latest_market_analysis(
         )
 
     return analysis
+
+
+def get_trade_execution_engine(
+    request: Request,
+) -> TradeExecutionEngine:
+    engine = (
+        request.app.state.trade_execution_engine
+    )
+
+    if not isinstance(
+        engine,
+        TradeExecutionEngine,
+    ):
+        raise RuntimeError(
+            "TradeExecutionEngine no está configurado."
+        )
+
+    return engine
 
 
 def get_signal_execution_manager(

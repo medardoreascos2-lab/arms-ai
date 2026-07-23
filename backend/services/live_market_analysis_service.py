@@ -33,6 +33,9 @@ from backend.services.live_analysis_store import (
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
 )
+from backend.execution.trade_execution_engine import (
+    TradeExecutionEngine,
+)
 from backend.signals.signal_engine import (
     SignalEngine,
 )
@@ -65,6 +68,9 @@ class LiveMarketAnalysisService:
         executable_signal_store:
         ExecutableSignalStore
         | None = None,
+        trade_execution_engine:
+        TradeExecutionEngine
+        | None = None,
     ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -77,6 +83,9 @@ class LiveMarketAnalysisService:
         )
         self.executable_signal_store = (
             executable_signal_store
+        )
+        self.trade_execution_engine = (
+            trade_execution_engine
         )
 
     def can_analyze(
@@ -184,12 +193,24 @@ class LiveMarketAnalysisService:
 
             if (
                 execution["accepted"]
-                and self.executable_signal_store
-                is not None
             ):
-                self.executable_signal_store.save(
-                    execution
-                )
+                if (
+                    self.executable_signal_store
+                    is not None
+                ):
+                    self.executable_signal_store.save(
+                        execution
+                    )
+
+                if (
+                    self.trade_execution_engine
+                    is not None
+                ):
+                    result["trade_execution"] = (
+                        self.trade_execution_engine.execute(
+                            execution
+                        )
+                    )
 
         if self.signal_store is not None:
             self.signal_store.save(
