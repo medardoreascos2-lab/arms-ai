@@ -218,3 +218,116 @@ def test_rejects_maximum_below_minimum():
             minimum_contracts=5,
             maximum_contracts=2,
         )
+
+
+def test_calculates_using_instrument_profile():
+    from backend.instruments.instrument_profile_engine import (
+        InstrumentProfileEngine,
+    )
+
+    engine = PositionSizingEngine(
+        minimum_contracts=1,
+        maximum_contracts=20,
+        instrument_profile_engine=(
+            InstrumentProfileEngine()
+        ),
+    )
+
+    result = engine.calculate_for_symbol(
+        symbol="MNQ",
+        account_balance=17000.0,
+        risk_percent=0.5,
+        entry_price=21691.0,
+        stop_loss=21672.25,
+    )
+
+    assert result["approved"] is True
+    assert result["symbol"] == "MNQ"
+    assert result["point_value"] == 2.0
+    assert result["tick_size"] == 0.25
+    assert result["tick_value"] == 0.50
+    assert result["contracts"] == 2
+
+
+def test_respects_instrument_maximum_contracts():
+    from backend.instruments.instrument_profile_engine import (
+        InstrumentProfileEngine,
+    )
+
+    engine = PositionSizingEngine(
+        minimum_contracts=1,
+        maximum_contracts=20,
+        instrument_profile_engine=(
+            InstrumentProfileEngine()
+        ),
+    )
+
+    result = engine.calculate_for_symbol(
+        symbol="NQ",
+        account_balance=150000.0,
+        risk_percent=1.0,
+        entry_price=21691.0,
+        stop_loss=21690.0,
+    )
+
+    assert result["approved"] is True
+    assert result["contracts"] == 5
+    assert result["status"] == "CAPPED_AT_MAXIMUM"
+    assert result["maximum_contracts"] == 5
+
+
+def test_supports_mes_profile_for_sizing():
+    from backend.instruments.instrument_profile_engine import (
+        InstrumentProfileEngine,
+    )
+
+    engine = PositionSizingEngine(
+        minimum_contracts=1,
+        maximum_contracts=20,
+        instrument_profile_engine=(
+            InstrumentProfileEngine()
+        ),
+    )
+
+    result = engine.calculate_for_symbol(
+        symbol="MES",
+        account_balance=10000.0,
+        risk_percent=0.5,
+        entry_price=6000.0,
+        stop_loss=5998.0,
+    )
+
+    assert result["point_value"] == 5.0
+    assert result["risk_per_contract"] == 10.0
+    assert result["contracts"] == 5
+
+
+def test_rejects_symbol_sizing_without_profile_engine():
+    engine = PositionSizingEngine(
+        minimum_contracts=1,
+        maximum_contracts=20,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="InstrumentProfileEngine",
+    ):
+        engine.calculate_for_symbol(
+            symbol="MNQ",
+            account_balance=17000.0,
+            risk_percent=0.5,
+            entry_price=21691.0,
+            stop_loss=21672.25,
+        )
+
+
+def test_rejects_invalid_instrument_profile_engine():
+    with pytest.raises(
+        TypeError,
+        match="instrument_profile_engine",
+    ):
+        PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+            instrument_profile_engine=object(),
+        )

@@ -1154,3 +1154,142 @@ def test_omits_position_sizing_when_not_configured():
     )
 
     assert "position_sizing" not in result
+
+
+def test_uses_instrument_profile_for_position_sizing():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.instruments.instrument_profile_engine import (
+        InstrumentProfileEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+            instrument_profile_engine=(
+                InstrumentProfileEngine()
+            ),
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=150000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        sizing = result["position_sizing"]
+
+        assert sizing["symbol"] == "NQ"
+        assert sizing["point_value"] == 20.0
+        assert sizing["tick_size"] == 0.25
+        assert sizing["tick_value"] == 5.0
+        assert sizing["maximum_contracts"] == 5
+        assert (
+            result["execution"]["contracts"]
+            == sizing["contracts"]
+        )
+
+
+def test_falls_back_to_manual_point_value_for_unsupported_symbol():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.instruments.instrument_profile_engine import (
+        InstrumentProfileEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    source_candles = (
+        candle_store.get_latest(
+            symbol="NQ",
+            timeframe="5m",
+            limit=60,
+        )
+    )
+
+    for candle in source_candles:
+        if hasattr(
+            candle,
+            "model_copy",
+        ):
+            cloned_candle = (
+                candle.model_copy(
+                    update={
+                        "symbol": "UNKNOWN",
+                    }
+                )
+            )
+        else:
+            from dataclasses import replace
+
+            cloned_candle = replace(
+                candle,
+                symbol="UNKNOWN",
+            )
+
+        candle_store.add(
+            cloned_candle
+        )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+            instrument_profile_engine=(
+                InstrumentProfileEngine()
+            ),
+        ),
+    )
+
+    result = service.analyze(
+        symbol="UNKNOWN",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        sizing = result["position_sizing"]
+
+        assert "symbol" not in sizing
+        assert sizing["risk_per_contract"] > 0

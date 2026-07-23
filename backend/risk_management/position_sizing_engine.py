@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from math import floor
 
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
+
 
 class PositionSizingEngine:
     """
@@ -15,6 +19,9 @@ class PositionSizingEngine:
         *,
         minimum_contracts: int,
         maximum_contracts: int,
+        instrument_profile_engine:
+        InstrumentProfileEngine
+        | None = None,
     ) -> None:
         if minimum_contracts <= 0:
             raise ValueError(
@@ -35,6 +42,84 @@ class PositionSizingEngine:
             maximum_contracts
         )
 
+        if (
+            instrument_profile_engine
+            is not None
+            and not isinstance(
+                instrument_profile_engine,
+                InstrumentProfileEngine,
+            )
+        ):
+            raise TypeError(
+                "instrument_profile_engine debe ser "
+                "InstrumentProfileEngine."
+            )
+
+        self.instrument_profile_engine = (
+            instrument_profile_engine
+        )
+
+    def calculate_for_symbol(
+        self,
+        *,
+        symbol: str,
+        account_balance: float,
+        risk_percent: float,
+        entry_price: float,
+        stop_loss: float,
+    ) -> dict[str, object]:
+        if self.instrument_profile_engine is None:
+            raise RuntimeError(
+                "InstrumentProfileEngine "
+                "no está configurado."
+            )
+
+        profile = (
+            self.instrument_profile_engine
+            .get_profile(
+                symbol=symbol
+            )
+        )
+
+        instrument_maximum = int(
+            profile["maximum_contracts"]
+        )
+
+        effective_maximum = min(
+            self.maximum_contracts,
+            instrument_maximum,
+        )
+
+        result = self._calculate_with_limits(
+            account_balance=account_balance,
+            risk_percent=risk_percent,
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            point_value=float(
+                profile["point_value"]
+            ),
+            maximum_contracts=(
+                effective_maximum
+            ),
+        )
+
+        return {
+            **result,
+            "symbol": profile["symbol"],
+            "point_value": float(
+                profile["point_value"]
+            ),
+            "tick_size": float(
+                profile["tick_size"]
+            ),
+            "tick_value": float(
+                profile["tick_value"]
+            ),
+            "maximum_contracts": (
+                effective_maximum
+            ),
+        }
+
     def calculate(
         self,
         *,
@@ -43,6 +128,27 @@ class PositionSizingEngine:
         entry_price: float,
         stop_loss: float,
         point_value: float,
+    ) -> dict[str, object]:
+        return self._calculate_with_limits(
+            account_balance=account_balance,
+            risk_percent=risk_percent,
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            point_value=point_value,
+            maximum_contracts=(
+                self.maximum_contracts
+            ),
+        )
+
+    def _calculate_with_limits(
+        self,
+        *,
+        account_balance: float,
+        risk_percent: float,
+        entry_price: float,
+        stop_loss: float,
+        point_value: float,
+        maximum_contracts: int,
     ) -> dict[str, object]:
         balance = float(
             account_balance
@@ -135,12 +241,12 @@ class PositionSizingEngine:
 
         capped = (
             raw_contracts
-            > self.maximum_contracts
+            > maximum_contracts
         )
 
         contracts = min(
             raw_contracts,
-            self.maximum_contracts,
+            maximum_contracts,
         )
 
         planned_risk = (
