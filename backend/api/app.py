@@ -43,6 +43,9 @@ from backend.services.live_signal_store import (
 from backend.services.signal_history_store import (
     SignalHistoryStore,
 )
+from backend.risk_management.position_sizing_engine import (
+    PositionSizingEngine,
+)
 from backend.services.trade_history_store import (
     TradeHistoryStore,
 )
@@ -72,6 +75,9 @@ def create_app(
     | None = None,
     account_risk_guard:
     AccountRiskGuard
+    | None = None,
+    position_sizing_engine:
+    PositionSizingEngine
     | None = None,
 ) -> FastAPI:
     if settings is None:
@@ -221,6 +227,23 @@ def create_app(
             "AccountRiskGuard."
         )
 
+    if position_sizing_engine is None:
+        position_sizing_engine = (
+            PositionSizingEngine(
+                minimum_contracts=1,
+                maximum_contracts=20,
+            )
+        )
+
+    if not isinstance(
+        position_sizing_engine,
+        PositionSizingEngine,
+    ):
+        raise TypeError(
+            "position_sizing_engine debe ser "
+            "PositionSizingEngine."
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
@@ -261,6 +284,10 @@ def create_app(
 
     app.state.account_risk_guard = (
         account_risk_guard
+    )
+
+    app.state.position_sizing_engine = (
+        position_sizing_engine
     )
 
     app.state.webhook_token = (

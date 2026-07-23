@@ -1019,3 +1019,138 @@ def test_account_risk_guard_uses_trade_history():
         )
         assert result["account_risk"]["trade_count"] == 1
         assert "trade_execution" not in result
+
+
+def test_calculates_position_size_for_accepted_signal():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert "position_sizing" in result
+        assert (
+            result["position_sizing"]["approved"]
+            is True
+        )
+        assert (
+            result["position_sizing"]["contracts"]
+            >= 1
+        )
+        assert (
+            result["execution"]["contracts"]
+            == result["position_sizing"]["contracts"]
+        )
+
+
+def test_blocks_execution_when_position_size_is_not_approved():
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.risk_management.position_sizing_engine import (
+        PositionSizingEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_sizing_engine=PositionSizingEngine(
+            minimum_contracts=1,
+            maximum_contracts=20,
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=100.0,
+        risk_percent=0.5,
+        point_value=20.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if result["execution"]["accepted"]:
+        assert "position_sizing" in result
+        assert (
+            result["position_sizing"]["approved"]
+            is False
+        )
+        assert (
+            result["position_sizing"]["status"]
+            == "INSUFFICIENT_RISK_BUDGET"
+        )
+        assert "trade_execution" not in result
+
+
+def test_omits_position_sizing_when_not_configured():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "position_sizing" not in result

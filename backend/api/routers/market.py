@@ -50,6 +50,9 @@ from backend.services.live_signal_store import (
 from backend.services.signal_history_store import (
     SignalHistoryStore,
 )
+from backend.risk_management.position_sizing_engine import (
+    PositionSizingEngine,
+)
 from backend.services.trade_history_store import (
     TradeHistoryStore,
 )
@@ -226,6 +229,12 @@ def receive_market_webhook(
         )
     )
 
+    position_sizing_engine = (
+        get_position_sizing_engine(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=store,
         analysis_store=analysis_store,
@@ -249,6 +258,9 @@ def receive_market_webhook(
             get_trade_history_store(
                 request
             )
+        ),
+        position_sizing_engine=(
+            position_sizing_engine
         ),
     )
 
@@ -335,6 +347,12 @@ def analyze_live_market(
         )
     )
 
+    position_sizing_engine = (
+        get_position_sizing_engine(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=candle_store,
         analysis_store=analysis_store,
@@ -358,6 +376,9 @@ def analyze_live_market(
             get_trade_history_store(
                 request
             )
+        ),
+        position_sizing_engine=(
+            position_sizing_engine
         ),
     )
 
@@ -412,6 +433,24 @@ def get_latest_market_analysis(
         )
 
     return analysis
+
+
+def get_position_sizing_engine(
+    request: Request,
+) -> PositionSizingEngine:
+    engine = (
+        request.app.state.position_sizing_engine
+    )
+
+    if not isinstance(
+        engine,
+        PositionSizingEngine,
+    ):
+        raise RuntimeError(
+            "PositionSizingEngine no está configurado."
+        )
+
+    return engine
 
 
 def get_account_risk_guard(

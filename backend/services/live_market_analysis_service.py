@@ -54,6 +54,9 @@ from backend.services.live_signal_store import (
 from backend.services.signal_history_store import (
     SignalHistoryStore,
 )
+from backend.risk_management.position_sizing_engine import (
+    PositionSizingEngine,
+)
 from backend.services.trade_history_store import (
     TradeHistoryStore,
 )
@@ -89,6 +92,9 @@ class LiveMarketAnalysisService:
         trade_history_store:
         TradeHistoryStore
         | None = None,
+        position_sizing_engine:
+        PositionSizingEngine
+        | None = None,
     ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -113,6 +119,9 @@ class LiveMarketAnalysisService:
         )
         self.trade_history_store = (
             trade_history_store
+        )
+        self.position_sizing_engine = (
+            position_sizing_engine
         )
 
     def can_analyze(
@@ -221,6 +230,39 @@ class LiveMarketAnalysisService:
             if (
                 execution["accepted"]
             ):
+                position_sizing_approved = True
+
+                if (
+                    self.position_sizing_engine
+                    is not None
+                ):
+                    position_sizing = (
+                        self.position_sizing_engine.calculate(
+                            account_balance=account_balance,
+                            risk_percent=risk_percent,
+                            entry_price=float(
+                                execution["entry_price"]
+                            ),
+                            stop_loss=float(
+                                execution["stop_loss"]
+                            ),
+                            point_value=point_value,
+                        )
+                    )
+
+                    result["position_sizing"] = (
+                        position_sizing
+                    )
+
+                    position_sizing_approved = bool(
+                        position_sizing["approved"]
+                    )
+
+                    if position_sizing_approved:
+                        execution["contracts"] = int(
+                            position_sizing["contracts"]
+                        )
+
                 account_risk_approved = True
 
                 if (
@@ -289,7 +331,10 @@ class LiveMarketAnalysisService:
                         account_risk["approved"]
                     )
 
-                if account_risk_approved:
+                if (
+                    position_sizing_approved
+                    and account_risk_approved
+                ):
                     if (
                         self.executable_signal_store
                         is not None
