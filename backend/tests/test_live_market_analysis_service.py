@@ -190,3 +190,83 @@ def test_cannot_analyze_before_minimum():
         timeframe="5m",
         minimum_candles=50,
     ) is False
+
+
+def test_generates_signal_with_analysis():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "signal" in result
+
+    signal = result["signal"]
+
+    assert signal["symbol"] == "NQ"
+    assert signal["timeframe"] == "5m"
+    assert signal["action"] in {
+        "BUY",
+        "SELL",
+        "WAIT",
+    }
+    assert "approved" in signal
+    assert "score" in signal
+    assert "grade" in signal
+    assert "probability" in signal
+    assert "entry_price" in signal
+    assert "stop_loss" in signal
+    assert "take_profit" in signal
+
+
+def test_saved_analysis_contains_signal():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    saved = analysis_store.get_latest(
+        symbol="NQ",
+        timeframe="5m",
+    )
+
+    assert saved is not None
+    assert "signal" in saved
+    assert saved["signal"]["action"] in {
+        "BUY",
+        "SELL",
+        "WAIT",
+    }

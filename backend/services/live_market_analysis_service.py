@@ -27,6 +27,9 @@ from backend.pipeline.smart_money_stage import (
 from backend.services.live_analysis_store import (
     LiveAnalysisStore,
 )
+from backend.signals.signal_engine import (
+    SignalEngine,
+)
 from backend.services.live_candle_store import (
     LiveCandleStore,
 )
@@ -124,6 +127,12 @@ class LiveMarketAnalysisService:
         result["analyzed_at"] = (
             candles[-1].timestamp
         )
+
+        signal = SignalEngine().generate(
+            result
+        )
+
+        result["signal"] = signal
 
         self.analysis_store.save(
             result
