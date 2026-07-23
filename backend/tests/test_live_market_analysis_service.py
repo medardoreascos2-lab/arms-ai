@@ -681,3 +681,123 @@ def test_does_not_execute_duplicate_signal():
     ):
         assert "trade_execution" in first
         assert "trade_execution" not in second
+
+
+def test_opens_position_after_simulated_execution():
+    from backend.execution.position_manager import (
+        PositionManager,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+    position_manager = PositionManager()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_manager=position_manager,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if "trade_execution" in result:
+        assert "position" in result
+
+        position = position_manager.get_open_position(
+            symbol="NQ",
+            timeframe="5m",
+        )
+
+        assert position is not None
+        assert position == result["position"]
+        assert position["status"] == "OPEN"
+    else:
+        assert (
+            position_manager.get_open_position(
+                symbol="NQ",
+                timeframe="5m",
+            )
+            is None
+        )
+
+
+def test_does_not_open_second_position_same_market():
+    from backend.execution.position_manager import (
+        PositionManager,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+    position_manager = PositionManager()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=0
+        ),
+        trade_execution_engine=TradeExecutionEngine(
+            mode="SIMULATED"
+        ),
+        position_manager=position_manager,
+    )
+
+    first = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    if "trade_execution" not in first:
+        return
+
+    second = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "position_error" in second
+    assert "posición abierta" in second["position_error"]

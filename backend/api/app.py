@@ -19,6 +19,9 @@ from backend.api.routers.portfolio import (
 from backend.config.api_settings import (
     APISettings,
 )
+from backend.execution.position_manager import (
+    PositionManager,
+)
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
 )
@@ -37,6 +40,9 @@ from backend.services.live_signal_store import (
 from backend.services.signal_history_store import (
     SignalHistoryStore,
 )
+from backend.services.trade_history_store import (
+    TradeHistoryStore,
+)
 
 
 def create_app(
@@ -54,6 +60,12 @@ def create_app(
     | None = None,
     trade_execution_engine:
     TradeExecutionEngine
+    | None = None,
+    position_manager:
+    PositionManager
+    | None = None,
+    trade_history_store:
+    TradeHistoryStore
     | None = None,
 ) -> FastAPI:
     if settings is None:
@@ -155,6 +167,34 @@ def create_app(
             "TradeExecutionEngine."
         )
 
+    if position_manager is None:
+        position_manager = (
+            PositionManager()
+        )
+
+    if not isinstance(
+        position_manager,
+        PositionManager,
+    ):
+        raise TypeError(
+            "position_manager debe ser "
+            "PositionManager."
+        )
+
+    if trade_history_store is None:
+        trade_history_store = (
+            TradeHistoryStore()
+        )
+
+    if not isinstance(
+        trade_history_store,
+        TradeHistoryStore,
+    ):
+        raise TypeError(
+            "trade_history_store debe ser "
+            "TradeHistoryStore."
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
@@ -183,6 +223,14 @@ def create_app(
 
     app.state.trade_execution_engine = (
         trade_execution_engine
+    )
+
+    app.state.position_manager = (
+        position_manager
+    )
+
+    app.state.trade_history_store = (
+        trade_history_store
     )
 
     app.state.webhook_token = (

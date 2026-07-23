@@ -13,6 +13,9 @@ from backend.api.schemas.market import (
     LiveMarketAnalysisRequest,
     MarketWebhookRequest,
 )
+from backend.execution.position_manager import (
+    PositionManager,
+)
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
 )
@@ -20,6 +23,9 @@ from backend.execution.trade_execution_engine import (
     TradeExecutionEngine,
 )
 from backend.models.candle import Candle
+from backend.services.account_performance_service import (
+    AccountPerformanceService,
+)
 from backend.services.live_analysis_store import (
     LiveAnalysisStore,
 )
@@ -34,6 +40,9 @@ from backend.services.live_signal_store import (
 )
 from backend.services.signal_history_store import (
     SignalHistoryStore,
+)
+from backend.services.trade_history_store import (
+    TradeHistoryStore,
 )
 
 
@@ -148,6 +157,12 @@ def receive_market_webhook(
         )
     )
 
+    position_manager = (
+        get_position_manager(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=store,
         analysis_store=analysis_store,
@@ -160,6 +175,9 @@ def receive_market_webhook(
         ),
         trade_execution_engine=(
             trade_execution_engine
+        ),
+        position_manager=(
+            position_manager
         ),
     )
 
@@ -231,6 +249,12 @@ def analyze_live_market(
         )
     )
 
+    position_manager = (
+        get_position_manager(
+            request
+        )
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=candle_store,
         analysis_store=analysis_store,
@@ -243,6 +267,9 @@ def analyze_live_market(
         ),
         trade_execution_engine=(
             trade_execution_engine
+        ),
+        position_manager=(
+            position_manager
         ),
     )
 
@@ -297,6 +324,42 @@ def get_latest_market_analysis(
         )
 
     return analysis
+
+
+def get_trade_history_store(
+    request: Request,
+) -> TradeHistoryStore:
+    store = (
+        request.app.state.trade_history_store
+    )
+
+    if not isinstance(
+        store,
+        TradeHistoryStore,
+    ):
+        raise RuntimeError(
+            "TradeHistoryStore no está configurado."
+        )
+
+    return store
+
+
+def get_position_manager(
+    request: Request,
+) -> PositionManager:
+    manager = (
+        request.app.state.position_manager
+    )
+
+    if not isinstance(
+        manager,
+        PositionManager,
+    ):
+        raise RuntimeError(
+            "PositionManager no está configurado."
+        )
+
+    return manager
 
 
 def get_trade_execution_engine(
@@ -441,5 +504,133 @@ def get_market_signal_history(
         "timeframe": normalized_timeframe,
         "count": len(signals),
         "signals": signals,
+    }
+
+
+
+@router.get("/open-position")
+def get_open_market_position(
+    request: Request,
+    symbol: str = Query(
+        ...,
+        min_length=1,
+    ),
+    timeframe: str = Query(
+        ...,
+        min_length=1,
+    ),
+) -> dict[str, object]:
+    position_manager = get_position_manager(
+        request
+    )
+
+    position = position_manager.get_open_position(
+        symbol=symbol,
+        timeframe=timeframe,
+    )
+
+    if position is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No existe una posición abierta "
+                f"para {symbol} "
+                f"en {timeframe}."
+            ),
+        )
+
+    return position
+
+
+@router.get("/performance")
+def get_account_performance(
+    request: Request,
+    symbol: str = Query(
+        ...,
+        min_length=1,
+    ),
+    timeframe: str = Query(
+        ...,
+        min_length=1,
+    ),
+    starting_balance: float = Query(
+        ...,
+        gt=0,
+    ),
+) -> dict[str, object]:
+    normalized_symbol = (
+        symbol.strip().upper()
+    )
+
+    normalized_timeframe = (
+        timeframe.strip().lower()
+    )
+
+    history_store = get_trade_history_store(
+        request
+    )
+
+    trades = history_store.get_history(
+        symbol=normalized_symbol,
+        timeframe=normalized_timeframe,
+        limit=500,
+    )
+
+    result = (
+        AccountPerformanceService()
+        .calculate(
+            trades=trades,
+            starting_balance=(
+                starting_balance
+            ),
+        )
+    )
+
+    return {
+        "symbol": normalized_symbol,
+        "timeframe": normalized_timeframe,
+        **result,
+    }
+
+
+@router.get("/trades")
+def get_trade_history(
+    request: Request,
+    symbol: str = Query(
+        ...,
+        min_length=1,
+    ),
+    timeframe: str = Query(
+        ...,
+        min_length=1,
+    ),
+    limit: int = Query(
+        50,
+        gt=0,
+    ),
+) -> dict[str, object]:
+    history_store = get_trade_history_store(
+        request
+    )
+
+    normalized_symbol = (
+        symbol.strip().upper()
+    )
+
+    normalized_timeframe = (
+        timeframe.strip().lower()
+    )
+
+    trades = history_store.get_history(
+        symbol=normalized_symbol,
+        timeframe=normalized_timeframe,
+        limit=limit,
+    )
+
+    return {
+        "symbol": normalized_symbol,
+        "timeframe": normalized_timeframe,
+        "count": len(trades),
+        "trades": trades,
     }
 
