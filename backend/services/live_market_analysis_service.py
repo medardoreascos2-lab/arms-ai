@@ -120,6 +120,9 @@ class LiveMarketAnalysisService:
         execution_decision_engine_v2:
         ExecutionDecisionEngineV2
         | None = None,
+    trade_planner_v2:
+    TradePlannerV2
+    | None = None,
         market_regime_engine:
         MarketRegimeEngine
         | None = None,
@@ -197,6 +200,20 @@ class LiveMarketAnalysisService:
 
         self.execution_decision_engine_v2 = (
             execution_decision_engine_v2
+        )
+
+
+        if (
+            trade_planner_v2 is not None
+            and trade_planner_v2.__class__.__name__
+            != "TradePlannerV2"
+        ):
+            raise TypeError(
+                "trade_planner_v2 inválido."
+            )
+
+        self.trade_planner_v2 = (
+            trade_planner_v2
         )
 
 
@@ -1570,6 +1587,78 @@ class LiveMarketAnalysisService:
                     ]
                 ),
             }
+
+
+        if (
+            self.trade_planner_v2
+            is not None
+            and "execution_v2" in result
+            and "probability_v2" in result
+        ):
+            execution = result[
+                "execution_v2"
+            ]
+
+            probability = result[
+                "probability_v2"
+            ]
+
+            current_price = float(
+                result.get(
+                    "current_price",
+                    0.0,
+                )
+            )
+
+            if (
+                execution["decision"]
+                == "EXECUTE_LONG"
+            ):
+                stop_loss = (
+                    current_price - 5.0
+                )
+            else:
+                stop_loss = (
+                    current_price + 5.0
+                )
+
+            trade_plan = (
+                self.trade_planner_v2.build(
+                    decision=execution[
+                        "decision"
+                    ],
+                    current_price=current_price,
+                    stop_loss=stop_loss,
+                    contracts=execution.get(
+                        "contracts",
+                        1,
+                    ),
+                    probability=probability[
+                        "probability"
+                    ],
+                    confluence_score=(
+                        probability[
+                            "inputs"
+                        ][
+                            "confluence_score"
+                        ]
+                    ),
+                    grade=probability[
+                        "grade"
+                    ],
+                    reward_risk_ratio=2.0,
+                )
+            )
+
+            trade_plan[
+                "source_decision"
+            ] = execution[
+                "decision"
+            ]
+
+            result[
+                "trade_plan_v2"
+            ] = trade_plan
 
 
         return result
