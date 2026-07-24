@@ -3,6 +3,12 @@ from __future__ import annotations
 from backend.execution.break_even_engine_v2 import (
     BreakEvenEngineV2,
 )
+from backend.execution.partial_take_profit_engine_v2 import (
+    PartialTakeProfitEngineV2,
+)
+from backend.execution.trailing_stop_engine_v2 import (
+    TrailingStopEngineV2,
+)
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
@@ -10,8 +16,15 @@ from backend.services.trade_lifecycle_service_v2 import (
 
 class LivePositionMonitorV2:
     """
-    Actualiza posiciones abiertas con cada
-    nuevo precio y aplica protección Break Even.
+    Actualiza posiciones activas con cada precio.
+
+    Orden de gestión:
+
+    1. Partial Take Profit.
+    2. Break Even.
+    3. Trailing Stop.
+    4. Actualización de PnL.
+    5. Cierre por SL o TP.
     """
 
     def __init__(
@@ -19,8 +32,14 @@ class LivePositionMonitorV2:
         *,
         trade_lifecycle_service:
         TradeLifecycleServiceV2,
+        partial_take_profit_engine:
+        PartialTakeProfitEngineV2
+        | None = None,
         break_even_engine:
         BreakEvenEngineV2
+        | None = None,
+        trailing_stop_engine:
+        TrailingStopEngineV2
         | None = None,
     ) -> None:
         if not isinstance(
@@ -30,6 +49,19 @@ class LivePositionMonitorV2:
             raise TypeError(
                 "trade_lifecycle_service debe ser "
                 "TradeLifecycleServiceV2."
+            )
+
+        if (
+            partial_take_profit_engine
+            is not None
+            and not isinstance(
+                partial_take_profit_engine,
+                PartialTakeProfitEngineV2,
+            )
+        ):
+            raise TypeError(
+                "partial_take_profit_engine debe ser "
+                "PartialTakeProfitEngineV2."
             )
 
         if (
@@ -45,12 +77,45 @@ class LivePositionMonitorV2:
                 "BreakEvenEngineV2."
             )
 
+        if (
+            trailing_stop_engine
+            is not None
+            and not isinstance(
+                trailing_stop_engine,
+                TrailingStopEngineV2,
+            )
+        ):
+            raise TypeError(
+                "trailing_stop_engine debe ser "
+                "TrailingStopEngineV2."
+            )
+
         self.trade_lifecycle_service = (
             trade_lifecycle_service
         )
 
+        self.partial_take_profit_engine = (
+            partial_take_profit_engine
+        )
+
         self.break_even_engine = (
             break_even_engine
+        )
+
+        self.trailing_stop_engine = (
+            trailing_stop_engine
+        )
+
+    def _persist_position(
+        self,
+        *,
+        position: dict[str, object],
+    ) -> dict[str, object]:
+        return (
+            self.trade_lifecycle_service
+            .replace_active_position(
+                position=position,
+            )
         )
 
     def process_price(
@@ -91,7 +156,15 @@ class LivePositionMonitorV2:
             dict[str, object]
         ] = []
 
+        partial_take_profit_results: list[
+            dict[str, object]
+        ] = []
+
         break_even_results: list[
+            dict[str, object]
+        ] = []
+
+        trailing_stop_results: list[
             dict[str, object]
         ] = []
 
@@ -119,6 +192,53 @@ class LivePositionMonitorV2:
             position_for_update = dict(
                 position
             )
+
+            # ======================================
+            # 1. PARTIAL TAKE PROFIT
+            # ======================================
+
+            if (
+                self.partial_take_profit_engine
+                is not None
+            ):
+                partial_result = (
+                    self.partial_take_profit_engine.apply(
+                        position=(
+                            position_for_update
+                        ),
+                        current_price=(
+                            normalized_current_price
+                        ),
+                    )
+                )
+
+                partial_take_profit_results.append(
+                    partial_result
+                )
+
+                partial_position = (
+                    partial_result.get(
+                        "position"
+                    )
+                )
+
+                if isinstance(
+                    partial_position,
+                    dict,
+                ):
+                    position_for_update = dict(
+                        partial_position
+                    )
+
+                    self._persist_position(
+                        position=(
+                            position_for_update
+                        ),
+                    )
+
+            # ======================================
+            # 2. BREAK EVEN
+            # ======================================
 
             if (
                 self.break_even_engine
@@ -153,12 +273,58 @@ class LivePositionMonitorV2:
                         protected_position
                     )
 
-                    self.trade_lifecycle_service\
-                        .replace_active_position(
-                            position=(
-                                position_for_update
-                            ),
-                        )
+                    self._persist_position(
+                        position=(
+                            position_for_update
+                        ),
+                    )
+
+            # ======================================
+            # 3. TRAILING STOP
+            # ======================================
+
+            if (
+                self.trailing_stop_engine
+                is not None
+            ):
+                trailing_result = (
+                    self.trailing_stop_engine.apply(
+                        position=(
+                            position_for_update
+                        ),
+                        current_price=(
+                            normalized_current_price
+                        ),
+                    )
+                )
+
+                trailing_stop_results.append(
+                    trailing_result
+                )
+
+                trailed_position = (
+                    trailing_result.get(
+                        "position"
+                    )
+                )
+
+                if isinstance(
+                    trailed_position,
+                    dict,
+                ):
+                    position_for_update = dict(
+                        trailed_position
+                    )
+
+                    self._persist_position(
+                        position=(
+                            position_for_update
+                        ),
+                    )
+
+            # ======================================
+            # 4. ACTUALIZACIÓN DE LA POSICIÓN
+            # ======================================
 
             result = (
                 self.trade_lifecycle_service
@@ -219,7 +385,13 @@ class LivePositionMonitorV2:
             "performance_metrics": (
                 performance_metrics
             ),
+            "partial_take_profit_results": (
+                partial_take_profit_results
+            ),
             "break_even_results": (
                 break_even_results
+            ),
+            "trailing_stop_results": (
+                trailing_stop_results
             ),
         }
