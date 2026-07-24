@@ -3,6 +3,27 @@ from backend.intelligence.probability_engine_v2 import ProbabilityEngineV2
 from backend.intelligence.confluence_engine_v2 import ConfluenceEngineV2
 from backend.market_analysis.market_regime_engine import MarketRegimeEngine
 from backend.smart_money.smart_money_engine_v2 import SmartMoneyEngineV2
+from backend.analytics.performance_analytics_v2 import (
+    PerformanceAnalyticsV2,
+)
+from backend.analytics.trade_history_manager_v2 import (
+    TradeHistoryManagerV2,
+)
+from backend.api.trade_lifecycle_api_v2 import (
+    create_trade_lifecycle_router_v2,
+)
+from backend.execution.execution_manager_v2 import (
+    ExecutionManagerV2,
+)
+from backend.execution.paper_execution_engine_v2 import (
+    PaperExecutionEngineV2,
+)
+from backend.execution.position_manager_v2 import (
+    PositionManagerV2,
+)
+from backend.services.trade_lifecycle_service_v2 import (
+    TradeLifecycleServiceV2,
+)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -104,6 +125,9 @@ def create_app(
     | None = None,
     execution_decision_engine_v2:
     ExecutionDecisionEngineV2
+    | None = None,
+    trade_lifecycle_service_v2:
+    TradeLifecycleServiceV2
     | None = None,
 ) -> FastAPI:
     if settings is None:
@@ -353,6 +377,54 @@ def create_app(
             "ExecutionDecisionEngineV2."
         )
 
+    # TRADE LIFECYCLE SERVICE V2
+
+    if (
+        trade_lifecycle_service_v2
+        is not None
+        and not isinstance(
+            trade_lifecycle_service_v2,
+            TradeLifecycleServiceV2,
+        )
+    ):
+        raise TypeError(
+            "trade_lifecycle_service_v2 "
+            "debe ser TradeLifecycleServiceV2."
+        )
+
+    if trade_lifecycle_service_v2 is None:
+        trade_lifecycle_service_v2 = (
+            TradeLifecycleServiceV2(
+                execution_manager=(
+                    ExecutionManagerV2(
+                        execution_mode="PAPER",
+                        maximum_contracts=20,
+                    )
+                ),
+                paper_execution_engine=(
+                    PaperExecutionEngineV2(
+                        fill_market_orders_immediately=True,
+                        slippage_points=0.25,
+                    )
+                ),
+                position_manager=(
+                    PositionManagerV2(
+                        point_value=2.0,
+                    )
+                ),
+                trade_history_manager=(
+                    TradeHistoryManagerV2()
+                ),
+                performance_analytics=(
+                    PerformanceAnalyticsV2(
+                        risk_free_rate=0.0,
+                        trading_days_per_year=252,
+                    )
+                ),
+                starting_balance=17000.0,
+            )
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
@@ -443,6 +515,10 @@ def create_app(
         execution_decision_engine
     )
 
+    app.state.trade_lifecycle_service_v2 = (
+        trade_lifecycle_service_v2
+    )
+
     app.state.webhook_token = (
         settings.webhook_token
     )
@@ -476,6 +552,14 @@ def create_app(
 
     app.include_router(
         market_router
+    )
+
+    app.include_router(
+        create_trade_lifecycle_router_v2(
+            service=(
+                app.state.trade_lifecycle_service_v2
+            ),
+        )
     )
 
     @app.get("/health")

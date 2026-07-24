@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from backend.services.trade_lifecycle_service_v2 import (
+    TradeLifecycleServiceV2,
+)
+
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
@@ -164,6 +168,9 @@ class LiveMarketAnalysisService:
         paper_execution_engine_v2:
         PaperExecutionEngineV2
         | None = None,
+        trade_lifecycle_service_v2:
+        TradeLifecycleServiceV2
+        | None = None,
 ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -314,6 +321,25 @@ class LiveMarketAnalysisService:
 
         self.paper_execution_engine_v2 = (
             paper_execution_engine_v2
+        )
+
+
+        if (
+            trade_lifecycle_service_v2
+            is not None
+            and not isinstance(
+                trade_lifecycle_service_v2,
+                TradeLifecycleServiceV2,
+            )
+        ):
+            raise TypeError(
+                "trade_lifecycle_service_v2 "
+                "debe ser "
+                "TradeLifecycleServiceV2."
+            )
+
+        self.trade_lifecycle_service_v2 = (
+            trade_lifecycle_service_v2
         )
 
 
@@ -1862,6 +1888,21 @@ class LiveMarketAnalysisService:
                     ],
                 )
             )
+
+            if (
+                self.trade_lifecycle_service_v2
+                is not None
+            ):
+                result[
+                    "trade_lifecycle_v2"
+                ] = (
+                    self.trade_lifecycle_service_v2.submit_signal(
+                        signal=result[
+                            "signal_v2"
+                        ],
+                        order_type="MARKET",
+                    )
+                )
         
         if (
             self.execution_manager_v2
