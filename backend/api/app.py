@@ -1,3 +1,8 @@
+from backend.execution.execution_decision_engine_v2 import ExecutionDecisionEngineV2
+from backend.intelligence.probability_engine_v2 import ProbabilityEngineV2
+from backend.intelligence.confluence_engine_v2 import ConfluenceEngineV2
+from backend.market_analysis.market_regime_engine import MarketRegimeEngine
+from backend.smart_money.smart_money_engine_v2 import SmartMoneyEngineV2
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -84,6 +89,21 @@ def create_app(
     | None = None,
     execution_decision_engine:
     ExecutionDecisionEngine
+    | None = None,
+    smart_money_engine_v2:
+    SmartMoneyEngineV2
+    | None = None,
+    market_regime_engine:
+    MarketRegimeEngine
+    | None = None,
+    confluence_engine_v2:
+    ConfluenceEngineV2
+    | None = None,
+    probability_engine_v2:
+    ProbabilityEngineV2
+    | None = None,
+    execution_decision_engine_v2:
+    ExecutionDecisionEngineV2
     | None = None,
 ) -> FastAPI:
     if settings is None:
@@ -266,11 +286,118 @@ def create_app(
             "ExecutionDecisionEngine."
         )
 
+    # VALIDACIONES DE MOTORES V2
+
+    if (
+        smart_money_engine_v2
+        is not None
+        and not isinstance(
+            smart_money_engine_v2,
+            SmartMoneyEngineV2,
+        )
+    ):
+        raise TypeError(
+            "smart_money_engine_v2 debe ser "
+            "SmartMoneyEngineV2."
+        )
+
+    if (
+        market_regime_engine
+        is not None
+        and not isinstance(
+            market_regime_engine,
+            MarketRegimeEngine,
+        )
+    ):
+        raise TypeError(
+            "market_regime_engine debe ser "
+            "MarketRegimeEngine."
+        )
+
+    if (
+        confluence_engine_v2
+        is not None
+        and not isinstance(
+            confluence_engine_v2,
+            ConfluenceEngineV2,
+        )
+    ):
+        raise TypeError(
+            "confluence_engine_v2 debe ser "
+            "ConfluenceEngineV2."
+        )
+
+    if (
+        probability_engine_v2
+        is not None
+        and not isinstance(
+            probability_engine_v2,
+            ProbabilityEngineV2,
+        )
+    ):
+        raise TypeError(
+            "probability_engine_v2 debe ser "
+            "ProbabilityEngineV2."
+        )
+
+    if (
+        execution_decision_engine_v2
+        is not None
+        and not isinstance(
+            execution_decision_engine_v2,
+            ExecutionDecisionEngineV2,
+        )
+    ):
+        raise TypeError(
+            "execution_decision_engine_v2 debe ser "
+            "ExecutionDecisionEngineV2."
+        )
+
     app = FastAPI(
         title=settings.title,
         version=settings.version,
         debug=settings.debug,
     )
+
+
+    app.state.smart_money_engine_v2 = (
+        smart_money_engine_v2
+        or SmartMoneyEngineV2()
+    )
+
+    app.state.market_regime_engine = (
+        market_regime_engine
+        or MarketRegimeEngine(
+            trend_threshold=0.60,
+            high_volatility_threshold=0.80,
+            low_volatility_threshold=0.20,
+            compression_threshold=0.15,
+        )
+    )
+
+    app.state.confluence_engine_v2 = (
+        confluence_engine_v2
+        or ConfluenceEngineV2()
+    )
+
+    app.state.probability_engine_v2 = (
+        probability_engine_v2
+        or ProbabilityEngineV2(
+            minimum_approval_probability=0.80,
+            very_high_threshold=0.90,
+            high_threshold=0.80,
+            medium_threshold=0.65,
+        )
+    )
+
+    app.state.execution_decision_engine_v2 = (
+        execution_decision_engine_v2
+        or ExecutionDecisionEngineV2(
+            minimum_probability=0.80,
+            minimum_confluence_score=0.80,
+        )
+    )
+
 
     app.state.live_candle_store = (
         live_candle_store
