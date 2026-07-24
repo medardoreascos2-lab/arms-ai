@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from backend.execution.trade_validator_v2 import (
+    TradeValidatorV2,
+)
+
 from backend.market_analysis.market_regime_engine import (
     MarketRegimeEngine,
 )
@@ -137,6 +141,9 @@ class LiveMarketAnalysisService:
         probability_engine_v2:
         ProbabilityEngineV2
         | None = None,
+        trade_validator_v2:
+        TradeValidatorV2
+        | None = None,
 ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -214,6 +221,24 @@ class LiveMarketAnalysisService:
 
         self.trade_planner_v2 = (
             trade_planner_v2
+        )
+
+
+        if (
+            trade_validator_v2
+            is not None
+            and not isinstance(
+                trade_validator_v2,
+                TradeValidatorV2,
+            )
+        ):
+            raise TypeError(
+                "trade_validator_v2 debe ser "
+                "TradeValidatorV2."
+            )
+
+        self.trade_validator_v2 = (
+            trade_validator_v2
         )
 
 
@@ -1659,6 +1684,45 @@ class LiveMarketAnalysisService:
             result[
                 "trade_plan_v2"
             ] = trade_plan
+
+
+        if (
+            self.trade_validator_v2
+            is not None
+            and "trade_plan_v2" in result
+        ):
+            trade_plan = result[
+                "trade_plan_v2"
+            ]
+
+            validation = (
+                self.trade_validator_v2.validate(
+                    trade_plan=trade_plan,
+                    spread_points=0.25,
+                    atr_points=5.0,
+                    session_allowed=True,
+                    news_blocked=False,
+                    has_open_position=False,
+                    daily_limit_reached=False,
+                    signal_age_seconds=5,
+                )
+            )
+
+            validation[
+                "source_trade_plan_status"
+            ] = trade_plan[
+                "status"
+            ]
+
+            validation[
+                "source_trade_plan_approved"
+            ] = trade_plan[
+                "approved"
+            ]
+
+            result[
+                "trade_validation_v2"
+            ] = validation
 
 
         return result
