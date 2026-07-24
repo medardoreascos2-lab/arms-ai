@@ -329,6 +329,54 @@ class TradeLifecycleServiceV2:
             ),
         }
 
+    def replace_active_position(
+        self,
+        *,
+        position: dict[str, object],
+    ) -> dict[str, object]:
+        if not isinstance(
+            position,
+            dict,
+        ):
+            raise TypeError(
+                "position debe ser un dict."
+            )
+
+        position_id = (
+            str(
+                position.get(
+                    "position_id",
+                    "",
+                )
+            )
+            .strip()
+        )
+
+        if not position_id:
+            raise ValueError(
+                "position_id es obligatorio."
+            )
+
+        if (
+            position_id
+            not in self._active_positions
+        ):
+            raise ValueError(
+                "position_id no existe."
+            )
+
+        normalized_position = dict(
+            position
+        )
+
+        self._active_positions[
+            position_id
+        ] = normalized_position
+
+        return dict(
+            normalized_position
+        )
+
     def get_active_positions(
         self,
     ) -> list[dict[str, object]]:

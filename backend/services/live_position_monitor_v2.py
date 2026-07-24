@@ -1,18 +1,28 @@
 from __future__ import annotations
 
+from backend.execution.break_even_engine_v2 import (
+    BreakEvenEngineV2,
+)
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
 
 
 class LivePositionMonitorV2:
+    """
+    Actualiza posiciones abiertas con cada
+    nuevo precio y aplica protección Break Even.
+    """
 
     def __init__(
         self,
         *,
-        trade_lifecycle_service: TradeLifecycleServiceV2,
+        trade_lifecycle_service:
+        TradeLifecycleServiceV2,
+        break_even_engine:
+        BreakEvenEngineV2
+        | None = None,
     ) -> None:
-
         if not isinstance(
             trade_lifecycle_service,
             TradeLifecycleServiceV2,
@@ -22,8 +32,25 @@ class LivePositionMonitorV2:
                 "TradeLifecycleServiceV2."
             )
 
+        if (
+            break_even_engine
+            is not None
+            and not isinstance(
+                break_even_engine,
+                BreakEvenEngineV2,
+            )
+        ):
+            raise TypeError(
+                "break_even_engine debe ser "
+                "BreakEvenEngineV2."
+            )
+
         self.trade_lifecycle_service = (
             trade_lifecycle_service
+        )
+
+        self.break_even_engine = (
+            break_even_engine
         )
 
     def process_price(
@@ -32,9 +59,10 @@ class LivePositionMonitorV2:
         symbol: str,
         current_price: float,
     ) -> dict[str, object]:
-
         normalized_symbol = (
-            str(symbol)
+            str(
+                symbol
+            )
             .strip()
             .upper()
         )
@@ -44,13 +72,14 @@ class LivePositionMonitorV2:
                 "symbol es obligatorio."
             )
 
-        current_price = float(
+        normalized_current_price = float(
             current_price
         )
 
-        if current_price <= 0:
+        if normalized_current_price <= 0:
             raise ValueError(
-                "current_price debe ser mayor que cero."
+                "current_price debe ser "
+                "mayor que cero."
             )
 
         active_positions = (
@@ -58,25 +87,90 @@ class LivePositionMonitorV2:
             .get_active_positions()
         )
 
-        updated_positions = []
+        updated_positions: list[
+            dict[str, object]
+        ] = []
+
+        break_even_results: list[
+            dict[str, object]
+        ] = []
+
         closed_positions = 0
         performance_metrics = None
 
         for position in active_positions:
+            position_symbol = (
+                str(
+                    position.get(
+                        "symbol",
+                        "",
+                    )
+                )
+                .strip()
+                .upper()
+            )
 
             if (
-                position["symbol"]
+                position_symbol
                 != normalized_symbol
             ):
                 continue
 
+            position_for_update = dict(
+                position
+            )
+
+            if (
+                self.break_even_engine
+                is not None
+            ):
+                break_even_result = (
+                    self.break_even_engine.apply(
+                        position=(
+                            position_for_update
+                        ),
+                        current_price=(
+                            normalized_current_price
+                        ),
+                    )
+                )
+
+                break_even_results.append(
+                    break_even_result
+                )
+
+                protected_position = (
+                    break_even_result.get(
+                        "position"
+                    )
+                )
+
+                if isinstance(
+                    protected_position,
+                    dict,
+                ):
+                    position_for_update = dict(
+                        protected_position
+                    )
+
+                    self.trade_lifecycle_service\
+                        .replace_active_position(
+                            position=(
+                                position_for_update
+                            ),
+                        )
+
             result = (
                 self.trade_lifecycle_service
                 .update_position(
-                    position_id=position[
-                        "position_id"
-                    ],
-                    current_price=current_price,
+                    position_id=str(
+                        position_for_update[
+                            "position_id"
+                        ]
+                    ),
+                    current_price=(
+                        normalized_current_price
+                    ),
                 )
             )
 
@@ -84,21 +178,35 @@ class LivePositionMonitorV2:
                 result
             )
 
+            result_position = result[
+                "position"
+            ]
+
             if (
-                result["position"]["status"]
+                str(
+                    result_position.get(
+                        "status",
+                        "",
+                    )
+                )
+                .strip()
+                .upper()
                 == "CLOSED"
             ):
                 closed_positions += 1
+
                 performance_metrics = (
-                    result[
+                    result.get(
                         "performance_metrics"
-                    ]
+                    )
                 )
 
         return {
             "processed": True,
             "symbol": normalized_symbol,
-            "current_price": current_price,
+            "current_price": (
+                normalized_current_price
+            ),
             "matched_positions": len(
                 updated_positions
             ),
@@ -110,5 +218,8 @@ class LivePositionMonitorV2:
             ),
             "performance_metrics": (
                 performance_metrics
+            ),
+            "break_even_results": (
+                break_even_results
             ),
         }
