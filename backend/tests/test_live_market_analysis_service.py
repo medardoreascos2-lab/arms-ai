@@ -3719,3 +3719,390 @@ def test_rejects_invalid_trade_validator_v2():
             analysis_store=LiveAnalysisStore(),
             trade_validator_v2=object(),
         )
+
+
+def test_includes_signal_v2_result():
+    from backend.execution.execution_decision_engine_v2 import (
+        ExecutionDecisionEngineV2,
+    )
+    from backend.execution.trade_planner_v2 import (
+        TradePlannerV2,
+    )
+    from backend.execution.trade_validator_v2 import (
+        TradeValidatorV2,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.signals.signal_generator_v2 import (
+        SignalGeneratorV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.80,
+                very_high_threshold=0.90,
+                high_threshold=0.80,
+                medium_threshold=0.65,
+            )
+        ),
+        execution_decision_engine_v2=(
+            ExecutionDecisionEngineV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+            )
+        ),
+        trade_planner_v2=(
+            TradePlannerV2(
+                minimum_reward_risk_ratio=2.0,
+            )
+        ),
+        trade_validator_v2=(
+            TradeValidatorV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                maximum_spread_points=1.0,
+                minimum_atr_points=3.0,
+                maximum_signal_age_seconds=30,
+            )
+        ),
+        signal_generator_v2=(
+            SignalGeneratorV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+                allowed_grades={
+                    "A+",
+                    "A",
+                },
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "trade_plan_v2" in result
+    assert "trade_validation_v2" in result
+    assert "signal_v2" in result
+
+    signal = result[
+        "signal_v2"
+    ]
+
+    assert signal["decision"] in {
+        "SEND_SIGNAL",
+        "DO_NOT_SEND",
+    }
+
+    assert signal["status"] in {
+        "READY",
+        "BLOCKED",
+    }
+
+    assert signal["symbol"] == "NQ"
+    assert signal["timeframe"] == "5M"
+
+    assert isinstance(
+        signal["blocking_reasons"],
+        list,
+    )
+
+    assert isinstance(
+        signal["warnings"],
+        list,
+    )
+
+
+def test_signal_v2_uses_trade_plan_and_validation():
+    from backend.execution.execution_decision_engine_v2 import (
+        ExecutionDecisionEngineV2,
+    )
+    from backend.execution.trade_planner_v2 import (
+        TradePlannerV2,
+    )
+    from backend.execution.trade_validator_v2 import (
+        TradeValidatorV2,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.signals.signal_generator_v2 import (
+        SignalGeneratorV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.80,
+                very_high_threshold=0.90,
+                high_threshold=0.80,
+                medium_threshold=0.65,
+            )
+        ),
+        execution_decision_engine_v2=(
+            ExecutionDecisionEngineV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+            )
+        ),
+        trade_planner_v2=(
+            TradePlannerV2(
+                minimum_reward_risk_ratio=2.0,
+            )
+        ),
+        trade_validator_v2=(
+            TradeValidatorV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                maximum_spread_points=1.0,
+                minimum_atr_points=3.0,
+                maximum_signal_age_seconds=30,
+            )
+        ),
+        signal_generator_v2=(
+            SignalGeneratorV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+                allowed_grades={
+                    "A+",
+                    "A",
+                },
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    signal = result[
+        "signal_v2"
+    ]
+
+    trade_plan = result[
+        "trade_plan_v2"
+    ]
+
+    validation = result[
+        "trade_validation_v2"
+    ]
+
+    assert (
+        signal["direction"]
+        == trade_plan["direction"]
+    )
+
+    assert (
+        signal["entry_price"]
+        == trade_plan["entry_price"]
+    )
+
+    assert (
+        signal["stop_loss"]
+        == trade_plan["stop_loss"]
+    )
+
+    assert (
+        signal["take_profit"]
+        == trade_plan["take_profit"]
+    )
+
+    assert (
+        signal["probability"]
+        == trade_plan["probability"]
+    )
+
+    assert (
+        signal["warnings"]
+        == validation["warnings"]
+    )
+
+
+def test_signal_v2_blocks_when_validation_blocks():
+    from backend.execution.execution_decision_engine_v2 import (
+        ExecutionDecisionEngineV2,
+    )
+    from backend.execution.trade_planner_v2 import (
+        TradePlannerV2,
+    )
+    from backend.execution.trade_validator_v2 import (
+        TradeValidatorV2,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.signals.signal_generator_v2 import (
+        SignalGeneratorV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.99,
+                very_high_threshold=0.99,
+                high_threshold=0.95,
+                medium_threshold=0.65,
+            )
+        ),
+        execution_decision_engine_v2=(
+            ExecutionDecisionEngineV2(
+                minimum_probability=0.99,
+                minimum_confluence_score=0.99,
+            )
+        ),
+        trade_planner_v2=(
+            TradePlannerV2(
+                minimum_reward_risk_ratio=2.0,
+            )
+        ),
+        trade_validator_v2=(
+            TradeValidatorV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                maximum_spread_points=1.0,
+                minimum_atr_points=3.0,
+                maximum_signal_age_seconds=30,
+            )
+        ),
+        signal_generator_v2=(
+            SignalGeneratorV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+                allowed_grades={
+                    "A+",
+                    "A",
+                },
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert (
+        result["trade_validation_v2"][
+            "approved"
+        ]
+        is False
+    )
+
+    assert (
+        result["signal_v2"][
+            "approved"
+        ]
+        is False
+    )
+
+    assert (
+        result["signal_v2"][
+            "decision"
+        ]
+        == "DO_NOT_SEND"
+    )
+
+
+def test_omits_signal_v2_when_not_configured():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "signal_v2" not in result
+
+
+def test_rejects_invalid_signal_generator_v2():
+    with pytest.raises(
+        TypeError,
+        match="signal_generator_v2",
+    ):
+        LiveMarketAnalysisService(
+            candle_store=LiveCandleStore(),
+            analysis_store=LiveAnalysisStore(),
+            signal_generator_v2=object(),
+        )

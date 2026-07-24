@@ -3,6 +3,9 @@ from __future__ import annotations
 from backend.execution.trade_validator_v2 import (
     TradeValidatorV2,
 )
+from backend.signals.signal_generator_v2 import (
+    SignalGeneratorV2,
+)
 
 from backend.market_analysis.market_regime_engine import (
     MarketRegimeEngine,
@@ -144,6 +147,9 @@ class LiveMarketAnalysisService:
         trade_validator_v2:
         TradeValidatorV2
         | None = None,
+        signal_generator_v2:
+        SignalGeneratorV2
+        | None = None,
 ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -239,6 +245,24 @@ class LiveMarketAnalysisService:
 
         self.trade_validator_v2 = (
             trade_validator_v2
+        )
+
+
+        if (
+            signal_generator_v2
+            is not None
+            and not isinstance(
+                signal_generator_v2,
+                SignalGeneratorV2,
+            )
+        ):
+            raise TypeError(
+                "signal_generator_v2 debe ser "
+                "SignalGeneratorV2."
+            )
+
+        self.signal_generator_v2 = (
+            signal_generator_v2
         )
 
 
@@ -1725,4 +1749,67 @@ class LiveMarketAnalysisService:
             ] = validation
 
 
+        if (
+            self.signal_generator_v2
+            is not None
+            and "trade_plan_v2" in result
+            and "trade_validation_v2" in result
+        ):
+            trade_plan_for_signal = dict(
+                result["trade_plan_v2"]
+            )
+        
+            normalized_direction = str(
+                trade_plan_for_signal.get(
+                    "direction",
+                    "",
+                )
+            ).strip().upper()
+        
+            if normalized_direction not in {
+                "LONG",
+                "SHORT",
+            }:
+                execution_direction = str(
+                    result.get(
+                        "execution_v2",
+                        {},
+                    ).get(
+                        "direction",
+                        "",
+                    )
+                ).strip().upper()
+        
+                trade_plan_for_signal[
+                    "direction"
+                ] = (
+                    execution_direction
+                    if execution_direction in {
+                        "LONG",
+                        "SHORT",
+                    }
+                    else (
+                        "LONG"
+                        if result.get(
+                            "trend"
+                        ) == "ALCISTA"
+                        else "SHORT"
+                    )
+                )
+        
+            result["trade_plan_v2"]["direction"] = trade_plan_for_signal["direction"]
+
+            result["signal_v2"] = (
+                self.signal_generator_v2.generate(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    trade_plan=(
+                        trade_plan_for_signal
+                    ),
+                    trade_validation=result[
+                        "trade_validation_v2"
+                    ],
+                )
+            )
+        
         return result
