@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from backend.execution.paper_execution_engine_v2 import (
+    PaperExecutionEngineV2,
+)
+
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
@@ -157,6 +161,9 @@ class LiveMarketAnalysisService:
         execution_manager_v2:
         ExecutionManagerV2
         | None = None,
+        paper_execution_engine_v2:
+        PaperExecutionEngineV2
+        | None = None,
 ) -> None:
         self.candle_store = candle_store
         self.analysis_store = analysis_store
@@ -288,6 +295,25 @@ class LiveMarketAnalysisService:
 
         self.execution_manager_v2 = (
             execution_manager_v2
+        )
+
+
+        if (
+            paper_execution_engine_v2
+            is not None
+            and not isinstance(
+                paper_execution_engine_v2,
+                PaperExecutionEngineV2,
+            )
+        ):
+            raise TypeError(
+                "paper_execution_engine_v2 "
+                "debe ser "
+                "PaperExecutionEngineV2."
+            )
+
+        self.paper_execution_engine_v2 = (
+            paper_execution_engine_v2
         )
 
 
@@ -1864,4 +1890,17 @@ class LiveMarketAnalysisService:
             ] = prepared_order
 
 
+        if (
+            self.paper_execution_engine_v2
+            is not None
+            and "prepared_order_v2" in result
+        ):
+            result["paper_execution_v2"] = (
+                self.paper_execution_engine_v2.execute(
+                    prepared_order=result[
+                        "prepared_order_v2"
+                    ],
+                )
+            )
+        
         return result

@@ -4106,3 +4106,424 @@ def test_rejects_invalid_signal_generator_v2():
             analysis_store=LiveAnalysisStore(),
             signal_generator_v2=object(),
         )
+
+
+def test_includes_paper_execution_v2_result():
+    from backend.execution.execution_decision_engine_v2 import (
+        ExecutionDecisionEngineV2,
+    )
+    from backend.execution.execution_manager_v2 import (
+        ExecutionManagerV2,
+    )
+    from backend.execution.paper_execution_engine_v2 import (
+        PaperExecutionEngineV2,
+    )
+    from backend.execution.trade_planner_v2 import (
+        TradePlannerV2,
+    )
+    from backend.execution.trade_validator_v2 import (
+        TradeValidatorV2,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.signals.signal_generator_v2 import (
+        SignalGeneratorV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.80,
+                very_high_threshold=0.90,
+                high_threshold=0.80,
+                medium_threshold=0.65,
+            )
+        ),
+        execution_decision_engine_v2=(
+            ExecutionDecisionEngineV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+            )
+        ),
+        trade_planner_v2=(
+            TradePlannerV2(
+                minimum_reward_risk_ratio=2.0,
+            )
+        ),
+        trade_validator_v2=(
+            TradeValidatorV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                maximum_spread_points=1.0,
+                minimum_atr_points=3.0,
+                maximum_signal_age_seconds=30,
+            )
+        ),
+        signal_generator_v2=(
+            SignalGeneratorV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+                allowed_grades={
+                    "A+",
+                    "A",
+                },
+            )
+        ),
+        execution_manager_v2=(
+            ExecutionManagerV2(
+                execution_mode="PAPER",
+                maximum_contracts=20,
+            )
+        ),
+        paper_execution_engine_v2=(
+            PaperExecutionEngineV2(
+                fill_market_orders_immediately=True,
+                slippage_points=0.25,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "prepared_order_v2" in result
+    assert "paper_execution_v2" in result
+
+    execution = result[
+        "paper_execution_v2"
+    ]
+
+    assert execution["status"] in {
+        "FILLED",
+        "SUBMITTED",
+        "REJECTED",
+    }
+
+    assert isinstance(
+        execution["rejection_reasons"],
+        list,
+    )
+
+    assert execution["execution_mode"] == "PAPER"
+
+
+def test_paper_execution_v2_uses_prepared_order():
+    from backend.execution.execution_decision_engine_v2 import (
+        ExecutionDecisionEngineV2,
+    )
+    from backend.execution.execution_manager_v2 import (
+        ExecutionManagerV2,
+    )
+    from backend.execution.paper_execution_engine_v2 import (
+        PaperExecutionEngineV2,
+    )
+    from backend.execution.trade_planner_v2 import (
+        TradePlannerV2,
+    )
+    from backend.execution.trade_validator_v2 import (
+        TradeValidatorV2,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.signals.signal_generator_v2 import (
+        SignalGeneratorV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.80,
+                very_high_threshold=0.90,
+                high_threshold=0.80,
+                medium_threshold=0.65,
+            )
+        ),
+        execution_decision_engine_v2=(
+            ExecutionDecisionEngineV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+            )
+        ),
+        trade_planner_v2=(
+            TradePlannerV2(
+                minimum_reward_risk_ratio=2.0,
+            )
+        ),
+        trade_validator_v2=(
+            TradeValidatorV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                maximum_spread_points=1.0,
+                minimum_atr_points=3.0,
+                maximum_signal_age_seconds=30,
+            )
+        ),
+        signal_generator_v2=(
+            SignalGeneratorV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+                allowed_grades={
+                    "A+",
+                    "A",
+                },
+            )
+        ),
+        execution_manager_v2=(
+            ExecutionManagerV2(
+                execution_mode="PAPER",
+                maximum_contracts=20,
+            )
+        ),
+        paper_execution_engine_v2=(
+            PaperExecutionEngineV2(
+                fill_market_orders_immediately=True,
+                slippage_points=0.25,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    prepared_order = result[
+        "prepared_order_v2"
+    ]
+
+    execution = result[
+        "paper_execution_v2"
+    ]
+
+    assert (
+        execution["symbol"]
+        == prepared_order["symbol"]
+    )
+
+    assert (
+        execution["side"]
+        == prepared_order["side"]
+    )
+
+    assert (
+        execution["quantity"]
+        == prepared_order["quantity"]
+    )
+
+    assert (
+        execution["stop_loss"]
+        == prepared_order["stop_loss"]
+    )
+
+    assert (
+        execution["take_profit"]
+        == prepared_order["take_profit"]
+    )
+
+
+def test_paper_execution_v2_rejects_blocked_order():
+    from backend.execution.execution_decision_engine_v2 import (
+        ExecutionDecisionEngineV2,
+    )
+    from backend.execution.execution_manager_v2 import (
+        ExecutionManagerV2,
+    )
+    from backend.execution.paper_execution_engine_v2 import (
+        PaperExecutionEngineV2,
+    )
+    from backend.execution.trade_planner_v2 import (
+        TradePlannerV2,
+    )
+    from backend.execution.trade_validator_v2 import (
+        TradeValidatorV2,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.signals.signal_generator_v2 import (
+        SignalGeneratorV2,
+    )
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.99,
+                very_high_threshold=0.99,
+                high_threshold=0.95,
+                medium_threshold=0.65,
+            )
+        ),
+        execution_decision_engine_v2=(
+            ExecutionDecisionEngineV2(
+                minimum_probability=0.99,
+                minimum_confluence_score=0.99,
+            )
+        ),
+        trade_planner_v2=(
+            TradePlannerV2(
+                minimum_reward_risk_ratio=2.0,
+            )
+        ),
+        trade_validator_v2=(
+            TradeValidatorV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                maximum_spread_points=1.0,
+                minimum_atr_points=3.0,
+                maximum_signal_age_seconds=30,
+            )
+        ),
+        signal_generator_v2=(
+            SignalGeneratorV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+                allowed_grades={
+                    "A+",
+                    "A",
+                },
+            )
+        ),
+        execution_manager_v2=(
+            ExecutionManagerV2(
+                execution_mode="PAPER",
+                maximum_contracts=20,
+            )
+        ),
+        paper_execution_engine_v2=(
+            PaperExecutionEngineV2(
+                fill_market_orders_immediately=True,
+                slippage_points=0.25,
+            )
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert (
+        result["prepared_order_v2"][
+            "approved"
+        ]
+        is False
+    )
+
+    assert (
+        result["paper_execution_v2"][
+            "accepted"
+        ]
+        is False
+    )
+
+    assert (
+        result["paper_execution_v2"][
+            "status"
+        ]
+        == "REJECTED"
+    )
+
+
+def test_omits_paper_execution_v2_when_not_configured():
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "paper_execution_v2" not in result
+
+
+def test_rejects_invalid_paper_execution_engine_v2():
+    with pytest.raises(
+        TypeError,
+        match="paper_execution_engine_v2",
+    ):
+        LiveMarketAnalysisService(
+            candle_store=LiveCandleStore(),
+            analysis_store=LiveAnalysisStore(),
+            paper_execution_engine_v2=object(),
+        )

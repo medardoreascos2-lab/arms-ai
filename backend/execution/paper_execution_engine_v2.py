@@ -5,7 +5,10 @@ from uuid import uuid4
 
 class PaperExecutionEngineV2:
     """
-    Simula la ejecución de órdenes en modo PAPER.
+    Simula la ejecución de órdenes PAPER.
+
+    Las órdenes bloqueadas se rechazan sin
+    exigir precios válidos.
     """
 
     VALID_SIDES = {
@@ -40,6 +43,17 @@ class PaperExecutionEngineV2:
 
         self.slippage_points = (
             normalized_slippage
+        )
+
+    @staticmethod
+    def _optional_float(
+        value: object,
+    ) -> float | None:
+        if value is None:
+            return None
+
+        return float(
+            value
         )
 
     def execute(
@@ -91,25 +105,15 @@ class PaperExecutionEngineV2:
                 "o LIMIT."
             )
 
-        entry_price = float(
-            prepared_order.get(
-                "entry_price",
-                0.0,
+        symbol = (
+            str(
+                prepared_order.get(
+                    "symbol",
+                    "",
+                )
             )
-        )
-
-        stop_loss = float(
-            prepared_order.get(
-                "stop_loss",
-                0.0,
-            )
-        )
-
-        take_profit = float(
-            prepared_order.get(
-                "take_profit",
-                0.0,
-            )
+            .strip()
+            .upper()
         )
 
         quantity = int(
@@ -117,57 +121,30 @@ class PaperExecutionEngineV2:
                 "quantity",
                 0,
             )
+            or 0
         )
 
-        if entry_price <= 0:
-            raise ValueError(
-                "entry_price debe ser mayor "
-                "que cero."
+        execution_mode = (
+            str(
+                prepared_order.get(
+                    "execution_mode",
+                    "",
+                )
             )
-
-        if stop_loss <= 0:
-            raise ValueError(
-                "stop_loss debe ser mayor "
-                "que cero."
-            )
-
-        if take_profit <= 0:
-            raise ValueError(
-                "take_profit debe ser mayor "
-                "que cero."
-            )
-
-        limit_price_value = (
-            prepared_order.get(
-                "limit_price"
-            )
+            .strip()
+            .upper()
         )
 
-        if order_type == "LIMIT":
-            if limit_price_value is None:
-                raise ValueError(
-                    "limit_price es obligatorio "
-                    "para órdenes LIMIT."
+        decision = (
+            str(
+                prepared_order.get(
+                    "decision",
+                    "",
                 )
-
-            limit_price = float(
-                limit_price_value
             )
-
-            if limit_price <= 0:
-                raise ValueError(
-                    "limit_price debe ser mayor "
-                    "que cero."
-                )
-
-            requested_price = (
-                limit_price
-            )
-        else:
-            limit_price = None
-            requested_price = (
-                entry_price
-            )
+            .strip()
+            .upper()
+        )
 
         rejection_reasons: list[str] = []
 
@@ -181,32 +158,10 @@ class PaperExecutionEngineV2:
                 "prepared_order_not_approved"
             )
 
-        execution_mode = (
-            str(
-                prepared_order.get(
-                    "execution_mode",
-                    "",
-                )
-            )
-            .strip()
-            .upper()
-        )
-
         if execution_mode != "PAPER":
             rejection_reasons.append(
                 "execution_mode_not_paper"
             )
-
-        decision = (
-            str(
-                prepared_order.get(
-                    "decision",
-                    "",
-                )
-            )
-            .strip()
-            .upper()
-        )
 
         if decision != "SUBMIT_ORDER":
             rejection_reasons.append(
@@ -218,26 +173,50 @@ class PaperExecutionEngineV2:
                 "invalid_quantity"
             )
 
+        entry_price = self._optional_float(
+            prepared_order.get(
+                "entry_price"
+            )
+        )
+
+        stop_loss = self._optional_float(
+            prepared_order.get(
+                "stop_loss"
+            )
+        )
+
+        take_profit = self._optional_float(
+            prepared_order.get(
+                "take_profit"
+            )
+        )
+
+        limit_price = self._optional_float(
+            prepared_order.get(
+                "limit_price"
+            )
+        )
+
         order_id = str(
             uuid4()
         )
 
+        # Una orden bloqueada se rechaza
+        # inmediatamente y puede contener
+        # precios None.
         if rejection_reasons:
+            requested_price = (
+                limit_price
+                if order_type == "LIMIT"
+                else entry_price
+            )
+
             return {
                 "accepted": False,
                 "status": "REJECTED",
                 "execution_mode": "PAPER",
                 "order_id": order_id,
-                "symbol": (
-                    str(
-                        prepared_order.get(
-                            "symbol",
-                            "",
-                        )
-                    )
-                    .strip()
-                    .upper()
-                ),
+                "symbol": symbol,
                 "side": side,
                 "order_type": order_type,
                 "quantity": quantity,
@@ -245,14 +224,76 @@ class PaperExecutionEngineV2:
                     requested_price
                 ),
                 "filled_price": None,
+                "limit_price": limit_price,
                 "stop_loss": stop_loss,
-                "take_profit": (
-                    take_profit
+                "take_profit": take_profit,
+                "slippage_points": (
+                    self.slippage_points
                 ),
                 "rejection_reasons": (
                     rejection_reasons
                 ),
+                "probability": (
+                    prepared_order.get(
+                        "probability"
+                    )
+                ),
+                "confluence_score": (
+                    prepared_order.get(
+                        "confluence_score"
+                    )
+                ),
+                "grade": prepared_order.get(
+                    "grade"
+                ),
+                "warnings": list(
+                    prepared_order.get(
+                        "warnings",
+                        [],
+                    )
+                ),
             }
+
+        if (
+            entry_price is None
+            or entry_price <= 0
+        ):
+            raise ValueError(
+                "entry_price debe ser mayor "
+                "que cero."
+            )
+
+        if (
+            stop_loss is None
+            or stop_loss <= 0
+        ):
+            raise ValueError(
+                "stop_loss debe ser mayor "
+                "que cero."
+            )
+
+        if (
+            take_profit is None
+            or take_profit <= 0
+        ):
+            raise ValueError(
+                "take_profit debe ser mayor "
+                "que cero."
+            )
+
+        if order_type == "LIMIT":
+            if (
+                limit_price is None
+                or limit_price <= 0
+            ):
+                raise ValueError(
+                    "limit_price es obligatorio "
+                    "para órdenes LIMIT."
+                )
+
+            requested_price = limit_price
+        else:
+            requested_price = entry_price
 
         if (
             order_type == "MARKET"
@@ -272,7 +313,6 @@ class PaperExecutionEngineV2:
                     - self.slippage_points,
                     10,
                 )
-
         else:
             status = "SUBMITTED"
             filled_price = None
@@ -282,32 +322,17 @@ class PaperExecutionEngineV2:
             "status": status,
             "execution_mode": "PAPER",
             "order_id": order_id,
-            "symbol": (
-                str(
-                    prepared_order.get(
-                        "symbol",
-                        "",
-                    )
-                )
-                .strip()
-                .upper()
-            ),
+            "symbol": symbol,
             "side": side,
             "order_type": order_type,
             "quantity": quantity,
             "requested_price": (
                 requested_price
             ),
-            "filled_price": (
-                filled_price
-            ),
-            "limit_price": (
-                limit_price
-            ),
+            "filled_price": filled_price,
+            "limit_price": limit_price,
             "stop_loss": stop_loss,
-            "take_profit": (
-                take_profit
-            ),
+            "take_profit": take_profit,
             "slippage_points": (
                 self.slippage_points
             ),

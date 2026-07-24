@@ -3,8 +3,10 @@ from __future__ import annotations
 
 class ExecutionManagerV2:
     """
-    Convierte una señal aprobada en una orden
-    preparada para ejecución PAPER o LIVE.
+    Convierte una señal en una orden preparada.
+
+    Las señales bloqueadas producen una orden
+    bloqueada sin intentar validar precios None.
     """
 
     VALID_EXECUTION_MODES = {
@@ -59,6 +61,17 @@ class ExecutionManagerV2:
 
         self.maximum_contracts = (
             normalized_maximum_contracts
+        )
+
+    @staticmethod
+    def _optional_float(
+        value: object,
+    ) -> float | None:
+        if value is None:
+            return None
+
+        return float(
+            value
         )
 
     def prepare_order(
@@ -121,25 +134,10 @@ class ExecutionManagerV2:
                 "LONG o SHORT."
             )
 
-        entry_price = float(
-            signal.get(
-                "entry_price",
-                0.0,
-            )
-        )
-
-        stop_loss = float(
-            signal.get(
-                "stop_loss",
-                0.0,
-            )
-        )
-
-        take_profit = float(
-            signal.get(
-                "take_profit",
-                0.0,
-            )
+        side = (
+            "BUY"
+            if direction == "LONG"
+            else "SELL"
         )
 
         quantity = int(
@@ -147,21 +145,141 @@ class ExecutionManagerV2:
                 "contracts",
                 0,
             )
+            or 0
         )
 
-        if entry_price <= 0:
+        signal_decision = (
+            str(
+                signal.get(
+                    "decision",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+        )
+
+        blocking_reasons: list[str] = []
+
+        if not bool(
+            signal.get(
+                "approved",
+                False,
+            )
+        ):
+            blocking_reasons.append(
+                "signal_not_approved"
+            )
+
+        if signal_decision != "SEND_SIGNAL":
+            blocking_reasons.append(
+                "signal_decision_not_sendable"
+            )
+
+        if quantity <= 0:
+            blocking_reasons.append(
+                "invalid_contract_quantity"
+            )
+
+        if quantity > self.maximum_contracts:
+            blocking_reasons.append(
+                "maximum_contracts_exceeded"
+            )
+
+        entry_price = self._optional_float(
+            signal.get(
+                "entry_price"
+            )
+        )
+
+        stop_loss = self._optional_float(
+            signal.get(
+                "stop_loss"
+            )
+        )
+
+        take_profit = self._optional_float(
+            signal.get(
+                "take_profit"
+            )
+        )
+
+        # Una señal bloqueada debe devolverse
+        # como orden bloqueada, no lanzar error
+        # por precios inexistentes.
+        if blocking_reasons:
+            return {
+                "approved": False,
+                "status": "BLOCKED",
+                "decision": "DO_NOT_SUBMIT",
+                "execution_mode": (
+                    self.execution_mode
+                ),
+                "symbol": symbol,
+                "side": side,
+                "order_type": (
+                    normalized_order_type
+                ),
+                "quantity": quantity,
+                "entry_price": entry_price,
+                "limit_price": (
+                    entry_price
+                    if normalized_order_type
+                    == "LIMIT"
+                    else None
+                ),
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
+                "blocking_reasons": (
+                    blocking_reasons
+                ),
+                "source_signal_status": (
+                    signal.get(
+                        "status"
+                    )
+                ),
+                "source_signal_decision": (
+                    signal_decision
+                ),
+                "probability": signal.get(
+                    "probability"
+                ),
+                "confluence_score": signal.get(
+                    "confluence_score"
+                ),
+                "grade": signal.get(
+                    "grade"
+                ),
+                "warnings": list(
+                    signal.get(
+                        "warnings",
+                        [],
+                    )
+                ),
+            }
+
+        if (
+            entry_price is None
+            or entry_price <= 0
+        ):
             raise ValueError(
                 "entry_price debe ser "
                 "mayor que cero."
             )
 
-        if stop_loss <= 0:
+        if (
+            stop_loss is None
+            or stop_loss <= 0
+        ):
             raise ValueError(
                 "stop_loss debe ser "
                 "mayor que cero."
             )
 
-        if take_profit <= 0:
+        if (
+            take_profit is None
+            or take_profit <= 0
+        ):
             raise ValueError(
                 "take_profit debe ser "
                 "mayor que cero."
@@ -182,8 +300,6 @@ class ExecutionManagerV2:
                     "para LONG."
                 )
 
-            side = "BUY"
-
         else:
             if stop_loss <= entry_price:
                 raise ValueError(
@@ -199,60 +315,10 @@ class ExecutionManagerV2:
                     "para SHORT."
                 )
 
-            side = "SELL"
-
-        blocking_reasons: list[str] = []
-
-        if not bool(
-            signal.get(
-                "approved",
-                False,
-            )
-        ):
-            blocking_reasons.append(
-                "signal_not_approved"
-            )
-
-        signal_decision = (
-            str(
-                signal.get(
-                    "decision",
-                    "",
-                )
-            )
-            .strip()
-            .upper()
-        )
-
-        if signal_decision != "SEND_SIGNAL":
-            blocking_reasons.append(
-                "signal_decision_not_sendable"
-            )
-
-        if quantity <= 0:
-            blocking_reasons.append(
-                "invalid_contract_quantity"
-            )
-
-        if quantity > self.maximum_contracts:
-            blocking_reasons.append(
-                "maximum_contracts_exceeded"
-            )
-
-        approved = not blocking_reasons
-
         return {
-            "approved": approved,
-            "status": (
-                "READY_TO_SUBMIT"
-                if approved
-                else "BLOCKED"
-            ),
-            "decision": (
-                "SUBMIT_ORDER"
-                if approved
-                else "DO_NOT_SUBMIT"
-            ),
+            "approved": True,
+            "status": "READY_TO_SUBMIT",
+            "decision": "SUBMIT_ORDER",
             "execution_mode": (
                 self.execution_mode
             ),
@@ -271,9 +337,7 @@ class ExecutionManagerV2:
             ),
             "stop_loss": stop_loss,
             "take_profit": take_profit,
-            "blocking_reasons": (
-                blocking_reasons
-            ),
+            "blocking_reasons": [],
             "source_signal_status": (
                 signal.get(
                     "status"
