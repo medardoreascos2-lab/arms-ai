@@ -43,6 +43,9 @@ from backend.execution.signal_execution_manager import (
 from backend.execution.execution_decision_engine import (
     ExecutionDecisionEngine,
 )
+from backend.execution.execution_decision_engine_v2 import (
+    ExecutionDecisionEngineV2,
+)
 from backend.intelligence.confluence_engine_v2 import (
     ConfluenceEngineV2,
 )
@@ -114,6 +117,9 @@ class LiveMarketAnalysisService:
         execution_decision_engine:
         ExecutionDecisionEngine
         | None = None,
+        execution_decision_engine_v2:
+        ExecutionDecisionEngineV2
+        | None = None,
         market_regime_engine:
         MarketRegimeEngine
         | None = None,
@@ -172,6 +178,25 @@ class LiveMarketAnalysisService:
 
         self.execution_decision_engine = (
             execution_decision_engine
+        )
+
+
+        if (
+            execution_decision_engine_v2
+            is not None
+            and not isinstance(
+                execution_decision_engine_v2,
+                ExecutionDecisionEngineV2,
+            )
+        ):
+            raise TypeError(
+                "execution_decision_engine_v2 "
+                "debe ser "
+                "ExecutionDecisionEngineV2."
+            )
+
+        self.execution_decision_engine_v2 = (
+            execution_decision_engine_v2
         )
 
 
@@ -1443,5 +1468,108 @@ class LiveMarketAnalysisService:
                     ),
                 )
             )
+
+        if (
+            self.execution_decision_engine_v2
+            is not None
+            and "probability_v2" in result
+            and "confluence_v2" in result
+        ):
+            probability = result[
+                "probability_v2"
+            ]
+
+            smart_money = result.get(
+                "smart_money_v2",
+                {},
+            )
+
+            structure = smart_money.get(
+                "structure",
+                {},
+            )
+
+            market_regime = result.get(
+                "market_regime",
+                {},
+            )
+
+            position = result.get(
+                "position_sizing",
+                {},
+            )
+
+            signal_direction = (
+                "LONG"
+                if result.get(
+                    "trend"
+                )
+                == "ALCISTA"
+                else "SHORT"
+            )
+
+            result["execution_v2"] = (
+                self.execution_decision_engine_v2.evaluate(
+                    signal_direction=signal_direction,
+                    probability=probability[
+                        "probability"
+                    ],
+                    confluence_score=(
+                        probability[
+                            "inputs"
+                        ][
+                            "confluence_score"
+                        ]
+                    ),
+                    smart_money_direction=(
+                        structure.get(
+                            "direction",
+                            "BULLISH",
+                        )
+                    ),
+                    market_regime=(
+                        market_regime.get(
+                            "regime",
+                            "RANGE",
+                        )
+                    ),
+                    market_tradable=(
+                        market_regime.get(
+                            "tradable",
+                            True,
+                        )
+                    ),
+                    risk_approved=True,
+                    sizing_approved=True,
+                    contracts=max(
+                        1,
+                        int(
+                            position.get(
+                                "contracts",
+                                1,
+                            )
+                        ),
+                    ),
+                    has_open_position=False,
+                    daily_limit_reached=False,
+                    news_blocked=False,
+                )
+            )
+
+            result["execution_v2"][
+                "inputs"
+            ] = {
+                "probability": probability[
+                    "probability"
+                ],
+                "confluence_score": (
+                    probability[
+                        "inputs"
+                    ][
+                        "confluence_score"
+                    ]
+                ),
+            }
+
 
         return result
