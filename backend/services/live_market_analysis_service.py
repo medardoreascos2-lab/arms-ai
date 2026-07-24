@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from backend.execution.execution_manager_v2 import (
+    ExecutionManagerV2,
+)
+
 from backend.execution.trade_validator_v2 import (
     TradeValidatorV2,
 )
@@ -127,9 +131,9 @@ class LiveMarketAnalysisService:
         execution_decision_engine_v2:
         ExecutionDecisionEngineV2
         | None = None,
-    trade_planner_v2:
-    TradePlannerV2
-    | None = None,
+        trade_planner_v2:
+        TradePlannerV2
+        | None = None,
         market_regime_engine:
         MarketRegimeEngine
         | None = None,
@@ -149,6 +153,9 @@ class LiveMarketAnalysisService:
         | None = None,
         signal_generator_v2:
         SignalGeneratorV2
+        | None = None,
+        execution_manager_v2:
+        ExecutionManagerV2
         | None = None,
 ) -> None:
         self.candle_store = candle_store
@@ -263,6 +270,24 @@ class LiveMarketAnalysisService:
 
         self.signal_generator_v2 = (
             signal_generator_v2
+        )
+
+
+        if (
+            execution_manager_v2
+            is not None
+            and not isinstance(
+                execution_manager_v2,
+                ExecutionManagerV2,
+            )
+        ):
+            raise TypeError(
+                "execution_manager_v2 debe ser "
+                "ExecutionManagerV2."
+            )
+
+        self.execution_manager_v2 = (
+            execution_manager_v2
         )
 
 
@@ -1812,4 +1837,31 @@ class LiveMarketAnalysisService:
                 )
             )
         
+        if (
+            self.execution_manager_v2
+            is not None
+            and "signal_v2" in result
+        ):
+            prepared_order = (
+                self.execution_manager_v2.prepare_order(
+                    signal=result[
+                        "signal_v2"
+                    ],
+                    order_type="MARKET",
+                )
+            )
+
+            prepared_order[
+                "source_signal_status"
+            ] = result[
+                "signal_v2"
+            ][
+                "status"
+            ]
+
+            result[
+                "prepared_order_v2"
+            ] = prepared_order
+
+
         return result
