@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+
+from backend.analytics.trade_journal_analytics_v2 import (
+    TradeJournalAnalyticsV2,
+)
+
+
 from copy import deepcopy
 from datetime import datetime
 
@@ -23,7 +29,28 @@ class TradeJournalV2:
 
     def __init__(
         self,
+        *,
+        analytics_v2:
+        TradeJournalAnalyticsV2
+        | None = None,
     ) -> None:
+        if (
+            analytics_v2
+            is not None
+            and not isinstance(
+                analytics_v2,
+                TradeJournalAnalyticsV2,
+            )
+        ):
+            raise TypeError(
+                "analytics_v2 debe ser "
+                "TradeJournalAnalyticsV2."
+            )
+
+        self.analytics_v2 = (
+            analytics_v2
+        )
+
         self._open_trades: dict[
             str,
             dict[str, object],
@@ -445,6 +472,16 @@ class TradeJournalV2:
             self._closed_trades
         )
 
+    def get_analytics(
+        self,
+    ) -> dict[str, object] | None:
+        if self.analytics_v2 is None:
+            return None
+
+        return self.analytics_v2.calculate(
+            trades=self.get_closed_trades(),
+        )
+
     def get_summary(
         self,
     ) -> dict[str, object]:
@@ -522,4 +559,7 @@ class TradeJournalV2:
                 total_realized_pnl
             ),
             "win_rate": win_rate,
+            "analytics": (
+                self.get_analytics()
+            ),
         }
