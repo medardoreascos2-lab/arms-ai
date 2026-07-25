@@ -16,6 +16,10 @@ from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
 
+from backend.portfolio.portfolio_manager_v2 import (
+    PortfolioManagerV2,
+)
+
 
 class LivePositionMonitorV2:
     """
@@ -47,15 +51,27 @@ class LivePositionMonitorV2:
         trailing_stop_engine:
         TrailingStopEngineV2
         | None = None,
+        portfolio_manager_v2:
+        PortfolioManagerV2
+        | None = None,
     ) -> None:
-        if not isinstance(
-            trade_lifecycle_service,
-            TradeLifecycleServiceV2,
-        ):
-            raise TypeError(
-                "trade_lifecycle_service debe ser "
-                "TradeLifecycleServiceV2."
-            )
+        required_methods = (
+            "get_active_positions",
+            "update_position",
+        )
+
+        for method_name in required_methods:
+            if not callable(
+                getattr(
+                    trade_lifecycle_service,
+                    method_name,
+                    None,
+                )
+            ):
+                raise TypeError(
+                    "trade_lifecycle_service debe implementar "
+                    f"{method_name}()."
+                )
 
         if (
             partial_take_profit_engine
@@ -129,6 +145,23 @@ class LivePositionMonitorV2:
             trailing_stop_engine
         )
 
+        if (
+            portfolio_manager_v2
+            is not None
+            and not isinstance(
+                portfolio_manager_v2,
+                PortfolioManagerV2,
+            )
+        ):
+            raise TypeError(
+                "portfolio_manager_v2 debe ser "
+                "PortfolioManagerV2."
+            )
+
+        self.portfolio_manager_v2 = (
+            portfolio_manager_v2
+        )
+
     def _persist_position(
         self,
         *,
@@ -195,6 +228,7 @@ class LivePositionMonitorV2:
 
         closed_positions = 0
         performance_metrics = None
+        portfolio_summary = None
 
         for position in active_positions:
             position_symbol = (
@@ -422,6 +456,32 @@ class LivePositionMonitorV2:
             ]
 
             if (
+                self.portfolio_manager_v2
+                is not None
+                and str(
+                    result_position.get(
+                        "status",
+                        "",
+                    )
+                )
+                .strip()
+                .upper()
+                != "CLOSED"
+            ):
+                self.portfolio_manager_v2.update_position(
+                    position_id=str(
+                        result_position[
+                            "position_id"
+                        ]
+                    ),
+                    updates={
+                        "current_price": (
+                            normalized_current_price
+                        ),
+                    },
+                )
+
+            if (
                 str(
                     result_position.get(
                         "status",
@@ -434,11 +494,35 @@ class LivePositionMonitorV2:
             ):
                 closed_positions += 1
 
+                if (
+                    self.portfolio_manager_v2
+                    is not None
+                ):
+                    self.portfolio_manager_v2.close_position(
+                        position_id=str(
+                            result_position[
+                                "position_id"
+                            ]
+                        ),
+                        exit_price=(
+                            normalized_current_price
+                        ),
+                    )
+
                 performance_metrics = (
                     result.get(
                         "performance_metrics"
                     )
                 )
+
+        if (
+            self.portfolio_manager_v2
+            is not None
+        ):
+            portfolio_summary = (
+                self.portfolio_manager_v2
+                .get_summary()
+            )
 
         return {
             "processed": True,
@@ -457,6 +541,9 @@ class LivePositionMonitorV2:
             ),
             "performance_metrics": (
                 performance_metrics
+            ),
+            "portfolio_summary": (
+                portfolio_summary
             ),
             "partial_take_profit_results": (
                 partial_take_profit_results
