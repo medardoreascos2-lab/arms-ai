@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
+from backend.journal.trade_journal_v2 import (
+    TradeJournalV2,
+)
+
+
 from backend.analytics.performance_analytics_v2 import (
     PerformanceAnalyticsV2,
 )
@@ -71,6 +78,9 @@ class TradeLifecycleServiceV2:
         | None = None,
         portfolio_manager_v2:
         PortfolioManagerV2
+        | None = None,
+        trade_journal_v2:
+        TradeJournalV2
         | None = None,
     ) -> None:
         if not isinstance(
@@ -238,6 +248,23 @@ class TradeLifecycleServiceV2:
             portfolio_manager_v2
         )
 
+        if (
+            trade_journal_v2
+            is not None
+            and not isinstance(
+                trade_journal_v2,
+                TradeJournalV2,
+            )
+        ):
+            raise TypeError(
+                "trade_journal_v2 debe ser "
+                "TradeJournalV2."
+            )
+
+        self.trade_journal_v2 = (
+            trade_journal_v2
+        )
+
 
         self.starting_balance = (
             normalized_starting_balance
@@ -308,6 +335,13 @@ class TradeLifecycleServiceV2:
         portfolio_summary = (
             self.portfolio_manager_v2.get_summary()
             if self.portfolio_manager_v2
+            is not None
+            else None
+        )
+
+        trade_journal_summary = (
+            self.trade_journal_v2.get_summary()
+            if self.trade_journal_v2
             is not None
             else None
         )
@@ -846,6 +880,85 @@ class TradeLifecycleServiceV2:
                         .get_summary()
                     )
 
+                if (
+                    self.trade_journal_v2
+                    is not None
+                ):
+                    self.trade_journal_v2.record_open_trade(
+                        trade={
+                            "trade_id": (
+                                "journal-"
+                                + active_position_id
+                            ),
+                            "position_id": (
+                                active_position_id
+                            ),
+                            "symbol": str(
+                                opened_position.get(
+                                    "symbol",
+                                    working_signal.get(
+                                        "symbol",
+                                        "",
+                                    ),
+                                )
+                            ),
+                            "direction": str(
+                                opened_position.get(
+                                    "direction",
+                                    working_signal.get(
+                                        "direction",
+                                        "",
+                                    ),
+                                )
+                            ),
+                            "entry_price": float(
+                                opened_position.get(
+                                    "entry_price",
+                                    working_signal.get(
+                                        "entry_price",
+                                        0.0,
+                                    ),
+                                )
+                            ),
+                            "quantity": float(
+                                opened_position.get(
+                                    "quantity",
+                                    working_signal.get(
+                                        "contracts",
+                                        0,
+                                    ),
+                                )
+                            ),
+                            "stop_loss": (
+                                opened_position.get(
+                                    "stop_loss",
+                                    working_signal.get(
+                                        "stop_loss"
+                                    ),
+                                )
+                            ),
+                            "take_profit": (
+                                opened_position.get(
+                                    "take_profit",
+                                    working_signal.get(
+                                        "take_profit"
+                                    ),
+                                )
+                            ),
+                            "entry_time": (
+                                datetime.now(
+                                    timezone.utc
+                                )
+                            ),
+                            "status": "OPEN",
+                        },
+                    )
+
+                    trade_journal_summary = (
+                        self.trade_journal_v2
+                        .get_summary()
+                    )
+
         accepted = (
             not signal_blocked
             and bool(
@@ -896,6 +1009,9 @@ class TradeLifecycleServiceV2:
             ),
             "portfolio_summary": (
                 portfolio_summary
+            ),
+            "trade_journal_summary": (
+                trade_journal_summary
             ),
         }
 
