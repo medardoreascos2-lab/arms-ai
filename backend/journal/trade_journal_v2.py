@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 
+from backend.analytics.trade_journal_breakdown_analytics_v2 import (
+    TradeJournalBreakdownAnalyticsV2,
+)
+
+
+
 from backend.analytics.trade_journal_analytics_v2 import (
     TradeJournalAnalyticsV2,
 )
@@ -33,6 +39,9 @@ class TradeJournalV2:
         analytics_v2:
         TradeJournalAnalyticsV2
         | None = None,
+        breakdown_analytics_v2:
+        TradeJournalBreakdownAnalyticsV2
+        | None = None,
     ) -> None:
         if (
             analytics_v2
@@ -50,6 +59,24 @@ class TradeJournalV2:
         self.analytics_v2 = (
             analytics_v2
         )
+
+        if (
+            breakdown_analytics_v2
+            is not None
+            and not isinstance(
+                breakdown_analytics_v2,
+                TradeJournalBreakdownAnalyticsV2,
+            )
+        ):
+            raise TypeError(
+                "breakdown_analytics_v2 debe ser "
+                "TradeJournalBreakdownAnalyticsV2."
+            )
+
+        self.breakdown_analytics_v2 = (
+            breakdown_analytics_v2
+        )
+
 
         self._open_trades: dict[
             str,
@@ -482,6 +509,24 @@ class TradeJournalV2:
             trades=self.get_closed_trades(),
         )
 
+    def get_breakdown(
+        self,
+    ) -> dict[str, object] | None:
+        if (
+            self.breakdown_analytics_v2
+            is None
+        ):
+            return None
+
+        return (
+            self.breakdown_analytics_v2
+            .calculate(
+                trades=(
+                    self.get_closed_trades()
+                ),
+            )
+        )
+
     def get_summary(
         self,
     ) -> dict[str, object]:
@@ -561,5 +606,8 @@ class TradeJournalV2:
             "win_rate": win_rate,
             "analytics": (
                 self.get_analytics()
+            ),
+            "breakdown": (
+                self.get_breakdown()
             ),
         }
