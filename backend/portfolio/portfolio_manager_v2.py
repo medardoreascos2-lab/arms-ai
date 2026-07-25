@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from backend.account.account_state_manager_v2 import (
+    AccountStateManagerV2,
+)
+
 from copy import deepcopy
 
 
@@ -14,6 +18,9 @@ class PortfolioManagerV2:
         self,
         *,
         starting_balance: float,
+        account_state_manager_v2:
+        AccountStateManagerV2
+        | None = None,
     ) -> None:
 
         starting_balance = float(
@@ -29,9 +36,69 @@ class PortfolioManagerV2:
             starting_balance
         )
 
+        if (
+            account_state_manager_v2
+            is not None
+            and not isinstance(
+                account_state_manager_v2,
+                AccountStateManagerV2,
+            )
+        ):
+            raise TypeError(
+                "account_state_manager_v2 debe ser "
+                "AccountStateManagerV2."
+            )
+
+        self.account_state_manager_v2 = (
+            account_state_manager_v2
+        )
+
+
         self._open_positions = {}
 
         self._closed_positions = []
+
+    def _sync_account_state(
+        self,
+    ) -> dict[str, object] | None:
+        if (
+            self.account_state_manager_v2
+            is None
+        ):
+            return None
+
+        summary = {
+            "starting_balance": (
+                self.starting_balance
+            ),
+            "open_positions": len(
+                self._open_positions
+            ),
+            "closed_positions": len(
+                self._closed_positions
+            ),
+            "total_realized_pnl": (
+                self.get_total_realized_pnl()
+            ),
+            "total_unrealized_pnl": (
+                self.get_total_unrealized_pnl()
+            ),
+            "total_pnl": (
+                self.get_total_pnl()
+            ),
+            "account_equity": (
+                self.get_account_equity()
+            ),
+        }
+
+        result = (
+            self.account_state_manager_v2
+            .update_from_portfolio(
+                portfolio_summary=summary,
+            )
+        )
+
+        return result["state"]
 
     def add_position(
         self,
@@ -65,10 +132,15 @@ class PortfolioManagerV2:
             position_id
         ] = deepcopy(position)
 
+        account_state = (
+            self._sync_account_state()
+        )
+
         return {
             "added": True,
             "status": "ADDED",
             "position_id": position_id,
+            "account_state": account_state,
         }
 
     def update_position(
@@ -87,6 +159,10 @@ class PortfolioManagerV2:
             position_id
         ].update(updates)
 
+        account_state = (
+            self._sync_account_state()
+        )
+
         return {
             "updated": True,
             "position": deepcopy(
@@ -94,6 +170,7 @@ class PortfolioManagerV2:
                     position_id
                 ]
             ),
+            "account_state": account_state,
         }
 
     def close_position(
@@ -157,12 +234,17 @@ class PortfolioManagerV2:
             position
         )
 
+        account_state = (
+            self._sync_account_state()
+        )
+
         return {
             "closed": True,
             "status": "CLOSED",
             "position": deepcopy(
                 position
             ),
+            "account_state": account_state,
         }
 
     def get_open_positions(self):
@@ -276,4 +358,11 @@ class PortfolioManagerV2:
                 self.get_total_pnl(),
             "account_equity":
                 self.get_account_equity(),
+            "account_state": (
+                self.account_state_manager_v2
+                .get_state()
+                if self.account_state_manager_v2
+                is not None
+                else None
+            ),
         }
