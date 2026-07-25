@@ -6,6 +6,9 @@ from backend.execution.break_even_engine_v2 import (
 from backend.execution.partial_take_profit_engine_v2 import (
     PartialTakeProfitEngineV2,
 )
+from backend.execution.realized_pnl_engine_v2 import (
+    RealizedPnLEngineV2,
+)
 from backend.execution.trailing_stop_engine_v2 import (
     TrailingStopEngineV2,
 )
@@ -21,10 +24,10 @@ class LivePositionMonitorV2:
     Orden de gestión:
 
     1. Partial Take Profit.
-    2. Break Even.
-    3. Trailing Stop.
-    4. Actualización de PnL.
-    5. Cierre por SL o TP.
+    2. Realized PnL.
+    3. Break Even.
+    4. Trailing Stop.
+    5. Actualización y cierre por SL o TP.
     """
 
     def __init__(
@@ -34,6 +37,9 @@ class LivePositionMonitorV2:
         TradeLifecycleServiceV2,
         partial_take_profit_engine:
         PartialTakeProfitEngineV2
+        | None = None,
+        realized_pnl_engine:
+        RealizedPnLEngineV2
         | None = None,
         break_even_engine:
         BreakEvenEngineV2
@@ -62,6 +68,19 @@ class LivePositionMonitorV2:
             raise TypeError(
                 "partial_take_profit_engine debe ser "
                 "PartialTakeProfitEngineV2."
+            )
+
+        if (
+            realized_pnl_engine
+            is not None
+            and not isinstance(
+                realized_pnl_engine,
+                RealizedPnLEngineV2,
+            )
+        ):
+            raise TypeError(
+                "realized_pnl_engine debe ser "
+                "RealizedPnLEngineV2."
             )
 
         if (
@@ -98,6 +117,10 @@ class LivePositionMonitorV2:
             partial_take_profit_engine
         )
 
+        self.realized_pnl_engine = (
+            realized_pnl_engine
+        )
+
         self.break_even_engine = (
             break_even_engine
         )
@@ -125,9 +148,7 @@ class LivePositionMonitorV2:
         current_price: float,
     ) -> dict[str, object]:
         normalized_symbol = (
-            str(
-                symbol
-            )
+            str(symbol)
             .strip()
             .upper()
         )
@@ -157,6 +178,10 @@ class LivePositionMonitorV2:
         ] = []
 
         partial_take_profit_results: list[
+            dict[str, object]
+        ] = []
+
+        realized_pnl_results: list[
             dict[str, object]
         ] = []
 
@@ -192,6 +217,10 @@ class LivePositionMonitorV2:
             position_for_update = dict(
                 position
             )
+
+            position_for_update[
+                "current_price"
+            ] = normalized_current_price
 
             # ======================================
             # 1. PARTIAL TAKE PROFIT
@@ -230,6 +259,10 @@ class LivePositionMonitorV2:
                         partial_position
                     )
 
+                    position_for_update[
+                        "current_price"
+                    ] = normalized_current_price
+
                     self._persist_position(
                         position=(
                             position_for_update
@@ -237,7 +270,47 @@ class LivePositionMonitorV2:
                     )
 
             # ======================================
-            # 2. BREAK EVEN
+            # 2. REALIZED PNL
+            # ======================================
+
+            if (
+                self.realized_pnl_engine
+                is not None
+            ):
+                realized_result = (
+                    self.realized_pnl_engine.calculate(
+                        position=(
+                            position_for_update
+                        ),
+                    )
+                )
+
+                realized_pnl_results.append(
+                    realized_result
+                )
+
+                pnl_position = (
+                    realized_result.get(
+                        "position"
+                    )
+                )
+
+                if isinstance(
+                    pnl_position,
+                    dict,
+                ):
+                    position_for_update = dict(
+                        pnl_position
+                    )
+
+                    self._persist_position(
+                        position=(
+                            position_for_update
+                        ),
+                    )
+
+            # ======================================
+            # 3. BREAK EVEN
             # ======================================
 
             if (
@@ -280,7 +353,7 @@ class LivePositionMonitorV2:
                     )
 
             # ======================================
-            # 3. TRAILING STOP
+            # 4. TRAILING STOP
             # ======================================
 
             if (
@@ -323,7 +396,7 @@ class LivePositionMonitorV2:
                     )
 
             # ======================================
-            # 4. ACTUALIZACIÓN DE LA POSICIÓN
+            # 5. ACTUALIZACIÓN DE LA POSICIÓN
             # ======================================
 
             result = (
@@ -387,6 +460,9 @@ class LivePositionMonitorV2:
             ),
             "partial_take_profit_results": (
                 partial_take_profit_results
+            ),
+            "realized_pnl_results": (
+                realized_pnl_results
             ),
             "break_even_results": (
                 break_even_results
