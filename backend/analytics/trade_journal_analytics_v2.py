@@ -161,19 +161,18 @@ class TradeJournalAnalyticsV2:
             10,
         )
 
-        profit_factor = (
-            round(
+        profit_factor: float | None
+
+        if gross_profit == 0:
+            profit_factor = 0.0
+        elif gross_loss == 0:
+            profit_factor = None
+        else:
+            profit_factor = round(
                 gross_profit
                 / gross_loss,
                 10,
             )
-            if gross_loss > 0
-            else (
-                float("inf")
-                if gross_profit > 0
-                else 0.0
-            )
-        )
 
         expectancy = round(
             (

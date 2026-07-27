@@ -67,12 +67,16 @@ class PerformanceScoreEngineV2:
             )
         )
 
-        profit_factor = float(
-            analytics.get(
-                "profit_factor",
-                0.0,
-            )
+        raw_profit_factor = analytics.get(
+            "profit_factor"
         )
+
+        if raw_profit_factor is None:
+            profit_factor = 0.0
+        else:
+            profit_factor = float(
+                raw_profit_factor
+            )
 
         expectancy = float(
             analytics.get(
