@@ -3,6 +3,22 @@ from backend.intelligence.probability_engine_v2 import ProbabilityEngineV2
 from backend.intelligence.confluence_engine_v2 import ConfluenceEngineV2
 from backend.market_analysis.market_regime_engine import MarketRegimeEngine
 from backend.smart_money.smart_money_engine_v2 import SmartMoneyEngineV2
+from backend.account.account_state_manager_v2 import (
+    AccountStateManagerV2,
+)
+from backend.portfolio.portfolio_manager_v2 import (
+    PortfolioManagerV2,
+)
+from backend.journal.trade_journal_v2 import (
+    TradeJournalV2,
+)
+from backend.analytics.trade_journal_analytics_v2 import (
+    TradeJournalAnalyticsV2,
+)
+from backend.analytics.trade_journal_breakdown_analytics_v2 import (
+    TradeJournalBreakdownAnalyticsV2,
+)
+
 from backend.analytics.performance_analytics_v2 import (
     PerformanceAnalyticsV2,
 )
@@ -525,6 +541,34 @@ def create_app(
         )
 
     if trade_lifecycle_service_v2 is None:
+        account_state_manager_v2 = (
+            AccountStateManagerV2(
+                starting_balance=17000.0,
+                maximum_daily_loss=3000.0,
+                maximum_total_drawdown=4500.0,
+            )
+        )
+
+        portfolio_manager_v2 = (
+            PortfolioManagerV2(
+                starting_balance=17000.0,
+                account_state_manager_v2=(
+                    account_state_manager_v2
+                ),
+            )
+        )
+
+        trade_journal_v2 = (
+            TradeJournalV2(
+                analytics_v2=(
+                    TradeJournalAnalyticsV2()
+                ),
+                breakdown_analytics_v2=(
+                    TradeJournalBreakdownAnalyticsV2()
+                ),
+            )
+        )
+
         trade_lifecycle_service_v2 = (
             TradeLifecycleServiceV2(
                 execution_manager=(
@@ -552,6 +596,12 @@ def create_app(
                         risk_free_rate=0.0,
                         trading_days_per_year=252,
                     )
+                ),
+                portfolio_manager_v2=(
+                    portfolio_manager_v2
+                ),
+                trade_journal_v2=(
+                    trade_journal_v2
                 ),
                 starting_balance=17000.0,
             )
@@ -672,6 +722,18 @@ def create_app(
         if lifecycle_portfolio_manager_v2
         is not None
         else None
+    )
+
+    app.state.account_state_manager_v2 = (
+        lifecycle_account_state_manager_v2
+    )
+
+    app.state.portfolio_manager_v2 = (
+        lifecycle_portfolio_manager_v2
+    )
+
+    app.state.trade_journal_v2 = (
+        lifecycle_trade_journal_v2
     )
 
     app.state.performance_dashboard_engine_v2 = (
