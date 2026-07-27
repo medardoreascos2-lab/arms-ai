@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from datetime import timezone
+
 from backend.execution.break_even_engine_v2 import (
     BreakEvenEngineV2,
 )
@@ -508,6 +511,69 @@ class LivePositionMonitorV2:
                             normalized_current_price
                         ),
                     )
+
+                trade_journal_v2 = getattr(
+                    self.trade_lifecycle_service,
+                    "trade_journal_v2",
+                    None,
+                )
+
+                if trade_journal_v2 is not None:
+                    position_id = str(
+                        result_position[
+                            "position_id"
+                        ]
+                    )
+
+                    matching_trade = next(
+                        (
+                            trade
+                            for trade
+                            in trade_journal_v2
+                            .get_open_trades()
+                            if str(
+                                trade.get(
+                                    "position_id",
+                                    "",
+                                )
+                            )
+                            == position_id
+                        ),
+                        None,
+                    )
+
+                    if matching_trade is not None:
+                        trade_journal_v2.close_trade(
+                            trade_id=str(
+                                matching_trade[
+                                    "trade_id"
+                                ]
+                            ),
+                            exit_price=float(
+                                result_position.get(
+                                    "exit_price",
+                                    normalized_current_price,
+                                )
+                                or normalized_current_price
+                            ),
+                            exit_time=datetime.now(
+                                timezone.utc
+                            ),
+                            exit_reason=str(
+                                result_position.get(
+                                    "close_reason",
+                                    "MARKET_UPDATE",
+                                )
+                                or "MARKET_UPDATE"
+                            ),
+                            point_value=float(
+                                result_position.get(
+                                    "point_value",
+                                    1.0,
+                                )
+                                or 1.0
+                            ),
+                        )
 
                 performance_metrics = (
                     result.get(
