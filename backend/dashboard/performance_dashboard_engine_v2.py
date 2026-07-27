@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from backend.performance.performance_score_engine_v2 import (
+    PerformanceScoreEngineV2,
+)
+
+
 
 class PerformanceDashboardEngineV2:
 
@@ -9,6 +14,7 @@ class PerformanceDashboardEngineV2:
         account_state_manager_v2=None,
         portfolio_manager_v2=None,
         trade_journal_v2=None,
+        performance_score_engine_v2=None,
     ) -> None:
 
         if (
@@ -57,6 +63,23 @@ class PerformanceDashboardEngineV2:
 
         self.trade_journal_v2 = (
             trade_journal_v2
+        )
+
+        if (
+            performance_score_engine_v2
+            is not None
+            and not isinstance(
+                performance_score_engine_v2,
+                PerformanceScoreEngineV2,
+            )
+        ):
+            raise TypeError(
+                "performance_score_engine_v2 debe ser "
+                "PerformanceScoreEngineV2."
+            )
+
+        self.performance_score_engine_v2 = (
+            performance_score_engine_v2
         )
 
     def build(
@@ -159,6 +182,20 @@ class PerformanceDashboardEngineV2:
             else None
         )
 
+
+        performance_score = (
+            self.performance_score_engine_v2.calculate(
+                dashboard={
+                    "dashboard_status": dashboard_status,
+                    "account_state": account_state,
+                    "analytics": analytics,
+                },
+            )
+            if self.performance_score_engine_v2
+            is not None
+            else None
+        )
+
         return {
             "account_state":
                 account_state,
@@ -176,6 +213,8 @@ class PerformanceDashboardEngineV2:
                 performance_overview,
             "risk_status":
                 risk_status,
+            "performance_score":
+                performance_score,
             "dashboard_status":
                 dashboard_status,
         }

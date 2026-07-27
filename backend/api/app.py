@@ -12,6 +12,21 @@ from backend.analytics.trade_history_manager_v2 import (
 from backend.api.trade_lifecycle_api_v2 import (
     create_trade_lifecycle_router_v2,
 )
+from backend.api.performance_dashboard_api_v2 import (
+    create_performance_dashboard_router_v2,
+)
+from backend.api.dashboard_live_api_v2 import (
+    create_dashboard_live_router_v2,
+)
+from backend.dashboard.performance_dashboard_engine_v2 import (
+    PerformanceDashboardEngineV2,
+)
+from backend.dashboard.dashboard_live_data_service_v2 import (
+    DashboardLiveDataServiceV2,
+)
+from backend.performance.performance_score_engine_v2 import (
+    PerformanceScoreEngineV2,
+)
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
@@ -24,6 +39,123 @@ from backend.execution.position_manager_v2 import (
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
+
+
+from backend.api.dashboard_widgets_api_v2 import (
+    create_dashboard_widgets_router_v2,
+)
+
+from backend.dashboard.widgets.dashboard_widget_registry_v2 import (
+    DashboardWidgetRegistryV2,
+)
+
+from backend.dashboard.widgets.performance_score_widget_v2 import (
+    PerformanceScoreWidgetV2,
+)
+
+from backend.dashboard.widgets.account_overview_widget_v2 import (
+    AccountOverviewWidgetV2,
+)
+
+from backend.dashboard.widgets.risk_status_widget_v2 import (
+    RiskStatusWidgetV2,
+)
+
+from backend.dashboard.widgets.performance_overview_widget_v2 import (
+    PerformanceOverviewWidgetV2,
+)
+
+from backend.dashboard.widgets.portfolio_summary_widget_v2 import (
+    PortfolioSummaryWidgetV2,
+)
+
+from backend.dashboard.widgets.trade_journal_summary_widget_v2 import (
+    TradeJournalSummaryWidgetV2,
+)
+
+from backend.dashboard.widgets.analytics_widget_v2 import (
+    AnalyticsWidgetV2,
+)
+
+from backend.dashboard.widgets.breakdown_widget_v2 import (
+    BreakdownWidgetV2,
+)
+
+
+
+from backend.dashboard.trade_lifecycle_dashboard_event_publisher_v2 import (
+    TradeLifecycleDashboardEventPublisherV2,
+)
+
+
+from backend.dashboard.risk_dashboard_event_publisher_v2 import (
+    RiskDashboardEventPublisherV2,
+)
+
+from backend.dashboard.dashboard_event_bus_v2 import (
+    DashboardEventBusV2,
+)
+
+from backend.dashboard.dashboard_refresh_service_v2 import (
+    DashboardRefreshServiceV2,
+)
+
+from backend.dashboard.dashboard_event_dispatcher_v2 import (
+    DashboardEventDispatcherV2,
+)
+
+from backend.dashboard.dashboard_auto_refresh_engine_v2 import (
+    DashboardAutoRefreshEngineV2,
+)
+
+
+
+
+
+from backend.dashboard.dashboard_websocket_broadcaster_v2 import (
+    DashboardWebSocketBroadcasterV2,
+)
+
+from backend.dashboard.dashboard_websocket_hub_v2 import (
+    DashboardWebSocketHubV2,
+)
+
+from backend.api.dashboard_websocket_api_v2 import (
+    create_dashboard_websocket_router_v2,
+)
+
+
+
+from backend.services.live_position_monitor_v2 import (
+    LivePositionMonitorV2,
+)
+
+
+from backend.services.price_feed_service_v2 import (
+    PriceFeedServiceV2,
+)
+
+
+from backend.market_data.market_data_hub_v2 import (
+    MarketDataHubV2,
+)
+
+from backend.execution.partial_take_profit_engine_v2 import (
+    PartialTakeProfitEngineV2,
+)
+
+from backend.execution.realized_pnl_engine_v2 import (
+    RealizedPnLEngineV2,
+)
+
+from backend.execution.break_even_engine_v2 import (
+    BreakEvenEngineV2,
+)
+
+from backend.execution.trailing_stop_engine_v2 import (
+    TrailingStopEngineV2,
+)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -519,6 +651,264 @@ def create_app(
         trade_lifecycle_service_v2
     )
 
+    lifecycle_portfolio_manager_v2 = getattr(
+        app.state.trade_lifecycle_service_v2,
+        "portfolio_manager_v2",
+        None,
+    )
+
+    lifecycle_trade_journal_v2 = getattr(
+        app.state.trade_lifecycle_service_v2,
+        "trade_journal_v2",
+        None,
+    )
+
+    lifecycle_account_state_manager_v2 = (
+        getattr(
+            lifecycle_portfolio_manager_v2,
+            "account_state_manager_v2",
+            None,
+        )
+        if lifecycle_portfolio_manager_v2
+        is not None
+        else None
+    )
+
+    app.state.performance_dashboard_engine_v2 = (
+        PerformanceDashboardEngineV2(
+            account_state_manager_v2=(
+                lifecycle_account_state_manager_v2
+            ),
+            portfolio_manager_v2=(
+                lifecycle_portfolio_manager_v2
+            ),
+            trade_journal_v2=(
+                lifecycle_trade_journal_v2
+            ),
+            performance_score_engine_v2=(
+                PerformanceScoreEngineV2()
+            ),
+        )
+    )
+
+    app.state.dashboard_live_data_service_v2 = (
+        DashboardLiveDataServiceV2(
+            dashboard_engine_v2=(
+                app.state
+                .performance_dashboard_engine_v2
+            ),
+        )
+    )
+
+    app.state.live_position_monitor_v2 = (
+        LivePositionMonitorV2(
+            trade_lifecycle_service=(
+                app.state.trade_lifecycle_service_v2
+            ),
+            partial_take_profit_engine=(
+                PartialTakeProfitEngineV2(
+                    trigger_profit_points=20.0,
+                    close_fraction=0.50,
+                )
+            ),
+            realized_pnl_engine=(
+                RealizedPnLEngineV2(
+                    point_value=2.0,
+                )
+            ),
+            break_even_engine=(
+                BreakEvenEngineV2(
+                    trigger_profit_points=15.0,
+                    offset_points=1.0,
+                )
+            ),
+            trailing_stop_engine=(
+                TrailingStopEngineV2(
+                    activation_profit_points=30.0,
+                    trailing_distance_points=10.0,
+                )
+            ),
+            portfolio_manager_v2=(
+                lifecycle_portfolio_manager_v2
+            ),
+        )
+    )
+
+
+    app.state.price_feed_service_v2 = (
+        PriceFeedServiceV2(
+            live_position_monitor_v2=(
+                app.state.live_position_monitor_v2
+            ),
+        )
+    )
+
+
+    app.state.market_data_hub_v2 = (
+        MarketDataHubV2(
+            price_feed_service_v2=(
+                app.state.price_feed_service_v2
+            ),
+            reject_duplicates=True,
+        )
+    )
+
+
+    app.state.dashboard_widget_registry_v2 = (
+        DashboardWidgetRegistryV2(
+            widgets=[
+                PerformanceScoreWidgetV2(
+                    dashboard_live_data_service_v2=(
+                        app.state
+                        .dashboard_live_data_service_v2
+                    ),
+                ),
+                AccountOverviewWidgetV2(
+                    dashboard_live_data_service_v2=(
+                        app.state
+                        .dashboard_live_data_service_v2
+                    ),
+                ),
+                RiskStatusWidgetV2(
+                    dashboard_live_data_service_v2=(
+                        app.state
+                        .dashboard_live_data_service_v2
+                    ),
+                ),
+                PerformanceOverviewWidgetV2(
+                    dashboard_live_data_service_v2=(
+                        app.state
+                        .dashboard_live_data_service_v2
+                    ),
+                ),
+                PortfolioSummaryWidgetV2(
+                    dashboard_live_data_service_v2=(
+                        app.state
+                        .dashboard_live_data_service_v2
+                    ),
+                ),
+                TradeJournalSummaryWidgetV2(
+                    dashboard_live_data_service_v2=(
+                        app.state
+                        .dashboard_live_data_service_v2
+                    ),
+                ),
+                AnalyticsWidgetV2(
+                    dashboard_live_data_service_v2=(
+                        app.state
+                        .dashboard_live_data_service_v2
+                    ),
+                ),
+                BreakdownWidgetV2(
+                    dashboard_live_data_service_v2=(
+                        app.state
+                        .dashboard_live_data_service_v2
+                    ),
+                ),
+            ],
+        )
+    )
+
+    app.state.dashboard_event_bus_v2 = (
+        DashboardEventBusV2()
+    )
+
+
+    app.state.dashboard_trade_event_publisher_v2 = (
+        TradeLifecycleDashboardEventPublisherV2(
+            event_bus_v2=(
+                app.state.dashboard_event_bus_v2
+            ),
+        )
+    )
+
+    app.state.trade_lifecycle_service_v2.dashboard_event_publisher_v2 = (
+        app.state.dashboard_trade_event_publisher_v2
+    )
+
+
+    app.state.dashboard_risk_event_publisher_v2 = (
+        RiskDashboardEventPublisherV2(
+            event_bus_v2=(
+                app.state.dashboard_event_bus_v2
+            ),
+        )
+    )
+
+    app.state.trade_lifecycle_service_v2.risk_dashboard_event_publisher_v2 = (
+        app.state.dashboard_risk_event_publisher_v2
+    )
+
+    app.state.dashboard_refresh_service_v2 = (
+        DashboardRefreshServiceV2(
+            live_data_service_v2=(
+                app.state
+                .dashboard_live_data_service_v2
+            ),
+            widget_registry_v2=(
+                app.state
+                .dashboard_widget_registry_v2
+            ),
+        )
+    )
+
+    app.state.dashboard_websocket_hub_v2 = (
+        DashboardWebSocketHubV2()
+    )
+
+    app.state.dashboard_websocket_broadcaster_v2 = (
+        DashboardWebSocketBroadcasterV2(
+            refresh_service_v2=(
+                app.state
+                .dashboard_refresh_service_v2
+            ),
+            websocket_hub_v2=(
+                app.state
+                .dashboard_websocket_hub_v2
+            ),
+        )
+    )
+
+    app.state.dashboard_event_dispatcher_v2 = (
+        DashboardEventDispatcherV2(
+            event_bus_v2=(
+                app.state
+                .dashboard_event_bus_v2
+            ),
+            refresh_service_v2=(
+                app.state
+                .dashboard_refresh_service_v2
+            ),
+            websocket_broadcaster_v2=(
+                app.state
+                .dashboard_websocket_broadcaster_v2
+            ),
+        )
+    )
+
+    app.state.dashboard_auto_refresh_engine_v2 = (
+        DashboardAutoRefreshEngineV2(
+            event_bus_v2=(
+                app.state
+                .dashboard_event_bus_v2
+            ),
+            event_dispatcher_v2=(
+                app.state
+                .dashboard_event_dispatcher_v2
+            ),
+            refresh_service_v2=(
+                app.state
+                .dashboard_refresh_service_v2
+            ),
+        )
+    )
+
+    app.state.dashboard_auto_refresh_start_result_v2 = (
+        app.state
+        .dashboard_auto_refresh_engine_v2
+        .start()
+    )
+
     app.state.webhook_token = (
         settings.webhook_token
     )
@@ -561,6 +951,44 @@ def create_app(
             ),
         )
     )
+
+    app.include_router(
+        create_performance_dashboard_router_v2(
+            dashboard_engine_v2=(
+                app.state
+                .performance_dashboard_engine_v2
+            ),
+        )
+    )
+
+    app.include_router(
+        create_dashboard_live_router_v2(
+            live_data_service_v2=(
+                app.state.dashboard_live_data_service_v2
+            ),
+        )
+    )
+
+
+    app.include_router(
+        create_dashboard_widgets_router_v2(
+            widget_registry_v2=(
+                app.state.dashboard_widget_registry_v2
+            ),
+        )
+    )
+
+    app.include_router(
+        create_dashboard_websocket_router_v2(
+            websocket_hub_v2=(
+                app.state.dashboard_websocket_hub_v2
+            ),
+            live_data_service_v2=(
+                app.state.dashboard_live_data_service_v2
+            ),
+        )
+    )
+
 
     @app.get("/health")
     def health() -> dict[str, str]:

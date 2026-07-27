@@ -292,6 +292,40 @@ def receive_market_webhook(
 
         analysis_generated = True
 
+
+    market_data_result = (
+        request.app.state
+        .market_data_hub_v2
+        .process_market_price(
+            symbol=candle.symbol,
+            current_price=candle.close,
+            source="TRADINGVIEW_WEBHOOK",
+        )
+    )
+
+    price_feed_result = (
+        market_data_result.get(
+            "price_feed_result"
+        )
+        or {}
+    )
+
+    monitor_result = (
+        price_feed_result.get(
+            "monitor_result"
+        )
+    )
+
+    if (
+        isinstance(
+            position_monitor_result,
+            dict,
+        )
+    ):
+        position_monitor_result[
+            "live_position_monitor"
+        ] = monitor_result
+
     return {
         "status": "stored",
         "symbol": candle.symbol,
@@ -304,6 +338,12 @@ def receive_market_webhook(
             timeframe=candle.timeframe,
         ),
         "analysis_generated": analysis_generated,
+        "market_data": (
+            market_data_result
+        ),
+        "price_feed": (
+            price_feed_result
+        ),
         "position_monitor": (
             position_monitor_result
         ),

@@ -42,6 +42,16 @@ from backend.portfolio.portfolio_manager_v2 import (
 )
 
 
+from backend.dashboard.trade_lifecycle_dashboard_event_publisher_v2 import (
+    TradeLifecycleDashboardEventPublisherV2,
+)
+
+
+from backend.dashboard.risk_dashboard_event_publisher_v2 import (
+    RiskDashboardEventPublisherV2,
+)
+
+
 class TradeLifecycleServiceV2:
     """
     Orquesta el ciclo completo de una operación:
@@ -81,6 +91,12 @@ class TradeLifecycleServiceV2:
         | None = None,
         trade_journal_v2:
         TradeJournalV2
+        | None = None,
+        dashboard_event_publisher_v2:
+        TradeLifecycleDashboardEventPublisherV2
+        | None = None,
+        risk_dashboard_event_publisher_v2:
+        RiskDashboardEventPublisherV2
         | None = None,
     ) -> None:
         if not isinstance(
@@ -263,6 +279,42 @@ class TradeLifecycleServiceV2:
 
         self.trade_journal_v2 = (
             trade_journal_v2
+        )
+
+
+        if (
+            dashboard_event_publisher_v2
+            is not None
+            and not isinstance(
+                dashboard_event_publisher_v2,
+                TradeLifecycleDashboardEventPublisherV2,
+            )
+        ):
+            raise TypeError(
+                "dashboard_event_publisher_v2 debe ser "
+                "TradeLifecycleDashboardEventPublisherV2."
+            )
+
+        self.dashboard_event_publisher_v2 = (
+            dashboard_event_publisher_v2
+        )
+
+
+        if (
+            risk_dashboard_event_publisher_v2
+            is not None
+            and not isinstance(
+                risk_dashboard_event_publisher_v2,
+                RiskDashboardEventPublisherV2,
+            )
+        ):
+            raise TypeError(
+                "risk_dashboard_event_publisher_v2 debe ser "
+                "RiskDashboardEventPublisherV2."
+            )
+
+        self.risk_dashboard_event_publisher_v2 = (
+            risk_dashboard_event_publisher_v2
         )
 
 
@@ -453,6 +505,28 @@ class TradeLifecycleServiceV2:
                     ),
                 )
             )
+
+
+            if (
+                self.risk_dashboard_event_publisher_v2
+                is not None
+            ):
+                risk_payload = dict(
+                    risk_evaluation
+                )
+
+                risk_payload[
+                    "trading_blocked"
+                ] = not bool(
+                    risk_evaluation.get(
+                        "approved",
+                        False,
+                    )
+                )
+
+                self.risk_dashboard_event_publisher_v2.publish_risk_updated(
+                    risk=risk_payload,
+                )
 
             if not bool(
                 risk_evaluation.get(
@@ -664,6 +738,17 @@ class TradeLifecycleServiceV2:
                     ),
                 )
             )
+
+
+            if (
+                self.risk_dashboard_event_publisher_v2
+                is not None
+            ):
+                self.risk_dashboard_event_publisher_v2.publish_open_risk_updated(
+                    open_risk=dict(
+                        portfolio_risk_evaluation
+                    ),
+                )
 
             if not bool(
                 portfolio_risk_evaluation.get(
@@ -959,6 +1044,27 @@ class TradeLifecycleServiceV2:
                         .get_summary()
                     )
 
+
+                if (
+                    self.dashboard_event_publisher_v2
+                    is not None
+                ):
+                    self.dashboard_event_publisher_v2.publish_trade_opened(
+                        trade=dict(
+                            opened_position
+                        ),
+                    )
+
+                    if (
+                        portfolio_summary
+                        is not None
+                    ):
+                        self.dashboard_event_publisher_v2.publish_portfolio_updated(
+                            portfolio=dict(
+                                portfolio_summary
+                            ),
+                        )
+
         accepted = (
             not signal_blocked
             and bool(
@@ -1088,12 +1194,49 @@ class TradeLifecycleServiceV2:
                 self.get_performance_metrics()
             )
 
+
+            if (
+                self.dashboard_event_publisher_v2
+                is not None
+            ):
+                self.dashboard_event_publisher_v2.publish_trade_closed(
+                    trade=dict(
+                        updated_position
+                    ),
+                )
+
+                self.dashboard_event_publisher_v2.publish_position_updated(
+                    position=dict(
+                        updated_position
+                    ),
+                )
+
+                if (
+                    performance_metrics
+                    is not None
+                ):
+                    self.dashboard_event_publisher_v2.publish_portfolio_updated(
+                        portfolio=dict(
+                            performance_metrics
+                        ),
+                    )
+
         else:
             self._active_positions[
                 normalized_position_id
             ] = dict(
                 updated_position
             )
+
+            if (
+                self.dashboard_event_publisher_v2
+                is not None
+            ):
+                self.dashboard_event_publisher_v2.publish_position_updated(
+                    position=dict(
+                        updated_position
+                    ),
+                )
 
         return {
             "updated": True,
