@@ -300,6 +300,8 @@ def receive_market_webhook(
             symbol=candle.symbol,
             current_price=candle.close,
             source="TRADINGVIEW_WEBHOOK",
+            timeframe=candle.timeframe,
+            timestamp=candle.timestamp,
         )
     )
 

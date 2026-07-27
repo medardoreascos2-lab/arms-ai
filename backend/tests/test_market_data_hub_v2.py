@@ -353,3 +353,78 @@ def test_state_is_a_copy():
     fresh_state = hub.get_state()
 
     assert fresh_state["message_count"] == 0
+
+
+class FakeMarketStateEngine:
+
+    def __init__(self):
+        self.calls = []
+
+    def update(
+        self,
+        *,
+        symbol,
+        timeframe,
+        price,
+        timestamp,
+    ):
+        self.calls.append(
+            {
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "price": price,
+                "timestamp": timestamp,
+            }
+        )
+
+
+def test_updates_market_state_after_processing_price():
+    from datetime import datetime
+    from datetime import timezone
+
+    price_feed = FakePriceFeedService()
+    market_state = FakeMarketStateEngine()
+
+    hub = MarketDataHubV2(
+        price_feed_service_v2=price_feed,
+        market_state_engine_v2=market_state,
+    )
+
+    timestamp = datetime(
+        2026,
+        7,
+        27,
+        20,
+        30,
+        tzinfo=timezone.utc,
+    )
+
+    result = hub.process_market_price(
+        symbol=" nq ",
+        current_price=23000.25,
+        source=" tradingview ",
+        timeframe=" 1m ",
+        timestamp=timestamp,
+    )
+
+    assert result["processed"] is True
+
+    assert (
+        result["market_state_updated"]
+        is True
+    )
+
+    assert (
+        result["market_state_error"]
+        is False
+    )
+
+    assert market_state.calls == [
+        {
+            "symbol": "NQ",
+            "timeframe": "1M",
+            "price": 23000.25,
+            "timestamp": timestamp,
+        }
+    ]
+

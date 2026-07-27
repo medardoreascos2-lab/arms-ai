@@ -11,6 +11,7 @@ class MarketDataHubV2:
         self,
         *,
         price_feed_service_v2=None,
+        market_state_engine_v2=None,
         reject_duplicates: bool = True,
     ) -> None:
 
@@ -30,6 +31,22 @@ class MarketDataHubV2:
                 "implementar process_price()."
             )
 
+        if (
+            market_state_engine_v2
+            is not None
+            and not callable(
+                getattr(
+                    market_state_engine_v2,
+                    "update",
+                    None,
+                )
+            )
+        ):
+            raise TypeError(
+                "market_state_engine_v2 debe "
+                "implementar update()."
+            )
+
         if not isinstance(
             reject_duplicates,
             bool,
@@ -40,6 +57,10 @@ class MarketDataHubV2:
 
         self.price_feed_service_v2 = (
             price_feed_service_v2
+        )
+
+        self.market_state_engine_v2 = (
+            market_state_engine_v2
         )
 
         self.reject_duplicates = (
@@ -68,6 +89,8 @@ class MarketDataHubV2:
         symbol: str,
         current_price: float,
         source: str,
+        timeframe: str | None = None,
+        timestamp: datetime | None = None,
     ) -> dict[str, object]:
 
         normalized_symbol = (
@@ -102,10 +125,51 @@ class MarketDataHubV2:
                 "source es obligatorio."
             )
 
-        received_at = (
-            datetime.now(
+        normalized_timeframe = (
+            str(
+                timeframe
+                or "UNKNOWN"
+            )
+            .strip()
+            .upper()
+        )
+
+        if not normalized_timeframe:
+            raise ValueError(
+                "timeframe no puede estar vacío."
+            )
+
+        if (
+            timestamp is not None
+            and not isinstance(
+                timestamp,
+                datetime,
+            )
+        ):
+            raise TypeError(
+                "timestamp debe ser datetime."
+            )
+
+        received_datetime = (
+            timestamp
+            if timestamp is not None
+            else datetime.now(
                 timezone.utc
-            ).isoformat()
+            )
+        )
+
+        if (
+            received_datetime.tzinfo
+            is None
+        ):
+            received_datetime = (
+                received_datetime.replace(
+                    tzinfo=timezone.utc
+                )
+            )
+
+        received_at = (
+            received_datetime.isoformat()
         )
 
         self._state["message_count"] += 1
@@ -150,7 +214,10 @@ class MarketDataHubV2:
                 "symbol": normalized_symbol,
                 "current_price": normalized_price,
                 "source": normalized_source,
+                "timeframe": normalized_timeframe,
                 "received_at": received_at,
+                "market_state_updated": False,
+                "market_state_error": False,
                 "price_feed_result": None,
             }
 
@@ -165,7 +232,10 @@ class MarketDataHubV2:
                 "symbol": normalized_symbol,
                 "current_price": normalized_price,
                 "source": normalized_source,
+                "timeframe": normalized_timeframe,
                 "received_at": received_at,
+                "market_state_updated": False,
+                "market_state_error": False,
                 "price_feed_result": None,
             }
 
@@ -203,9 +273,40 @@ class MarketDataHubV2:
                 "symbol": normalized_symbol,
                 "current_price": normalized_price,
                 "source": normalized_source,
+                "timeframe": normalized_timeframe,
                 "received_at": received_at,
+                "market_state_updated": False,
+                "market_state_error": False,
                 "price_feed_result": None,
             }
+
+        market_state_updated = False
+        market_state_error = False
+
+        if (
+            self.market_state_engine_v2
+            is not None
+        ):
+            try:
+                self.market_state_engine_v2.update(
+                    symbol=normalized_symbol,
+                    timeframe=(
+                        normalized_timeframe
+                    ),
+                    price=normalized_price,
+                    timestamp=(
+                        received_datetime
+                    ),
+                )
+
+                market_state_updated = True
+
+            except Exception:
+                self._state[
+                    "error_count"
+                ] += 1
+
+                market_state_error = True
 
         self._last_prices[
             duplicate_key
@@ -223,7 +324,14 @@ class MarketDataHubV2:
             "symbol": normalized_symbol,
             "current_price": normalized_price,
             "source": normalized_source,
+            "timeframe": normalized_timeframe,
             "received_at": received_at,
+            "market_state_updated": (
+                market_state_updated
+            ),
+            "market_state_error": (
+                market_state_error
+            ),
             "price_feed_result": deepcopy(
                 price_feed_result
             ),

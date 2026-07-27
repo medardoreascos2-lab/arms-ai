@@ -156,6 +156,10 @@ from backend.market_data.market_data_hub_v2 import (
     MarketDataHubV2,
 )
 
+from backend.market_state.market_state_engine_v2 import (
+    MarketStateEngineV2,
+)
+
 from backend.execution.partial_take_profit_engine_v2 import (
     PartialTakeProfitEngineV2,
 )
@@ -806,10 +810,17 @@ def create_app(
     )
 
 
+    app.state.market_state_engine_v2 = (
+        MarketStateEngineV2()
+    )
+
     app.state.market_data_hub_v2 = (
         MarketDataHubV2(
             price_feed_service_v2=(
                 app.state.price_feed_service_v2
+            ),
+            market_state_engine_v2=(
+                app.state.market_state_engine_v2
             ),
             reject_duplicates=True,
         )
