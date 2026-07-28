@@ -71,6 +71,9 @@ from backend.intelligence.confluence_engine_v2 import (
 from backend.intelligence.probability_engine_v2 import (
     ProbabilityEngineV2,
 )
+from backend.intelligence.decision_council_v2 import (
+    DecisionCouncilV2,
+)
 from backend.execution.trade_execution_engine import (
     TradeExecutionEngine,
 )
@@ -155,6 +158,9 @@ class LiveMarketAnalysisService:
         | None = None,
         probability_engine_v2:
         ProbabilityEngineV2
+        | None = None,
+        decision_council_v2:
+        DecisionCouncilV2
         | None = None,
         trade_validator_v2:
         TradeValidatorV2
@@ -394,6 +400,23 @@ class LiveMarketAnalysisService:
 
         self.probability_engine_v2 = (
             probability_engine_v2
+        )
+
+        if (
+            decision_council_v2
+            is not None
+            and not isinstance(
+                decision_council_v2,
+                DecisionCouncilV2,
+            )
+        ):
+            raise TypeError(
+                "decision_council_v2 debe ser "
+                "DecisionCouncilV2."
+            )
+
+        self.decision_council_v2 = (
+            decision_council_v2
         )
 
         if (
@@ -1148,6 +1171,276 @@ class LiveMarketAnalysisService:
         }
 
 
+    def _select_trade_plan_decision(
+        self,
+        result: dict[str, object],
+    ) -> str:
+        council = result.get(
+            "decision_council_v2"
+        )
+
+        execution = result.get(
+            "execution_v2"
+        )
+
+        raw_decision: object = None
+
+        if isinstance(
+            council,
+            dict,
+        ):
+            raw_decision = council.get(
+                "decision"
+            )
+
+        if not raw_decision and isinstance(
+            execution,
+            dict,
+        ):
+            raw_decision = execution.get(
+                "decision"
+            )
+
+        decision = str(
+            raw_decision
+            or "WAIT"
+        ).strip().upper()
+
+        allowed_decisions = {
+            "EXECUTE_LONG",
+            "EXECUTE_SHORT",
+            "WAIT",
+            "BLOCK",
+            "REJECT",
+        }
+
+        if decision not in allowed_decisions:
+            return "WAIT"
+
+        return decision
+
+    def _evaluate_decision_council_v2(
+        self,
+        result: dict[str, object],
+    ) -> dict[str, object]:
+        if self.decision_council_v2 is None:
+            raise RuntimeError(
+                "DecisionCouncilV2 "
+                "no está configurado."
+            )
+
+        execution = dict(
+            result.get(
+                "execution_v2",
+                {},
+            )
+            or {}
+        )
+
+        probability = dict(
+            result.get(
+                "probability_v2",
+                {},
+            )
+            or {}
+        )
+
+        confluence = dict(
+            result.get(
+                "confluence_v2",
+                {},
+            )
+            or {}
+        )
+
+        market_regime = dict(
+            result.get(
+                "market_regime",
+                {},
+            )
+            or {}
+        )
+
+        execution_decision = str(
+            execution.get(
+                "decision",
+                "",
+            )
+        ).strip().upper()
+
+        execution_direction = str(
+            execution.get(
+                "direction",
+                "",
+            )
+        ).strip().upper()
+
+        if execution_direction not in {
+            "LONG",
+            "SHORT",
+            "BUY",
+            "SELL",
+        }:
+            if execution_decision == "EXECUTE_LONG":
+                execution_direction = "LONG"
+            elif execution_decision == "EXECUTE_SHORT":
+                execution_direction = "SHORT"
+
+        trend_text = str(
+            result.get(
+                "trend",
+                "",
+            )
+        ).strip().upper()
+
+        if trend_text in {
+            "ALCISTA",
+            "BULLISH",
+            "LONG",
+            "BUY",
+        }:
+            trend_direction = "BULLISH"
+        elif trend_text in {
+            "BAJISTA",
+            "BEARISH",
+            "SHORT",
+            "SELL",
+        }:
+            trend_direction = "BEARISH"
+        else:
+            trend_direction = (
+                execution_direction
+                or "NEUTRAL"
+            )
+
+        probability_inputs = dict(
+            probability.get(
+                "inputs",
+                {},
+            )
+            or {}
+        )
+
+        trend_confidence = (
+            probability_inputs.get(
+                "trend_score",
+                0.0,
+            )
+        )
+
+        trend_result = {
+            "status": "READY",
+            "direction": trend_direction,
+            "confidence": trend_confidence,
+        }
+
+        market_regime_result = dict(
+            market_regime
+        )
+
+        market_regime_result.setdefault(
+            "direction",
+            execution_direction
+            or trend_direction,
+        )
+
+        market_regime_result.setdefault(
+            "confidence",
+            market_regime_result.get(
+                "score",
+                0.50,
+            ),
+        )
+
+        probability_result = dict(
+            probability
+        )
+
+        probability_result.setdefault(
+            "direction",
+            execution_direction
+            or trend_direction,
+        )
+
+        probability_result.setdefault(
+            "confidence",
+            probability_result.get(
+                "probability",
+                0.0,
+            ),
+        )
+
+        confluence_result = dict(
+            confluence
+        )
+
+        confluence_result.setdefault(
+            "direction",
+            execution_direction
+            or trend_direction,
+        )
+
+        confluence_result.setdefault(
+            "confidence",
+            confluence_result.get(
+                "score",
+                0.0,
+            ),
+        )
+
+        execution_result = dict(
+            execution
+        )
+
+        execution_result.setdefault(
+            "direction",
+            execution_direction
+            or trend_direction,
+        )
+
+        execution_result.setdefault(
+            "confidence",
+            probability_result.get(
+                "probability",
+                0.0,
+            ),
+        )
+
+        risk_approved = bool(
+            probability_result.get(
+                "approved",
+                execution_result.get(
+                    "approved",
+                    False,
+                ),
+            )
+        )
+
+        session_allowed = bool(
+            market_regime_result.get(
+                "tradable",
+                True,
+            )
+        )
+
+        return self.decision_council_v2.evaluate(
+            trend_result=trend_result,
+            market_regime_result=(
+                market_regime_result
+            ),
+            probability_result=(
+                probability_result
+            ),
+            confluence_result=(
+                confluence_result
+            ),
+            execution_result=(
+                execution_result
+            ),
+            risk_approved=risk_approved,
+            session_allowed=session_allowed,
+        )
+
     def analyze(
         self,
         *,
@@ -1716,6 +2009,22 @@ class LiveMarketAnalysisService:
 
 
         if (
+            self.decision_council_v2
+            is not None
+            and "execution_v2" in result
+            and "probability_v2" in result
+            and "confluence_v2" in result
+        ):
+            result[
+                "decision_council_v2"
+            ] = (
+                self._evaluate_decision_council_v2(
+                    result
+                )
+            )
+
+
+        if (
             self.trade_planner_v2
             is not None
             and "execution_v2" in result
@@ -1729,6 +2038,12 @@ class LiveMarketAnalysisService:
                 "probability_v2"
             ]
 
+            planner_decision = (
+                self._select_trade_plan_decision(
+                    result
+                )
+            )
+
             current_price = float(
                 result.get(
                     "current_price",
@@ -1737,22 +2052,20 @@ class LiveMarketAnalysisService:
             )
 
             if (
-                execution["decision"]
-                == "EXECUTE_LONG"
+                planner_decision
+                == "EXECUTE_SHORT"
             ):
                 stop_loss = (
-                    current_price - 5.0
+                    current_price + 5.0
                 )
             else:
                 stop_loss = (
-                    current_price + 5.0
+                    current_price - 5.0
                 )
 
             trade_plan = (
                 self.trade_planner_v2.build(
-                    decision=execution[
-                        "decision"
-                    ],
+                    decision=planner_decision,
                     current_price=current_price,
                     stop_loss=stop_loss,
                     contracts=execution.get(
@@ -1778,9 +2091,22 @@ class LiveMarketAnalysisService:
 
             trade_plan[
                 "source_decision"
-            ] = execution[
+            ] = planner_decision
+
+            trade_plan[
+                "source_execution_decision"
+            ] = execution.get(
                 "decision"
-            ]
+            )
+
+            trade_plan[
+                "decision_authority"
+            ] = (
+                "DECISION_COUNCIL_V2"
+                if "decision_council_v2"
+                in result
+                else "EXECUTION_V2"
+            )
 
             result[
                 "trade_plan_v2"

@@ -10,6 +10,9 @@ from backend.intelligence.confluence_engine_v2 import (
 from backend.intelligence.probability_engine_v2 import (
     ProbabilityEngineV2,
 )
+from backend.intelligence.decision_council_v2 import (
+    DecisionCouncilV2,
+)
 from backend.market_analysis.market_regime_engine import (
     MarketRegimeEngine,
 )
@@ -44,6 +47,11 @@ def test_create_app_builds_default_v2_engines():
     assert isinstance(
         app.state.execution_decision_engine_v2,
         ExecutionDecisionEngineV2,
+    )
+
+    assert isinstance(
+        app.state.decision_council_v2,
+        DecisionCouncilV2,
     )
 
 
@@ -170,4 +178,28 @@ def test_create_app_rejects_invalid_v2_engine(
     ):
         create_app(
             **arguments
+        )
+
+
+
+def test_create_app_accepts_custom_decision_council_v2():
+    council = DecisionCouncilV2()
+
+    app = create_app(
+        decision_council_v2=council
+    )
+
+    assert (
+        app.state.decision_council_v2
+        is council
+    )
+
+
+def test_create_app_rejects_invalid_decision_council_v2():
+    with pytest.raises(
+        TypeError,
+        match="decision_council_v2",
+    ):
+        create_app(
+            decision_council_v2=object()
         )

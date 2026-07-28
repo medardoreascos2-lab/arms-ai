@@ -1,6 +1,9 @@
 from backend.execution.execution_decision_engine_v2 import ExecutionDecisionEngineV2
 from backend.intelligence.probability_engine_v2 import ProbabilityEngineV2
 from backend.intelligence.confluence_engine_v2 import ConfluenceEngineV2
+from backend.intelligence.decision_council_v2 import (
+    DecisionCouncilV2,
+)
 from backend.market_analysis.market_regime_engine import MarketRegimeEngine
 from backend.smart_money.smart_money_engine_v2 import SmartMoneyEngineV2
 from backend.account.account_state_manager_v2 import (
@@ -282,6 +285,9 @@ def create_app(
     execution_decision_engine_v2:
     ExecutionDecisionEngineV2
     | None = None,
+    decision_council_v2:
+    DecisionCouncilV2
+    | None = None,
     trade_lifecycle_service_v2:
     TradeLifecycleServiceV2
     | None = None,
@@ -533,6 +539,19 @@ def create_app(
             "ExecutionDecisionEngineV2."
         )
 
+    if (
+        decision_council_v2
+        is not None
+        and not isinstance(
+            decision_council_v2,
+            DecisionCouncilV2,
+        )
+    ):
+        raise TypeError(
+            "decision_council_v2 debe ser "
+            "DecisionCouncilV2."
+        )
+
     # TRADE LIFECYCLE SERVICE V2
 
     if (
@@ -658,6 +677,11 @@ def create_app(
             minimum_probability=0.80,
             minimum_confluence_score=0.80,
         )
+    )
+
+    app.state.decision_council_v2 = (
+        decision_council_v2
+        or DecisionCouncilV2()
     )
 
 
