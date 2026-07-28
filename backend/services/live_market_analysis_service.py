@@ -2599,4 +2599,8 @@ class LiveMarketAnalysisService:
                 )
             )
         
+        self.analysis_store.save(
+            result
+        )
+
         return result

@@ -58,6 +58,15 @@ from backend.execution.execution_manager_v2 import (
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
+from backend.execution.trade_planner_v2 import (
+    TradePlannerV2,
+)
+from backend.execution.trade_validator_v2 import (
+    TradeValidatorV2,
+)
+from backend.signals.signal_generator_v2 import (
+    SignalGeneratorV2,
+)
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
@@ -299,6 +308,15 @@ def create_app(
     | None = None,
     market_context_engine_v2:
     MarketContextEngineV2
+    | None = None,
+    trade_planner_v2:
+    TradePlannerV2
+    | None = None,
+    trade_validator_v2:
+    TradeValidatorV2
+    | None = None,
+    signal_generator_v2:
+    SignalGeneratorV2
     | None = None,
     trade_lifecycle_service_v2:
     TradeLifecycleServiceV2
@@ -591,6 +609,78 @@ def create_app(
             "MarketContextEngineV2."
         )
 
+    # PIPELINE INSTITUCIONAL V2
+
+    if (
+        trade_planner_v2
+        is not None
+        and not isinstance(
+            trade_planner_v2,
+            TradePlannerV2,
+        )
+    ):
+        raise TypeError(
+            "trade_planner_v2 debe ser "
+            "TradePlannerV2."
+        )
+
+    if (
+        trade_validator_v2
+        is not None
+        and not isinstance(
+            trade_validator_v2,
+            TradeValidatorV2,
+        )
+    ):
+        raise TypeError(
+            "trade_validator_v2 debe ser "
+            "TradeValidatorV2."
+        )
+
+    if (
+        signal_generator_v2
+        is not None
+        and not isinstance(
+            signal_generator_v2,
+            SignalGeneratorV2,
+        )
+    ):
+        raise TypeError(
+            "signal_generator_v2 debe ser "
+            "SignalGeneratorV2."
+        )
+
+    if trade_planner_v2 is None:
+        trade_planner_v2 = (
+            TradePlannerV2(
+                minimum_reward_risk_ratio=2.0,
+            )
+        )
+
+    if trade_validator_v2 is None:
+        trade_validator_v2 = (
+            TradeValidatorV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                maximum_spread_points=1.0,
+                minimum_atr_points=3.0,
+                maximum_signal_age_seconds=30,
+            )
+        )
+
+    if signal_generator_v2 is None:
+        signal_generator_v2 = (
+            SignalGeneratorV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+                allowed_grades={
+                    "A+",
+                    "A",
+                },
+            )
+        )
+
     # TRADE LIFECYCLE SERVICE V2
 
     if (
@@ -815,6 +905,48 @@ def create_app(
     app.state.trade_lifecycle_service_v2 = (
         trade_lifecycle_service_v2
     )
+
+    app.state.trade_planner_v2 = (
+        trade_planner_v2
+    )
+
+    app.state.trade_validator_v2 = (
+        trade_validator_v2
+    )
+
+    app.state.signal_generator_v2 = (
+        signal_generator_v2
+    )
+
+    app.state.execution_manager_v2 = getattr(
+        app.state.trade_lifecycle_service_v2,
+        "execution_manager",
+        None,
+    )
+
+    app.state.paper_execution_engine_v2 = getattr(
+        app.state.trade_lifecycle_service_v2,
+        "paper_execution_engine",
+        None,
+    )
+
+    if not isinstance(
+        app.state.execution_manager_v2,
+        ExecutionManagerV2,
+    ):
+        raise RuntimeError(
+            "El lifecycle no expone un "
+            "ExecutionManagerV2 válido."
+        )
+
+    if not isinstance(
+        app.state.paper_execution_engine_v2,
+        PaperExecutionEngineV2,
+    ):
+        raise RuntimeError(
+            "El lifecycle no expone un "
+            "PaperExecutionEngineV2 válido."
+        )
 
     lifecycle_portfolio_manager_v2 = getattr(
         app.state.trade_lifecycle_service_v2,
