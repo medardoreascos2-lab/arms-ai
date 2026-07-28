@@ -16,6 +16,9 @@ from backend.intelligence.decision_council_v2 import (
 from backend.intelligence.multi_timeframe_decision_engine_v2 import (
     MultiTimeframeDecisionEngineV2,
 )
+from backend.context.market_context_engine_v2 import (
+    MarketContextEngineV2,
+)
 from backend.market_analysis.market_regime_engine import (
     MarketRegimeEngine,
 )
@@ -60,6 +63,11 @@ def test_create_app_builds_default_v2_engines():
     assert isinstance(
         app.state.multi_timeframe_decision_engine_v2,
         MultiTimeframeDecisionEngineV2,
+    )
+
+    assert isinstance(
+        app.state.market_context_engine_v2,
+        MarketContextEngineV2,
     )
 
 
@@ -253,4 +261,28 @@ def test_create_app_rejects_invalid_multi_timeframe_v2():
             multi_timeframe_decision_engine_v2=(
                 object()
             )
+        )
+
+
+
+def test_create_app_accepts_custom_market_context_v2():
+    engine = MarketContextEngineV2()
+
+    app = create_app(
+        market_context_engine_v2=engine
+    )
+
+    assert (
+        app.state.market_context_engine_v2
+        is engine
+    )
+
+
+def test_create_app_rejects_invalid_market_context_v2():
+    with pytest.raises(
+        TypeError,
+        match="market_context_engine_v2",
+    ):
+        create_app(
+            market_context_engine_v2=object()
         )

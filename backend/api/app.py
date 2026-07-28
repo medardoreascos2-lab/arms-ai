@@ -7,6 +7,9 @@ from backend.intelligence.decision_council_v2 import (
 from backend.intelligence.multi_timeframe_decision_engine_v2 import (
     MultiTimeframeDecisionEngineV2,
 )
+from backend.context.market_context_engine_v2 import (
+    MarketContextEngineV2,
+)
 from backend.market_analysis.market_regime_engine import MarketRegimeEngine
 from backend.smart_money.smart_money_engine_v2 import SmartMoneyEngineV2
 from backend.account.account_state_manager_v2 import (
@@ -294,6 +297,9 @@ def create_app(
     multi_timeframe_decision_engine_v2:
     MultiTimeframeDecisionEngineV2
     | None = None,
+    market_context_engine_v2:
+    MarketContextEngineV2
+    | None = None,
     trade_lifecycle_service_v2:
     TradeLifecycleServiceV2
     | None = None,
@@ -572,6 +578,19 @@ def create_app(
             "MultiTimeframeDecisionEngineV2."
         )
 
+    if (
+        market_context_engine_v2
+        is not None
+        and not isinstance(
+            market_context_engine_v2,
+            MarketContextEngineV2,
+        )
+    ):
+        raise TypeError(
+            "market_context_engine_v2 debe ser "
+            "MarketContextEngineV2."
+        )
+
     # TRADE LIFECYCLE SERVICE V2
 
     if (
@@ -739,6 +758,17 @@ def create_app(
             neutral_threshold=0.15,
             conflict_weight_threshold=0.25,
             dominance_margin=0.35,
+        )
+    )
+
+    app.state.market_context_engine_v2 = (
+        market_context_engine_v2
+        or MarketContextEngineV2(
+            minimum_candles=5,
+            internal_range_lookback=10,
+            near_extreme_threshold=0.10,
+            equilibrium_tolerance=0.05,
+            decision_threshold=0.25,
         )
     )
 

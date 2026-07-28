@@ -77,6 +77,9 @@ from backend.intelligence.decision_council_v2 import (
 from backend.intelligence.multi_timeframe_decision_engine_v2 import (
     MultiTimeframeDecisionEngineV2,
 )
+from backend.context.market_context_engine_v2 import (
+    MarketContextEngineV2,
+)
 from backend.execution.trade_execution_engine import (
     TradeExecutionEngine,
 )
@@ -167,6 +170,9 @@ class LiveMarketAnalysisService:
         | None = None,
         multi_timeframe_decision_engine_v2:
         MultiTimeframeDecisionEngineV2
+        | None = None,
+        market_context_engine_v2:
+        MarketContextEngineV2
         | None = None,
         trade_validator_v2:
         TradeValidatorV2
@@ -441,6 +447,23 @@ class LiveMarketAnalysisService:
 
         self.multi_timeframe_decision_engine_v2 = (
             multi_timeframe_decision_engine_v2
+        )
+
+        if (
+            market_context_engine_v2
+            is not None
+            and not isinstance(
+                market_context_engine_v2,
+                MarketContextEngineV2,
+            )
+        ):
+            raise TypeError(
+                "market_context_engine_v2 debe ser "
+                "MarketContextEngineV2."
+            )
+
+        self.market_context_engine_v2 = (
+            market_context_engine_v2
         )
 
         if (
@@ -1264,6 +1287,63 @@ class LiveMarketAnalysisService:
             )
         )
 
+    def _evaluate_market_context_v2(
+        self,
+        *,
+        candles: list[object],
+        result: dict[str, object],
+    ) -> dict[str, object]:
+        if self.market_context_engine_v2 is None:
+            raise RuntimeError(
+                "MarketContextEngineV2 "
+                "no está configurado."
+            )
+
+        multi_timeframe = result.get(
+            "multi_timeframe_v2",
+            {},
+        )
+
+        if not isinstance(
+            multi_timeframe,
+            dict,
+        ):
+            multi_timeframe = {}
+
+        smart_money = result.get(
+            "smart_money_v2",
+            {},
+        )
+
+        if not isinstance(
+            smart_money,
+            dict,
+        ):
+            smart_money = {}
+
+        return self.market_context_engine_v2.analyze(
+            candles=candles,
+            current_price=float(
+                getattr(
+                    candles[-1],
+                    "close",
+                )
+            ),
+            trend_direction=str(
+                result.get(
+                    "trend",
+                    "NEUTRAL",
+                )
+            ),
+            multi_timeframe_direction=str(
+                multi_timeframe.get(
+                    "direction",
+                    "NEUTRAL",
+                )
+            ),
+            smart_money_result=smart_money,
+        )
+
     def _evaluate_decision_council_v2(
         self,
         result: dict[str, object],
@@ -1499,6 +1579,96 @@ class LiveMarketAnalysisService:
                 0.0,
             ),
         )
+
+        market_context = result.get(
+            "market_context_v2",
+            {},
+        )
+
+        if not isinstance(
+            market_context,
+            dict,
+        ):
+            market_context = {}
+
+        context_status = str(
+            market_context.get(
+                "status",
+                "",
+            )
+        ).strip().upper()
+
+        context_direction = str(
+            market_context.get(
+                "context",
+                "NEUTRAL",
+            )
+        ).strip().upper()
+
+        execution_side = (
+            "BUY"
+            if execution_decision
+            == "EXECUTE_LONG"
+            else (
+                "SELL"
+                if execution_decision
+                == "EXECUTE_SHORT"
+                else "NEUTRAL"
+            )
+        )
+
+        context_conflict = (
+            context_status == "READY"
+            and context_direction
+            in {
+                "BUY",
+                "SELL",
+            }
+            and execution_side
+            in {
+                "BUY",
+                "SELL",
+            }
+            and context_direction
+            != execution_side
+        )
+
+        if context_conflict:
+            execution_result[
+                "approved"
+            ] = False
+
+            execution_result[
+                "direction"
+            ] = "BLOCK"
+
+            execution_result[
+                "status"
+            ] = "BLOCKED"
+
+            execution_result[
+                "decision"
+            ] = "BLOCK"
+
+            context_blocking_reasons = list(
+                execution_result.get(
+                    "blocking_reasons",
+                    [],
+                )
+                or []
+            )
+
+            if (
+                "market_context_conflict"
+                not in context_blocking_reasons
+            ):
+                context_blocking_reasons.append(
+                    "market_context_conflict"
+                )
+
+            execution_result[
+                "blocking_reasons"
+            ] = context_blocking_reasons
 
         if (
             multi_status == "READY"
@@ -2148,6 +2318,21 @@ class LiveMarketAnalysisService:
             ] = (
                 self._evaluate_multi_timeframe_v2(
                     symbol=symbol
+                )
+            )
+
+
+        if (
+            self.market_context_engine_v2
+            is not None
+            and candles
+        ):
+            result[
+                "market_context_v2"
+            ] = (
+                self._evaluate_market_context_v2(
+                    candles=candles,
+                    result=result,
                 )
             )
 
