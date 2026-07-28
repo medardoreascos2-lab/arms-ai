@@ -74,6 +74,9 @@ from backend.intelligence.probability_engine_v2 import (
 from backend.intelligence.decision_council_v2 import (
     DecisionCouncilV2,
 )
+from backend.intelligence.multi_timeframe_decision_engine_v2 import (
+    MultiTimeframeDecisionEngineV2,
+)
 from backend.execution.trade_execution_engine import (
     TradeExecutionEngine,
 )
@@ -161,6 +164,9 @@ class LiveMarketAnalysisService:
         | None = None,
         decision_council_v2:
         DecisionCouncilV2
+        | None = None,
+        multi_timeframe_decision_engine_v2:
+        MultiTimeframeDecisionEngineV2
         | None = None,
         trade_validator_v2:
         TradeValidatorV2
@@ -417,6 +423,24 @@ class LiveMarketAnalysisService:
 
         self.decision_council_v2 = (
             decision_council_v2
+        )
+
+        if (
+            multi_timeframe_decision_engine_v2
+            is not None
+            and not isinstance(
+                multi_timeframe_decision_engine_v2,
+                MultiTimeframeDecisionEngineV2,
+            )
+        ):
+            raise TypeError(
+                "multi_timeframe_decision_engine_v2 "
+                "debe ser "
+                "MultiTimeframeDecisionEngineV2."
+            )
+
+        self.multi_timeframe_decision_engine_v2 = (
+            multi_timeframe_decision_engine_v2
         )
 
         if (
@@ -1219,6 +1243,27 @@ class LiveMarketAnalysisService:
 
         return decision
 
+    def _evaluate_multi_timeframe_v2(
+        self,
+        *,
+        symbol: str,
+    ) -> dict[str, object]:
+        if (
+            self.multi_timeframe_decision_engine_v2
+            is None
+        ):
+            raise RuntimeError(
+                "MultiTimeframeDecisionEngineV2 "
+                "no está configurado."
+            )
+
+        return (
+            self.multi_timeframe_decision_engine_v2
+            .analyze(
+                symbol=symbol
+            )
+        )
+
     def _evaluate_decision_council_v2(
         self,
         result: dict[str, object],
@@ -1286,6 +1331,28 @@ class LiveMarketAnalysisService:
             elif execution_decision == "EXECUTE_SHORT":
                 execution_direction = "SHORT"
 
+        multi_timeframe = dict(
+            result.get(
+                "multi_timeframe_v2",
+                {},
+            )
+            or {}
+        )
+
+        multi_status = str(
+            multi_timeframe.get(
+                "status",
+                "",
+            )
+        ).strip().upper()
+
+        multi_direction = str(
+            multi_timeframe.get(
+                "direction",
+                "",
+            )
+        ).strip().upper()
+
         trend_text = str(
             result.get(
                 "trend",
@@ -1293,13 +1360,25 @@ class LiveMarketAnalysisService:
             )
         ).strip().upper()
 
-        if trend_text in {
+        if (
+            multi_status == "READY"
+            and multi_direction in {
+                "BULLISH",
+                "BEARISH",
+            }
+        ):
+            trend_direction = (
+                multi_direction
+            )
+
+        elif trend_text in {
             "ALCISTA",
             "BULLISH",
             "LONG",
             "BUY",
         }:
             trend_direction = "BULLISH"
+
         elif trend_text in {
             "BAJISTA",
             "BEARISH",
@@ -1307,6 +1386,7 @@ class LiveMarketAnalysisService:
             "SELL",
         }:
             trend_direction = "BEARISH"
+
         else:
             trend_direction = (
                 execution_direction
@@ -1321,12 +1401,26 @@ class LiveMarketAnalysisService:
             or {}
         )
 
-        trend_confidence = (
-            probability_inputs.get(
-                "trend_score",
-                0.0,
+        if (
+            multi_status == "READY"
+            and multi_direction in {
+                "BULLISH",
+                "BEARISH",
+            }
+        ):
+            trend_confidence = (
+                multi_timeframe.get(
+                    "confidence",
+                    0.0,
+                )
             )
-        )
+        else:
+            trend_confidence = (
+                probability_inputs.get(
+                    "trend_score",
+                    0.0,
+                )
+            )
 
         trend_result = {
             "status": "READY",
@@ -1405,6 +1499,43 @@ class LiveMarketAnalysisService:
                 0.0,
             ),
         )
+
+        if (
+            multi_status == "READY"
+            and multi_direction
+            == "CONFLICT"
+        ):
+            execution_result[
+                "direction"
+            ] = "BLOCK"
+
+            execution_result[
+                "status"
+            ] = "BLOCKED"
+
+            execution_result[
+                "decision"
+            ] = "BLOCK"
+
+            blocking_reasons = list(
+                execution_result.get(
+                    "blocking_reasons",
+                    [],
+                )
+                or []
+            )
+
+            if (
+                "timeframe_direction_conflict"
+                not in blocking_reasons
+            ):
+                blocking_reasons.append(
+                    "timeframe_direction_conflict"
+                )
+
+            execution_result[
+                "blocking_reasons"
+            ] = blocking_reasons
 
         risk_approved = bool(
             probability_result.get(
@@ -2006,6 +2137,19 @@ class LiveMarketAnalysisService:
                     ]
                 ),
             }
+
+
+        if (
+            self.multi_timeframe_decision_engine_v2
+            is not None
+        ):
+            result[
+                "multi_timeframe_v2"
+            ] = (
+                self._evaluate_multi_timeframe_v2(
+                    symbol=symbol
+                )
+            )
 
 
         if (

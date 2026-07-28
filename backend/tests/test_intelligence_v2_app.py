@@ -13,6 +13,9 @@ from backend.intelligence.probability_engine_v2 import (
 from backend.intelligence.decision_council_v2 import (
     DecisionCouncilV2,
 )
+from backend.intelligence.multi_timeframe_decision_engine_v2 import (
+    MultiTimeframeDecisionEngineV2,
+)
 from backend.market_analysis.market_regime_engine import (
     MarketRegimeEngine,
 )
@@ -52,6 +55,11 @@ def test_create_app_builds_default_v2_engines():
     assert isinstance(
         app.state.decision_council_v2,
         DecisionCouncilV2,
+    )
+
+    assert isinstance(
+        app.state.multi_timeframe_decision_engine_v2,
+        MultiTimeframeDecisionEngineV2,
     )
 
 
@@ -202,4 +210,47 @@ def test_create_app_rejects_invalid_decision_council_v2():
     ):
         create_app(
             decision_council_v2=object()
+        )
+
+
+
+def test_create_app_accepts_custom_multi_timeframe_v2():
+    class FakeTrendEngine:
+        def analyze(
+            self,
+            *,
+            symbol,
+            timeframe,
+        ):
+            return {
+                "status": "READY",
+                "direction": "BULLISH",
+                "confidence": 0.90,
+            }
+
+    engine = MultiTimeframeDecisionEngineV2(
+        trend_engine=FakeTrendEngine()
+    )
+
+    app = create_app(
+        multi_timeframe_decision_engine_v2=(
+            engine
+        )
+    )
+
+    assert (
+        app.state.multi_timeframe_decision_engine_v2
+        is engine
+    )
+
+
+def test_create_app_rejects_invalid_multi_timeframe_v2():
+    with pytest.raises(
+        TypeError,
+        match="multi_timeframe_decision_engine_v2",
+    ):
+        create_app(
+            multi_timeframe_decision_engine_v2=(
+                object()
+            )
         )

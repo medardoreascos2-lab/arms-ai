@@ -4,6 +4,9 @@ from backend.intelligence.confluence_engine_v2 import ConfluenceEngineV2
 from backend.intelligence.decision_council_v2 import (
     DecisionCouncilV2,
 )
+from backend.intelligence.multi_timeframe_decision_engine_v2 import (
+    MultiTimeframeDecisionEngineV2,
+)
 from backend.market_analysis.market_regime_engine import MarketRegimeEngine
 from backend.smart_money.smart_money_engine_v2 import SmartMoneyEngineV2
 from backend.account.account_state_manager_v2 import (
@@ -288,6 +291,9 @@ def create_app(
     decision_council_v2:
     DecisionCouncilV2
     | None = None,
+    multi_timeframe_decision_engine_v2:
+    MultiTimeframeDecisionEngineV2
+    | None = None,
     trade_lifecycle_service_v2:
     TradeLifecycleServiceV2
     | None = None,
@@ -552,6 +558,20 @@ def create_app(
             "DecisionCouncilV2."
         )
 
+    if (
+        multi_timeframe_decision_engine_v2
+        is not None
+        and not isinstance(
+            multi_timeframe_decision_engine_v2,
+            MultiTimeframeDecisionEngineV2,
+        )
+    ):
+        raise TypeError(
+            "multi_timeframe_decision_engine_v2 "
+            "debe ser "
+            "MultiTimeframeDecisionEngineV2."
+        )
+
     # TRADE LIFECYCLE SERVICE V2
 
     if (
@@ -700,6 +720,25 @@ def create_app(
             sideways_threshold_percent=(
                 0.0005
             ),
+        )
+    )
+
+    app.state.multi_timeframe_decision_engine_v2 = (
+        multi_timeframe_decision_engine_v2
+        or MultiTimeframeDecisionEngineV2(
+            trend_engine=(
+                app.state.trend_engine_v2
+            ),
+            timeframe_weights={
+                "1M": 0.10,
+                "5M": 0.25,
+                "15M": 0.30,
+                "1H": 0.35,
+            },
+            minimum_ready_weight=0.65,
+            neutral_threshold=0.15,
+            conflict_weight_threshold=0.25,
+            dominance_margin=0.35,
         )
     )
 
