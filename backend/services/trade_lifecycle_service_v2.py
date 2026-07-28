@@ -1338,6 +1338,120 @@ class TradeLifecycleServiceV2:
             position
         )
 
+        current_position = dict(
+            self._active_positions[
+                position_id
+            ]
+        )
+
+        previous_stop_loss = (
+            current_position.get(
+                "stop_loss"
+            )
+        )
+
+        previous_take_profit = (
+            current_position.get(
+                "take_profit"
+            )
+        )
+
+        new_stop_loss = (
+            normalized_position.get(
+                "stop_loss"
+            )
+        )
+
+        new_take_profit = (
+            normalized_position.get(
+                "take_profit"
+            )
+        )
+
+        stop_changed = (
+            new_stop_loss is not None
+            and (
+                previous_stop_loss is None
+                or float(
+                    new_stop_loss
+                )
+                != float(
+                    previous_stop_loss
+                )
+            )
+        )
+
+        target_changed = (
+            new_take_profit is not None
+            and (
+                previous_take_profit is None
+                or float(
+                    new_take_profit
+                )
+                != float(
+                    previous_take_profit
+                )
+            )
+        )
+
+        order_id = (
+            str(
+                current_position.get(
+                    "order_id",
+                    "",
+                )
+            )
+            .strip()
+        )
+
+        if (
+            order_id
+            and (
+                stop_changed
+                or target_changed
+            )
+        ):
+            broker_result = (
+                self.broker_connector_v2
+                .modify_order(
+                    order_id=order_id,
+                    stop_loss=(
+                        float(
+                            new_stop_loss
+                        )
+                        if stop_changed
+                        else None
+                    ),
+                    take_profit=(
+                        float(
+                            new_take_profit
+                        )
+                        if target_changed
+                        else None
+                    ),
+                )
+            )
+
+            if not bool(
+                broker_result.get(
+                    "modified",
+                    False,
+                )
+            ):
+                raise RuntimeError(
+                    "El broker rechazó la "
+                    "modificación de protección: "
+                    + str(
+                        broker_result.get(
+                            "reason",
+                            broker_result.get(
+                                "status",
+                                "unknown_error",
+                            ),
+                        )
+                    )
+                )
+
         self._active_positions[
             position_id
         ] = normalized_position
