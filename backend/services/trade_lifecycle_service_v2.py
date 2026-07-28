@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from backend.connectors.broker_connector_v2 import (
+    BrokerConnectorV2,
+)
+from backend.connectors.paper_broker_connector_v2 import (
+    PaperBrokerConnectorV2,
+)
+
 from backend.journal.trade_journal_v2 import (
     TradeJournalV2,
 )
@@ -98,6 +105,9 @@ class TradeLifecycleServiceV2:
         risk_dashboard_event_publisher_v2:
         RiskDashboardEventPublisherV2
         | None = None,
+        broker_connector_v2:
+        BrokerConnectorV2
+        | None = None,
     ) -> None:
         if not isinstance(
             execution_manager,
@@ -161,6 +171,44 @@ class TradeLifecycleServiceV2:
         self.paper_execution_engine = (
             paper_execution_engine
         )
+
+        if (
+            broker_connector_v2
+            is not None
+            and not isinstance(
+                broker_connector_v2,
+                BrokerConnectorV2,
+            )
+        ):
+            raise TypeError(
+                "broker_connector_v2 debe ser "
+                "BrokerConnectorV2."
+            )
+
+        if broker_connector_v2 is None:
+            broker_connector_v2 = (
+                PaperBrokerConnectorV2(
+                    execution_engine=(
+                        paper_execution_engine
+                    ),
+                    account_id=(
+                        "ARMS-PAPER-LIFECYCLE"
+                    ),
+                    starting_balance=(
+                        normalized_starting_balance
+                    ),
+                )
+            )
+
+        self.broker_connector_v2 = (
+            broker_connector_v2
+        )
+
+        if not (
+            self.broker_connector_v2
+            .is_connected
+        ):
+            self.broker_connector_v2.connect()
 
         self.position_manager = (
             position_manager
@@ -892,11 +940,11 @@ class TradeLifecycleServiceV2:
                 }
 
         # ======================================
-        # 5. EJECUTAR ORDEN PAPER
+        # 5. EJECUTAR ORDEN MEDIANTE BROKER
         # ======================================
 
         execution = (
-            self.paper_execution_engine.execute(
+            self.broker_connector_v2.submit_order(
                 prepared_order=prepared_order,
             )
         )

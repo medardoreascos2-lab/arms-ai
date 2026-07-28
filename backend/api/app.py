@@ -58,6 +58,9 @@ from backend.execution.execution_manager_v2 import (
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
+from backend.connectors.broker_connector_v2 import (
+    BrokerConnectorV2,
+)
 from backend.execution.trade_planner_v2 import (
     TradePlannerV2,
 )
@@ -929,6 +932,21 @@ def create_app(
         "paper_execution_engine",
         None,
     )
+
+    app.state.broker_connector_v2 = getattr(
+        app.state.trade_lifecycle_service_v2,
+        "broker_connector_v2",
+        None,
+    )
+
+    if not isinstance(
+        app.state.broker_connector_v2,
+        BrokerConnectorV2,
+    ):
+        raise RuntimeError(
+            "El lifecycle no expone un "
+            "BrokerConnectorV2 válido."
+        )
 
     if not isinstance(
         app.state.execution_manager_v2,
