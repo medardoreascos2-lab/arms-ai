@@ -203,6 +203,11 @@ class PositionManagerV2:
             "position_id": str(
                 uuid4()
             ),
+            "broker_position_id": (
+                execution.get(
+                    "position_id"
+                )
+            ),
             "order_id": execution.get(
                 "order_id"
             ),
