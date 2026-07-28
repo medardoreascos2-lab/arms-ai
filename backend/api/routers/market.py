@@ -192,6 +192,15 @@ def receive_market_webhook(
         )
     )
 
+    trend_result = (
+        request.app.state
+        .trend_engine_v2
+        .analyze(
+            symbol=candle.symbol,
+            timeframe=candle.timeframe,
+        )
+    )
+
     analysis_generated = False
 
     analysis_store = get_live_analysis_store(
@@ -340,6 +349,7 @@ def receive_market_webhook(
             timeframe=candle.timeframe,
         ),
         "analysis_generated": analysis_generated,
+        "trend": trend_result,
         "market_data": (
             market_data_result
         ),

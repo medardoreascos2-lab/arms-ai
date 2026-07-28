@@ -188,3 +188,47 @@ def test_rejects_invalid_max_candles():
         LiveCandleStore(
             max_candles=0
         )
+
+
+def test_normalizes_symbol_and_timeframe_keys():
+    store = LiveCandleStore(
+        max_candles=10
+    )
+
+    candle = build_candle(
+        index=0,
+        symbol=" nq ",
+        timeframe=" 1m ",
+    )
+
+    store.add(
+        candle
+    )
+
+    assert candle.symbol == " nq "
+    assert candle.timeframe == " 1m "
+
+    assert (
+        store.count(
+            symbol="nq",
+            timeframe="1m",
+        )
+        == 1
+    )
+
+    assert (
+        store.count(
+            symbol="NQ",
+            timeframe="1M",
+        )
+        == 1
+    )
+
+    result = store.get_latest(
+        symbol=" nq ",
+        timeframe=" 1M ",
+        limit=10,
+    )
+
+    assert len(result) == 1
+    assert result[0] is candle

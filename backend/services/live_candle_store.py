@@ -41,9 +41,35 @@ class LiveCandleStore:
                 "candle debe ser una instancia de Candle."
             )
 
+        normalized_symbol = (
+            str(
+                candle.symbol
+            )
+            .strip()
+            .upper()
+        )
+
+        normalized_timeframe = (
+            str(
+                candle.timeframe
+            )
+            .strip()
+            .upper()
+        )
+
+        if not normalized_symbol:
+            raise ValueError(
+                "candle.symbol no puede estar vacío."
+            )
+
+        if not normalized_timeframe:
+            raise ValueError(
+                "candle.timeframe no puede estar vacío."
+            )
+
         key = (
-            candle.symbol,
-            candle.timeframe,
+            normalized_symbol,
+            normalized_timeframe,
         )
 
         market_candles = self._candles[key]
@@ -89,11 +115,13 @@ class LiveCandleStore:
         normalized_symbol = (
             str(symbol)
             .strip()
+            .upper()
         )
 
         normalized_timeframe = (
             str(timeframe)
             .strip()
+            .upper()
         )
 
         if not normalized_symbol:
@@ -132,8 +160,12 @@ class LiveCandleStore:
         timeframe: str,
     ) -> int:
         key = (
-            str(symbol).strip(),
-            str(timeframe).strip(),
+            str(symbol)
+            .strip()
+            .upper(),
+            str(timeframe)
+            .strip()
+            .upper(),
         )
 
         return len(
@@ -165,8 +197,12 @@ class LiveCandleStore:
             )
 
         key = (
-            str(symbol).strip(),
-            str(timeframe).strip(),
+            str(symbol)
+            .strip()
+            .upper(),
+            str(timeframe)
+            .strip()
+            .upper(),
         )
 
         self._candles.pop(

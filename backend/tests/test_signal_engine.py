@@ -97,3 +97,44 @@ def test_invalid_analysis():
         KeyError
     ):
         SignalEngine().generate({})
+
+
+def test_wait_signal_allows_missing_trade_levels():
+    analysis = build_analysis()
+
+    analysis["decision"]["approved"] = False
+    analysis["decision"]["action"] = "ESPERAR"
+    analysis["probability"]["approved"] = False
+    analysis["risk"]["approved"] = False
+
+    analysis["trade"]["stop_loss"] = None
+    analysis["trade"]["take_profit"] = None
+
+    result = SignalEngine().generate(
+        analysis
+    )
+
+    assert result["action"] == "WAIT"
+    assert result["approved"] is False
+    assert result["entry_price"] is not None
+    assert result["stop_loss"] is None
+    assert result["take_profit"] is None
+
+
+def test_approved_signal_rejects_missing_levels():
+    analysis = build_analysis()
+
+    analysis["decision"]["approved"] = True
+    analysis["decision"]["action"] = "BUY"
+    analysis["probability"]["approved"] = True
+    analysis["risk"]["approved"] = True
+
+    analysis["trade"]["stop_loss"] = None
+
+    with pytest.raises(
+        ValueError,
+        match="señal aprobada requiere",
+    ):
+        SignalEngine().generate(
+            analysis
+        )

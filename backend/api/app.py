@@ -218,6 +218,10 @@ from backend.services.live_analysis_store import (
 from backend.services.live_candle_store import (
     LiveCandleStore,
 )
+
+from backend.trend.trend_engine_v2 import (
+    TrendEngineV2,
+)
 from backend.services.live_signal_store import (
     LiveSignalStore,
 )
@@ -659,6 +663,20 @@ def create_app(
 
     app.state.live_candle_store = (
         live_candle_store
+    )
+
+    app.state.trend_engine_v2 = (
+        TrendEngineV2(
+            live_candle_store=(
+                app.state.live_candle_store
+            ),
+            fast_period=10,
+            slow_period=50,
+            slope_lookback=5,
+            sideways_threshold_percent=(
+                0.0005
+            ),
+        )
     )
 
     app.state.live_analysis_store = (

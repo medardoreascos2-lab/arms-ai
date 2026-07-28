@@ -60,6 +60,29 @@ class SignalEngine:
             else "WAIT"
         )
 
+        entry_price = self._optional_float(
+            trade["entry_price"]
+        )
+
+        stop_loss = self._optional_float(
+            trade["stop_loss"]
+        )
+
+        take_profit = self._optional_float(
+            trade["take_profit"]
+        )
+
+        if approved and (
+            entry_price is None
+            or stop_loss is None
+            or take_profit is None
+        ):
+            raise ValueError(
+                "Una señal aprobada requiere "
+                "entry_price, stop_loss y "
+                "take_profit válidos."
+            )
+
         return {
             "symbol": str(
                 analysis["symbol"]
@@ -87,15 +110,9 @@ class SignalEngine:
             "risk_approved": bool(
                 risk["approved"]
             ),
-            "entry_price": float(
-                trade["entry_price"]
-            ),
-            "stop_loss": float(
-                trade["stop_loss"]
-            ),
-            "take_profit": float(
-                trade["take_profit"]
-            ),
+            "entry_price": entry_price,
+            "stop_loss": stop_loss,
+            "take_profit": take_profit,
             "reason": self._build_reason(
                 action=action,
                 decision_approved=bool(
@@ -110,6 +127,17 @@ class SignalEngine:
                 valid_action=valid_action,
             ),
         }
+
+    def _optional_float(
+        self,
+        value: Any,
+    ) -> float | None:
+        if value is None:
+            return None
+
+        return float(
+            value
+        )
 
     def _validate_analysis(
         self,
