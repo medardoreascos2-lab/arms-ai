@@ -1364,6 +1364,148 @@ class TradeLifecycleServiceV2:
 
 
 
+    def _sync_protection_and_oco_after_close(
+        self,
+        *,
+        position: dict[str, object],
+    ) -> dict[str, object]:
+        close_reason = (
+            str(
+                position.get(
+                    "close_reason",
+                    "",
+                )
+                or "MANUAL"
+            )
+            .strip()
+            .upper()
+        )
+
+        protection_group_id = (
+            str(
+                position.get(
+                    "protection_group_id",
+                    "",
+                )
+                or ""
+            )
+            .strip()
+        )
+
+        oco_group_id = (
+            str(
+                position.get(
+                    "oco_group_id",
+                    "",
+                )
+                or ""
+            )
+            .strip()
+        )
+
+        if (
+            not protection_group_id
+            or not oco_group_id
+        ):
+            return {
+                "synchronized": False,
+                "status": "MISSING_GROUP_IDS",
+                "close_reason": close_reason,
+                "protection": None,
+                "oco": None,
+            }
+
+        triggered_order_id = None
+
+        if close_reason == "TAKE_PROFIT":
+            triggered_order_id = (
+                str(
+                    position.get(
+                        "take_profit_order_id",
+                        "",
+                    )
+                    or ""
+                )
+                .strip()
+            )
+        elif close_reason == "STOP_LOSS":
+            triggered_order_id = (
+                str(
+                    position.get(
+                        "stop_order_id",
+                        "",
+                    )
+                    or ""
+                )
+                .strip()
+            )
+
+        if triggered_order_id:
+            protection_result = (
+                self
+                .protective_order_registry_v2
+                .complete_protection(
+                    protection_group_id=(
+                        protection_group_id
+                    ),
+                    triggered_order_id=(
+                        triggered_order_id
+                    ),
+                    reason=close_reason,
+                )
+            )
+
+            oco_result = (
+                self.oco_manager_v2
+                .cancel_remaining(
+                    oco_group_id=oco_group_id,
+                    triggered_order_id=(
+                        triggered_order_id
+                    ),
+                    reason=close_reason,
+                )
+            )
+
+            return {
+                "synchronized": True,
+                "status": "COMPLETED",
+                "close_reason": close_reason,
+                "triggered_order_id": (
+                    triggered_order_id
+                ),
+                "protection": (
+                    protection_result
+                ),
+                "oco": oco_result,
+            }
+
+        protection_result = (
+            self
+            .protective_order_registry_v2
+            .cancel_protection(
+                protection_group_id=(
+                    protection_group_id
+                ),
+                reason=close_reason,
+            )
+        )
+
+        oco_result = (
+            self.oco_manager_v2.cancel_group(
+                oco_group_id=oco_group_id,
+                reason=close_reason,
+            )
+        )
+
+        return {
+            "synchronized": True,
+            "status": "CANCELLED",
+            "close_reason": close_reason,
+            "triggered_order_id": None,
+            "protection": protection_result,
+            "oco": oco_result,
+        }
+
     def update_position(
         self,
         *,
@@ -1417,6 +1559,12 @@ class TradeLifecycleServiceV2:
         )
 
         if updated_status == "CLOSED":
+            self._sync_protection_and_oco_after_close(
+                position=dict(
+                    updated_position
+                ),
+            )
+
             trade_record = (
                 self.trade_history_manager.record(
                     position=updated_position,
