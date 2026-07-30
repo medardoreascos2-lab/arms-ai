@@ -1979,6 +1979,154 @@ class TradeLifecycleServiceV2:
             normalized_position
         )
 
+    def restore_active_position(
+        self,
+        *,
+        position: dict[str, object],
+    ) -> dict[str, object]:
+        """
+        Restaura una posición abierta dentro del estado
+        activo del servicio.
+
+        La operación es idempotente cuando la posición
+        existente contiene exactamente el mismo estado.
+        """
+
+        if not isinstance(
+            position,
+            dict,
+        ):
+            raise ValueError(
+                "position debe ser un dict."
+            )
+
+        position_id = str(
+            position.get(
+                "position_id",
+                "",
+            )
+        ).strip()
+
+        if not position_id:
+            raise ValueError(
+                "position_id es obligatorio."
+            )
+
+        status = str(
+            position.get(
+                "status",
+                "",
+            )
+        ).strip().upper()
+
+        if status != "OPEN":
+            raise ValueError(
+                "Solo se pueden restaurar "
+                "posiciones con status OPEN."
+            )
+
+        symbol = str(
+            position.get(
+                "symbol",
+                "",
+            )
+        ).strip().upper()
+
+        if not symbol:
+            raise ValueError(
+                "symbol es obligatorio."
+            )
+
+        direction = str(
+            position.get(
+                "direction",
+                "",
+            )
+        ).strip().upper()
+
+        if direction not in {
+            "LONG",
+            "SHORT",
+        }:
+            raise ValueError(
+                "direction debe ser LONG o SHORT."
+            )
+
+        try:
+            quantity = float(
+                position.get(
+                    "quantity",
+                    0.0,
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ) as exc:
+            raise ValueError(
+                "quantity debe ser numérico."
+            ) from exc
+
+        if quantity <= 0.0:
+            raise ValueError(
+                "quantity debe ser mayor que cero."
+            )
+
+        restored_position = dict(
+            position
+        )
+
+        restored_position[
+            "position_id"
+        ] = position_id
+
+        restored_position[
+            "status"
+        ] = status
+
+        restored_position[
+            "symbol"
+        ] = symbol
+
+        restored_position[
+            "direction"
+        ] = direction
+
+        restored_position[
+            "quantity"
+        ] = quantity
+
+        existing_position = (
+            self._active_positions.get(
+                position_id
+            )
+        )
+
+        if existing_position is not None:
+            if (
+                dict(existing_position)
+                == restored_position
+            ):
+                return dict(
+                    existing_position
+                )
+
+            raise ValueError(
+                "Ya existe una posición activa "
+                "con el mismo position_id y "
+                "un estado diferente."
+            )
+
+        self._active_positions[
+            position_id
+        ] = dict(
+            restored_position
+        )
+
+        return dict(
+            restored_position
+        )
+
     def get_active_positions(
         self,
     ) -> list[dict[str, object]]:
