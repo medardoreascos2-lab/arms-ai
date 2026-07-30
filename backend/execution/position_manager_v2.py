@@ -240,7 +240,7 @@ class PositionManagerV2:
             ),
             "unrealized_points": 0.0,
             "unrealized_pnl": 0.0,
-            "realized_pnl": None,
+            "realized_pnl": 0.0,
             "exit_price": None,
             "close_reason": None,
             "point_value": (

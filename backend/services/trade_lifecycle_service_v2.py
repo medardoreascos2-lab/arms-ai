@@ -1344,6 +1344,29 @@ class TradeLifecycleServiceV2:
             ]
         )
 
+        previous_quantity = float(
+            current_position.get(
+                "quantity",
+                0.0,
+            )
+            or 0.0
+        )
+
+        new_quantity = float(
+            normalized_position.get(
+                "quantity",
+                previous_quantity,
+            )
+            or previous_quantity
+        )
+
+        quantity_reduced = (
+            previous_quantity > 0
+            and new_quantity > 0
+            and new_quantity
+            < previous_quantity
+        )
+
         previous_stop_loss = (
             current_position.get(
                 "stop_loss"
@@ -1404,6 +1427,115 @@ class TradeLifecycleServiceV2:
             .strip()
         )
 
+        broker_position_id = (
+            str(
+                current_position.get(
+                    "broker_position_id",
+                    "",
+                )
+            )
+            .strip()
+        )
+
+        partial_close_result = None
+
+        if quantity_reduced:
+            if not broker_position_id:
+                raise RuntimeError(
+                    "La posición local no tiene "
+                    "broker_position_id."
+                )
+
+            closed_quantity = round(
+                previous_quantity
+                - new_quantity,
+                10,
+            )
+
+            partial_price = float(
+                normalized_position.get(
+                    "partial_exit_price",
+                    normalized_position.get(
+                        "current_price",
+                        current_position.get(
+                            "current_price",
+                            0.0,
+                        ),
+                    ),
+                )
+                or 0.0
+            )
+
+            if partial_price <= 0:
+                raise RuntimeError(
+                    "No existe un precio válido "
+                    "para el cierre parcial."
+                )
+
+            partial_close_result = (
+                self.broker_connector_v2
+                .close_partial(
+                    position_id=(
+                        broker_position_id
+                    ),
+                    quantity=(
+                        closed_quantity
+                    ),
+                    current_price=(
+                        partial_price
+                    ),
+                    reason=(
+                        str(
+                            normalized_position.get(
+                                "last_partial_reason",
+                                "PARTIAL_TAKE_PROFIT",
+                            )
+                        )
+                    ),
+                )
+            )
+
+            if not (
+                bool(
+                    partial_close_result.get(
+                        "closed",
+                        False,
+                    )
+                )
+                and bool(
+                    partial_close_result.get(
+                        "partial",
+                        False,
+                    )
+                )
+            ):
+                raise RuntimeError(
+                    "El broker rechazó el cierre "
+                    "parcial: "
+                    + str(
+                        partial_close_result.get(
+                            "reason",
+                            partial_close_result.get(
+                                "status",
+                                "unknown_error",
+                            ),
+                        )
+                    )
+                )
+
+            broker_remaining = float(
+                partial_close_result.get(
+                    "remaining_quantity",
+                    0.0,
+                )
+            )
+
+            if broker_remaining != new_quantity:
+                raise RuntimeError(
+                    "La cantidad restante del broker "
+                    "no coincide con ARMS AI."
+                )
+
         if (
             order_id
             and (
@@ -1455,6 +1587,53 @@ class TradeLifecycleServiceV2:
         self._active_positions[
             position_id
         ] = normalized_position
+
+        if (
+            quantity_reduced
+            and self.portfolio_manager_v2
+            is not None
+        ):
+            realized_pnl = float(
+                normalized_position.get(
+                    "realized_pnl",
+                    0.0,
+                )
+                or 0.0
+            )
+
+            previous_realized = float(
+                current_position.get(
+                    "realized_pnl",
+                    0.0,
+                )
+                or 0.0
+            )
+
+            incremental_realized = round(
+                realized_pnl
+                - previous_realized,
+                10,
+            )
+
+            self.portfolio_manager_v2.reduce_position(
+                position_id=position_id,
+                remaining_quantity=(
+                    new_quantity
+                ),
+                current_price=float(
+                    normalized_position.get(
+                        "current_price",
+                        normalized_position.get(
+                            "partial_exit_price",
+                            0.0,
+                        ),
+                    )
+                    or 0.0
+                ),
+                realized_pnl=(
+                    incremental_realized
+                ),
+            )
 
         return dict(
             normalized_position

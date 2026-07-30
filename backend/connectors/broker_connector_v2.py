@@ -69,6 +69,22 @@ class BrokerConnectorV2(ABC):
         """Cancela una orden pendiente."""
 
     @abstractmethod
+    def close_partial(
+        self,
+        *,
+        position_id: str,
+        quantity: float,
+        current_price: float,
+        reason: str,
+    ) -> dict[str, object]:
+        """
+        Reduce parcialmente una posición abierta.
+
+        position_id corresponde al identificador
+        asignado por el broker.
+        """
+
+    @abstractmethod
     def close_position(
         self,
         *,
@@ -76,7 +92,7 @@ class BrokerConnectorV2(ABC):
         current_price: float,
         reason: str,
     ) -> dict[str, object]:
-        """Solicita el cierre de una posición."""
+        """Solicita el cierre total de una posición."""
 
     @abstractmethod
     def get_account(self) -> dict[str, object]:

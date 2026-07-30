@@ -196,9 +196,9 @@ class RealizedPnLEngineV2:
 
         previous_realized_pnl = float(
             position.get(
-                "realized_pnl",
-                0.0,
+                "realized_pnl"
             )
+            or 0.0
         )
 
         if direction == "LONG":

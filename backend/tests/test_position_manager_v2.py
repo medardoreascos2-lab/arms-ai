@@ -344,3 +344,57 @@ def test_rejects_invalid_point_value():
         PositionManagerV2(
             point_value=0.0,
         )
+
+
+def test_open_position_initializes_realized_pnl_to_zero():
+    manager = PositionManagerV2(
+        point_value=2.0,
+    )
+
+    execution = {
+        "accepted": True,
+        "status": "FILLED",
+        "position_id": "broker-position-1",
+        "order_id": "order-1",
+        "execution_mode": "PAPER",
+        "symbol": "NQ",
+        "side": "BUY",
+        "quantity": 2,
+        "filled_price": 100.0,
+        "stop_loss": 95.0,
+        "take_profit": 120.0,
+    }
+
+    position = manager.open_position(
+        execution=execution,
+    )
+
+    assert position["opened"] is True
+    assert position["realized_pnl"] == 0.0
+
+
+def test_open_position_initializes_realized_pnl_to_zero():
+    manager = PositionManagerV2(
+        point_value=2.0,
+    )
+
+    execution = {
+        "accepted": True,
+        "status": "FILLED",
+        "position_id": "broker-position-1",
+        "order_id": "order-1",
+        "execution_mode": "PAPER",
+        "symbol": "NQ",
+        "side": "BUY",
+        "quantity": 2,
+        "filled_price": 100.0,
+        "stop_loss": 95.0,
+        "take_profit": 120.0,
+    }
+
+    position = manager.open_position(
+        execution=execution,
+    )
+
+    assert position["opened"] is True
+    assert position["realized_pnl"] == 0.0

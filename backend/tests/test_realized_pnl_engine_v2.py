@@ -311,3 +311,69 @@ def test_rejects_invalid_point_value():
         RealizedPnLEngineV2(
             point_value=0.0,
         )
+
+
+def test_accepts_none_previous_realized_pnl():
+    engine = RealizedPnLEngineV2(
+        point_value=2.0,
+    )
+
+    position = {
+        "position_id": "pos-none-pnl",
+        "symbol": "NQ",
+        "status": "OPEN",
+        "direction": "LONG",
+        "entry_price": 100.0,
+        "current_price": 110.0,
+        "quantity": 1.0,
+        "original_quantity": 2.0,
+        "partial_taken": True,
+        "partial_closed_quantity": 1.0,
+        "partial_exit_price": 110.0,
+        "partial_pnl_recorded": False,
+        "realized_pnl": None,
+    }
+
+    result = engine.calculate(
+        position=position,
+    )
+
+    assert result["calculated"] is True
+    assert result["realized_pnl"] == 20.0
+    assert (
+        result["position"]["realized_pnl"]
+        == 20.0
+    )
+
+
+def test_accepts_none_previous_realized_pnl():
+    engine = RealizedPnLEngineV2(
+        point_value=2.0,
+    )
+
+    position = {
+        "position_id": "pos-none-pnl",
+        "symbol": "NQ",
+        "status": "OPEN",
+        "direction": "LONG",
+        "entry_price": 100.0,
+        "current_price": 110.0,
+        "quantity": 1.0,
+        "original_quantity": 2.0,
+        "partial_taken": True,
+        "partial_closed_quantity": 1.0,
+        "partial_exit_price": 110.0,
+        "partial_pnl_recorded": False,
+        "realized_pnl": None,
+    }
+
+    result = engine.calculate(
+        position=position,
+    )
+
+    assert result["calculated"] is True
+    assert result["realized_pnl"] == 20.0
+    assert (
+        result["position"]["realized_pnl"]
+        == 20.0
+    )

@@ -173,6 +173,110 @@ class PortfolioManagerV2:
             "account_state": account_state,
         }
 
+    def reduce_position(
+        self,
+        *,
+        position_id: str,
+        remaining_quantity: float,
+        current_price: float,
+        realized_pnl: float,
+    ) -> dict[str, object]:
+        if position_id not in self._open_positions:
+            raise KeyError(
+                "position_id"
+            )
+
+        normalized_remaining = float(
+            remaining_quantity
+        )
+
+        normalized_price = float(
+            current_price
+        )
+
+        normalized_realized = float(
+            realized_pnl
+        )
+
+        if normalized_remaining <= 0:
+            raise ValueError(
+                "remaining_quantity debe ser "
+                "mayor que cero."
+            )
+
+        if normalized_price <= 0:
+            raise ValueError(
+                "current_price debe ser "
+                "mayor que cero."
+            )
+
+        position = deepcopy(
+            self._open_positions[
+                position_id
+            ]
+        )
+
+        current_quantity = float(
+            position.get(
+                "quantity",
+                0.0,
+            )
+        )
+
+        if (
+            current_quantity <= 0
+            or normalized_remaining
+            >= current_quantity
+        ):
+            raise ValueError(
+                "remaining_quantity debe ser menor "
+                "que la cantidad abierta."
+            )
+
+        position[
+            "quantity"
+        ] = normalized_remaining
+
+        position[
+            "current_price"
+        ] = normalized_price
+
+        position[
+            "realized_pnl"
+        ] = round(
+            float(
+                position.get(
+                    "realized_pnl",
+                    0.0,
+                )
+                or 0.0
+            )
+            + normalized_realized,
+            10,
+        )
+
+        position[
+            "partial_taken"
+        ] = True
+
+        self._open_positions[
+            position_id
+        ] = position
+
+        account_state = (
+            self._sync_account_state()
+        )
+
+        return {
+            "reduced": True,
+            "status": "PARTIALLY_CLOSED",
+            "position_id": position_id,
+            "position": deepcopy(
+                position
+            ),
+            "account_state": account_state,
+        }
+
     def close_position(
         self,
         *,

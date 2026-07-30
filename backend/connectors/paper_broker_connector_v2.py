@@ -654,6 +654,269 @@ class PaperBrokerConnectorV2(
             ),
         }
 
+    def close_partial(
+        self,
+        *,
+        position_id: str,
+        quantity: float,
+        current_price: float,
+        reason: str,
+    ) -> dict[str, object]:
+        self._require_connection()
+
+        normalized_position_id = (
+            self._normalize_identifier(
+                position_id,
+                field_name="position_id",
+            )
+        )
+
+        normalized_quantity = float(
+            quantity
+        )
+
+        if normalized_quantity <= 0:
+            raise ValueError(
+                "quantity debe ser "
+                "mayor que cero."
+            )
+
+        normalized_price = float(
+            current_price
+        )
+
+        if normalized_price <= 0:
+            raise ValueError(
+                "current_price debe ser "
+                "mayor que cero."
+            )
+
+        normalized_reason = (
+            self._normalize_identifier(
+                reason,
+                field_name="reason",
+            )
+        )
+
+        if (
+            normalized_position_id
+            not in self._positions
+        ):
+            return {
+                "closed": False,
+                "partial": False,
+                "status": "NOT_FOUND",
+                "position_id": (
+                    normalized_position_id
+                ),
+                "reason": (
+                    "position_not_found"
+                ),
+            }
+
+        position = deepcopy(
+            self._positions[
+                normalized_position_id
+            ]
+        )
+
+        status = (
+            str(
+                position.get(
+                    "status",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+        )
+
+        if status != "OPEN":
+            return {
+                "closed": False,
+                "partial": False,
+                "status": "NOT_OPEN",
+                "position_id": (
+                    normalized_position_id
+                ),
+                "reason": (
+                    "position_not_open"
+                ),
+                "position": position,
+            }
+
+        current_quantity = float(
+            position.get(
+                "quantity",
+                0.0,
+            )
+        )
+
+        if current_quantity <= 0:
+            raise RuntimeError(
+                "La posición del broker tiene "
+                "una quantity inválida."
+            )
+
+        if (
+            normalized_quantity
+            >= current_quantity
+        ):
+            return {
+                "closed": False,
+                "partial": False,
+                "status": (
+                    "INVALID_PARTIAL_QUANTITY"
+                ),
+                "position_id": (
+                    normalized_position_id
+                ),
+                "reason": (
+                    "partial_quantity_must_be_"
+                    "lower_than_open_quantity"
+                ),
+                "requested_quantity": (
+                    normalized_quantity
+                ),
+                "open_quantity": (
+                    current_quantity
+                ),
+                "position": position,
+            }
+
+        remaining_quantity = round(
+            current_quantity
+            - normalized_quantity,
+            10,
+        )
+
+        if remaining_quantity <= 0:
+            raise RuntimeError(
+                "remaining_quantity debe ser "
+                "mayor que cero."
+            )
+
+        partial_fill = {
+            "fill_id": str(
+                uuid4()
+            ),
+            "order_id": (
+                position.get(
+                    "order_id"
+                )
+            ),
+            "position_id": (
+                normalized_position_id
+            ),
+            "broker": self.broker_name,
+            "execution_mode": (
+                self.execution_mode
+            ),
+            "fill_type": "PARTIAL_CLOSE",
+            "symbol": (
+                position.get(
+                    "symbol"
+                )
+            ),
+            "side": (
+                "SELL"
+                if str(
+                    position.get(
+                        "side",
+                        "",
+                    )
+                )
+                .strip()
+                .upper()
+                == "BUY"
+                else "BUY"
+            ),
+            "quantity": (
+                normalized_quantity
+            ),
+            "filled_price": (
+                normalized_price
+            ),
+            "reason": (
+                normalized_reason
+            ),
+            "filled_at": (
+                self._utc_now()
+            ),
+        }
+
+        self._fills.append(
+            partial_fill
+        )
+
+        position[
+            "quantity"
+        ] = remaining_quantity
+
+        position[
+            "current_price"
+        ] = normalized_price
+
+        position[
+            "partial_closed_quantity"
+        ] = round(
+            float(
+                position.get(
+                    "partial_closed_quantity",
+                    0.0,
+                )
+            )
+            + normalized_quantity,
+            10,
+        )
+
+        position[
+            "last_partial_quantity"
+        ] = normalized_quantity
+
+        position[
+            "last_partial_price"
+        ] = normalized_price
+
+        position[
+            "last_partial_reason"
+        ] = normalized_reason
+
+        position[
+            "partial_closed_at"
+        ] = self._utc_now()
+
+        self._positions[
+            normalized_position_id
+        ] = position
+
+        return {
+            "closed": True,
+            "partial": True,
+            "status": "PARTIALLY_CLOSED",
+            "position_id": (
+                normalized_position_id
+            ),
+            "closed_quantity": (
+                normalized_quantity
+            ),
+            "remaining_quantity": (
+                remaining_quantity
+            ),
+            "current_price": (
+                normalized_price
+            ),
+            "reason": (
+                normalized_reason
+            ),
+            "fill": deepcopy(
+                partial_fill
+            ),
+            "position": deepcopy(
+                position
+            ),
+        }
+
     def close_position(
         self,
         *,
