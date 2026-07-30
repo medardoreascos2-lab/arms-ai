@@ -29,6 +29,9 @@ from backend.execution.exposure_manager_v2 import (
 from backend.execution.portfolio_risk_engine_v2 import (
     PortfolioRiskEngineV2,
 )
+from backend.execution.oco_manager_v2 import (
+    OCOManagerV2,
+)
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
@@ -107,6 +110,9 @@ class TradeLifecycleServiceV2:
         | None = None,
         risk_dashboard_event_publisher_v2:
         RiskDashboardEventPublisherV2
+        | None = None,
+        oco_manager_v2:
+        OCOManagerV2
         | None = None,
         protective_order_registry_v2:
         ProtectiveOrderRegistryV2
@@ -374,6 +380,24 @@ class TradeLifecycleServiceV2:
 
         self.starting_balance = (
             normalized_starting_balance
+        )
+
+        if (
+            oco_manager_v2
+            is not None
+            and not isinstance(
+                oco_manager_v2,
+                OCOManagerV2,
+            )
+        ):
+            raise TypeError(
+                "oco_manager_v2 debe ser "
+                "OCOManagerV2."
+            )
+
+        self.oco_manager_v2 = (
+            oco_manager_v2
+            or OCOManagerV2()
         )
 
         if (
@@ -1095,10 +1119,57 @@ class TradeLifecycleServiceV2:
                     )
                 )
 
+                oco_group = (
+                    self.oco_manager_v2
+                    .create_group(
+                        position_id=(
+                            active_position_id
+                        ),
+                        stop_order_id=str(
+                            protection[
+                                "stop_order_id"
+                            ]
+                        ),
+                        take_profit_order_id=str(
+                            protection[
+                                "take_profit_order_id"
+                            ]
+                        ),
+                        metadata={
+                            "symbol": (
+                                protection.get(
+                                    "symbol"
+                                )
+                            ),
+                            "direction": (
+                                protection.get(
+                                    "direction"
+                                )
+                            ),
+                            "protection_group_id": (
+                                protection.get(
+                                    "protection_group_id"
+                                )
+                            ),
+                            "broker_position_id": (
+                                protection.get(
+                                    "broker_position_id"
+                                )
+                            ),
+                        },
+                    )
+                )
+
                 position[
                     "protection_group_id"
                 ] = protection[
                     "protection_group_id"
+                ]
+
+                position[
+                    "oco_group_id"
+                ] = oco_group[
+                    "oco_group_id"
                 ]
 
                 position[
