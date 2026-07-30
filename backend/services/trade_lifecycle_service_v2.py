@@ -32,6 +32,9 @@ from backend.execution.portfolio_risk_engine_v2 import (
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
+from backend.execution.protective_order_registry_v2 import (
+    ProtectiveOrderRegistryV2,
+)
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
@@ -104,6 +107,9 @@ class TradeLifecycleServiceV2:
         | None = None,
         risk_dashboard_event_publisher_v2:
         RiskDashboardEventPublisherV2
+        | None = None,
+        protective_order_registry_v2:
+        ProtectiveOrderRegistryV2
         | None = None,
         broker_connector_v2:
         BrokerConnectorV2
@@ -368,6 +374,25 @@ class TradeLifecycleServiceV2:
 
         self.starting_balance = (
             normalized_starting_balance
+        )
+
+        if (
+            protective_order_registry_v2
+            is not None
+            and not isinstance(
+                protective_order_registry_v2,
+                ProtectiveOrderRegistryV2,
+            )
+        ):
+            raise TypeError(
+                "protective_order_registry_v2 "
+                "debe ser "
+                "ProtectiveOrderRegistryV2."
+            )
+
+        self.protective_order_registry_v2 = (
+            protective_order_registry_v2
+            or ProtectiveOrderRegistryV2()
         )
 
         self._active_positions: dict[
@@ -998,6 +1023,102 @@ class TradeLifecycleServiceV2:
                 ] = dict(
                     opened_position
                 )
+
+                protection = (
+                    self.protective_order_registry_v2
+                    .create_protection(
+                        position_id=(
+                            active_position_id
+                        ),
+                        broker_position_id=(
+                            str(
+                                opened_position.get(
+                                    "broker_position_id",
+                                    "",
+                                )
+                            ).strip()
+                            or None
+                        ),
+                        symbol=str(
+                            opened_position.get(
+                                "symbol",
+                                "",
+                            )
+                        ),
+                        direction=str(
+                            opened_position.get(
+                                "direction",
+                                "",
+                            )
+                        ),
+                        quantity=float(
+                            opened_position.get(
+                                "quantity",
+                                0.0,
+                            )
+                        ),
+                        entry_price=float(
+                            opened_position.get(
+                                "entry_price",
+                                0.0,
+                            )
+                        ),
+                        stop_price=float(
+                            opened_position.get(
+                                "stop_loss",
+                                0.0,
+                            )
+                        ),
+                        take_profit_price=float(
+                            opened_position.get(
+                                "take_profit",
+                                0.0,
+                            )
+                        ),
+                        metadata={
+                            "order_id": (
+                                opened_position.get(
+                                    "order_id"
+                                )
+                            ),
+                            "execution_mode": (
+                                execution.get(
+                                    "execution_mode"
+                                )
+                            ),
+                            "broker": (
+                                execution.get(
+                                    "broker"
+                                )
+                            ),
+                        },
+                    )
+                )
+
+                position[
+                    "protection_group_id"
+                ] = protection[
+                    "protection_group_id"
+                ]
+
+                position[
+                    "stop_order_id"
+                ] = protection[
+                    "stop_order_id"
+                ]
+
+                position[
+                    "take_profit_order_id"
+                ] = protection[
+                    "take_profit_order_id"
+                ]
+
+                self._active_positions[
+                    active_position_id
+                ] = dict(
+                    position
+                )
+
 
 
                 if (
