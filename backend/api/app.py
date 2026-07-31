@@ -76,6 +76,9 @@ from backend.execution.position_manager_v2 import (
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
+from backend.services.runtime_context_v2 import (
+    RuntimeContextV2,
+)
 
 
 from backend.api.dashboard_widgets_api_v2 import (
@@ -324,6 +327,9 @@ def create_app(
     trade_lifecycle_service_v2:
     TradeLifecycleServiceV2
     | None = None,
+    runtime_context:
+    RuntimeContextV2
+    | None = None,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -334,6 +340,40 @@ def create_app(
     ):
         raise TypeError(
             "settings debe ser APISettings."
+        )
+
+    if (
+        runtime_context is not None
+        and not isinstance(
+            runtime_context,
+            RuntimeContextV2,
+        )
+    ):
+        raise TypeError(
+            "runtime_context debe ser "
+            "RuntimeContextV2."
+        )
+
+    if runtime_context is not None:
+        context_lifecycle_service = (
+            runtime_context
+            .trade_lifecycle_service
+        )
+
+        if (
+            trade_lifecycle_service_v2
+            is not None
+            and trade_lifecycle_service_v2
+            is not context_lifecycle_service
+        ):
+            raise ValueError(
+                "trade_lifecycle_service_v2 "
+                "entra en conflicto con "
+                "runtime_context."
+            )
+
+        trade_lifecycle_service_v2 = (
+            context_lifecycle_service
         )
 
     if live_candle_store is None:
@@ -772,6 +812,9 @@ def create_app(
         debug=settings.debug,
     )
 
+    app.state.runtime_context_v2 = (
+        runtime_context
+    )
 
     app.state.smart_money_engine_v2 = (
         smart_money_engine_v2
