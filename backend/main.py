@@ -12,75 +12,103 @@ from backend.pipeline.risk_stage import RiskStage
 from backend.pipeline.smart_money_stage import SmartMoneyStage
 from backend.pipeline.trade_plan_stage import TradePlanStage
 from backend.services.data_collector import DataCollector
+from backend.services.runtime_context_v2 import (
+    build_runtime_context,
+)
 
 
 def main() -> None:
     settings = ArmsSettings()
 
-    arms = ArmsCore()
-    arms.start()
-
-    connector = MarketConnector()
-    connector.connect()
-
-    collector = DataCollector(
-        provider=settings.provider,
+    runtime_context = build_runtime_context(
+        settings=settings,
+    )
+    lifecycle_manager = (
+        runtime_context.runtime_lifecycle_manager
     )
 
-    pipeline = ArmsPipeline(
-        stages=[
-            MarketStage(
-                collector=collector,
-                symbol=settings.symbol,
-                timeframe=settings.timeframe,
-                candle_limit=settings.candle_limit,
-                max_candles=settings.max_candles,
-            ),
-            IndicatorStage(
-                ema_period=settings.ema_period,
-                rsi_period=settings.rsi_period,
-                atr_period=settings.atr_period,
-            ),
-            SmartMoneyStage(
-                liquidity_tolerance=(
-                    settings.liquidity_tolerance
-                ),
-            ),
-            IntelligenceStage(),
-            RiskStage(
-                account_balance=settings.account_balance,
-                risk_percent=settings.risk_percent,
-                stop_atr_multiplier=(
-                    settings.stop_atr_multiplier
-                ),
-                reward_risk_ratio=(
-                    settings.reward_risk_ratio
-                ),
-                point_value=settings.point_value,
-            ),
-            DecisionStage(
-                reward_risk_ratio=(
-                    settings.reward_risk_ratio
-                ),
-            ),
-            TradePlanStage(),
-            ExecutionStage(
-                trade_log_path=settings.trade_log_path,
-                simulated_log_path=(
-                    settings.simulated_log_path
-                ),
-                point_value=settings.point_value,
-            ),
-            ReportingStage(),
-        ]
-    )
+    runtime_started = False
 
-    pipeline.run(
-        initial_context={
-            "collector": collector,
-            "settings": settings,
-        }
-    )
+    try:
+        lifecycle_manager.start_clean()
+        runtime_started = True
+
+        arms = ArmsCore()
+        arms.start()
+
+        connector = MarketConnector()
+        connector.connect()
+
+        collector = DataCollector(
+            provider=settings.provider,
+        )
+
+        pipeline = ArmsPipeline(
+            stages=[
+                MarketStage(
+                    collector=collector,
+                    symbol=settings.symbol,
+                    timeframe=settings.timeframe,
+                    candle_limit=settings.candle_limit,
+                    max_candles=settings.max_candles,
+                ),
+                IndicatorStage(
+                    ema_period=settings.ema_period,
+                    rsi_period=settings.rsi_period,
+                    atr_period=settings.atr_period,
+                ),
+                SmartMoneyStage(
+                    liquidity_tolerance=(
+                        settings.liquidity_tolerance
+                    ),
+                ),
+                IntelligenceStage(),
+                RiskStage(
+                    account_balance=(
+                        settings.account_balance
+                    ),
+                    risk_percent=settings.risk_percent,
+                    stop_atr_multiplier=(
+                        settings.stop_atr_multiplier
+                    ),
+                    reward_risk_ratio=(
+                        settings.reward_risk_ratio
+                    ),
+                    point_value=settings.point_value,
+                ),
+                DecisionStage(
+                    reward_risk_ratio=(
+                        settings.reward_risk_ratio
+                    ),
+                ),
+                TradePlanStage(),
+                ExecutionStage(
+                    trade_log_path=(
+                        settings.trade_log_path
+                    ),
+                    simulated_log_path=(
+                        settings.simulated_log_path
+                    ),
+                    point_value=settings.point_value,
+                ),
+                ReportingStage(),
+            ]
+        )
+
+        pipeline.run(
+            initial_context={
+                "collector": collector,
+                "settings": settings,
+            }
+        )
+
+    finally:
+        if runtime_started:
+            lifecycle_manager.shutdown_to(
+                file_path=(
+                    settings.runtime_snapshot_path
+                ),
+            )
 
 
 if __name__ == "__main__":

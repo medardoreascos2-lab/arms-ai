@@ -26,6 +26,7 @@ class ArmsSettings:
 
     trade_log_path: str = "data/trade_plans.jsonl"
     simulated_log_path: str = "data/simulated_trades.jsonl"
+    runtime_snapshot_path: str = "data/runtime_state_v2.json"
 
     def __post_init__(self) -> None:
         self._validate()
@@ -133,4 +134,9 @@ class ArmsSettings:
         if not self.simulated_log_path.strip():
             raise ValueError(
                 "simulated_log_path no puede estar vacío."
+            )
+
+        if not self.runtime_snapshot_path.strip():
+            raise ValueError(
+                "runtime_snapshot_path no puede estar vacío."
             )
