@@ -192,6 +192,12 @@ class BacktestSessionV2:
             dict[str, object]
         ] = []
 
+        self.position_update_results: list[
+            dict[str, object]
+        ] = []
+
+        self.active_position_id: str | None = None
+
     def run(self) -> int:
         """
         Ejecuta la sesión completa de backtesting.
@@ -203,11 +209,17 @@ class BacktestSessionV2:
         self.trade_plans.clear()
         self.signals.clear()
         self.submission_results.clear()
+        self.position_update_results.clear()
+        self.active_position_id = None
 
         def on_candle(
             candle: Any,
             publish_result: Any,
         ) -> None:
+
+            self._update_active_position_if_configured(
+                candle=candle,
+            )
 
             context = {
                 "candle": candle,
@@ -354,6 +366,104 @@ class BacktestSessionV2:
             self.submission_results.append(
                 submission_result
             )
+
+            if isinstance(
+                submission_result,
+                dict,
+            ):
+                accepted = bool(
+                    submission_result.get(
+                        "accepted",
+                        False,
+                    )
+                )
+
+                active_position_id = (
+                    submission_result.get(
+                        "active_position_id"
+                    )
+                )
+
+                if (
+                    accepted
+                    and active_position_id
+                    is not None
+                ):
+                    self.active_position_id = str(
+                        active_position_id
+                    ).strip()
+
+    def _update_active_position_if_configured(
+        self,
+        *,
+        candle: Any,
+    ) -> None:
+        """
+        Actualiza la posición activa con el precio de
+        cada vela posterior a la entrada.
+        """
+
+        if not self.active_position_id:
+            return
+
+        update_position = getattr(
+            self.signal_submission_target_v2,
+            "update_position",
+            None,
+        )
+
+        if not callable(update_position):
+            return
+
+        if not isinstance(candle, dict):
+            raise TypeError(
+                "candle debe ser un dict para "
+                "actualizar posiciones."
+            )
+
+        current_price = float(
+            candle.get(
+                "close",
+                0.0,
+            )
+        )
+
+        if current_price <= 0:
+            raise ValueError(
+                "candle debe contener un close "
+                "mayor que cero para actualizar "
+                "posiciones."
+            )
+
+        update_result = update_position(
+            position_id=self.active_position_id,
+            current_price=current_price,
+        )
+
+        if not isinstance(update_result, dict):
+            raise TypeError(
+                "update_position debe devolver un dict."
+            )
+
+        self.position_update_results.append(
+            update_result
+        )
+
+        position = update_result.get(
+            "position"
+        )
+
+        if (
+            isinstance(position, dict)
+            and str(
+                position.get(
+                    "status",
+                    "",
+                )
+            ).strip().upper()
+            == "CLOSED"
+        ):
+            self.active_position_id = None
 
     def _execute_trade_if_configured(
         self,
