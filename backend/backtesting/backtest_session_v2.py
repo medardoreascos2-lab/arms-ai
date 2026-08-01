@@ -7,6 +7,10 @@ from backend.strategies.trading_strategy_v2 import (
     TradingDecisionV2,
 )
 
+from backend.services.signal_submission_target_v2 import (
+    SignalSubmissionTargetV2,
+)
+
 
 class BacktestSessionV2:
     """
@@ -30,6 +34,10 @@ class BacktestSessionV2:
         trade_executor_v2=None,
         backtest_trade_plan_adapter_v2=None,
         signal_generator_v2=None,
+        signal_submission_target_v2=None,
+        signal_order_type: str = "MARKET",
+        signal_risk_context=None,
+        signal_order_context=None,
     ) -> None:
 
         if not callable(
@@ -97,6 +105,27 @@ class BacktestSessionV2:
                 "signal_generator_v2 debe implementar generate()."
             )
 
+        if (
+            signal_submission_target_v2 is not None
+            and not isinstance(
+                signal_submission_target_v2,
+                SignalSubmissionTargetV2,
+            )
+        ):
+            raise TypeError(
+                "signal_submission_target_v2 debe ser "
+                "SignalSubmissionTargetV2."
+            )
+
+        normalized_signal_order_type = str(
+            signal_order_type
+        ).strip().upper()
+
+        if not normalized_signal_order_type:
+            raise ValueError(
+                "signal_order_type no puede estar vacío."
+            )
+
         signal_pipeline_components = (
             backtest_trade_plan_adapter_v2,
             signal_generator_v2,
@@ -134,6 +163,18 @@ class BacktestSessionV2:
         self.signal_generator_v2 = (
             signal_generator_v2
         )
+        self.signal_submission_target_v2 = (
+            signal_submission_target_v2
+        )
+        self.signal_order_type = (
+            normalized_signal_order_type
+        )
+        self.signal_risk_context = (
+            signal_risk_context
+        )
+        self.signal_order_context = (
+            signal_order_context
+        )
 
         self.decisions: list[
             TradingDecisionV2
@@ -147,6 +188,10 @@ class BacktestSessionV2:
             dict[str, object]
         ] = []
 
+        self.submission_results: list[
+            dict[str, object]
+        ] = []
+
     def run(self) -> int:
         """
         Ejecuta la sesión completa de backtesting.
@@ -157,6 +202,7 @@ class BacktestSessionV2:
         self.decisions.clear()
         self.trade_plans.clear()
         self.signals.clear()
+        self.submission_results.clear()
 
         def on_candle(
             candle: Any,
@@ -291,6 +337,23 @@ class BacktestSessionV2:
         self.signals.append(
             signal
         )
+
+        if (
+            self.signal_submission_target_v2
+            is not None
+        ):
+            submission_result = (
+                self.signal_submission_target_v2.submit_signal(
+                    signal=signal,
+                    order_type=self.signal_order_type,
+                    risk_context=self.signal_risk_context,
+                    order_context=self.signal_order_context,
+                )
+            )
+
+            self.submission_results.append(
+                submission_result
+            )
 
     def _execute_trade_if_configured(
         self,
