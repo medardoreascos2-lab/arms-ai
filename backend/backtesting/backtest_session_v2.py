@@ -4,6 +4,10 @@ from typing import Any
 
 from backend.models.candle import Candle
 
+from backend.backtesting.backtest_report_v2 import (
+    BacktestReportV2,
+)
+
 from backend.strategies.trading_strategy_v2 import (
     TradingActionV2,
     TradingDecisionV2,
@@ -269,6 +273,91 @@ class BacktestSessionV2:
 
         return self.backtest_runner_v2.run(
             on_candle=on_candle,
+        )
+
+    def build_report(
+        self,
+        *,
+        candles_processed: int,
+    ) -> BacktestReportV2:
+        """
+        Construye un reporte consolidado con los
+        resultados actuales de la sesión.
+        """
+
+        normalized_candles_processed = int(
+            candles_processed
+        )
+
+        if normalized_candles_processed < 0:
+            raise ValueError(
+                "candles_processed no puede ser negativo."
+            )
+
+        trade_history: list[dict[str, object]] = []
+        performance_metrics: dict[str, object] = {}
+        active_positions: list[dict[str, object]] = []
+
+        target = self.signal_submission_target_v2
+
+        if target is not None:
+            get_trade_history = getattr(
+                target,
+                "get_trade_history",
+                None,
+            )
+
+            if callable(get_trade_history):
+                trade_history = list(
+                    get_trade_history()
+                )
+
+            get_performance_metrics = getattr(
+                target,
+                "get_performance_metrics",
+                None,
+            )
+
+            if callable(get_performance_metrics):
+                performance_metrics = dict(
+                    get_performance_metrics()
+                )
+
+            get_active_positions = getattr(
+                target,
+                "get_active_positions",
+                None,
+            )
+
+            if callable(get_active_positions):
+                active_positions = list(
+                    get_active_positions()
+                )
+
+        return BacktestReportV2(
+            candles_processed=(
+                normalized_candles_processed
+            ),
+            decisions=list(
+                self.decisions
+            ),
+            trade_plans=list(
+                self.trade_plans
+            ),
+            signals=list(
+                self.signals
+            ),
+            submission_results=list(
+                self.submission_results
+            ),
+            position_updates=list(
+                self.position_update_results
+            ),
+            trade_history=trade_history,
+            performance_metrics=(
+                performance_metrics
+            ),
+            active_positions=active_positions,
         )
 
     @staticmethod
