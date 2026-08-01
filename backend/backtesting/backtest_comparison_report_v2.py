@@ -7,6 +7,10 @@ from typing import Any
 from backend.backtesting.backtest_batch_runner_v2 import (
     BacktestBatchResultV2,
 )
+from backend.backtesting.backtest_composite_score_v2 import (
+    BacktestCompositeScoreV2,
+)
+
 from backend.backtesting.backtest_pipeline_v2 import (
     BacktestPipelineResultV2,
 )
@@ -276,6 +280,105 @@ class BacktestComparisonReportV2:
             )
 
         return ranking[0]
+
+    def rank_by_score(
+        self,
+        scorer: BacktestCompositeScoreV2,
+    ) -> list[dict[str, Any]]:
+        """
+        Calcula el score compuesto de cada estrategia
+        y devuelve el ranking de mayor a menor.
+        """
+
+        calculate = getattr(
+            scorer,
+            "calculate",
+            None,
+        )
+
+        if not callable(calculate):
+            raise TypeError(
+                "scorer debe implementar calculate()."
+            )
+
+        ranking: list[
+            dict[str, Any]
+        ] = []
+
+        for strategy in self.strategies:
+            score_result = calculate(
+                metrics={
+                    "net_pnl": strategy.get(
+                        "net_pnl",
+                        0.0,
+                    ),
+                    "win_rate": strategy.get(
+                        "win_rate",
+                        0.0,
+                    ),
+                    "profit_factor": strategy.get(
+                        "profit_factor",
+                        0.0,
+                    ),
+                    "maximum_drawdown": strategy.get(
+                        "maximum_drawdown",
+                        0.0,
+                    ),
+                    "expectancy": strategy.get(
+                        "expectancy",
+                        0.0,
+                    ),
+                    "total_trades": strategy.get(
+                        "total_trades",
+                        0,
+                    ),
+                }
+            )
+
+            row = deepcopy(
+                strategy
+            )
+
+            row.update(
+                score_result.to_dict()
+            )
+
+            ranking.append(
+                row
+            )
+
+        return sorted(
+            ranking,
+            key=lambda row: float(
+                row.get(
+                    "score",
+                    0.0,
+                )
+            ),
+            reverse=True,
+        )
+
+    def best_overall(
+        self,
+        scorer: BacktestCompositeScoreV2,
+    ) -> dict[str, Any]:
+        """
+        Devuelve la estrategia con el mejor score
+        compuesto global.
+        """
+
+        ranking = self.rank_by_score(
+            scorer
+        )
+
+        if not ranking:
+            raise ValueError(
+                "No hay estrategias para comparar."
+            )
+
+        return deepcopy(
+            ranking[0]
+        )
 
     def to_dict(
         self,
