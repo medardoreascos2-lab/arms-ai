@@ -4,6 +4,10 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
+from backend.serialization.object_serializer_v2 import (
+    ObjectSerializerV2,
+)
+
 
 @dataclass(slots=True)
 class BacktestReportV2:
@@ -71,7 +75,9 @@ class BacktestReportV2:
         del reporte para APIs, JSON y dashboards.
         """
 
-        return {
+        serializer = ObjectSerializerV2()
+
+        payload = {
             "summary": self.summary(),
             "candles_processed": (
                 self.candles_processed
@@ -101,6 +107,20 @@ class BacktestReportV2:
                 self.active_positions
             ),
         }
+
+        result = serializer.serialize(
+            payload
+        )
+
+        if not isinstance(
+            result,
+            dict,
+        ):
+            raise TypeError(
+                "El reporte serializado debe ser un dict."
+            )
+
+        return result
 
     def summary(
         self,
