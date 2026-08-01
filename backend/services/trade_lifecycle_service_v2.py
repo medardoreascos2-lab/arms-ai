@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from backend.services.signal_submission_target_v2 import (
+    SignalSubmissionTargetV2,
+)
+
 from backend.connectors.broker_connector_v2 import (
     BrokerConnectorV2,
 )
@@ -65,7 +69,9 @@ from backend.dashboard.risk_dashboard_event_publisher_v2 import (
 )
 
 
-class TradeLifecycleServiceV2:
+class TradeLifecycleServiceV2(
+    SignalSubmissionTargetV2,
+):
     """
     Orquesta el ciclo completo de una operación:
 
