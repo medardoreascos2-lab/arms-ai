@@ -154,8 +154,25 @@ def test_lifespan_recovers_existing_snapshot(
 
         assert startup_report is not None
         assert startup_report["success"] is True
-        assert startup_report["snapshot_found"] is True
-        assert startup_report["recovery_attempted"] is True
+
+        coordinator_report = (
+            startup_report["startup_report"]
+        )
+
+        assert isinstance(
+            coordinator_report,
+            dict,
+        )
+
+        assert (
+            coordinator_report["snapshot_found"]
+            is True
+        )
+
+        assert (
+            coordinator_report["recovery_attempted"]
+            is True
+        )
 
     assert state_path.exists()
 
