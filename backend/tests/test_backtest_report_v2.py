@@ -57,3 +57,144 @@ def test_summary():
         "closed_trades": 1,
         "active_positions": 0,
     }
+
+
+def test_to_dict_returns_complete_report():
+
+    report = BacktestReportV2(
+        candles_processed=50,
+        decisions=[
+            {
+                "action": "BUY",
+            },
+        ],
+        trade_plans=[
+            {
+                "entry_price": 20000.0,
+            },
+        ],
+        signals=[
+            {
+                "symbol": "NQ",
+            },
+        ],
+        submission_results=[
+            {
+                "accepted": True,
+            },
+        ],
+        position_updates=[
+            {
+                "updated": True,
+            },
+        ],
+        trade_history=[
+            {
+                "trade_id": "T-1",
+                "realized_pnl": 100.0,
+            },
+        ],
+        performance_metrics={
+            "total_trades": 1,
+            "wins": 1,
+            "net_pnl": 100.0,
+            "equity_curve": [
+                17000.0,
+                17100.0,
+            ],
+        },
+        active_positions=[],
+    )
+
+    result = report.to_dict()
+
+    assert result == {
+        "summary": {
+            "candles_processed": 50,
+            "decisions": 1,
+            "trade_plans": 1,
+            "signals": 1,
+            "submissions": 1,
+            "position_updates": 1,
+            "closed_trades": 1,
+            "active_positions": 0,
+        },
+        "candles_processed": 50,
+        "decisions": [
+            {
+                "action": "BUY",
+            },
+        ],
+        "trade_plans": [
+            {
+                "entry_price": 20000.0,
+            },
+        ],
+        "signals": [
+            {
+                "symbol": "NQ",
+            },
+        ],
+        "submission_results": [
+            {
+                "accepted": True,
+            },
+        ],
+        "position_updates": [
+            {
+                "updated": True,
+            },
+        ],
+        "trade_history": [
+            {
+                "trade_id": "T-1",
+                "realized_pnl": 100.0,
+            },
+        ],
+        "performance_metrics": {
+            "total_trades": 1,
+            "wins": 1,
+            "net_pnl": 100.0,
+            "equity_curve": [
+                17000.0,
+                17100.0,
+            ],
+        },
+        "active_positions": [],
+    }
+
+
+def test_to_dict_does_not_expose_internal_collections():
+
+    report = BacktestReportV2(
+        candles_processed=1,
+        decisions=[
+            {
+                "action": "BUY",
+            },
+        ],
+        performance_metrics={
+            "equity_curve": [
+                17000.0,
+            ],
+        },
+    )
+
+    result = report.to_dict()
+
+    result["decisions"][0]["action"] = "SELL"
+    result["performance_metrics"][
+        "equity_curve"
+    ].append(18000.0)
+
+    assert report.decisions == [
+        {
+            "action": "BUY",
+        },
+    ]
+
+    assert report.performance_metrics == {
+        "equity_curve": [
+            17000.0,
+        ],
+    }

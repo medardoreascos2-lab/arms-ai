@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -61,6 +62,45 @@ class BacktestReportV2:
         self.candles_processed = (
             normalized_candles_processed
         )
+
+    def to_dict(
+        self,
+    ) -> dict[str, Any]:
+        """
+        Devuelve una representación completa y segura
+        del reporte para APIs, JSON y dashboards.
+        """
+
+        return {
+            "summary": self.summary(),
+            "candles_processed": (
+                self.candles_processed
+            ),
+            "decisions": deepcopy(
+                self.decisions
+            ),
+            "trade_plans": deepcopy(
+                self.trade_plans
+            ),
+            "signals": deepcopy(
+                self.signals
+            ),
+            "submission_results": deepcopy(
+                self.submission_results
+            ),
+            "position_updates": deepcopy(
+                self.position_updates
+            ),
+            "trade_history": deepcopy(
+                self.trade_history
+            ),
+            "performance_metrics": deepcopy(
+                self.performance_metrics
+            ),
+            "active_positions": deepcopy(
+                self.active_positions
+            ),
+        }
 
     def summary(
         self,
