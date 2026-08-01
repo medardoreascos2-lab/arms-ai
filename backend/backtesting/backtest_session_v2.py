@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.models.candle import Candle
+
 from backend.strategies.trading_strategy_v2 import (
     TradingActionV2,
     TradingDecisionV2,
@@ -217,12 +219,16 @@ class BacktestSessionV2:
             publish_result: Any,
         ) -> None:
 
+            normalized_candle = self._normalize_candle(
+                candle
+            )
+
             self._update_active_position_if_configured(
-                candle=candle,
+                candle=normalized_candle,
             )
 
             context = {
-                "candle": candle,
+                "candle": normalized_candle,
                 "publish_result": publish_result,
             }
 
@@ -251,28 +257,47 @@ class BacktestSessionV2:
             ):
                 return
 
-            if not isinstance(
-                candle,
-                dict,
-            ):
-                raise TypeError(
-                    "candle debe ser un dict "
-                    "para ejecutar trades o "
-                    "generar señales."
-                )
-
             self._generate_signal_if_configured(
                 decision=decision,
-                candle=candle,
+                candle=normalized_candle,
             )
 
             self._execute_trade_if_configured(
                 decision=decision,
-                candle=candle,
+                candle=normalized_candle,
             )
 
         return self.backtest_runner_v2.run(
             on_candle=on_candle,
+        )
+
+    @staticmethod
+    def _normalize_candle(
+        candle: Any,
+    ) -> dict[str, Any]:
+        """
+        Normaliza velas representadas como dict o Candle
+        al formato interno utilizado por el backtesting.
+        """
+
+        if isinstance(candle, dict):
+            return candle
+
+        if isinstance(candle, Candle):
+            return {
+                "symbol": candle.symbol,
+                "timeframe": candle.timeframe,
+                "open": candle.open,
+                "high": candle.high,
+                "low": candle.low,
+                "close": candle.close,
+                "volume": candle.volume,
+                "timestamp": candle.timestamp,
+            }
+
+        raise TypeError(
+            "candle debe ser un dict o una instancia "
+            "de Candle."
         )
 
     def _generate_signal_if_configured(
