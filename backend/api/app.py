@@ -207,6 +207,9 @@ from backend.api.routers.backtesting_jobs_api_v2 import (
 from backend.api.routers.backtesting_controller_api_v2 import (
     create_backtesting_controller_router_v2,
 )
+from backend.api.routers.backtesting_dashboard_api_v2 import (
+    create_backtesting_dashboard_router_v2,
+)
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
 )
@@ -1688,6 +1691,15 @@ def create_app(
         )
     )
 
+
+    app.include_router(
+        create_backtesting_dashboard_router_v2(
+            controller=(
+                app.state
+                .backtesting_controller_v2
+            ),
+        )
+    )
 
     app.include_router(
         create_backtesting_controller_router_v2(
