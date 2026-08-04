@@ -18,6 +18,7 @@ def create_backtesting_jobs_router_v2(
     *,
     job_manager: BacktestingJobManagerV2,
     job_queue: BacktestingJobQueueV2 | None = None,
+    worker=None,
 ) -> APIRouter:
     """
     Router REST para administrar trabajos de Backtesting.
@@ -53,6 +54,20 @@ def create_backtesting_jobs_router_v2(
             "el mismo job_manager."
         )
 
+    if (
+        worker is not None
+        and not callable(
+            getattr(
+                worker,
+                "process_next",
+                None,
+            )
+        )
+    ):
+        raise TypeError(
+            "worker debe implementar process_next()."
+        )
+
     router = APIRouter(
         prefix="/api/v2/backtesting/jobs",
         tags=["backtesting-jobs-v2"],
@@ -86,6 +101,26 @@ def create_backtesting_jobs_router_v2(
             job.to_dict()
             for job in job_manager.list_jobs()
         ]
+
+    @router.post("/process-next")
+    def process_next_job():
+
+        if worker is None:
+            raise HTTPException(
+                status_code=503,
+                detail="backtesting_worker_not_configured",
+            )
+
+        worker.process_next(
+            candles=[],
+            output_directory=(
+                "reports/backtesting"
+            ),
+        )
+
+        return {
+            "processed": True,
+        }
 
     @router.get("/{job_id}")
     def get_job(
