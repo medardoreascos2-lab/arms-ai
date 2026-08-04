@@ -26,6 +26,7 @@ def create_backtesting_jobs_router_v2(
     job_manager: BacktestingJobManagerV2,
     job_queue: BacktestingJobQueueV2 | None = None,
     worker=None,
+    result_provider=None,
 ) -> APIRouter:
     """
     Router REST para administrar trabajos de Backtesting.
@@ -73,6 +74,21 @@ def create_backtesting_jobs_router_v2(
     ):
         raise TypeError(
             "worker debe implementar process_next()."
+        )
+
+    if (
+        result_provider is not None
+        and not callable(
+            getattr(
+                result_provider,
+                "get_result",
+                None,
+            )
+        )
+    ):
+        raise TypeError(
+            "result_provider debe implementar "
+            "get_result()."
         )
 
     router = APIRouter(
@@ -160,6 +176,59 @@ def create_backtesting_jobs_router_v2(
                 if processed_job is not None
                 else None
             ),
+        }
+
+    @router.get("/{job_id}/result")
+    def get_job_result(
+        job_id: str,
+    ):
+
+        if result_provider is None:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "backtesting_result_provider_"
+                    "not_configured"
+                ),
+            )
+
+        result = result_provider.get_result(
+            job_id
+        )
+
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "backtesting_result_not_found"
+                ),
+            )
+
+        serializer = getattr(
+            result,
+            "to_dict",
+            None,
+        )
+
+        if callable(serializer):
+            serialized_result = serializer()
+        elif isinstance(
+            result,
+            dict,
+        ):
+            serialized_result = result
+        else:
+            serialized_result = {
+                "report_directory": getattr(
+                    result,
+                    "report_directory",
+                    None,
+                ),
+            }
+
+        return {
+            "job_id": job_id,
+            "result": serialized_result,
         }
 
     @router.get("/{job_id}")
