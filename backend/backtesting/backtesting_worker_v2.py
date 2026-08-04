@@ -148,3 +148,29 @@ class BacktestingWorkerV2:
 
         with self._lock:
             return self._last_result
+
+    def status(
+        self,
+    ):
+        """
+        Estado operativo del worker
+        para consumo del dashboard.
+        """
+
+        return {
+            "is_running": getattr(
+                self,
+                "is_running",
+                False,
+            ),
+            "iterations": getattr(
+                self,
+                "iterations",
+                0,
+            ),
+            "last_error": getattr(
+                self,
+                "last_error",
+                None,
+            ),
+        }

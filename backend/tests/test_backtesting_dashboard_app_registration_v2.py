@@ -66,4 +66,9 @@ def test_dashboard_uses_shared_controller():
         "queue": {
             "pending_tasks": 0,
         },
+        "worker": {
+            "is_running": False,
+            "iterations": 0,
+            "last_error": None,
+        },
     }
