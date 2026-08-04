@@ -7,6 +7,9 @@ from typing import Any
 from backend.backtesting.backtest_composite_score_v2 import (
     BacktestCompositeScoreResultV2,
 )
+from backend.backtesting.institutional_backtesting_report_v2 import (
+    InstitutionalBacktestingReportV2,
+)
 from backend.models.backtest_result import (
     BacktestResult,
 )
@@ -22,6 +25,7 @@ class BacktestingOrchestratorResultV2:
     backtest_result: BacktestResult
     score_result: BacktestCompositeScoreResultV2
     certification_result: Any
+    institutional_report: InstitutionalBacktestingReportV2
 
     @property
     def backtest_score(
@@ -207,6 +211,9 @@ class BacktestingOrchestratorResultV2:
             ),
             "certification": (
                 certification_payload
+            ),
+            "institutional_report": (
+                self.institutional_report.to_dict()
             ),
         }
 
@@ -477,10 +484,41 @@ class BacktestingOrchestratorV2:
             certification_pipeline.run()
         )
 
+        certification = getattr(
+            certification_result,
+            "certification",
+            None,
+        )
+
+        certification_status = getattr(
+            certification,
+            "status",
+            None,
+        )
+
+        if certification_status is None:
+            raise TypeError(
+                "certification_result debe exponer "
+                "certification.status."
+            )
+
+        institutional_report = (
+            InstitutionalBacktestingReportV2(
+                backtest_result=backtest_result,
+                score_result=score_result,
+                certification_status=str(
+                    certification_status
+                ),
+            )
+        )
+
         return BacktestingOrchestratorResultV2(
             backtest_result=backtest_result,
             score_result=score_result,
             certification_result=(
                 certification_result
+            ),
+            institutional_report=(
+                institutional_report
             ),
         )
