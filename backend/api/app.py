@@ -206,6 +206,9 @@ from backend.api.routers.backtesting_jobs_api_v2 import (
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
 )
+from backend.backtesting.backtesting_job_queue_v2 import (
+    BacktestingJobQueueV2,
+)
 
 from backend.api.routers.backtesting_api_v2 import (
     BacktestingUnavailableOrchestratorV2,
@@ -344,6 +347,7 @@ def create_app(
     | None = None,
     backtesting_orchestrator_v2=None,
     backtesting_job_manager_v2=None,
+    backtesting_job_queue_v2=None,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -1322,6 +1326,38 @@ def create_app(
         backtesting_job_manager_v2
     )
 
+    if backtesting_job_queue_v2 is None:
+        backtesting_job_queue_v2 = (
+            BacktestingJobQueueV2(
+                job_manager=(
+                    app.state
+                    .backtesting_job_manager_v2
+                ),
+            )
+        )
+
+    if not isinstance(
+        backtesting_job_queue_v2,
+        BacktestingJobQueueV2,
+    ):
+        raise TypeError(
+            "backtesting_job_queue_v2 debe ser "
+            "BacktestingJobQueueV2."
+        )
+
+    if (
+        backtesting_job_queue_v2.job_manager
+        is not app.state.backtesting_job_manager_v2
+    ):
+        raise ValueError(
+            "backtesting_job_queue_v2 debe utilizar "
+            "el mismo backtesting_job_manager_v2."
+        )
+
+    app.state.backtesting_job_queue_v2 = (
+        backtesting_job_queue_v2
+    )
+
     if backtesting_orchestrator_v2 is None:
         backtesting_orchestrator_v2 = (
             BacktestingUnavailableOrchestratorV2()
@@ -1425,6 +1461,10 @@ def create_app(
             job_manager=(
                 app.state
                 .backtesting_job_manager_v2
+            ),
+            job_queue=(
+                app.state
+                .backtesting_job_queue_v2
             ),
         )
     )
