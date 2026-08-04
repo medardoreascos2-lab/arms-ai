@@ -1,10 +1,13 @@
 import pytest
 
+from backend.backtesting.backtesting_job_manager_v2 import (
+    BacktestingJobManagerV2,
+)
 from backend.backtesting.backtesting_job_queue_v2 import (
     BacktestingJobQueueV2,
 )
-from backend.backtesting.backtesting_job_manager_v2 import (
-    BacktestingJobManagerV2,
+from backend.backtesting.backtesting_job_task_v2 import (
+    BacktestingJobTaskV2,
 )
 
 
@@ -19,20 +22,34 @@ def build_queue():
     return queue, manager
 
 
+def build_task(
+    manager,
+    *,
+    output_directory="reports/test",
+):
+
+    job = manager.create_job()
+
+    return BacktestingJobTaskV2(
+        job=job,
+        candles=[object()],
+        output_directory=output_directory,
+    )
+
+
 def test_enqueue_and_dequeue():
 
     queue, manager = build_queue()
 
-    job = manager.create_job()
+    task = build_task(manager)
 
-    queue.enqueue(job)
+    queue.enqueue(task)
 
     assert len(queue) == 1
 
     popped = queue.dequeue()
 
-    assert popped is job
-
+    assert popped is task
     assert len(queue) == 0
 
 
@@ -40,17 +57,21 @@ def test_fifo_order():
 
     queue, manager = build_queue()
 
-    job1 = manager.create_job()
+    task1 = build_task(
+        manager,
+        output_directory="reports/1",
+    )
 
-    job2 = manager.create_job()
+    task2 = build_task(
+        manager,
+        output_directory="reports/2",
+    )
 
-    queue.enqueue(job1)
+    queue.enqueue(task1)
+    queue.enqueue(task2)
 
-    queue.enqueue(job2)
-
-    assert queue.dequeue() is job1
-
-    assert queue.dequeue() is job2
+    assert queue.dequeue() is task1
+    assert queue.dequeue() is task2
 
 
 def test_empty_queue_returns_none():
@@ -64,14 +85,14 @@ def test_reject_duplicate_job():
 
     queue, manager = build_queue()
 
-    job = manager.create_job()
+    task = build_task(manager)
 
-    queue.enqueue(job)
+    queue.enqueue(task)
 
     with pytest.raises(
         ValueError,
     ):
-        queue.enqueue(job)
+        queue.enqueue(task)
 
 
 def test_invalid_manager():

@@ -5,11 +5,14 @@ from threading import RLock
 from backend.backtesting.backtesting_job_queue_v2 import (
     BacktestingJobQueueV2,
 )
+from backend.backtesting.backtesting_job_task_v2 import (
+    BacktestingJobTaskV2,
+)
 
 
 class BacktestingWorkerV2:
     """
-    Worker síncrono que procesa jobs pendientes
+    Procesa BacktestingJobTaskV2 pendientes
     desde BacktestingJobQueueV2.
     """
 
@@ -45,60 +48,65 @@ class BacktestingWorkerV2:
 
         self._processed_jobs = 0
         self._last_processed_job = None
+        self._last_processed_task = None
         self._last_result = None
 
         self._lock = RLock()
 
     def process_next(
         self,
-        *,
-        candles,
-        output_directory,
     ):
 
-        job = self.queue.dequeue()
+        task = self.queue.dequeue()
 
-        if job is None:
+        if task is None:
             return None
+
+        if not isinstance(
+            task,
+            BacktestingJobTaskV2,
+        ):
+            raise TypeError(
+                "queue.dequeue() debe devolver "
+                "BacktestingJobTaskV2."
+            )
 
         try:
             result = self.executor.execute(
-                job=job,
-                candles=candles,
-                output_directory=output_directory,
+                job=task.job,
+                candles=task.candles,
+                output_directory=(
+                    task.output_directory
+                ),
             )
 
             with self._lock:
                 self._processed_jobs += 1
-                self._last_processed_job = job
+                self._last_processed_job = task.job
+                self._last_processed_task = task
                 self._last_result = result
 
-            return job
+            return task.job
 
         except Exception:
 
             with self._lock:
                 self._processed_jobs += 1
-                self._last_processed_job = job
+                self._last_processed_job = task.job
+                self._last_processed_task = task
                 self._last_result = None
 
             raise
 
     def process_all(
         self,
-        *,
-        candles,
-        output_directory,
     ) -> list:
 
         processed_jobs = []
 
         while True:
 
-            job = self.process_next(
-                candles=candles,
-                output_directory=output_directory,
-            )
+            job = self.process_next()
 
             if job is None:
                 break
@@ -124,6 +132,14 @@ class BacktestingWorkerV2:
 
         with self._lock:
             return self._last_processed_job
+
+    @property
+    def last_processed_task(
+        self,
+    ):
+
+        with self._lock:
+            return self._last_processed_task
 
     @property
     def last_result(

@@ -8,15 +8,15 @@ from backend.backtesting.backtesting_background_worker_v2 import (
 class FakeWorker:
 
     def __init__(self):
+
         self.calls = 0
 
     def process_next(
         self,
-        *,
-        candles,
-        output_directory,
     ):
+
         self.calls += 1
+
         return None
 
 
@@ -40,9 +40,7 @@ def test_run_single_iteration():
         )
     )
 
-    background.run_once(
-        candles=[],
-        output_directory="reports",
-    )
+    background.run_once()
 
     assert fake.calls == 1
+    assert background.iterations == 1

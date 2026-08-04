@@ -5,11 +5,10 @@ from threading import RLock
 
 class BacktestingBackgroundWorkerV2:
     """
-    Servicio base para procesar trabajos de backtesting.
+    Servicio base para procesar tareas de backtesting.
 
-    En esta versión ejecuta iteraciones controladas
-    mediante run_once(). La ejecución continua se añadirá
-    después con start() y stop().
+    Cada tarea conserva sus propios candles y su
+    directorio de salida.
     """
 
     def __init__(
@@ -39,16 +38,10 @@ class BacktestingBackgroundWorkerV2:
 
     def run_once(
         self,
-        *,
-        candles,
-        output_directory,
     ):
 
         try:
-            result = self.worker.process_next(
-                candles=candles,
-                output_directory=output_directory,
-            )
+            result = self.worker.process_next()
 
             with self._lock:
                 self._iterations += 1

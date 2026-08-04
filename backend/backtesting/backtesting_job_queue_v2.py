@@ -6,9 +6,11 @@ from threading import RLock
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
 )
+from backend.backtesting.backtesting_job_task_v2 import (
+    BacktestingJobTaskV2,
+)
 from backend.backtesting.backtesting_job_v2 import (
     BacktestingJobStatusV2,
-    BacktestingJobV2,
 )
 
 
@@ -35,7 +37,7 @@ class BacktestingJobQueueV2:
         self.job_manager = job_manager
 
         self._queue: deque[
-            BacktestingJobV2
+            BacktestingJobTaskV2
         ] = deque()
 
         self._queued_job_ids: set[str] = set()
@@ -44,16 +46,18 @@ class BacktestingJobQueueV2:
 
     def enqueue(
         self,
-        job: BacktestingJobV2,
-    ) -> BacktestingJobV2:
+        task: BacktestingJobTaskV2,
+    ) -> BacktestingJobTaskV2:
 
         if not isinstance(
-            job,
-            BacktestingJobV2,
+            task,
+            BacktestingJobTaskV2,
         ):
             raise TypeError(
-                "job debe ser BacktestingJobV2."
+                "task debe ser BacktestingJobTaskV2."
             )
+
+        job = task.job
 
         if (
             job.status
@@ -87,18 +91,18 @@ class BacktestingJobQueueV2:
                 )
 
             self._queue.append(
-                job
+                task
             )
 
             self._queued_job_ids.add(
                 job.job_id
             )
 
-        return job
+        return task
 
     def dequeue(
         self,
-    ) -> BacktestingJobV2 | None:
+    ) -> BacktestingJobTaskV2 | None:
 
         with self._lock:
 
@@ -108,14 +112,14 @@ class BacktestingJobQueueV2:
             job = self._queue.popleft()
 
             self._queued_job_ids.discard(
-                job.job_id
+                job.job.job_id
             )
 
             return job
 
     def peek(
         self,
-    ) -> BacktestingJobV2 | None:
+    ) -> BacktestingJobTaskV2 | None:
 
         with self._lock:
 
@@ -127,7 +131,7 @@ class BacktestingJobQueueV2:
     def remove(
         self,
         job_id,
-    ) -> BacktestingJobV2 | None:
+    ) -> BacktestingJobTaskV2 | None:
 
         normalized_job_id = str(
             job_id
@@ -140,21 +144,21 @@ class BacktestingJobQueueV2:
 
         with self._lock:
 
-            for job in self._queue:
+            for task in self._queue:
 
                 if (
-                    job.job_id
+                    task.job.job_id
                     == normalized_job_id
                 ):
                     self._queue.remove(
-                        job
+                        task
                     )
 
                     self._queued_job_ids.discard(
                         normalized_job_id
                     )
 
-                    return job
+                    return task
 
         return None
 

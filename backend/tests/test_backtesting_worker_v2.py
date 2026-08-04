@@ -1,16 +1,16 @@
 import pytest
 
-from backend.backtesting.backtesting_worker_v2 import (
-    BacktestingWorkerV2,
-)
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
 )
 from backend.backtesting.backtesting_job_queue_v2 import (
     BacktestingJobQueueV2,
 )
-from backend.backtesting.backtesting_job_executor_v2 import (
-    BacktestingJobExecutorV2,
+from backend.backtesting.backtesting_job_task_v2 import (
+    BacktestingJobTaskV2,
+)
+from backend.backtesting.backtesting_worker_v2 import (
+    BacktestingWorkerV2,
 )
 
 
@@ -18,7 +18,7 @@ class FakeExecutor:
 
     def __init__(self):
 
-        self.executed_jobs = []
+        self.calls = []
 
     def execute(
         self,
@@ -28,7 +28,15 @@ class FakeExecutor:
         output_directory,
     ):
 
-        self.executed_jobs.append(job)
+        self.calls.append(
+            {
+                "job": job,
+                "candles": candles,
+                "output_directory": (
+                    output_directory
+                ),
+            }
+        )
 
         return object()
 
@@ -67,34 +75,39 @@ def test_process_single_job():
 
     job = manager.create_job()
 
-    queue.enqueue(job)
+    candles = [
+        object(),
+    ]
 
-    processed = worker.process_next(
-        candles=[],
-        output_directory="reports",
+    task = BacktestingJobTaskV2(
+        job=job,
+        candles=candles,
+        output_directory="reports/job",
     )
 
+    queue.enqueue(task)
+
+    processed = worker.process_next()
+
     assert processed is job
-
-    assert executor.executed_jobs == [job]
-
     assert len(queue) == 0
+
+    assert executor.calls == [
+        {
+            "job": job,
+            "candles": task.candles,
+            "output_directory": (
+                "reports/job"
+            ),
+        },
+    ]
 
 
 def test_process_empty_queue():
 
-    (
-        worker,
-        *_,
-    ) = build_worker()
+    worker, *_ = build_worker()
 
-    assert (
-        worker.process_next(
-            candles=[],
-            output_directory="reports",
-        )
-        is None
-    )
+    assert worker.process_next() is None
 
 
 def test_invalid_executor():

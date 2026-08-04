@@ -6,12 +6,19 @@ from fastapi import (
     status,
 )
 
+from backend.api.schemas.backtesting import (
+    BacktestingRunRequest,
+)
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
 )
 from backend.backtesting.backtesting_job_queue_v2 import (
     BacktestingJobQueueV2,
 )
+from backend.backtesting.backtesting_job_task_v2 import (
+    BacktestingJobTaskV2,
+)
+from backend.models.candle import Candle
 
 
 def create_backtesting_jobs_router_v2(
@@ -77,22 +84,51 @@ def create_backtesting_jobs_router_v2(
         "",
         status_code=status.HTTP_201_CREATED,
     )
-    def create_job():
+    def create_job(
+        request: BacktestingRunRequest,
+    ):
 
         job = job_manager.create_job()
 
-        if job_queue is not None:
-            try:
-                job_queue.enqueue(
-                    job
+        try:
+            candles = [
+                Candle(
+                    symbol=candle.symbol,
+                    timeframe=candle.timeframe,
+                    timestamp=candle.timestamp,
+                    open=candle.open,
+                    high=candle.high,
+                    low=candle.low,
+                    close=candle.close,
+                    volume=candle.volume,
                 )
-            except Exception:
-                job_manager.delete_job(
-                    job.job_id
-                )
-                raise
+                for candle in request.candles
+            ]
 
-        return job.to_dict()
+            task = BacktestingJobTaskV2(
+                job=job,
+                candles=candles,
+                output_directory=(
+                    request.output_directory
+                ),
+            )
+
+            if job_queue is not None:
+                job_queue.enqueue(
+                    task
+                )
+
+        except Exception:
+            job_manager.delete_job(
+                job.job_id
+            )
+            raise
+
+        payload = job.to_dict()
+
+        payload["task"] = task.to_dict()
+
+        return payload
 
     @router.get("")
     def list_jobs():
@@ -108,18 +144,22 @@ def create_backtesting_jobs_router_v2(
         if worker is None:
             raise HTTPException(
                 status_code=503,
-                detail="backtesting_worker_not_configured",
+                detail=(
+                    "backtesting_worker_not_configured"
+                ),
             )
 
-        worker.process_next(
-            candles=[],
-            output_directory=(
-                "reports/backtesting"
-            ),
-        )
+        processed_job = worker.process_next()
 
         return {
-            "processed": True,
+            "processed": (
+                processed_job is not None
+            ),
+            "job_id": (
+                processed_job.job_id
+                if processed_job is not None
+                else None
+            ),
         }
 
     @router.get("/{job_id}")
@@ -143,6 +183,11 @@ def create_backtesting_jobs_router_v2(
     def delete_job(
         job_id: str,
     ):
+
+        if job_queue is not None:
+            job_queue.remove(
+                job_id
+            )
 
         job = job_manager.delete_job(
             job_id

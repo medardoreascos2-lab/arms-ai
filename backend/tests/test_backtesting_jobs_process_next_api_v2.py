@@ -12,6 +12,11 @@ from backend.backtesting.backtesting_job_queue_v2 import (
 )
 
 
+class ProcessedJob:
+
+    job_id = "job-001"
+
+
 class FakeWorker:
 
     def __init__(self):
@@ -20,17 +25,14 @@ class FakeWorker:
 
     def process_next(
         self,
-        *,
-        candles,
-        output_directory,
     ):
 
         self.called = True
 
-        return None
+        return ProcessedJob()
 
 
-def build_client():
+def test_process_next_endpoint():
 
     manager = BacktestingJobManagerV2()
 
@@ -50,24 +52,16 @@ def build_client():
         )
     )
 
-    return (
-        TestClient(app),
-        worker,
-    )
-
-
-def test_process_next_endpoint():
-
-    client, worker = build_client()
+    client = TestClient(app)
 
     response = client.post(
         "/api/v2/backtesting/jobs/process-next"
     )
 
     assert response.status_code == 200
-
     assert worker.called
 
     assert response.json() == {
         "processed": True,
+        "job_id": "job-001",
     }
