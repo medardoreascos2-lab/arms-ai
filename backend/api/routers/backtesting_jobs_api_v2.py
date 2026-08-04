@@ -9,11 +9,15 @@ from fastapi import (
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
 )
+from backend.backtesting.backtesting_job_queue_v2 import (
+    BacktestingJobQueueV2,
+)
 
 
 def create_backtesting_jobs_router_v2(
     *,
     job_manager: BacktestingJobManagerV2,
+    job_queue: BacktestingJobQueueV2 | None = None,
 ) -> APIRouter:
     """
     Router REST para administrar trabajos de Backtesting.
@@ -25,6 +29,28 @@ def create_backtesting_jobs_router_v2(
     ):
         raise TypeError(
             "job_manager debe ser BacktestingJobManagerV2."
+        )
+
+    if (
+        job_queue is not None
+        and not isinstance(
+            job_queue,
+            BacktestingJobQueueV2,
+        )
+    ):
+        raise TypeError(
+            "job_queue debe ser "
+            "BacktestingJobQueueV2."
+        )
+
+    if (
+        job_queue is not None
+        and job_queue.job_manager
+        is not job_manager
+    ):
+        raise ValueError(
+            "job_queue debe utilizar "
+            "el mismo job_manager."
         )
 
     router = APIRouter(
@@ -39,6 +65,17 @@ def create_backtesting_jobs_router_v2(
     def create_job():
 
         job = job_manager.create_job()
+
+        if job_queue is not None:
+            try:
+                job_queue.enqueue(
+                    job
+                )
+            except Exception:
+                job_manager.delete_job(
+                    job.job_id
+                )
+                raise
 
         return job.to_dict()
 
