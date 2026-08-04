@@ -56,4 +56,11 @@ def test_dashboard_uses_shared_controller():
             .backtesting_controller_v2
             .status()
         ),
+        "jobs": {
+            "registered": 0,
+            "pending": 0,
+            "running": 0,
+            "completed": 0,
+            "failed": 0,
+        },
     }

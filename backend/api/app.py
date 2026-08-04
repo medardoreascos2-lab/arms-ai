@@ -1698,6 +1698,10 @@ def create_app(
                 app.state
                 .backtesting_controller_v2
             ),
+            job_manager=(
+                app.state
+                .backtesting_job_manager_v2
+            ),
         )
     )
 
