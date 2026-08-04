@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from backend.execution.execution_decision_engine_v2 import ExecutionDecisionEngineV2
 from backend.intelligence.probability_engine_v2 import ProbabilityEngineV2
 from backend.intelligence.confluence_engine_v2 import ConfluenceEngineV2
@@ -360,6 +361,7 @@ def create_app(
     backtesting_job_executor_v2=None,
     backtesting_worker_v2=None,
     backtesting_background_worker_v2=None,
+    start_backtesting_background_worker=False,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -836,7 +838,32 @@ def create_app(
             )
         )
 
+    @asynccontextmanager
+    async def lifespan(app):
+
+        if start_backtesting_background_worker:
+            (
+                app.state
+                .backtesting_background_worker_v2
+                .start()
+            )
+
+        try:
+            yield
+
+        finally:
+
+            if start_backtesting_background_worker:
+                (
+                    app.state
+                    .backtesting_background_worker_v2
+                    .stop(
+                        timeout=5.0,
+                    )
+                )
+
     app = FastAPI(
+        lifespan=lifespan,
         title=settings.title,
         version=settings.version,
         debug=settings.debug,
@@ -1478,17 +1505,35 @@ def create_app(
             )
         )
 
-    if not isinstance(
-        backtesting_background_worker_v2,
-        BacktestingBackgroundWorkerV2,
+    if (
+        not callable(
+            getattr(
+                backtesting_background_worker_v2,
+                "start",
+                None,
+            )
+        )
+        or not callable(
+            getattr(
+                backtesting_background_worker_v2,
+                "stop",
+                None,
+            )
+        )
     ):
         raise TypeError(
-            "backtesting_background_worker_v2 debe ser "
-            "BacktestingBackgroundWorkerV2."
+            "backtesting_background_worker_v2 debe implementar start() y stop()."
         )
 
+    background_inner_worker = getattr(
+        backtesting_background_worker_v2,
+        "worker",
+        None,
+    )
+
     if (
-        backtesting_background_worker_v2.worker
+        background_inner_worker is not None
+        and background_inner_worker
         is not app.state.backtesting_worker_v2
     ):
         raise ValueError(
@@ -1499,6 +1544,8 @@ def create_app(
     app.state.backtesting_background_worker_v2 = (
         backtesting_background_worker_v2
     )
+
+
 
     app.add_middleware(
         CORSMiddleware,
