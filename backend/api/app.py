@@ -1702,6 +1702,10 @@ def create_app(
                 app.state
                 .backtesting_job_manager_v2
             ),
+            job_queue=(
+                app.state
+                .backtesting_job_queue_v2
+            ),
         )
     )
 

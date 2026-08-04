@@ -63,4 +63,7 @@ def test_dashboard_uses_shared_controller():
             "completed": 0,
             "failed": 0,
         },
+        "queue": {
+            "pending_tasks": 0,
+        },
     }
