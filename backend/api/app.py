@@ -200,6 +200,11 @@ from backend.execution.trailing_stop_engine_v2 import (
     TrailingStopEngineV2,
 )
 
+from backend.api.routers.backtesting_api_v2 import (
+    BacktestingUnavailableOrchestratorV2,
+    create_backtesting_router_v2,
+)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -330,6 +335,7 @@ def create_app(
     runtime_context:
     RuntimeContextV2
     | None = None,
+    backtesting_orchestrator_v2=None,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -1290,6 +1296,27 @@ def create_app(
         settings.webhook_token
     )
 
+    if backtesting_orchestrator_v2 is None:
+        backtesting_orchestrator_v2 = (
+            BacktestingUnavailableOrchestratorV2()
+        )
+
+    if not callable(
+        getattr(
+            backtesting_orchestrator_v2,
+            "run",
+            None,
+        )
+    ):
+        raise TypeError(
+            "backtesting_orchestrator_v2 "
+            "debe implementar run()."
+        )
+
+    app.state.backtesting_orchestrator_v2 = (
+        backtesting_orchestrator_v2
+    )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -1366,6 +1393,15 @@ def create_app(
         )
     )
 
+
+    app.include_router(
+        create_backtesting_router_v2(
+            orchestrator=(
+                app.state
+                .backtesting_orchestrator_v2
+            ),
+        )
+    )
 
     @app.get("/health")
     def health() -> dict[str, str]:

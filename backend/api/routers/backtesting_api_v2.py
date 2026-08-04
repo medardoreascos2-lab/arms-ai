@@ -11,6 +11,24 @@ from backend.api.schemas.backtesting import (
 from backend.models.candle import Candle
 
 
+class BacktestingUnavailableOrchestratorV2:
+    """
+    Dependencia segura utilizada cuando el backtesting
+    todavía no fue configurado en la aplicación.
+    """
+
+    def run(
+        self,
+        *,
+        candles,
+        output_directory,
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="backtesting_orchestrator_not_configured",
+        )
+
+
 def create_backtesting_router_v2(
     *,
     orchestrator,
