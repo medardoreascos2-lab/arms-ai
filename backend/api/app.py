@@ -209,6 +209,12 @@ from backend.backtesting.backtesting_job_manager_v2 import (
 from backend.backtesting.backtesting_job_queue_v2 import (
     BacktestingJobQueueV2,
 )
+from backend.backtesting.backtesting_job_executor_v2 import (
+    BacktestingJobExecutorV2,
+)
+from backend.backtesting.backtesting_worker_v2 import (
+    BacktestingWorkerV2,
+)
 
 from backend.api.routers.backtesting_api_v2 import (
     BacktestingUnavailableOrchestratorV2,
@@ -348,6 +354,8 @@ def create_app(
     backtesting_orchestrator_v2=None,
     backtesting_job_manager_v2=None,
     backtesting_job_queue_v2=None,
+    backtesting_job_executor_v2=None,
+    backtesting_worker_v2=None,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -1377,6 +1385,83 @@ def create_app(
 
     app.state.backtesting_orchestrator_v2 = (
         backtesting_orchestrator_v2
+    )
+
+    if backtesting_job_executor_v2 is None:
+        backtesting_job_executor_v2 = (
+            BacktestingJobExecutorV2(
+                orchestrator=(
+                    app.state
+                    .backtesting_orchestrator_v2
+                ),
+            )
+        )
+
+    if not isinstance(
+        backtesting_job_executor_v2,
+        BacktestingJobExecutorV2,
+    ):
+        raise TypeError(
+            "backtesting_job_executor_v2 debe ser "
+            "BacktestingJobExecutorV2."
+        )
+
+    if (
+        backtesting_job_executor_v2.orchestrator
+        is not app.state.backtesting_orchestrator_v2
+    ):
+        raise ValueError(
+            "backtesting_job_executor_v2 debe utilizar "
+            "el mismo backtesting_orchestrator_v2."
+        )
+
+    app.state.backtesting_job_executor_v2 = (
+        backtesting_job_executor_v2
+    )
+
+    if backtesting_worker_v2 is None:
+        backtesting_worker_v2 = (
+            BacktestingWorkerV2(
+                queue=(
+                    app.state
+                    .backtesting_job_queue_v2
+                ),
+                executor=(
+                    app.state
+                    .backtesting_job_executor_v2
+                ),
+            )
+        )
+
+    if not isinstance(
+        backtesting_worker_v2,
+        BacktestingWorkerV2,
+    ):
+        raise TypeError(
+            "backtesting_worker_v2 debe ser "
+            "BacktestingWorkerV2."
+        )
+
+    if (
+        backtesting_worker_v2.queue
+        is not app.state.backtesting_job_queue_v2
+    ):
+        raise ValueError(
+            "backtesting_worker_v2 debe utilizar "
+            "la misma backtesting_job_queue_v2."
+        )
+
+    if (
+        backtesting_worker_v2.executor
+        is not app.state.backtesting_job_executor_v2
+    ):
+        raise ValueError(
+            "backtesting_worker_v2 debe utilizar "
+            "el mismo backtesting_job_executor_v2."
+        )
+
+    app.state.backtesting_worker_v2 = (
+        backtesting_worker_v2
     )
 
     app.add_middleware(
