@@ -215,6 +215,9 @@ from backend.backtesting.backtesting_job_executor_v2 import (
 from backend.backtesting.backtesting_worker_v2 import (
     BacktestingWorkerV2,
 )
+from backend.backtesting.backtesting_background_worker_v2 import (
+    BacktestingBackgroundWorkerV2,
+)
 
 from backend.api.routers.backtesting_api_v2 import (
     BacktestingUnavailableOrchestratorV2,
@@ -356,6 +359,7 @@ def create_app(
     backtesting_job_queue_v2=None,
     backtesting_job_executor_v2=None,
     backtesting_worker_v2=None,
+    backtesting_background_worker_v2=None,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -1462,6 +1466,38 @@ def create_app(
 
     app.state.backtesting_worker_v2 = (
         backtesting_worker_v2
+    )
+
+    if backtesting_background_worker_v2 is None:
+        backtesting_background_worker_v2 = (
+            BacktestingBackgroundWorkerV2(
+                worker=(
+                    app.state
+                    .backtesting_worker_v2
+                ),
+            )
+        )
+
+    if not isinstance(
+        backtesting_background_worker_v2,
+        BacktestingBackgroundWorkerV2,
+    ):
+        raise TypeError(
+            "backtesting_background_worker_v2 debe ser "
+            "BacktestingBackgroundWorkerV2."
+        )
+
+    if (
+        backtesting_background_worker_v2.worker
+        is not app.state.backtesting_worker_v2
+    ):
+        raise ValueError(
+            "backtesting_background_worker_v2 debe utilizar "
+            "el mismo backtesting_worker_v2."
+        )
+
+    app.state.backtesting_background_worker_v2 = (
+        backtesting_background_worker_v2
     )
 
     app.add_middleware(
