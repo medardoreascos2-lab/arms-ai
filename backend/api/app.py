@@ -219,6 +219,9 @@ from backend.backtesting.backtesting_worker_v2 import (
 from backend.backtesting.backtesting_background_worker_v2 import (
     BacktestingBackgroundWorkerV2,
 )
+from backend.backtesting.backtesting_controller_v2 import (
+    BacktestingControllerV2,
+)
 
 from backend.api.routers.backtesting_api_v2 import (
     BacktestingUnavailableOrchestratorV2,
@@ -361,6 +364,7 @@ def create_app(
     backtesting_job_executor_v2=None,
     backtesting_worker_v2=None,
     backtesting_background_worker_v2=None,
+    backtesting_controller_v2=None,
     start_backtesting_background_worker=False,
 ) -> FastAPI:
     if settings is None:
@@ -1543,6 +1547,64 @@ def create_app(
 
     app.state.backtesting_background_worker_v2 = (
         backtesting_background_worker_v2
+    )
+
+    if backtesting_controller_v2 is None:
+        backtesting_controller_v2 = (
+            BacktestingControllerV2(
+                job_manager=(
+                    app.state
+                    .backtesting_job_manager_v2
+                ),
+                job_queue=(
+                    app.state
+                    .backtesting_job_queue_v2
+                ),
+                background_worker=(
+                    app.state
+                    .backtesting_background_worker_v2
+                ),
+            )
+        )
+
+    if not isinstance(
+        backtesting_controller_v2,
+        BacktestingControllerV2,
+    ):
+        raise TypeError(
+            "backtesting_controller_v2 debe ser "
+            "BacktestingControllerV2."
+        )
+
+    if (
+        backtesting_controller_v2.job_manager
+        is not app.state.backtesting_job_manager_v2
+    ):
+        raise ValueError(
+            "backtesting_controller_v2 debe utilizar "
+            "el mismo backtesting_job_manager_v2."
+        )
+
+    if (
+        backtesting_controller_v2.job_queue
+        is not app.state.backtesting_job_queue_v2
+    ):
+        raise ValueError(
+            "backtesting_controller_v2 debe utilizar "
+            "la misma backtesting_job_queue_v2."
+        )
+
+    if (
+        backtesting_controller_v2.background_worker
+        is not app.state.backtesting_background_worker_v2
+    ):
+        raise ValueError(
+            "backtesting_controller_v2 debe utilizar "
+            "el mismo backtesting_background_worker_v2."
+        )
+
+    app.state.backtesting_controller_v2 = (
+        backtesting_controller_v2
     )
 
 
