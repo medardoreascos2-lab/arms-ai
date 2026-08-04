@@ -1,0 +1,294 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from backend.backtesting.strategy_certification_engine_v2 import (
+    StrategyCertificationEngineV2,
+    StrategyCertificationResultV2,
+)
+from backend.backtesting.strategy_validation_report_v2 import (
+    StrategyValidationReportV2,
+)
+from backend.backtesting.strategy_validation_result_v2 import (
+    StrategyValidationResultV2,
+)
+from backend.backtesting.validation_grade_engine_v2 import (
+    ValidationGradeEngineV2,
+    ValidationGradeResultV2,
+)
+from backend.backtesting.validation_score_engine_v2 import (
+    ValidationScoreEngineV2,
+    ValidationScoreResultV2,
+)
+
+
+@dataclass(slots=True)
+class StrategyCertificationPipelineResultV2:
+    """
+    Resultado consolidado del pipeline maestro
+    de certificación de estrategias.
+    """
+
+    validation_result: StrategyValidationResultV2
+    validation_report: StrategyValidationReportV2
+    score_result: ValidationScoreResultV2
+    grade_result: ValidationGradeResultV2
+    certification: StrategyCertificationResultV2
+
+    @property
+    def validation_score(
+        self,
+    ) -> float:
+
+        return self.score_result.score
+
+    @property
+    def validation_grade(
+        self,
+    ) -> str:
+
+        return self.grade_result.grade
+
+    def to_dict(
+        self,
+    ) -> dict[str, Any]:
+
+        return {
+            "validation": (
+                self.validation_report.to_dict()
+            ),
+            "score": (
+                self.score_result.to_dict()
+            ),
+            "grade": (
+                self.grade_result.to_dict()
+            ),
+            "certification": (
+                self.certification.to_dict()
+            ),
+        }
+
+
+class StrategyCertificationPipelineV2:
+    """
+    Orquesta validación, scoring, grading
+    y certificación final de una estrategia.
+    """
+
+    def __init__(
+        self,
+        *,
+        validation_pipeline,
+        score_engine=None,
+        grade_engine=None,
+        certification_engine=None,
+    ) -> None:
+
+        if not callable(
+            getattr(
+                validation_pipeline,
+                "run",
+                None,
+            )
+        ):
+            raise TypeError(
+                "validation_pipeline debe implementar run()."
+            )
+
+        if score_engine is None:
+            score_engine = ValidationScoreEngineV2()
+
+        if grade_engine is None:
+            grade_engine = ValidationGradeEngineV2()
+
+        if certification_engine is None:
+            certification_engine = (
+                StrategyCertificationEngineV2()
+            )
+
+        if not callable(
+            getattr(
+                score_engine,
+                "calculate",
+                None,
+            )
+        ):
+            raise TypeError(
+                "score_engine debe implementar calculate()."
+            )
+
+        if not callable(
+            getattr(
+                grade_engine,
+                "calculate",
+                None,
+            )
+        ):
+            raise TypeError(
+                "grade_engine debe implementar calculate()."
+            )
+
+        if not callable(
+            getattr(
+                certification_engine,
+                "certify",
+                None,
+            )
+        ):
+            raise TypeError(
+                "certification_engine debe implementar certify()."
+            )
+
+        self.validation_pipeline = (
+            validation_pipeline
+        )
+
+        self.score_engine = score_engine
+        self.grade_engine = grade_engine
+        self.certification_engine = (
+            certification_engine
+        )
+
+    def run(
+        self,
+    ) -> StrategyCertificationPipelineResultV2:
+
+        validation_pipeline_result = (
+            self.validation_pipeline.run()
+        )
+
+        validation_result = getattr(
+            validation_pipeline_result,
+            "validation_result",
+            None,
+        )
+
+        validation_report = getattr(
+            validation_pipeline_result,
+            "report",
+            None,
+        )
+
+        if not isinstance(
+            validation_result,
+            StrategyValidationResultV2,
+        ):
+            raise TypeError(
+                "validation_pipeline.run() debe exponer "
+                "validation_result como "
+                "StrategyValidationResultV2."
+            )
+
+        if not isinstance(
+            validation_report,
+            StrategyValidationReportV2,
+        ):
+            raise TypeError(
+                "validation_pipeline.run() debe exponer "
+                "report como StrategyValidationReportV2."
+            )
+
+        monte_carlo_summary = (
+            validation_result
+            .monte_carlo_report
+            .summary()
+        )
+
+        starting_balance = float(
+            monte_carlo_summary[
+                "starting_balance"
+            ]
+        )
+
+        average_final_equity = float(
+            monte_carlo_summary[
+                "average_final_equity"
+            ]
+        )
+
+        if starting_balance <= 0.0:
+            raise ValueError(
+                "starting_balance debe ser mayor que cero."
+            )
+
+        monte_carlo_score = (
+            average_final_equity
+            / starting_balance
+            * 100.0
+        )
+
+        score_result = (
+            self.score_engine.calculate(
+                backtest_score=(
+                    validation_result
+                    .backtest_score
+                ),
+                walk_forward_score=(
+                    validation_result
+                    .walk_forward_result
+                    .average_testing_score
+                ),
+                monte_carlo_score=(
+                    monte_carlo_score
+                ),
+            )
+        )
+
+        if not isinstance(
+            score_result,
+            ValidationScoreResultV2,
+        ):
+            raise TypeError(
+                "score_engine.calculate() debe devolver "
+                "ValidationScoreResultV2."
+            )
+
+        grade_result = (
+            self.grade_engine.calculate(
+                validation_score=(
+                    score_result.score
+                ),
+            )
+        )
+
+        if not isinstance(
+            grade_result,
+            ValidationGradeResultV2,
+        ):
+            raise TypeError(
+                "grade_engine.calculate() debe devolver "
+                "ValidationGradeResultV2."
+            )
+
+        certification = (
+            self.certification_engine.certify(
+                validation_score=(
+                    score_result.score
+                ),
+                validation_grade=(
+                    grade_result.grade
+                ),
+            )
+        )
+
+        if not isinstance(
+            certification,
+            StrategyCertificationResultV2,
+        ):
+            raise TypeError(
+                "certification_engine.certify() debe devolver "
+                "StrategyCertificationResultV2."
+            )
+
+        return StrategyCertificationPipelineResultV2(
+            validation_result=(
+                validation_result
+            ),
+            validation_report=(
+                validation_report
+            ),
+            score_result=score_result,
+            grade_result=grade_result,
+            certification=certification,
+        )
