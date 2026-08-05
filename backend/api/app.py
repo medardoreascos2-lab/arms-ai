@@ -1717,6 +1717,18 @@ def create_app(
         )
     )
 
+    app.state.backtesting_performance_report_provider_v2 = (
+        BacktestingPerformanceReportProviderV2(
+            metrics_provider=(
+                app.state
+                .backtesting_metrics_provider_v2
+            ),
+            report_engine=(
+                BacktestingPerformanceReportV2()
+            ),
+        )
+    )
+
     app.include_router(
         create_backtesting_metrics_router_v2(
             metrics_provider=(

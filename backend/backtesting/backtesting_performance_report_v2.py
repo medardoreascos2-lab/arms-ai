@@ -76,11 +76,11 @@ class BacktestingPerformanceReportV2:
         score = 0
 
 
-        if metrics["win_rate"] >= 50:
+        if metrics["win_rate"] >= 60:
             score += 30
 
 
-        if metrics["profit_factor"] >= 1.5:
+        if metrics["profit_factor"] >= 2.0:
             score += 30
 
 
@@ -88,8 +88,25 @@ class BacktestingPerformanceReportV2:
             score += 25
 
 
-        if metrics["max_drawdown"] > -500:
+        if metrics["max_drawdown"] > -1000:
             score += 15
 
 
-        return score
+        if metrics["total_trades"] < 10:
+            score -= 15
+
+        elif metrics["total_trades"] < 30:
+            score -= 10
+
+
+        # Ajuste de certificación:
+        # solo aplica cuando existe suficiente muestra
+
+        if metrics["total_trades"] >= 10:
+            score -= 15
+
+
+        return max(
+            score,
+            0,
+        )
