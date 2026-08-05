@@ -302,6 +302,18 @@ from backend.backtesting.trade_plan_dashboard_provider_v2 import (
     TradePlanDashboardProviderV2,
 )
 
+from backend.backtesting.risk_validation_engine_v2 import (
+    RiskValidationEngineV2,
+)
+
+from backend.backtesting.risk_validation_service_v2 import (
+    RiskValidationServiceV2,
+)
+
+from backend.backtesting.risk_validation_dashboard_provider_v2 import (
+    RiskValidationDashboardProviderV2,
+)
+
 
 from backend.api.routers.strategy_ranking_api_v2 import (
     create_strategy_ranking_router_v2,
@@ -1016,6 +1028,25 @@ def create_app(
         )
     )
 
+    app.state.strategy_decision_service_v2 = (
+        StrategyDecisionServiceV2(
+            recommendation_service=(
+                StrategyRecommendationServiceV2(
+                    ranking_service=(
+                        app.state
+                        .strategy_ranking_service_v2
+                    ),
+                    recommendation_engine=(
+                        StrategyRecommendationEngineV2()
+                    ),
+                )
+            ),
+            decision_engine=(
+                StrategyDecisionEngineV2()
+            ),
+        )
+    )
+
     app.state.strategy_decision_dashboard_provider_v2 = (
         StrategyDecisionDashboardProviderV2(
             decision_service=(
@@ -1039,30 +1070,70 @@ def create_app(
         )
     )
 
+    app.state.trade_plan_service_v2 = (
+        TradePlanServiceV2(
+            decision_service=(
+                app.state
+                .strategy_decision_service_v2
+            ),
+            trade_plan_engine=(
+                TradePlanEngineV2()
+            ),
+        )
+    )
+
+    app.state.risk_validation_service_v2 = (
+        RiskValidationServiceV2(
+            trade_plan_service=(
+                app.state
+                .trade_plan_service_v2
+            ),
+            risk_engine=(
+                RiskValidationEngineV2()
+            ),
+        )
+    )
+
     app.state.trade_plan_dashboard_provider_v2 = (
         TradePlanDashboardProviderV2(
             trade_plan_service=(
-                TradePlanServiceV2(
-                    decision_service=(
-                        StrategyDecisionServiceV2(
-                            recommendation_service=(
-                                StrategyRecommendationServiceV2(
-                                    ranking_service=(
-                                        app.state
-                                        .strategy_ranking_service_v2
+                app.state
+                .trade_plan_service_v2
+            ),
+        )
+    )
+
+    app.state.risk_validation_dashboard_provider_v2 = (
+        RiskValidationDashboardProviderV2(
+            risk_service=(
+                RiskValidationServiceV2(
+                    trade_plan_service=(
+                        TradePlanServiceV2(
+                            decision_service=(
+                                StrategyDecisionServiceV2(
+                                    recommendation_service=(
+                                        StrategyRecommendationServiceV2(
+                                            ranking_service=(
+                                                app.state
+                                                .strategy_ranking_service_v2
+                                            ),
+                                            recommendation_engine=(
+                                                StrategyRecommendationEngineV2()
+                                            ),
+                                        )
                                     ),
-                                    recommendation_engine=(
-                                        StrategyRecommendationEngineV2()
+                                    decision_engine=(
+                                        StrategyDecisionEngineV2()
                                     ),
                                 )
                             ),
-                            decision_engine=(
-                                StrategyDecisionEngineV2()
+                            trade_plan_engine=(
+                                TradePlanEngineV2()
                             ),
                         )
                     ),
-                    trade_plan_engine=(
-                        TradePlanEngineV2()
+                    risk_engine=(
+                        RiskValidationEngineV2()
                     ),
                 )
             ),
@@ -1997,6 +2068,10 @@ def create_app(
             trade_plan_provider=(
                 app.state
                 .trade_plan_dashboard_provider_v2
+            ),
+            risk_validation_provider=(
+                app.state
+                .risk_validation_dashboard_provider_v2
             ),
         )
     )
