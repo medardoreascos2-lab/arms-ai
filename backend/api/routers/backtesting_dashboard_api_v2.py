@@ -16,6 +16,7 @@ def create_backtesting_dashboard_router_v2(
     job_manager: BacktestingJobManagerV2 | None = None,
     job_queue=None,
     worker=None,
+    metrics_provider=None,
 ) -> APIRouter:
     """
     Router REST para exponer un resumen operativo
@@ -71,6 +72,20 @@ def create_backtesting_dashboard_router_v2(
     ):
         raise TypeError(
             "worker debe implementar status()."
+        )
+
+    if (
+        metrics_provider is not None
+        and not callable(
+            getattr(
+                metrics_provider,
+                "get_metrics",
+                None,
+            )
+        )
+    ):
+        raise TypeError(
+            "metrics_provider debe implementar get_metrics()."
         )
 
     router = APIRouter(
@@ -139,6 +154,11 @@ def create_backtesting_dashboard_router_v2(
         if worker is not None:
             payload["worker"] = (
                 worker.status()
+            )
+
+        if metrics_provider is not None:
+            payload["metrics"] = (
+                metrics_provider.get_metrics()
             )
 
         return payload

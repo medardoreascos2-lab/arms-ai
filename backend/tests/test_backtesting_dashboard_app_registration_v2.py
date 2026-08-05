@@ -71,4 +71,13 @@ def test_dashboard_uses_shared_controller():
             "iterations": 0,
             "last_error": None,
         },
+        "metrics": {
+            "total_trades": 0,
+            "winning_trades": 0,
+            "losing_trades": 0,
+            "win_rate": 0.0,
+            "profit_factor": 0.0,
+            "net_profit": 0.0,
+            "max_drawdown": 0.0,
+        },
     }
