@@ -266,6 +266,16 @@ from backend.backtesting.strategy_ranking_service_v2 import (
 )
 
 
+from backend.backtesting.strategy_certification_registry_service_v2 import (
+    StrategyCertificationRegistryServiceV2,
+)
+
+
+from backend.backtesting.strategy_ranking_dashboard_provider_v2 import (
+    StrategyRankingDashboardProviderV2,
+)
+
+
 from backend.backtesting.strategy_recommendation_engine_v2 import (
     StrategyRecommendationEngineV2,
 )
@@ -1037,6 +1047,30 @@ def create_app(
         StrategyRegistryV2()
     )
 
+
+    app.state.strategy_certification_registry_service_v2 = (
+        StrategyCertificationRegistryServiceV2(
+            registry=(
+                app.state
+                .strategy_registry_v2
+            ),
+        )
+    )
+
+
+    app.state.strategy_certification_registry_service_v2.register_certified_strategy(
+        {
+            "strategy_id": "STR-001",
+            "name": "EMA50 Smart Money",
+            "version": "1.0",
+            "status": "CERTIFIED",
+            "grade": "A",
+            "validation_score": 90,
+            "performance_score": 95,
+        }
+    )
+
+
     app.state.strategy_registry_dashboard_provider_v2 = (
         StrategyRegistryDashboardProviderV2(
             registry=(
@@ -1057,6 +1091,16 @@ def create_app(
             ),
         )
     )
+
+    app.state.strategy_ranking_dashboard_provider_v2 = (
+        StrategyRankingDashboardProviderV2(
+            strategy_ranking_service=(
+                app.state
+                .strategy_ranking_service_v2
+            ),
+        )
+    )
+
 
     app.state.strategy_recommendation_dashboard_provider_v2 = (
         StrategyRecommendationDashboardProviderV2(
@@ -2205,6 +2249,10 @@ def create_app(
             strategy_performance_provider=(
                 app.state
                 .strategy_performance_dashboard_provider_v2
+            ),
+            strategy_ranking_provider=(
+                app.state
+                .strategy_ranking_dashboard_provider_v2
             ),
         )
     )

@@ -13,9 +13,22 @@ class StrategyRankingServiceV2:
     def __init__(
         self,
         *,
-        registry,
-        ranking_engine,
+        registry=None,
+        ranking_engine=None,
+        strategy_provider=None,
+        engine=None,
     ):
+
+        if strategy_provider is not None:
+
+            registry = strategy_provider
+
+
+        if engine is not None:
+
+            ranking_engine = engine
+
+
 
         if not callable(
             getattr(
@@ -23,10 +36,17 @@ class StrategyRankingServiceV2:
                 "list",
                 None,
             )
+        ) and not callable(
+            getattr(
+                registry,
+                "get_strategies",
+                None,
+            )
         ):
             raise TypeError(
-                "registry debe implementar list()."
+                "registry debe implementar list() o get_strategies()."
             )
+
 
 
         if not callable(
@@ -47,6 +67,46 @@ class StrategyRankingServiceV2:
             ranking_engine
         )
 
+
+
+
+    def get_ranking(
+        self,
+    ) -> dict:
+
+
+        if callable(
+            getattr(
+                self.registry,
+                "get_strategies",
+                None,
+            )
+        ):
+
+            strategies = (
+                self.registry
+                .get_strategies()
+            )
+
+        else:
+
+            strategies = (
+                self.registry
+                .list()
+            )
+
+
+        if strategies is None:
+
+            return {
+                "status": "BLOCKED",
+                "reason": "INVALID_HISTORY",
+            }
+
+
+        return self.ranking_engine.rank(
+            strategies
+        )
 
 
     def rank(

@@ -21,11 +21,23 @@ class StrategyRankingEngineV2:
 
     def rank(
         self,
-        strategies: list[dict],
-    ) -> list[dict]:
+        strategies: list[dict] | None,
+    ) -> dict:
 
-        if not strategies:
-            return []
+        if strategies is None:
+
+            return {
+                "status": "BLOCKED",
+                "reason": "INVALID_HISTORY",
+            }
+
+
+        if len(strategies) == 0:
+
+            return {
+                "total_strategies": 0,
+                "ranking": [],
+            }
 
 
         ranked = []
@@ -36,7 +48,10 @@ class StrategyRankingEngineV2:
             validation_score = float(
                 strategy.get(
                     "validation_score",
-                    0.0,
+                    strategy.get(
+                        "win_rate",
+                        0.0,
+                    ),
                 )
             )
 
@@ -44,7 +59,17 @@ class StrategyRankingEngineV2:
             performance_score = float(
                 strategy.get(
                     "performance_score",
-                    0.0,
+                    min(
+                        float(
+                            strategy.get(
+                                "net_profit",
+                                0,
+                            )
+                        )
+                        /
+                        10,
+                        100,
+                    ),
                 )
             )
 
@@ -77,6 +102,11 @@ class StrategyRankingEngineV2:
                         ranking_score,
                         2,
                     ),
+
+                    "score": round(
+                        ranking_score,
+                        2,
+                    ),
                 }
             )
 
@@ -95,4 +125,12 @@ class StrategyRankingEngineV2:
             strategy["rank"] = index
 
 
-        return ranked
+        return {
+
+            "total_strategies": len(
+                ranked
+            ),
+
+            "ranking": ranked,
+
+        }

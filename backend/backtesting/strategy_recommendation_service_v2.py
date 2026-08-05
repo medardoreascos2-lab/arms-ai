@@ -64,9 +64,33 @@ class StrategyRecommendationServiceV2:
 
 
 
-        strategies = (
+        ranking_result = (
             self.ranking_service.rank()
         )
+
+
+
+        if not ranking_result:
+
+            return None
+
+
+
+        if isinstance(
+            ranking_result,
+            dict,
+        ):
+
+            strategies = (
+                ranking_result.get(
+                    "ranking",
+                    []
+                )
+            )
+
+        else:
+
+            strategies = ranking_result
 
 
 

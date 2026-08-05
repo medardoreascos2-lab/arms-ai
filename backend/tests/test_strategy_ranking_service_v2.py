@@ -1,8 +1,4 @@
 
-from backend.backtesting.strategy_registry_v2 import (
-    StrategyRegistryV2,
-)
-
 from backend.backtesting.strategy_ranking_engine_v2 import (
     StrategyRankingEngineV2,
 )
@@ -13,59 +9,113 @@ from backend.backtesting.strategy_ranking_service_v2 import (
 
 
 
-def build_strategy():
-
-    return {
-        "strategy_id": "STR-001",
-        "name": "EMA50 Smart Money",
-        "version": "1.0",
-        "status": "CERTIFIED",
-        "grade": "A",
-        "validation_score": 92.0,
-        "performance_score": 85.0,
-    }
+class FakeStrategyProvider:
 
 
+    def get_strategies(
+        self,
+    ):
 
-def test_service_returns_ranked_strategies():
+        return [
 
-    registry = StrategyRegistryV2()
+            {
+                "strategy_id": "STR-001",
+                "strategy_name": "EMA50 Smart Money",
+                "win_rate": 70,
+                "net_profit": 1500,
+                "drawdown": 200,
+                "trades": 50,
+            },
 
-    registry.register(
-        build_strategy()
-    )
+
+            {
+                "strategy_id": "STR-002",
+                "strategy_name": "Breakout",
+                "win_rate": 50,
+                "net_profit": 300,
+                "drawdown": 500,
+                "trades": 20,
+            },
+
+        ]
+
+
+
+def test_strategy_ranking_service_returns_ranking():
 
 
     service = StrategyRankingServiceV2(
-        registry=registry,
-        ranking_engine=StrategyRankingEngineV2(),
+
+        strategy_provider=(
+            FakeStrategyProvider()
+        ),
+
+        engine=(
+            StrategyRankingEngineV2()
+        ),
+
     )
 
 
-    result = service.rank()
+    result = service.get_ranking()
 
 
-    assert result[0]["strategy_id"] == (
+
+    assert (
+        result["ranking"][0]["strategy_id"]
+        ==
         "STR-001"
     )
 
 
-    assert result[0]["rank"] == 1
-
-
-
-def test_service_empty_registry():
-
-    registry = StrategyRegistryV2()
-
-
-    service = StrategyRankingServiceV2(
-        registry=registry,
-        ranking_engine=StrategyRankingEngineV2(),
+    assert (
+        result["ranking"][0]["rank"]
+        ==
+        1
     )
 
 
-    result = service.rank()
+
+def test_strategy_ranking_service_invalid_history():
 
 
-    assert result == []
+    class EmptyProvider:
+
+
+        def get_strategies(
+            self,
+        ):
+
+            return None
+
+
+
+    service = StrategyRankingServiceV2(
+
+        strategy_provider=(
+            EmptyProvider()
+        ),
+
+        engine=(
+            StrategyRankingEngineV2()
+        ),
+
+    )
+
+
+    result = service.get_ranking()
+
+
+
+    assert (
+        result["status"]
+        ==
+        "BLOCKED"
+    )
+
+
+    assert (
+        result["reason"]
+        ==
+        "INVALID_HISTORY"
+    )
