@@ -23,6 +23,7 @@ def create_backtesting_dashboard_router_v2(
     strategy_decision_provider=None,
     trade_plan_provider=None,
     risk_validation_provider=None,
+    execution_provider=None,
 ) -> APIRouter:
     """
     Router REST para exponer un resumen operativo
@@ -261,6 +262,11 @@ def create_backtesting_dashboard_router_v2(
         if risk_validation_provider is not None:
             payload["risk_validation"] = (
                 risk_validation_provider.get_risk_validation()
+            )
+
+        if execution_provider is not None:
+            payload["execution"] = (
+                execution_provider.get_execution()
             )
 
         if strategy_decision_provider is not None:

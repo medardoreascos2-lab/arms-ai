@@ -314,6 +314,18 @@ from backend.backtesting.risk_validation_dashboard_provider_v2 import (
     RiskValidationDashboardProviderV2,
 )
 
+from backend.execution.execution_engine_v2 import (
+    ExecutionEngineV2,
+)
+
+from backend.execution.execution_service_v2 import (
+    ExecutionServiceV2,
+)
+
+from backend.execution.execution_dashboard_provider_v2 import (
+    ExecutionDashboardProviderV2,
+)
+
 
 from backend.api.routers.strategy_ranking_api_v2 import (
     create_strategy_ranking_router_v2,
@@ -1090,6 +1102,32 @@ def create_app(
             ),
             risk_engine=(
                 RiskValidationEngineV2()
+            ),
+        )
+    )
+
+    app.state.execution_service_v2 = (
+        ExecutionServiceV2(
+            trade_plan_service=(
+                app.state
+                .trade_plan_service_v2
+            ),
+            risk_service=(
+                app.state
+                .risk_validation_service_v2
+            ),
+            execution_engine=(
+                ExecutionEngineV2()
+            ),
+        )
+    )
+
+
+    app.state.execution_dashboard_provider_v2 = (
+        ExecutionDashboardProviderV2(
+            execution_service=(
+                app.state
+                .execution_service_v2
             ),
         )
     )
@@ -2072,6 +2110,10 @@ def create_app(
             risk_validation_provider=(
                 app.state
                 .risk_validation_dashboard_provider_v2
+            ),
+            execution_provider=(
+                app.state
+                .execution_dashboard_provider_v2
             ),
         )
     )
