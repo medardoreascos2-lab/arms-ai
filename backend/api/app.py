@@ -265,9 +265,25 @@ from backend.backtesting.strategy_ranking_service_v2 import (
     StrategyRankingServiceV2,
 )
 
+
+from backend.backtesting.strategy_recommendation_engine_v2 import (
+    StrategyRecommendationEngineV2,
+)
+
+from backend.backtesting.strategy_recommendation_service_v2 import (
+    StrategyRecommendationServiceV2,
+)
+
+
 from backend.api.routers.strategy_ranking_api_v2 import (
     create_strategy_ranking_router_v2,
 )
+
+
+from backend.api.routers.strategy_recommendation_api_v2 import (
+    create_strategy_recommendation_router_v2,
+)
+
 
 
 from backend.api.router_loader_v2 import (
@@ -952,6 +968,18 @@ def create_app(
             ),
             ranking_engine=(
                 StrategyRankingEngineV2()
+            ),
+        )
+    )
+
+    app.state.strategy_recommendation_service_v2 = (
+        StrategyRecommendationServiceV2(
+            ranking_service=(
+                app.state
+                .strategy_ranking_service_v2
+            ),
+            recommendation_engine=(
+                StrategyRecommendationEngineV2()
             ),
         )
     )
@@ -1726,6 +1754,17 @@ def create_app(
             ranking_service=(
                 app.state
                 .strategy_ranking_service_v2
+            ),
+        ),
+    )
+
+
+    register_router_v2(
+        app,
+        create_strategy_recommendation_router_v2(
+            recommendation_service=(
+                app.state
+                .strategy_recommendation_service_v2
             ),
         ),
     )
