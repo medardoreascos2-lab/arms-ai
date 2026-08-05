@@ -21,6 +21,7 @@ def create_backtesting_dashboard_router_v2(
     strategy_registry_provider=None,
     strategy_recommendation_provider=None,
     strategy_decision_provider=None,
+    trade_plan_provider=None,
 ) -> APIRouter:
     """
     Router REST para exponer un resumen operativo
@@ -136,6 +137,20 @@ def create_backtesting_dashboard_router_v2(
         )
 
     if (
+        trade_plan_provider is not None
+        and not callable(
+            getattr(
+                trade_plan_provider,
+                "get_trade_plan",
+                None,
+            )
+        )
+    ):
+        raise TypeError(
+            "trade_plan_provider debe implementar get_trade_plan()."
+        )
+
+    if (
         strategy_decision_provider is not None
         and not callable(
             getattr(
@@ -235,6 +250,11 @@ def create_backtesting_dashboard_router_v2(
         if strategy_recommendation_provider is not None:
             payload["strategy_recommendation"] = (
                 strategy_recommendation_provider.get_recommendation()
+            )
+
+        if trade_plan_provider is not None:
+            payload["trade_plan"] = (
+                trade_plan_provider.get_trade_plan()
             )
 
         if strategy_decision_provider is not None:

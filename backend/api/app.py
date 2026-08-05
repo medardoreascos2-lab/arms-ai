@@ -290,6 +290,18 @@ from backend.backtesting.strategy_decision_dashboard_provider_v2 import (
     StrategyDecisionDashboardProviderV2,
 )
 
+from backend.backtesting.trade_plan_engine_v2 import (
+    TradePlanEngineV2,
+)
+
+from backend.backtesting.trade_plan_service_v2 import (
+    TradePlanServiceV2,
+)
+
+from backend.backtesting.trade_plan_dashboard_provider_v2 import (
+    TradePlanDashboardProviderV2,
+)
+
 
 from backend.api.routers.strategy_ranking_api_v2 import (
     create_strategy_ranking_router_v2,
@@ -1021,6 +1033,36 @@ def create_app(
                     ),
                     decision_engine=(
                         StrategyDecisionEngineV2()
+                    ),
+                )
+            ),
+        )
+    )
+
+    app.state.trade_plan_dashboard_provider_v2 = (
+        TradePlanDashboardProviderV2(
+            trade_plan_service=(
+                TradePlanServiceV2(
+                    decision_service=(
+                        StrategyDecisionServiceV2(
+                            recommendation_service=(
+                                StrategyRecommendationServiceV2(
+                                    ranking_service=(
+                                        app.state
+                                        .strategy_ranking_service_v2
+                                    ),
+                                    recommendation_engine=(
+                                        StrategyRecommendationEngineV2()
+                                    ),
+                                )
+                            ),
+                            decision_engine=(
+                                StrategyDecisionEngineV2()
+                            ),
+                        )
+                    ),
+                    trade_plan_engine=(
+                        TradePlanEngineV2()
                     ),
                 )
             ),
@@ -1951,6 +1993,10 @@ def create_app(
             strategy_decision_provider=(
                 app.state
                 .strategy_decision_dashboard_provider_v2
+            ),
+            trade_plan_provider=(
+                app.state
+                .trade_plan_dashboard_provider_v2
             ),
         )
     )
