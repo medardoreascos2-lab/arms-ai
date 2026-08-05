@@ -38,25 +38,4 @@ def create_strategy_registry_router_v2(
         }
 
 
-    @router.get("/strategies/{strategy_id}")
-    def get_strategy(
-        strategy_id: str,
-    ):
-
-        try:
-
-            return registry.get(
-                strategy_id
-            )
-
-        except ValueError:
-
-            from fastapi import HTTPException
-
-            raise HTTPException(
-                status_code=404,
-                detail="Strategy not found.",
-            )
-
-
     return router

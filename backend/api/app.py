@@ -257,6 +257,26 @@ from backend.backtesting.strategy_registry_v2 import (
 )
 
 
+from backend.backtesting.strategy_ranking_engine_v2 import (
+    StrategyRankingEngineV2,
+)
+
+from backend.backtesting.strategy_ranking_service_v2 import (
+    StrategyRankingServiceV2,
+)
+
+from backend.api.routers.strategy_ranking_api_v2 import (
+    create_strategy_ranking_router_v2,
+)
+
+
+from backend.api.router_loader_v2 import (
+    register_router_v2,
+)
+
+
+
+
 from backend.backtesting.strategy_registry_dashboard_provider_v2 import (
     StrategyRegistryDashboardProviderV2,
 )
@@ -920,6 +940,18 @@ def create_app(
             registry=(
                 app.state
                 .strategy_registry_v2
+            ),
+        )
+    )
+
+    app.state.strategy_ranking_service_v2 = (
+        StrategyRankingServiceV2(
+            registry=(
+                app.state
+                .strategy_registry_v2
+            ),
+            ranking_engine=(
+                StrategyRankingEngineV2()
             ),
         )
     )
@@ -1686,6 +1718,16 @@ def create_app(
                 .strategy_registry_v2
             ),
         )
+    )
+
+    register_router_v2(
+        app,
+        create_strategy_ranking_router_v2(
+            ranking_service=(
+                app.state
+                .strategy_ranking_service_v2
+            ),
+        ),
     )
 
     app.include_router(
