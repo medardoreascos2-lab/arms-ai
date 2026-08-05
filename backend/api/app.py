@@ -274,6 +274,10 @@ from backend.backtesting.strategy_recommendation_service_v2 import (
     StrategyRecommendationServiceV2,
 )
 
+from backend.backtesting.strategy_recommendation_dashboard_provider_v2 import (
+    StrategyRecommendationDashboardProviderV2,
+)
+
 
 from backend.api.routers.strategy_ranking_api_v2 import (
     create_strategy_ranking_router_v2,
@@ -968,6 +972,22 @@ def create_app(
             ),
             ranking_engine=(
                 StrategyRankingEngineV2()
+            ),
+        )
+    )
+
+    app.state.strategy_recommendation_dashboard_provider_v2 = (
+        StrategyRecommendationDashboardProviderV2(
+            recommendation_service=(
+                StrategyRecommendationServiceV2(
+                    ranking_service=(
+                        app.state
+                        .strategy_ranking_service_v2
+                    ),
+                    recommendation_engine=(
+                        StrategyRecommendationEngineV2()
+                    ),
+                )
             ),
         )
     )
@@ -1888,6 +1908,10 @@ def create_app(
             strategy_registry_provider=(
                 app.state
                 .strategy_registry_dashboard_provider_v2
+            ),
+            strategy_recommendation_provider=(
+                app.state
+                .strategy_recommendation_dashboard_provider_v2
             ),
         )
     )
