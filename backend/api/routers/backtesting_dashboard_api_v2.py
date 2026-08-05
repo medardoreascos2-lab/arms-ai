@@ -27,6 +27,7 @@ def create_backtesting_dashboard_router_v2(
     performance_provider=None,
     strategy_performance_provider=None,
     strategy_ranking_provider=None,
+    strategy_selection_provider=None,
 ) -> APIRouter:
     """
     Router REST para exponer un resumen operativo
@@ -289,6 +290,15 @@ def create_backtesting_dashboard_router_v2(
             payload["strategy_ranking"] = (
                 strategy_ranking_provider
                 .get_ranking()
+            )
+
+
+        if strategy_selection_provider is not None:
+            payload["strategy_selection"] = (
+                strategy_selection_provider
+                .get_selection(
+                    market_context={}
+                )
             )
 
 

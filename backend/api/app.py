@@ -276,6 +276,21 @@ from backend.backtesting.strategy_ranking_dashboard_provider_v2 import (
 )
 
 
+from backend.backtesting.strategy_selection_service_v2 import (
+    StrategySelectionServiceV2,
+)
+
+
+from backend.backtesting.strategy_selection_dashboard_provider_v2 import (
+    StrategySelectionDashboardProviderV2,
+)
+
+
+from backend.backtesting.strategy_selection_engine_v2 import (
+    StrategySelectionEngineV2,
+)
+
+
 from backend.backtesting.strategy_recommendation_engine_v2 import (
     StrategyRecommendationEngineV2,
 )
@@ -1097,6 +1112,29 @@ def create_app(
             strategy_ranking_service=(
                 app.state
                 .strategy_ranking_service_v2
+            ),
+        )
+    )
+
+
+    app.state.strategy_selection_service_v2 = (
+        StrategySelectionServiceV2(
+            ranking_service=(
+                app.state
+                .strategy_ranking_service_v2
+            ),
+            selection_engine=(
+                StrategySelectionEngineV2()
+            ),
+        )
+    )
+
+
+    app.state.strategy_selection_dashboard_provider_v2 = (
+        StrategySelectionDashboardProviderV2(
+            strategy_selection_service=(
+                app.state
+                .strategy_selection_service_v2
             ),
         )
     )
@@ -2249,6 +2287,11 @@ def create_app(
             strategy_performance_provider=(
                 app.state
                 .strategy_performance_dashboard_provider_v2
+            ),
+
+            strategy_selection_provider=(
+                app.state
+                .strategy_selection_dashboard_provider_v2
             ),
             strategy_ranking_provider=(
                 app.state
