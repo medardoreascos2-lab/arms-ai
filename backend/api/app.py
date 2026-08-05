@@ -343,6 +343,24 @@ from backend.execution.backtesting_performance_provider_v2 import (
 )
 
 
+from backend.analytics.strategy_performance_analyzer_v2 import (
+    StrategyPerformanceAnalyzerV2,
+)
+
+from backend.analytics.strategy_performance_service_v2 import (
+    StrategyPerformanceServiceV2,
+)
+
+from backend.analytics.strategy_performance_dashboard_provider_v2 import (
+    StrategyPerformanceDashboardProviderV2,
+)
+
+
+from backend.analytics.backtesting_strategy_performance_provider_v2 import (
+    BacktestingStrategyPerformanceProviderV2,
+)
+
+
 from backend.api.routers.strategy_ranking_api_v2 import (
     create_strategy_ranking_router_v2,
 )
@@ -1460,6 +1478,28 @@ def create_app(
         )
     )
 
+    app.state.strategy_performance_service_v2 = (
+        StrategyPerformanceServiceV2(
+            journal=(
+                app.state
+                .trade_journal_v2
+            ),
+            analyzer=(
+                StrategyPerformanceAnalyzerV2()
+            ),
+        )
+    )
+
+
+    app.state.strategy_performance_dashboard_provider_v2 = (
+        StrategyPerformanceDashboardProviderV2(
+            strategy_performance_service=(
+                BacktestingStrategyPerformanceProviderV2()
+            ),
+        )
+    )
+
+
     app.state.backtesting_performance_provider_v2 = (
         BacktestingPerformanceProviderV2()
     )
@@ -2161,6 +2201,10 @@ def create_app(
             performance_provider=(
                 app.state
                 .backtesting_performance_provider_v2
+            ),
+            strategy_performance_provider=(
+                app.state
+                .strategy_performance_dashboard_provider_v2
             ),
         )
     )
