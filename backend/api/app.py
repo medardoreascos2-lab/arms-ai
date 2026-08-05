@@ -326,6 +326,22 @@ from backend.execution.execution_dashboard_provider_v2 import (
     ExecutionDashboardProviderV2,
 )
 
+from backend.execution.performance_service_v2 import (
+    PerformanceServiceV2,
+)
+
+from backend.execution.performance_analyzer_v2 import (
+    PerformanceAnalyzerV2,
+)
+
+from backend.execution.performance_dashboard_provider_v2 import (
+    PerformanceDashboardProviderV2,
+)
+
+from backend.execution.backtesting_performance_provider_v2 import (
+    BacktestingPerformanceProviderV2,
+)
+
 
 from backend.api.routers.strategy_ranking_api_v2 import (
     create_strategy_ranking_router_v2,
@@ -1422,6 +1438,33 @@ def create_app(
         lifecycle_trade_journal_v2
     )
 
+    app.state.performance_service_v2 = (
+        PerformanceServiceV2(
+            journal=(
+                app.state
+                .trade_journal_v2
+            ),
+            analyzer=(
+                PerformanceAnalyzerV2()
+            ),
+        )
+    )
+
+
+    app.state.performance_dashboard_provider_v2 = (
+        PerformanceDashboardProviderV2(
+            performance_service=(
+                app.state
+                .performance_service_v2
+            ),
+        )
+    )
+
+    app.state.backtesting_performance_provider_v2 = (
+        BacktestingPerformanceProviderV2()
+    )
+
+
     app.state.performance_dashboard_engine_v2 = (
         PerformanceDashboardEngineV2(
             account_state_manager_v2=(
@@ -2114,6 +2157,10 @@ def create_app(
             execution_provider=(
                 app.state
                 .execution_dashboard_provider_v2
+            ),
+            performance_provider=(
+                app.state
+                .backtesting_performance_provider_v2
             ),
         )
     )
