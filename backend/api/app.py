@@ -252,6 +252,21 @@ from backend.api.routers.backtesting_api_v2 import (
 from fastapi import FastAPI
 
 
+from backend.backtesting.strategy_registry_v2 import (
+    StrategyRegistryV2,
+)
+
+
+from backend.backtesting.strategy_registry_dashboard_provider_v2 import (
+    StrategyRegistryDashboardProviderV2,
+)
+
+from backend.api.routers.strategy_registry_api_v2 import (
+    create_strategy_registry_router_v2,
+)
+
+
+
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.account_risk.account_risk_guard import (
@@ -894,6 +909,19 @@ def create_app(
         title=settings.title,
         version=settings.version,
         debug=settings.debug,
+    )
+
+    app.state.strategy_registry_v2 = (
+        StrategyRegistryV2()
+    )
+
+    app.state.strategy_registry_dashboard_provider_v2 = (
+        StrategyRegistryDashboardProviderV2(
+            registry=(
+                app.state
+                .strategy_registry_v2
+            ),
+        )
     )
 
     app.state.runtime_context_v2 = (
@@ -1652,6 +1680,15 @@ def create_app(
     )
 
     app.include_router(
+        create_strategy_registry_router_v2(
+            registry=(
+                app.state
+                .strategy_registry_v2
+            ),
+        )
+    )
+
+    app.include_router(
         portfolio_router
     )
 
@@ -1766,6 +1803,10 @@ def create_app(
             performance_report_provider=(
                 app.state
                 .backtesting_performance_report_provider_v2
+            ),
+            strategy_registry_provider=(
+                app.state
+                .strategy_registry_dashboard_provider_v2
             ),
         )
     )
