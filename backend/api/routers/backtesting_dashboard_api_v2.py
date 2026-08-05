@@ -20,6 +20,7 @@ def create_backtesting_dashboard_router_v2(
     performance_report_provider=None,
     strategy_registry_provider=None,
     strategy_recommendation_provider=None,
+    strategy_decision_provider=None,
 ) -> APIRouter:
     """
     Router REST para exponer un resumen operativo
@@ -134,6 +135,20 @@ def create_backtesting_dashboard_router_v2(
             "strategy_recommendation_provider debe implementar get_recommendation()."
         )
 
+    if (
+        strategy_decision_provider is not None
+        and not callable(
+            getattr(
+                strategy_decision_provider,
+                "get_decision",
+                None,
+            )
+        )
+    ):
+        raise TypeError(
+            "strategy_decision_provider debe implementar get_decision()."
+        )
+
     router = APIRouter(
         prefix="/api/v2/backtesting",
         tags=[
@@ -220,6 +235,11 @@ def create_backtesting_dashboard_router_v2(
         if strategy_recommendation_provider is not None:
             payload["strategy_recommendation"] = (
                 strategy_recommendation_provider.get_recommendation()
+            )
+
+        if strategy_decision_provider is not None:
+            payload["strategy_decision"] = (
+                strategy_decision_provider.get_decision()
             )
 
         return payload
