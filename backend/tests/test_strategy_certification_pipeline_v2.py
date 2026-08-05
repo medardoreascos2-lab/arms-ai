@@ -92,11 +92,34 @@ class FakeValidationPipeline:
         result.report = report
         return result
 
+class FakePerformanceReportProvider:
+
+    def get_report(self):
+
+        return {
+            "score": 85,
+            "rating": "GOOD",
+            "metrics": {
+                "total_trades": 100,
+                "winning_trades": 65,
+                "losing_trades": 35,
+                "win_rate": 65.0,
+                "profit_factor": 2.1,
+                "net_profit": 5000.0,
+                "max_drawdown": -800.0,
+            },
+        }
+
+
+
 
 def test_runs_complete_certification_pipeline():
 
     pipeline = StrategyCertificationPipelineV2(
         validation_pipeline=FakeValidationPipeline(),
+        performance_report_provider=(
+            FakePerformanceReportProvider()
+        ),
     )
 
     result = pipeline.run()
@@ -114,6 +137,20 @@ def test_runs_complete_certification_pipeline():
     assert result.validation_score > 0
     assert result.validation_grade != ""
 
+    assert result.performance_report == {
+        "score": 85,
+        "rating": "GOOD",
+        "metrics": {
+            "total_trades": 100,
+            "winning_trades": 65,
+            "losing_trades": 35,
+            "win_rate": 65.0,
+            "profit_factor": 2.1,
+            "net_profit": 5000.0,
+            "max_drawdown": -800.0,
+        },
+    }
+
     assert result.certification.status in {
         "CERTIFIED",
         "PROVISIONAL",
@@ -125,6 +162,9 @@ def test_pipeline_is_deterministic():
 
     pipeline = StrategyCertificationPipelineV2(
         validation_pipeline=FakeValidationPipeline(),
+        performance_report_provider=(
+            FakePerformanceReportProvider()
+        ),
     )
 
     first = pipeline.run()

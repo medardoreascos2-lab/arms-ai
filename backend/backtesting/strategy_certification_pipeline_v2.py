@@ -35,6 +35,7 @@ class StrategyCertificationPipelineResultV2:
     score_result: ValidationScoreResultV2
     grade_result: ValidationGradeResultV2
     certification: StrategyCertificationResultV2
+    performance_report: dict[str, Any]
 
     @property
     def validation_score(
@@ -83,6 +84,7 @@ class StrategyCertificationPipelineV2:
         score_engine=None,
         grade_engine=None,
         certification_engine=None,
+        performance_report_provider=None,
     ) -> None:
 
         if not callable(
@@ -140,6 +142,21 @@ class StrategyCertificationPipelineV2:
                 "certification_engine debe implementar certify()."
             )
 
+
+        if (
+            performance_report_provider is not None
+            and not callable(
+                getattr(
+                    performance_report_provider,
+                    "get_report",
+                    None,
+                )
+            )
+        ):
+            raise TypeError(
+                "performance_report_provider debe implementar get_report()."
+            )
+
         self.validation_pipeline = (
             validation_pipeline
         )
@@ -148,6 +165,10 @@ class StrategyCertificationPipelineV2:
         self.grade_engine = grade_engine
         self.certification_engine = (
             certification_engine
+        )
+
+        self.performance_report_provider = (
+            performance_report_provider
         )
 
     def run(
@@ -281,7 +302,17 @@ class StrategyCertificationPipelineV2:
                 "StrategyCertificationResultV2."
             )
 
+
+        performance_report = {}
+
+        if self.performance_report_provider is not None:
+            performance_report = (
+                self.performance_report_provider
+                .get_report()
+            )
+
         return StrategyCertificationPipelineResultV2(
+            performance_report=performance_report,
             validation_result=(
                 validation_result
             ),
