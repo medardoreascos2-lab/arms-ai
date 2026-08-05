@@ -219,6 +219,12 @@ from backend.backtesting.backtesting_metrics_engine_v2 import (
 from backend.backtesting.backtesting_metrics_provider_v2 import (
     BacktestingMetricsProviderV2,
 )
+from backend.backtesting.backtesting_performance_report_v2 import (
+    BacktestingPerformanceReportV2,
+)
+from backend.backtesting.backtesting_performance_report_provider_v2 import (
+    BacktestingPerformanceReportProviderV2,
+)
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
 )
@@ -1744,6 +1750,10 @@ def create_app(
             metrics_provider=(
                 app.state
                 .backtesting_metrics_provider_v2
+            ),
+            performance_report_provider=(
+                app.state
+                .backtesting_performance_report_provider_v2
             ),
         )
     )

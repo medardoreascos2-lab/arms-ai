@@ -17,6 +17,7 @@ def create_backtesting_dashboard_router_v2(
     job_queue=None,
     worker=None,
     metrics_provider=None,
+    performance_report_provider=None,
 ) -> APIRouter:
     """
     Router REST para exponer un resumen operativo
@@ -86,6 +87,21 @@ def create_backtesting_dashboard_router_v2(
     ):
         raise TypeError(
             "metrics_provider debe implementar get_metrics()."
+        )
+
+
+    if (
+        performance_report_provider is not None
+        and not callable(
+            getattr(
+                performance_report_provider,
+                "get_report",
+                None,
+            )
+        )
+    ):
+        raise TypeError(
+            "performance_report_provider debe implementar get_report()."
         )
 
     router = APIRouter(
@@ -159,6 +175,11 @@ def create_backtesting_dashboard_router_v2(
         if metrics_provider is not None:
             payload["metrics"] = (
                 metrics_provider.get_metrics()
+            )
+
+        if performance_report_provider is not None:
+            payload["performance_report"] = (
+                performance_report_provider.get_report()
             )
 
         return payload
