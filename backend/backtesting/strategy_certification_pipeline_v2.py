@@ -85,6 +85,7 @@ class StrategyCertificationPipelineV2:
         grade_engine=None,
         certification_engine=None,
         performance_report_provider=None,
+        registry_service=None,
     ) -> None:
 
         if not callable(
@@ -169,6 +170,27 @@ class StrategyCertificationPipelineV2:
 
         self.performance_report_provider = (
             performance_report_provider
+        )
+
+
+        if (
+            registry_service is not None
+            and not callable(
+                getattr(
+                    registry_service,
+                    "register_certified_strategy",
+                    None,
+                )
+            )
+        ):
+            raise TypeError(
+                "registry_service debe implementar "
+                "register_certified_strategy()."
+            )
+
+
+        self.registry_service = (
+            registry_service
         )
 
     def run(
@@ -300,6 +322,32 @@ class StrategyCertificationPipelineV2:
             raise TypeError(
                 "certification_engine.certify() debe devolver "
                 "StrategyCertificationResultV2."
+            )
+
+
+        if (
+            self.registry_service is not None
+            and certification.status == "CERTIFIED"
+        ):
+
+            self.registry_service.register_certified_strategy(
+                {
+                    "strategy_id": "STR-001",
+                    "name": "Certified Strategy",
+                    "version": "1.0",
+                    "status": (
+                        certification.status
+                    ),
+                    "grade": (
+                        grade_result.grade
+                    ),
+                    "validation_score": (
+                        score_result.score
+                    ),
+                    "performance_score": (
+                        score_result.score
+                    ),
+                }
             )
 
 
