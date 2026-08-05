@@ -210,6 +210,9 @@ from backend.api.routers.backtesting_controller_api_v2 import (
 from backend.api.routers.backtesting_dashboard_api_v2 import (
     create_backtesting_dashboard_router_v2,
 )
+from backend.api.routers.backtesting_metrics_api_v2 import (
+    create_backtesting_metrics_router_v2,
+)
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
 )
@@ -235,6 +238,25 @@ from backend.api.routers.backtesting_api_v2 import (
 )
 
 from fastapi import FastAPI
+
+class BacktestingMetricsProviderV2:
+
+    def get_metrics(
+        self,
+    ):
+
+        return {
+            "total_trades": 0,
+            "winning_trades": 0,
+            "losing_trades": 0,
+            "win_rate": 0.0,
+            "profit_factor": 0.0,
+            "net_profit": 0.0,
+            "max_drawdown": 0.0,
+        }
+
+
+
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.account_risk.account_risk_guard import (
@@ -1691,6 +1713,14 @@ def create_app(
         )
     )
 
+
+    app.include_router(
+        create_backtesting_metrics_router_v2(
+            metrics_provider=(
+                BacktestingMetricsProviderV2()
+            ),
+        )
+    )
 
     app.include_router(
         create_backtesting_dashboard_router_v2(
