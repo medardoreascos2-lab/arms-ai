@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 import uuid
 
 
@@ -42,7 +42,7 @@ class TradeLoggerV2:
             ),
 
             "timestamp": (
-                datetime.utcnow()
+                datetime.now(UTC)
                 .isoformat()
             ),
 
