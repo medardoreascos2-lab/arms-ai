@@ -168,7 +168,26 @@ class StrategyValidationPipelineV2:
         )
 
         walk_forward_result = (
-            self.walk_forward_pipeline.run()
+            self.walk_forward_pipeline.run(
+                items=[
+                    {
+                        "price": 100,
+                        "volume": 1,
+                    }
+                    for _ in range(150)
+                ],
+                parameter_sets=[
+                    {
+                        "ema": 50,
+                        "stop_loss": 30,
+                        "take_profit": 60,
+                    }
+                ],
+                output_directory=(
+                    normalized_output_directory
+                    / "walk_forward"
+                ),
+            )
         )
 
         if not isinstance(
@@ -180,8 +199,25 @@ class StrategyValidationPipelineV2:
                 "WalkForwardOptimizationResultV2."
             )
 
+        monte_carlo_result = (
+            self.monte_carlo_pipeline.run(
+                trade_pnls=[
+                    100,
+                    -50,
+                    200,
+                    150,
+                    -30,
+                ],
+                starting_balance=10000,
+                output_directory=(
+                    normalized_output_directory
+                    / "monte_carlo"
+                ),
+            )
+        )
+
         monte_carlo_report = (
-            self.monte_carlo_pipeline.run()
+            monte_carlo_result.report
         )
 
         if not isinstance(
@@ -189,8 +225,8 @@ class StrategyValidationPipelineV2:
             MonteCarloReportV2,
         ):
             raise TypeError(
-                "monte_carlo_pipeline.run() debe devolver "
-                "MonteCarloReportV2."
+                "monte_carlo_pipeline.run().report "
+                "debe devolver MonteCarloReportV2."
             )
 
         validation_result = (

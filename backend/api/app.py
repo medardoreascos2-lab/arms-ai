@@ -271,6 +271,82 @@ from backend.backtesting.strategy_certification_registry_service_v2 import (
 )
 
 
+
+
+
+from backend.backtesting.backtest_composite_score_v2 import (
+    BacktestCompositeScoreV2,
+)
+
+from backend.backtesting.backtest_optimizer_v2 import (
+    BacktestOptimizerV2,
+)
+
+from backend.backtesting.backtest_batch_runner_v2 import (
+    BacktestBatchRunnerV2,
+)
+
+from backend.backtesting.backtest_comparison_report_v2 import (
+    BacktestComparisonReportV2,
+)
+
+from backend.backtesting.backtest_candidate_factory_v2 import (
+    BacktestCandidateFactoryV2,
+)
+
+from backend.backtesting.parameter_evaluator import (
+    ParameterEvaluator,
+)
+
+
+from backend.backtesting.walk_forward_pipeline_v2 import (
+    WalkForwardPipelineV2,
+)
+
+from backend.backtesting.walk_forward_window_generator_v2 import (
+    WalkForwardWindowGeneratorV2,
+)
+
+from backend.backtesting.walk_forward_dataset_splitter_v2 import (
+    WalkForwardDatasetSplitterV2,
+)
+
+from backend.backtesting.walk_forward_optimizer_v2 import (
+    WalkForwardOptimizerV2,
+)
+
+from backend.backtesting.monte_carlo_pipeline_v2 import (
+    MonteCarloPipelineV2,
+)
+
+from backend.backtesting.monte_carlo_simulator_v2 import (
+    MonteCarloSimulatorV2,
+)
+
+from backend.backtesting.monte_carlo_json_exporter_v2 import (
+    MonteCarloJsonExporterV2,
+)
+
+from backend.backtesting.monte_carlo_html_exporter_v2 import (
+    MonteCarloHtmlExporterV2,
+)
+
+
+from backend.backtesting.strategy_certification_pipeline_v2 import (
+    StrategyCertificationPipelineV2,
+)
+
+from backend.backtesting.backtesting_orchestrator_factory_v2 import (
+    ValidationPipelineExecutionAdapterV2,
+)
+
+from backend.backtesting.validation_pipeline_factory_v2 import (
+    create_validation_pipeline_v2,
+)
+
+
+
+
 from backend.backtesting.strategy_ranking_dashboard_provider_v2 import (
     StrategyRankingDashboardProviderV2,
 )
@@ -1078,6 +1154,103 @@ def create_app(
     if load_default_strategies:
 
         app.state.strategy_certification_registry_service_v2.load_default_certified_strategies()
+
+
+    app.state.walk_forward_pipeline_v2 = (
+        WalkForwardPipelineV2(
+            window_generator=(
+                WalkForwardWindowGeneratorV2(
+                    training_size=100,
+                    testing_size=20,
+                    step_size=20,
+                )
+            ),
+            dataset_splitter=(
+                WalkForwardDatasetSplitterV2()
+            ),
+            walk_forward_optimizer=(
+                WalkForwardOptimizerV2(
+                    training_optimizer=(
+                        BacktestOptimizerV2(
+                            batch_runner=(
+                                BacktestBatchRunnerV2()
+                            ),
+                            comparison_report_factory=(
+                                BacktestComparisonReportV2.from_batch_result
+                            ),
+                            scorer=(
+                                BacktestCompositeScoreV2()
+                            ),
+                        )
+                    ),
+                    candidate_factory=(
+                        BacktestCandidateFactoryV2(
+                            pipeline_factory=(
+                                lambda parameters: None
+                            )
+                        )
+                    ),
+                    testing_evaluator=(
+                        ParameterEvaluator(
+                            engine_factory=(
+                                lambda parameters: None
+                            )
+                        )
+                    ),
+                )
+            ),
+        )
+    )
+
+
+    app.state.monte_carlo_pipeline_v2 = (
+        MonteCarloPipelineV2(
+            simulator=(
+                MonteCarloSimulatorV2(
+                    simulations=1000,
+                    random_seed=42,
+                )
+            ),
+            json_exporter=(
+                MonteCarloJsonExporterV2()
+            ),
+            html_exporter=(
+                MonteCarloHtmlExporterV2()
+            ),
+        )
+    )
+
+
+    app.state.strategy_certification_pipeline_v2 = (
+        StrategyCertificationPipelineV2(
+            validation_pipeline=(
+                ValidationPipelineExecutionAdapterV2(
+                    validation_pipeline=(
+                        create_validation_pipeline_v2(
+                            walk_forward_pipeline=(
+                                app.state
+                                .walk_forward_pipeline_v2
+                            ),
+                            monte_carlo_pipeline=(
+                                app.state
+                                .monte_carlo_pipeline_v2
+                            ),
+                        )
+                    ),
+                    backtest_score=(
+                        0.0
+                    ),
+                    output_directory=(
+                        "data/certification"
+                    ),
+                )
+            ),
+            registry_service=(
+                app.state
+                .strategy_certification_registry_service_v2
+            ),
+        )
+    )
 
 
     app.state.strategy_registry_dashboard_provider_v2 = (
