@@ -2069,15 +2069,6 @@ def create_app(
         app
     )
 
-    app.include_router(
-        create_strategy_registry_router_v2(
-            registry=(
-                app.state
-                .strategy_registry_v2
-            ),
-        )
-    )
-
     register_router_v2(
         app,
         create_strategy_ranking_router_v2(
@@ -2095,6 +2086,17 @@ def create_app(
             recommendation_service=(
                 app.state
                 .strategy_recommendation_service_v2
+            ),
+        ),
+    )
+
+
+    register_router_v2(
+        app,
+        create_strategy_registry_router_v2(
+            registry=(
+                app.state
+                .strategy_registry_v2
             ),
         ),
     )

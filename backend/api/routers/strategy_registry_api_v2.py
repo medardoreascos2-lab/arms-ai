@@ -39,6 +39,8 @@ def create_strategy_registry_router_v2(
 
 
 
+
+
     @router.get(
         "/strategies/{strategy_id}"
     )
