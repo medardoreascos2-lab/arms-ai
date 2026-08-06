@@ -25,9 +25,15 @@ class TradePlanServiceV2:
                 "decide",
                 None,
             )
+        ) and not callable(
+            getattr(
+                decision_service,
+                "get_decision",
+                None,
+            )
         ):
             raise TypeError(
-                "decision_service debe implementar decide()."
+                "decision_service debe implementar decide() o get_decision()."
             )
 
 
@@ -66,11 +72,27 @@ class TradePlanServiceV2:
 
 
 
-        decision = (
-            self.decision_service.decide(
-                market_context=market_context,
+        if callable(
+            getattr(
+                self.decision_service,
+                "get_decision",
+                None,
             )
-        )
+        ):
+
+            decision = (
+                self.decision_service.get_decision(
+                    market_context=market_context,
+                )
+            )
+
+        else:
+
+            decision = (
+                self.decision_service.decide(
+                    market_context=market_context,
+                )
+            )
 
 
 
@@ -79,3 +101,23 @@ class TradePlanServiceV2:
             market_data=market_data,
             risk_config=risk_config,
         )
+
+
+    def create_trade_plan(
+        self,
+        *,
+        market_context: dict,
+    ) -> dict:
+
+        decision = (
+            self.decision_service.get_decision(
+                market_context=market_context,
+            )
+        )
+
+
+        return self.trade_plan_engine.create_plan(
+            decision=decision,
+            market_context=market_context,
+        )
+

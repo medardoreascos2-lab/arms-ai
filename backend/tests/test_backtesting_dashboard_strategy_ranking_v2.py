@@ -8,7 +8,7 @@ from backend.api.app import create_app
 def test_dashboard_exposes_strategy_ranking():
 
 
-    app = create_app()
+    app = create_app(load_default_strategies=True)
 
 
     client = TestClient(
@@ -47,7 +47,7 @@ def test_dashboard_exposes_strategy_ranking():
 def test_dashboard_strategy_ranking_structure():
 
 
-    app = create_app()
+    app = create_app(load_default_strategies=True)
 
 
     client = TestClient(

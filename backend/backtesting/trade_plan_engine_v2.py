@@ -11,6 +11,48 @@ class TradePlanEngineV2:
 
 
 
+
+
+    def create_plan(
+        self,
+        *,
+        decision: dict,
+        market_context: dict,
+    ) -> dict:
+        """
+        Adaptador V2 para crear planes
+        directamente desde Strategy Decision.
+        """
+
+        result = self.generate(
+            decision=decision,
+            market_data={
+                "entry": market_context.get(
+                    "price",
+                    0,
+                ),
+            },
+            risk_config={
+                "stop_points": 50,
+                "risk_reward": 2,
+            },
+        )
+
+
+        if result.get(
+            "status"
+        ) == "READY":
+
+            result["strategy_id"] = (
+                decision.get(
+                    "strategy_id"
+                )
+            )
+
+
+        return result
+
+
     def generate(
         self,
         *,
@@ -27,7 +69,7 @@ class TradePlanEngineV2:
 
             return {
                 "status": "BLOCKED",
-                "reason": "DECISION_NOT_EXECUTE",
+                "reason": "DECISION_NOT_EXECUTABLE",
             }
 
 

@@ -258,6 +258,11 @@ def create_backtesting_dashboard_router_v2(
                 strategy_recommendation_provider.get_recommendation()
             )
 
+        payload["trade_plan"] = None
+        payload["risk_validation"] = None
+        payload["execution"] = None
+
+
         if trade_plan_provider is not None:
             payload["trade_plan"] = (
                 trade_plan_provider.get_trade_plan()

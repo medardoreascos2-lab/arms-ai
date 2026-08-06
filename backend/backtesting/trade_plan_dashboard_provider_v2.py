@@ -18,6 +18,7 @@ class TradePlanDashboardProviderV2:
         market_context_provider=None,
         market_data_provider=None,
         risk_config_provider=None,
+        strategy_registry_provider=None,
     ):
 
 
@@ -52,12 +53,29 @@ class TradePlanDashboardProviderV2:
             risk_config_provider
         )
 
+        self.strategy_registry_provider = (
+            strategy_registry_provider
+        )
+
 
 
     def get_trade_plan(
         self,
     ) -> dict | None:
 
+
+
+        if self.strategy_registry_provider:
+
+            strategies_payload = (
+                self.strategy_registry_provider
+                .get_strategies()
+            )
+
+            if not strategies_payload.get(
+                "items"
+            ):
+                return None
 
 
         if self.market_context_provider:

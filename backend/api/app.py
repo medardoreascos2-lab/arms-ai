@@ -551,6 +551,8 @@ def create_app(
     backtesting_background_worker_v2=None,
     backtesting_controller_v2=None,
     start_backtesting_background_worker=False,
+    load_default_strategies=False,
+    enable_trading_pipeline_dashboard=False,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -1073,17 +1075,9 @@ def create_app(
     )
 
 
-    app.state.strategy_certification_registry_service_v2.register_certified_strategy(
-        {
-            "strategy_id": "STR-001",
-            "name": "EMA50 Smart Money",
-            "version": "1.0",
-            "status": "CERTIFIED",
-            "grade": "A",
-            "validation_score": 90,
-            "performance_score": 95,
-        }
-    )
+    if load_default_strategies:
+
+        app.state.strategy_certification_registry_service_v2.load_default_certified_strategies()
 
 
     app.state.strategy_registry_dashboard_provider_v2 = (
@@ -1224,6 +1218,10 @@ def create_app(
                 app.state
                 .execution_service_v2
             ),
+            strategy_registry_provider=(
+                app.state
+                .strategy_registry_dashboard_provider_v2
+            ),
         )
     )
 
@@ -1233,45 +1231,26 @@ def create_app(
                 app.state
                 .trade_plan_service_v2
             ),
+            strategy_registry_provider=(
+                app.state
+                .strategy_registry_dashboard_provider_v2
+            ),
         )
     )
 
     app.state.risk_validation_dashboard_provider_v2 = (
         RiskValidationDashboardProviderV2(
             risk_service=(
-                RiskValidationServiceV2(
-                    trade_plan_service=(
-                        TradePlanServiceV2(
-                            decision_service=(
-                                StrategyDecisionServiceV2(
-                                    recommendation_service=(
-                                        StrategyRecommendationServiceV2(
-                                            ranking_service=(
-                                                app.state
-                                                .strategy_ranking_service_v2
-                                            ),
-                                            recommendation_engine=(
-                                                StrategyRecommendationEngineV2()
-                                            ),
-                                        )
-                                    ),
-                                    decision_engine=(
-                                        StrategyDecisionEngineV2()
-                                    ),
-                                )
-                            ),
-                            trade_plan_engine=(
-                                TradePlanEngineV2()
-                            ),
-                        )
-                    ),
-                    risk_engine=(
-                        RiskValidationEngineV2()
-                    ),
-                )
+                app.state
+                .risk_validation_service_v2
+            ),
+            strategy_registry_provider=(
+                app.state
+                .strategy_registry_dashboard_provider_v2
             ),
         )
     )
+
 
     app.state.strategy_recommendation_service_v2 = (
         StrategyRecommendationServiceV2(
@@ -1515,6 +1494,7 @@ def create_app(
 
     app.state.trade_journal_v2 = (
         lifecycle_trade_journal_v2
+        or TradeJournalV2()
     )
 
     app.state.performance_service_v2 = (
@@ -2209,6 +2189,23 @@ def create_app(
         )
     )
 
+
+    dashboard_trade_plan_provider = (
+        app.state
+        .trade_plan_dashboard_provider_v2
+    )
+
+    dashboard_risk_validation_provider = (
+        app.state
+        .risk_validation_dashboard_provider_v2
+    )
+
+    dashboard_execution_provider = (
+        app.state
+        .execution_dashboard_provider_v2
+    )
+
+
     app.include_router(
         create_backtesting_dashboard_router_v2(
             controller=(
@@ -2248,16 +2245,13 @@ def create_app(
                 .strategy_decision_dashboard_provider_v2
             ),
             trade_plan_provider=(
-                app.state
-                .trade_plan_dashboard_provider_v2
+                dashboard_trade_plan_provider
             ),
             risk_validation_provider=(
-                app.state
-                .risk_validation_dashboard_provider_v2
+                dashboard_risk_validation_provider
             ),
             execution_provider=(
-                app.state
-                .execution_dashboard_provider_v2
+                dashboard_execution_provider
             ),
             performance_provider=(
                 app.state

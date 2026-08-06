@@ -33,10 +33,27 @@ def create_strategy_ranking_router_v2(
     )
     def get_strategy_ranking():
 
+        result = (
+            ranking_service.rank()
+        )
+
+        if isinstance(
+            result,
+            dict,
+        ):
+
+            return {
+                "strategies": (
+                    result.get(
+                        "ranking",
+                        [],
+                    )
+                ),
+            }
+
+
         return {
-            "strategies": (
-                ranking_service.rank()
-            ),
+            "strategies": result,
         }
 
 

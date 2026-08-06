@@ -19,6 +19,7 @@ class ExecutionDashboardProviderV2:
         market_data_provider=None,
         account_state_provider=None,
         risk_config_provider=None,
+        strategy_registry_provider=None,
     ):
 
 
@@ -58,12 +59,29 @@ class ExecutionDashboardProviderV2:
             risk_config_provider
         )
 
+        self.strategy_registry_provider = (
+            strategy_registry_provider
+        )
+
 
 
     def get_execution(
         self,
     ) -> dict | None:
 
+
+
+        if self.strategy_registry_provider:
+
+            strategies_payload = (
+                self.strategy_registry_provider
+                .get_strategies()
+            )
+
+            if not strategies_payload.get(
+                "items"
+            ):
+                return None
 
 
         if self.market_context_provider:

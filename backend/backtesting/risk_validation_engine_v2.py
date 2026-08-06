@@ -15,10 +15,18 @@ class RiskValidationEngineV2:
         self,
         *,
         trade_plan: dict,
-        account_state: dict,
         risk_config: dict,
+        account_state: dict | None = None,
     ) -> dict:
 
+
+
+        if account_state is None:
+
+            account_state = {
+                "daily_loss": 0,
+                "max_daily_loss": 3000,
+            }
 
 
         if trade_plan.get(
@@ -65,7 +73,10 @@ class RiskValidationEngineV2:
         risk_amount = float(
             risk_config.get(
                 "risk_amount",
-                0,
+                risk_config.get(
+                    "max_risk",
+                    0,
+                ),
             )
         )
 
@@ -82,6 +93,7 @@ class RiskValidationEngineV2:
 
         return {
             "status": "APPROVED",
+            "risk_allowed": True,
             "risk_amount": risk_amount,
             "direction": (
                 trade_plan.get(

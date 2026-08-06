@@ -19,6 +19,7 @@ class RiskValidationDashboardProviderV2:
         market_data_provider=None,
         account_state_provider=None,
         risk_config_provider=None,
+        strategy_registry_provider=None,
     ):
 
 
@@ -59,12 +60,29 @@ class RiskValidationDashboardProviderV2:
             risk_config_provider
         )
 
+        self.strategy_registry_provider = (
+            strategy_registry_provider
+        )
+
 
 
     def get_risk_validation(
         self,
     ) -> dict | None:
 
+
+
+        if self.strategy_registry_provider:
+
+            strategies_payload = (
+                self.strategy_registry_provider
+                .get_strategies()
+            )
+
+            if not strategies_payload.get(
+                "items"
+            ):
+                return None
 
 
         if self.market_context_provider:
@@ -137,6 +155,11 @@ class RiskValidationDashboardProviderV2:
             account_state=account_state,
             risk_config=risk_config,
         )
+
+
+        if result is None:
+
+            return None
 
 
         if (

@@ -8,7 +8,7 @@ from backend.api.app import create_app
 def test_dashboard_exposes_strategy_decision():
 
 
-    app = create_app()
+    app = create_app(load_default_strategies=True)
 
 
     client = TestClient(
@@ -53,7 +53,7 @@ def test_dashboard_exposes_strategy_decision():
 def test_dashboard_strategy_decision_structure():
 
 
-    app = create_app()
+    app = create_app(load_default_strategies=True)
 
 
     client = TestClient(

@@ -1,10 +1,10 @@
 
-from backend.backtesting.trade_plan_engine_v2 import (
-    TradePlanEngineV2,
-)
-
 from backend.backtesting.trade_plan_service_v2 import (
     TradePlanServiceV2,
+)
+
+from backend.backtesting.trade_plan_engine_v2 import (
+    TradePlanEngineV2,
 )
 
 
@@ -12,7 +12,7 @@ from backend.backtesting.trade_plan_service_v2 import (
 class FakeDecisionService:
 
 
-    def decide(
+    def get_decision(
         self,
         *,
         market_context,
@@ -21,12 +21,13 @@ class FakeDecisionService:
         return {
             "decision": "EXECUTE",
             "direction": "BUY",
-            "confidence": 92,
+            "strategy_id": "STR-001",
+            "confidence": 94,
         }
 
 
 
-def test_trade_plan_service_generates_plan():
+def test_trade_plan_service_creates_plan():
 
 
     service = TradePlanServiceV2(
@@ -42,52 +43,56 @@ def test_trade_plan_service_generates_plan():
     )
 
 
-    result = service.generate(
+    result = service.create_trade_plan(
 
         market_context={
-            "trend": "BULLISH",
-        },
 
-        market_data={
-            "entry": 23500,
-        },
+            "price": 23500,
 
-        risk_config={
-            "stop_points": 50,
-            "risk_reward": 2,
-        },
+        }
 
     )
 
 
-    assert result["status"] == (
+    assert (
+
+        result["status"]
+
+        ==
+
         "READY"
+
     )
 
 
-    assert result["direction"] == (
-        "BUY"
+    assert (
+
+        result["strategy_id"]
+
+        ==
+
+        "STR-001"
+
     )
 
 
-    assert result["stop_loss"] == 23450
+
+def test_trade_plan_service_blocks_without_decision():
 
 
-
-def test_trade_plan_service_blocks_decision():
-
-
-    class BlockDecision:
+    class EmptyDecisionService:
 
 
-        def decide(
+        def get_decision(
             self,
             *,
             market_context,
         ):
 
             return {
-                "decision": "BLOCK",
+
+                "decision": "BLOCK"
+
             }
 
 
@@ -95,32 +100,33 @@ def test_trade_plan_service_blocks_decision():
     service = TradePlanServiceV2(
 
         decision_service=(
-            BlockDecision()
+
+            EmptyDecisionService()
+
         ),
 
         trade_plan_engine=(
+
             TradePlanEngineV2()
+
         ),
 
     )
 
 
-    result = service.generate(
+    result = service.create_trade_plan(
 
-        market_context={},
-
-        market_data={
-            "entry": 23500,
-        },
-
-        risk_config={
-            "stop_points": 50,
-            "risk_reward": 2,
-        },
+        market_context={}
 
     )
 
 
-    assert result["status"] == (
+    assert (
+
+        result["status"]
+
+        ==
+
         "BLOCKED"
+
     )

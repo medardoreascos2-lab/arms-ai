@@ -1,69 +1,46 @@
 
-from backend.execution.execution_engine_v2 import (
-    ExecutionEngineV2,
-)
-
-from backend.execution.execution_service_v2 import (
+from backend.backtesting.execution_service_v2 import (
     ExecutionServiceV2,
 )
 
-
-
-class FakeTradePlanService:
-
-
-    def generate(
-        self,
-        *,
-        market_context,
-        market_data,
-        risk_config,
-    ):
-
-        return {
-            "status": "READY",
-            "direction": "BUY",
-            "entry": 23500,
-            "stop_loss": 23450,
-            "take_profit": 23600,
-        }
+from backend.backtesting.execution_engine_v2 import (
+    ExecutionEngineV2,
+)
 
 
 
 class FakeRiskService:
 
 
-    def validate(
+    def validate_trade(
         self,
         *,
-        market_context,
-        market_data,
-        account_state,
-        risk_config,
+        trade_plan,
     ):
 
         return {
             "status": "APPROVED",
-            "risk_amount": 150,
+            "risk_allowed": True,
+            "direction": "BUY",
         }
 
 
 
-def test_execution_service_executes_trade():
+def test_execution_service_executes_approved_trade():
 
 
     service = ExecutionServiceV2(
 
-        trade_plan_service=(
-            FakeTradePlanService()
-        ),
-
         risk_service=(
+
             FakeRiskService()
+
         ),
 
         execution_engine=(
+
             ExecutionEngineV2()
+
         ),
 
     )
@@ -71,67 +48,76 @@ def test_execution_service_executes_trade():
 
     result = service.execute(
 
-        market_context={},
+        trade_plan={
 
-        market_data={
+            "direction": "BUY",
+
             "entry": 23500,
-        },
 
-        account_state={
-            "balance": 150000,
-        },
+            "stop_loss": 23450,
 
-        risk_config={
-            "risk_amount": 150,
-        },
+            "take_profit": 23600,
+
+        }
 
     )
 
 
-    assert result["status"] == (
-        "EXECUTED"
+    assert (
+
+        result["status"]
+
+        ==
+
+        "READY"
+
     )
 
 
-    assert result["direction"] == (
+    assert (
+
+        result["action"]
+
+        ==
+
         "BUY"
+
     )
 
 
 
-def test_execution_service_blocks_risk_failure():
+def test_execution_service_blocks_invalid_risk():
 
 
-    class BlockRiskService:
+    class EmptyRiskService:
 
 
-        def validate(
+        def validate_trade(
             self,
             *,
-            market_context,
-            market_data,
-            account_state,
-            risk_config,
+            trade_plan,
         ):
 
             return {
-                "status": "BLOCKED",
+
+                "status": "BLOCKED"
+
             }
 
 
 
     service = ExecutionServiceV2(
 
-        trade_plan_service=(
-            FakeTradePlanService()
-        ),
-
         risk_service=(
-            BlockRiskService()
+
+            EmptyRiskService()
+
         ),
 
         execution_engine=(
+
             ExecutionEngineV2()
+
         ),
 
     )
@@ -139,22 +125,28 @@ def test_execution_service_blocks_risk_failure():
 
     result = service.execute(
 
-        market_context={},
-
-        market_data={},
-
-        account_state={},
-
-        risk_config={},
+        trade_plan={}
 
     )
 
 
-    assert result["status"] == (
+    assert (
+
+        result["status"]
+
+        ==
+
         "BLOCKED"
+
     )
 
 
-    assert result["reason"] == (
+    assert (
+
+        result["reason"]
+
+        ==
+
         "RISK_NOT_APPROVED"
+
     )

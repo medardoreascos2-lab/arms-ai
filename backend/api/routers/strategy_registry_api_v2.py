@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 
 
@@ -36,6 +36,28 @@ def create_strategy_registry_router_v2(
                 registry.list()
             ),
         }
+
+
+
+    @router.get(
+        "/strategies/{strategy_id}"
+    )
+    def get_strategy(
+        strategy_id: str,
+    ):
+
+        try:
+
+            return registry.get(
+                strategy_id
+            )
+
+        except ValueError:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Estrategia no encontrada.",
+            )
 
 
     return router

@@ -52,3 +52,47 @@ class StrategyCertificationRegistryServiceV2:
         return self.registry.register(
             strategy
         )
+
+
+    def load_default_certified_strategies(
+        self,
+    ):
+
+        strategy = {
+            "strategy_id": "STR-001",
+            "name": "EMA50 Smart Money",
+            "version": "1.0",
+            "status": "CERTIFIED",
+            "grade": "A",
+            "validation_score": 90,
+            "performance_score": 95,
+        }
+
+
+        existing = getattr(
+            self.registry,
+            "get",
+            None,
+        )
+
+
+        if callable(existing):
+
+            try:
+
+                current = existing(
+                    strategy["strategy_id"]
+                )
+
+                if current is not None:
+                    return current
+
+            except ValueError:
+
+                pass
+
+
+        return self.register_certified_strategy(
+            strategy
+        )
+

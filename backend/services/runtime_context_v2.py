@@ -40,6 +40,10 @@ from backend.services.state_recovery_service_v2 import (
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
+from backend.journal.trade_journal_v2 import (
+    TradeJournalV2,
+)
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +115,10 @@ def build_runtime_context(
     protective_order_registry = (
         ProtectiveOrderRegistryV2()
     )
+
     oco_manager = OCOManagerV2()
+
+    trade_journal_v2 = TradeJournalV2()
 
     trade_lifecycle_service = TradeLifecycleServiceV2(
         execution_manager=execution_manager,
@@ -132,6 +139,7 @@ def build_runtime_context(
             protective_order_registry
         ),
         oco_manager_v2=oco_manager,
+        trade_journal_v2=trade_journal_v2,
     )
 
     execution_state_store = ExecutionStateStoreV2(
