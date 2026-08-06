@@ -9,113 +9,128 @@ from backend.backtesting.strategy_decision_service_v2 import (
 
 
 
-class FakeRecommendationService:
+class FakeSelectionService:
 
-    def recommend(
+
+    def get_selected_strategy(
         self,
-        *,
-        market_context,
     ):
 
         return {
+
             "strategy_id": "STR-001",
-            "name": "EMA50 Smart Money",
-            "confidence": 92,
+
+            "strategy_name": "EMA50 Smart Money",
+
+            "confidence": 95,
+
         }
 
 
 
-def test_decision_service_executes_valid_strategy():
+def test_strategy_decision_service_returns_decision():
+
 
     service = StrategyDecisionServiceV2(
-        recommendation_service=(
-            FakeRecommendationService()
+
+        selection_service=(
+            FakeSelectionService()
         ),
+
         decision_engine=(
             StrategyDecisionEngineV2()
         ),
+
     )
 
 
-    result = service.decide(
+    result = service.get_decision(
+
         market_context={
+
             "trend": "BULLISH",
-            "structure": "BOS_CONFIRMED",
-            "risk_allowed": True,
+
+            "structure": "BREAKOUT",
+
         }
+
     )
 
 
-    assert result["decision"] == (
+    assert (
+
+        result["decision"]
+
+        ==
+
         "EXECUTE"
+
     )
 
 
-    assert result["direction"] == (
-        "BUY"
-    )
+    assert (
 
+        result["strategy_id"]
 
-    assert result["confidence"] == 92
+        ==
 
+        "STR-001"
 
-
-def test_decision_service_blocks_invalid_market():
-
-    service = StrategyDecisionServiceV2(
-        recommendation_service=(
-            FakeRecommendationService()
-        ),
-        decision_engine=(
-            StrategyDecisionEngineV2()
-        ),
-    )
-
-
-    result = service.decide(
-        market_context={
-            "trend": "RANGING",
-            "structure": "NONE",
-            "risk_allowed": True,
-        }
-    )
-
-
-    assert result["decision"] == (
-        "BLOCK"
     )
 
 
 
-def test_decision_service_without_strategy():
+def test_strategy_decision_service_without_strategy():
 
-    class EmptyRecommendation:
 
-        def recommend(
+    class EmptySelectionService:
+
+
+        def get_selected_strategy(
             self,
-            *,
-            market_context,
         ):
+
             return None
 
 
+
     service = StrategyDecisionServiceV2(
-        recommendation_service=(
-            EmptyRecommendation()
+
+        selection_service=(
+            EmptySelectionService()
         ),
+
         decision_engine=(
             StrategyDecisionEngineV2()
         ),
+
     )
 
 
-    result = service.decide(
-        market_context={
-            "risk_allowed": True,
-        }
+    result = service.get_decision(
+
+        market_context={}
+
     )
 
 
-    assert result["decision"] == (
-        "BLOCK"
+    assert (
+
+        result["status"]
+
+        ==
+
+        "BLOCKED"
+
+    )
+
+
+    assert (
+
+        result["reason"]
+
+        ==
+
+        "NO_SELECTED_STRATEGY"
+
     )

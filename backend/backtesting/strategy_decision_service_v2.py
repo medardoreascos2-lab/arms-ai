@@ -14,21 +14,44 @@ class StrategyDecisionServiceV2:
     def __init__(
         self,
         *,
-        recommendation_service,
+        recommendation_service=None,
+        selection_service=None,
         decision_engine,
     ):
 
 
-        if not callable(
-            getattr(
-                recommendation_service,
-                "recommend",
-                None,
-            )
-        ):
+        if recommendation_service is None and selection_service is None:
             raise TypeError(
-                "recommendation_service debe implementar recommend()."
+                "Debe existir recommendation_service o selection_service."
             )
+
+
+        if recommendation_service is not None:
+
+            if not callable(
+                getattr(
+                    recommendation_service,
+                    "recommend",
+                    None,
+                )
+            ):
+                raise TypeError(
+                    "recommendation_service debe implementar recommend()."
+                )
+
+
+        if selection_service is not None:
+
+            if not callable(
+                getattr(
+                    selection_service,
+                    "get_selected_strategy",
+                    None,
+                )
+            ):
+                raise TypeError(
+                    "selection_service debe implementar get_selected_strategy()."
+                )
 
 
 
@@ -50,10 +73,32 @@ class StrategyDecisionServiceV2:
         )
 
 
+        self.selection_service = (
+            selection_service
+        )
+
+
         self.decision_engine = (
             decision_engine
         )
 
+
+
+
+
+    def get_decision(
+        self,
+        *,
+        market_context: dict,
+    ) -> dict:
+        """
+        Alias público para integración
+        con dashboard y servicios V2.
+        """
+
+        return self.decide(
+            market_context=market_context,
+        )
 
 
     def decide(
@@ -64,11 +109,21 @@ class StrategyDecisionServiceV2:
 
 
 
-        strategy = (
-            self.recommendation_service.recommend(
-                market_context=market_context,
+        if self.selection_service is not None:
+
+            strategy = (
+                self.selection_service
+                .get_selected_strategy()
             )
-        )
+
+        else:
+
+            strategy = (
+                self.recommendation_service
+                .recommend(
+                    market_context=market_context,
+                )
+            )
 
 
 

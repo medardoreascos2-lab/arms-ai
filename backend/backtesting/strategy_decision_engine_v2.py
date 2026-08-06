@@ -20,26 +20,31 @@ class StrategyDecisionEngineV2:
     def decide(
         self,
         *,
-        strategy: dict | None,
+        strategy: dict | None = None,
+        selected_strategy: dict | None = None,
         market_context: dict,
     ) -> dict:
 
 
 
         if strategy is None:
+            strategy = selected_strategy
+
+
+        if strategy is None:
 
             return {
                 "decision": "BLOCK",
-                "reason": "NO_STRATEGY",
+                "status": "BLOCKED",
+                "reason": "NO_SELECTED_STRATEGY",
                 "confidence": 0,
             }
 
 
 
-        if not market_context.get(
-            "risk_allowed",
-            False,
-        ):
+        if market_context.get(
+            "risk_allowed"
+        ) is False:
 
             return {
                 "decision": "BLOCK",
@@ -67,7 +72,10 @@ class StrategyDecisionEngineV2:
 
         if (
             trend == "BULLISH"
-            and structure == "BOS_CONFIRMED"
+            and structure in (
+                "BOS_CONFIRMED",
+                "BREAKOUT",
+            )
         ):
 
             return {
@@ -90,7 +98,10 @@ class StrategyDecisionEngineV2:
 
         if (
             trend == "BEARISH"
-            and structure == "BOS_CONFIRMED"
+            and structure in (
+                "BOS_CONFIRMED",
+                "BREAKOUT",
+            )
         ):
 
             return {

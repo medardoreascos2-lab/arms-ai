@@ -5,71 +5,111 @@ from backend.backtesting.strategy_decision_dashboard_provider_v2 import (
 
 
 
-class FakeDecisionService:
+class FakeStrategyDecisionService:
 
-    def decide(
+
+    def get_decision(
         self,
         *,
         market_context,
     ):
 
         return {
+
             "decision": "EXECUTE",
+
             "direction": "BUY",
-            "confidence": 92,
+
+            "strategy_id": "STR-001",
+
+            "confidence": 95,
+
         }
 
 
 
-def test_dashboard_provider_exposes_decision():
+def test_strategy_decision_dashboard_provider_exposes_data():
 
 
     provider = StrategyDecisionDashboardProviderV2(
-        decision_service=(
-            FakeDecisionService()
+
+        strategy_decision_service=(
+
+            FakeStrategyDecisionService()
+
         ),
+
     )
 
 
-    result = provider.get_decision()
+    result = provider.get_decision(
+
+        market_context={
+
+            "trend": "BULLISH",
+
+            "structure": "BREAKOUT",
+
+        }
+
+    )
 
 
-    assert result["decision"] == (
+    assert (
+
+        result["decision"]
+
+        ==
+
         "EXECUTE"
+
     )
 
 
-    assert result["direction"] == (
-        "BUY"
+    assert (
+
+        result["strategy_id"]
+
+        ==
+
+        "STR-001"
+
     )
 
 
-    assert result["confidence"] == 92
+
+def test_strategy_decision_dashboard_provider_without_data():
 
 
+    class EmptyService:
 
-def test_dashboard_provider_without_service():
 
-
-    class EmptyDecision:
-
-        def decide(
+        def get_decision(
             self,
             *,
             market_context,
         ):
+
             return None
 
 
 
     provider = StrategyDecisionDashboardProviderV2(
-        decision_service=(
-            EmptyDecision()
+
+        strategy_decision_service=(
+
+            EmptyService()
+
         ),
+
     )
 
 
-    result = provider.get_decision()
+    result = provider.get_decision(
+
+        market_context={}
+
+    )
 
 
     assert result is None

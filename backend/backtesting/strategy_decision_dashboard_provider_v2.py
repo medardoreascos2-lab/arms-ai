@@ -14,25 +14,53 @@ class StrategyDecisionDashboardProviderV2:
     def __init__(
         self,
         *,
-        decision_service,
+        decision_service=None,
+        strategy_decision_service=None,
         market_context_provider=None,
     ):
 
 
-        if not callable(
-            getattr(
-                decision_service,
-                "decide",
-                None,
-            )
-        ):
+        if decision_service is None and strategy_decision_service is None:
             raise TypeError(
-                "decision_service debe implementar decide()."
+                "Debe existir decision_service o strategy_decision_service."
             )
+
+
+        if decision_service is not None:
+
+            if not callable(
+                getattr(
+                    decision_service,
+                    "decide",
+                    None,
+                )
+            ):
+                raise TypeError(
+                    "decision_service debe implementar decide()."
+                )
+
+
+        if strategy_decision_service is not None:
+
+            if not callable(
+                getattr(
+                    strategy_decision_service,
+                    "get_decision",
+                    None,
+                )
+            ):
+                raise TypeError(
+                    "strategy_decision_service debe implementar get_decision()."
+                )
 
 
         self.decision_service = (
             decision_service
+        )
+
+
+        self.strategy_decision_service = (
+            strategy_decision_service
         )
 
 
@@ -44,26 +72,40 @@ class StrategyDecisionDashboardProviderV2:
 
     def get_decision(
         self,
+        *,
+        market_context=None,
     ) -> dict | None:
 
 
 
-        if self.market_context_provider:
+        if market_context is None:
 
-            market_context = (
-                self.market_context_provider()
+            if self.market_context_provider:
+
+                market_context = (
+                    self.market_context_provider()
+                )
+
+            else:
+
+                market_context = {
+                    "regime": "TRENDING",
+                    "volatility": "LOW_VOLATILITY",
+                    "trend": "BULLISH",
+                    "structure": "BOS_CONFIRMED",
+                    "risk_allowed": True,
+                }
+
+
+
+        if self.strategy_decision_service is not None:
+
+            return (
+                self.strategy_decision_service
+                .get_decision(
+                    market_context=market_context,
+                )
             )
-
-        else:
-
-            market_context = {
-                "regime": "TRENDING",
-                "volatility": "LOW_VOLATILITY",
-                "trend": "BULLISH",
-                "structure": "BOS_CONFIRMED",
-                "risk_allowed": True,
-            }
-
 
 
         return self.decision_service.decide(

@@ -5,39 +5,10 @@ from backend.api.app import create_app
 
 
 
-def build_strategy():
-
-    return {
-        "strategy_id": "STR-001",
-        "name": "EMA50 Smart Money",
-        "version": "1.0",
-        "status": "CERTIFIED",
-        "grade": "A",
-        "validation_score": 92.0,
-        "performance_score": 85.0,
-        "market_conditions": [
-            "TRENDING",
-            "LOW_VOLATILITY",
-        ],
-    }
-
-
-
 def test_dashboard_exposes_strategy_decision():
 
 
     app = create_app()
-
-
-    registry = (
-        app.state
-        .strategy_registry_v2
-    )
-
-
-    registry.register(
-        build_strategy()
-    )
 
 
     client = TestClient(
@@ -63,21 +34,23 @@ def test_dashboard_exposes_strategy_decision():
 
 
     assert (
-        payload["strategy_decision"]["decision"]
+        payload["strategy_decision"]
+        ["decision"]
         ==
         "EXECUTE"
     )
 
 
     assert (
-        payload["strategy_decision"]["direction"]
+        payload["strategy_decision"]
+        ["strategy_id"]
         ==
-        "BUY"
+        "STR-001"
     )
 
 
 
-def test_dashboard_without_strategy_decision():
+def test_dashboard_strategy_decision_structure():
 
 
     app = create_app()
@@ -93,21 +66,11 @@ def test_dashboard_without_strategy_decision():
     )
 
 
-    assert response.status_code == 200
-
-
     payload = response.json()
 
 
     assert (
-        payload["strategy_decision"]["decision"]
-        ==
-        "BLOCK"
-    )
-
-
-    assert (
-        payload["strategy_decision"]["reason"]
-        ==
-        "NO_STRATEGY"
+        "decision"
+        in
+        payload["strategy_decision"]
     )

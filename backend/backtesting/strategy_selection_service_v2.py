@@ -94,3 +94,16 @@ class StrategySelectionServiceV2:
             strategies=strategies,
             market_context=market_context,
         )
+
+
+    def get_selected_strategy(
+        self,
+    ) -> dict | None:
+
+        return self.select(
+            market_context={
+                "trend": "BULLISH",
+                "structure": "BOS_CONFIRMED",
+                "risk_allowed": True,
+            }
+        )

@@ -57,6 +57,10 @@ class StrategySelectionEngineV2:
                 selected.get(
                     "strategy_name"
                 )
+                or
+                selected.get(
+                    "name"
+                )
             ),
 
             "confidence": round(

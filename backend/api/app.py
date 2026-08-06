@@ -1158,16 +1158,9 @@ def create_app(
 
     app.state.strategy_decision_service_v2 = (
         StrategyDecisionServiceV2(
-            recommendation_service=(
-                StrategyRecommendationServiceV2(
-                    ranking_service=(
-                        app.state
-                        .strategy_ranking_service_v2
-                    ),
-                    recommendation_engine=(
-                        StrategyRecommendationEngineV2()
-                    ),
-                )
+            selection_service=(
+                app.state
+                .strategy_selection_service_v2
             ),
             decision_engine=(
                 StrategyDecisionEngineV2()
@@ -1178,22 +1171,8 @@ def create_app(
     app.state.strategy_decision_dashboard_provider_v2 = (
         StrategyDecisionDashboardProviderV2(
             decision_service=(
-                StrategyDecisionServiceV2(
-                    recommendation_service=(
-                        StrategyRecommendationServiceV2(
-                            ranking_service=(
-                                app.state
-                                .strategy_ranking_service_v2
-                            ),
-                            recommendation_engine=(
-                                StrategyRecommendationEngineV2()
-                            ),
-                        )
-                    ),
-                    decision_engine=(
-                        StrategyDecisionEngineV2()
-                    ),
-                )
+                app.state
+                .strategy_decision_service_v2
             ),
         )
     )
