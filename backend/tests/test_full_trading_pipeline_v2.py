@@ -8,7 +8,9 @@ from fastapi.testclient import TestClient
 def test_full_trading_pipeline_executes_trade():
 
 
-    app = create_app()
+    app = create_app(
+        load_default_strategies=True
+    )
 
 
     client = TestClient(
