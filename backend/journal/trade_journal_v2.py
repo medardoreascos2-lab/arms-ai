@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List
 
 
@@ -29,6 +30,60 @@ class TradeJournalEntry:
     pnl: float
 
     reasoning: List[str]
+
+    
+
+    position_id: str = ""
+
+    created_at: datetime = datetime.now()
+
+    def __getitem__(self, key):
+
+        aliases = {
+            "quantity": "contracts",
+            "entry_price": "entry",
+            "entry_time": "created_at",
+            "stop": "stop_loss",
+            "target": "take_profit",
+            "realized_pnl": "pnl",
+        }
+
+        key = aliases.get(
+            key,
+            key,
+        )
+
+        return getattr(
+            self,
+            key,
+        )
+
+    def get(
+        self,
+        key,
+        default=None,
+    ):
+
+        aliases = {
+            "quantity": "contracts",
+            "entry_price": "entry",
+            "entry_time": "created_at",
+            "stop": "stop_loss",
+            "target": "take_profit",
+            "realized_pnl": "pnl",
+        }
+
+        key = aliases.get(
+            key,
+            key,
+        )
+
+        return getattr(
+            self,
+            key,
+            default,
+        )
+
 
 
 
@@ -173,6 +228,15 @@ class TradeJournalV2:
                     "",
                 )
             ),
+
+            position_id=str(
+                trade.get(
+                    "position_id",
+                    "",
+                )
+            ),
+
+            created_at=datetime.now(),
 
             symbol=str(
                 trade.get(
