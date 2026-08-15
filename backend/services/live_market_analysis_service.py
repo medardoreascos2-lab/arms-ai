@@ -1830,6 +1830,26 @@ class LiveMarketAnalysisService:
             )
 
         if (
+            self.confluence_engine_v2
+            is not None
+        ):
+            confluence_v2_result = (
+                self._evaluate_confluence_v2(
+                    result=result,
+                    candles=candles,
+                    risk_approved=True,
+                    sizing_approved=True,
+                    market_regime_result=(
+                        market_regime_result
+                    ),
+                )
+            )
+
+            result["confluence_v2"] = (
+                confluence_v2_result
+            )
+
+        if (
             self.execution_manager
             is not None
         ):
@@ -1838,6 +1858,20 @@ class LiveMarketAnalysisService:
                     signal
                 )
             )
+
+            if isinstance(
+                execution.get("confidence"),
+                str,
+            ):
+                execution["confidence"] = {
+                    "BAJA": 30.0,
+                    "MEDIA": 60.0,
+                    "ALTA": 80.0,
+                    "MUY ALTA": 90.0,
+                }.get(
+                    execution["confidence"].strip().upper(),
+                    0.0,
+                )
 
             result["execution"] = execution
 
@@ -1850,19 +1884,57 @@ class LiveMarketAnalysisService:
                     self.position_sizing_engine
                     is not None
                 ):
-                    position_sizing = (
-                        self.position_sizing_engine.calculate(
-                            account_balance=account_balance,
-                            risk_percent=risk_percent,
-                            entry_price=float(
-                                execution["entry_price"]
-                            ),
-                            stop_loss=float(
-                                execution["stop_loss"]
-                            ),
-                            point_value=point_value,
+                    if (
+                        getattr(
+                            self.position_sizing_engine,
+                            "instrument_profile_engine",
+                            None,
                         )
-                    )
+                        is not None
+                    ):
+                        try:
+                            position_sizing = (
+                                self.position_sizing_engine.calculate_for_symbol(
+                                    symbol=symbol,
+                                    account_balance=account_balance,
+                                    risk_percent=risk_percent,
+                                    entry_price=float(
+                                        execution["entry_price"]
+                                    ),
+                                    stop_loss=float(
+                                        execution["stop_loss"]
+                                    ),
+                                )
+                            )
+
+                        except ValueError:
+                            position_sizing = (
+                                self.position_sizing_engine.calculate(
+                                    account_balance=account_balance,
+                                    risk_percent=risk_percent,
+                                    entry_price=float(
+                                        execution["entry_price"]
+                                    ),
+                                    stop_loss=float(
+                                        execution["stop_loss"]
+                                    ),
+                                    point_value=point_value,
+                                )
+                            )
+                    else:
+                        position_sizing = (
+                            self.position_sizing_engine.calculate(
+                                account_balance=account_balance,
+                                risk_percent=risk_percent,
+                                entry_price=float(
+                                    execution["entry_price"]
+                                ),
+                                stop_loss=float(
+                                    execution["stop_loss"]
+                                ),
+                                point_value=point_value,
+                            )
+                        )
 
                     result["position_sizing"] = (
                         position_sizing
@@ -1954,12 +2026,31 @@ class LiveMarketAnalysisService:
                     self.execution_decision_engine
                     is not None
                 ):
-                    raw_confidence = float(
-                        execution.get(
-                            "confidence",
+                    raw_confidence_value = execution.get(
+                        "confidence",
+                        0.0,
+                    )
+
+                    if isinstance(
+                        raw_confidence_value,
+                        str,
+                    ):
+                        confidence_map = {
+                            "BAJA": 30.0,
+                            "MEDIA": 60.0,
+                            "ALTA": 80.0,
+                            "MUY ALTA": 90.0,
+                        }
+
+                        raw_confidence = confidence_map.get(
+                            raw_confidence_value.upper(),
                             0.0,
                         )
-                    )
+
+                    else:
+                        raw_confidence = float(
+                            raw_confidence_value
+                        )
 
                     if raw_confidence > 1.0:
                         raw_confidence = (
@@ -2031,8 +2122,34 @@ class LiveMarketAnalysisService:
                         ]
                     )
 
-                if execution_decision_approved:
                     if (
+                        "confluence_v2" in result
+                        and result["confluence_v2"].get(
+                            "approved",
+                            True,
+                        )
+                        is False
+                    ):
+                        execution_decision_approved = False
+
+                if execution_decision_approved:
+
+                    confluence_blocked = (
+                        "confluence_v2" in result
+                        and result["confluence_v2"].get(
+                            "approved",
+                            True,
+                        )
+                        is False
+                    )
+
+                    if confluence_blocked:
+                        execution_decision_approved = False
+                        result["execution_blocked_reason"] = (
+                            "Confluence V2 rechazó la operación."
+                        )
+
+                    if execution_decision_approved and (
                         self.executable_signal_store
                         is not None
                     ):
@@ -2047,6 +2164,13 @@ class LiveMarketAnalysisService:
                         trade = (
                             self.trade_execution_engine.execute(
                                 execution
+                            )
+                        )
+
+                        trade["contracts"] = int(
+                            execution.get(
+                                "contracts",
+                                1,
                             )
                         )
 
@@ -2092,8 +2216,16 @@ class LiveMarketAnalysisService:
                 self._evaluate_confluence_v2(
                     result=result,
                     candles=candles,
-                    risk_approved=True,
-                    sizing_approved=True,
+                    risk_approved=(
+                        account_risk_approved
+                        if "account_risk_approved" in locals()
+                        else True
+                    ),
+                    sizing_approved=(
+                        position_sizing_approved
+                        if "position_sizing_approved" in locals()
+                        else True
+                    ),
                     market_regime_result=(
                         locals().get(
                             "market_regime_result"

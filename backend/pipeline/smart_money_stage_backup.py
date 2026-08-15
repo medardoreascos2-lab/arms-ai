@@ -2,7 +2,7 @@ from typing import Any
 
 from backend.smart_money.bos_engine import BOSEngine
 from backend.smart_money.choch_engine import CHoCHEngine
-from backend.smart_money.liquidity_engine_v2 import LiquidityEngineV2
+from backend.smart_money.liquidity_engine import LiquidityEngine
 from backend.smart_money.market_structure import MarketStructureEngine
 
 
@@ -41,7 +41,7 @@ class SmartMoneyStage:
             market_structure=market_structure.structure,
         )
 
-        liquidity = LiquidityEngineV2(
+        liquidity = LiquidityEngine(
             tolerance=self.liquidity_tolerance
         )
         liquidity.analyze(candles)

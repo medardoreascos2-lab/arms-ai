@@ -1,8 +1,24 @@
+from dataclasses import dataclass
+
+
+@dataclass
+class DecisionResult:
+    decision: str
+
+
 class DecisionEngine:
+
     def __init__(self):
         self.decision = "ESPERAR"
+        self.result = DecisionResult(
+            decision="ESPERAR"
+        )
 
-    def analyze(self, intelligence_recommendation: str) -> str:
+    def analyze(
+        self,
+        intelligence_recommendation: str,
+    ) -> DecisionResult:
+
         valid_decisions = {
             "BUSCAR COMPRAS",
             "BUSCAR VENTAS",
@@ -15,8 +31,15 @@ class DecisionEngine:
             )
 
         self.decision = intelligence_recommendation
-        return self.decision
+
+        self.result = DecisionResult(
+            decision=self.decision
+        )
+
+        return self.result
 
     def show(self) -> None:
         print("------ DECISION ENGINE ------")
-        print(f"Decisión final: {self.decision}")
+        print(
+            f"Decisión final: {self.result.decision}"
+        )

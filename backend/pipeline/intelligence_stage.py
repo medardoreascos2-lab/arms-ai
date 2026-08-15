@@ -25,6 +25,7 @@ class IntelligenceStage:
         self,
         context: dict[str, Any],
     ) -> dict[str, Any]:
+
         self._validate_context(context)
 
         current_price = context["current_price"]
@@ -36,12 +37,14 @@ class IntelligenceStage:
         choch = context["choch"]
 
         trend = TrendAnalyzer()
+
         trend.analyze(
             current_price=current_price,
             ema50=ema.ema,
         )
 
         intelligence = TradingIntelligence()
+
         intelligence.analyze(
             trend=trend.trend,
             current_price=current_price,
@@ -57,8 +60,9 @@ class IntelligenceStage:
             choch_direction=choch.direction,
         )
 
-        decision = DecisionEngine()
-        decision.analyze(
+        decision_engine = DecisionEngine()
+
+        decision = decision_engine.analyze(
             intelligence_recommendation=(
                 intelligence.recommendation
             )
@@ -69,6 +73,7 @@ class IntelligenceStage:
                 "trend": trend,
                 "intelligence": intelligence,
                 "decision": decision,
+                "decision_engine": decision_engine,
             }
         )
 

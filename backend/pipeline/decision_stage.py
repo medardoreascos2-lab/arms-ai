@@ -26,7 +26,6 @@ class DecisionStage:
         "bos",
         "choch",
         "liquidity",
-        "validator",
     )
 
     def __init__(
@@ -50,7 +49,13 @@ class DecisionStage:
         bos = context["bos"]
         choch = context["choch"]
         liquidity = context["liquidity"]
-        validator = context["validator"]
+        validator = context.get("validator")
+
+        risk_allowed = (
+            validator.is_valid
+            if validator
+            else True
+        )
 
         session_allowed = context.get(
             "session_allowed",
@@ -79,7 +84,7 @@ class DecisionStage:
         }
 
         risk_data = {
-            "approved": validator.is_valid,
+            "approved": risk_allowed,
         }
 
         confluence = ConfluenceEngine()
@@ -131,7 +136,7 @@ class DecisionStage:
             rsi_status=rsi.status,
             atr_status=atr.status,
             reward_risk_ratio=self.reward_risk_ratio,
-            risk_allowed=validator.is_valid,
+            risk_allowed=risk_allowed,
             session_allowed=session_allowed,
         )
 
@@ -153,7 +158,7 @@ class DecisionStage:
             confluence=confluence_result,
             probability=probability_result,
             reasoning=reasoning_result,
-            risk_allowed=validator.is_valid,
+            risk_allowed=risk_allowed,
             session_allowed=session_allowed,
         )
 
@@ -163,6 +168,7 @@ class DecisionStage:
                 "reasoning_result": reasoning_result,
                 "probability_result": probability_result,
                 "council_result": council_result,
+                "decision": council_result,
             }
         )
 

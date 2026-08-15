@@ -48,9 +48,26 @@ class ExecutionDecisionEngine:
         market_regime: str
         | None = None,
     ) -> dict[str, object]:
-        confidence = float(
-            signal_confidence
-        )
+        if isinstance(
+            signal_confidence,
+            str,
+        ):
+            confidence_map = {
+                "BAJA": 30.0,
+                "MEDIA": 60.0,
+                "ALTA": 80.0,
+                "MUY ALTA": 90.0,
+            }
+
+            confidence = confidence_map.get(
+                signal_confidence.strip().upper(),
+                0.0,
+            )
+
+        else:
+            confidence = float(
+                signal_confidence
+            )
 
         normalized_contracts = int(
             contracts

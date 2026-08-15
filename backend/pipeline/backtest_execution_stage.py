@@ -1,6 +1,7 @@
 from typing import Any
 
 from backend.services.execution_simulator import ExecutionSimulator
+from backend.backtesting.metrics_engine import MetricsEngine
 
 
 class BacktestExecutionStage:
@@ -19,14 +20,10 @@ class BacktestExecutionStage:
 
     def __init__(
         self,
-        point_value: float = 2.0,
+        instrument: str = "MNQ",
     ) -> None:
-        if point_value <= 0:
-            raise ValueError(
-                "point_value debe ser mayor que cero."
-            )
 
-        self.point_value = point_value
+        self.instrument = instrument.upper()
 
     def run(
         self,
@@ -38,9 +35,9 @@ class BacktestExecutionStage:
         current_candle = context["backtest_candle"]
         next_candle = context["backtest_next_candle"]
 
-        simulator = ExecutionSimulator(
-            point_value=self.point_value,
-        )
+        simulator = ExecutionSimulator()
+
+        metrics_engine = MetricsEngine()
 
         simulated_trade = simulator.execute(
             trade_plan=trade_plan,
@@ -51,11 +48,16 @@ class BacktestExecutionStage:
             simulated_trade.opened_at = current_candle.timestamp
             simulated_trade.closed_at = next_candle.timestamp
 
+            metrics_engine.register_trade(
+                simulated_trade.pnl
+            )
+
         context.update(
             {
                 "execution_simulator": simulator,
-                "execution_status": simulator.status_message,
+                "execution_result": simulator.status_message,
                 "simulated_trade": simulated_trade,
+                "backtest_metrics": metrics_engine.report(),
             }
         )
 

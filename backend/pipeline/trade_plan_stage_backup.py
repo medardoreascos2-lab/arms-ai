@@ -20,44 +20,14 @@ class TradePlanStage:
         self,
         context: dict[str, Any],
     ) -> dict[str, Any]:
-
         self._validate_context(context)
 
         latest_candle = context["latest_candle"]
         council_result = context["council_result"]
-
-        trade_levels = context.get(
-            "trade_levels"
-        )
-
-        dynamic_risk = context.get(
-            "dynamic_risk"
-        )
-
-        instrument = (
-            dynamic_risk.instrument
-            if dynamic_risk is not None
-            else "MNQ"
-        )
+        trade_levels = context["trade_levels"]
+        dynamic_risk = context["dynamic_risk"]
 
         factory = TradePlanFactory()
-
-        if trade_levels is None:
-            trade_plan = factory.create(
-                symbol=latest_candle.symbol,
-                timeframe=latest_candle.timeframe,
-                council_result=council_result,
-                entry_price=None,
-                stop_loss=None,
-                take_profit=None,
-                contracts=0,
-                risk_amount=0.0,
-                instrument=instrument,
-            )
-
-            context["trade_plan"] = trade_plan
-
-            return context
 
         trade_plan = factory.create(
             symbol=latest_candle.symbol,
@@ -68,7 +38,6 @@ class TradePlanStage:
             take_profit=trade_levels.take_profit,
             contracts=dynamic_risk.contracts,
             risk_amount=dynamic_risk.risk_amount,
-            instrument=instrument,
         )
 
         context["trade_plan"] = trade_plan

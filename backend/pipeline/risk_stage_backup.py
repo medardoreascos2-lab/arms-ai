@@ -4,7 +4,6 @@ from backend.risk import RiskManager
 from backend.risk_management.dynamic_risk_engine import DynamicRiskEngine
 from backend.risk_management.trade_levels import TradeLevels
 from backend.risk_management.trade_validator import TradeValidator
-from backend.models.execution_status import ExecutionStatus
 
 
 class RiskStage:
@@ -27,14 +26,12 @@ class RiskStage:
         risk_percent: float = 0.5,
         stop_atr_multiplier: float = 1.5,
         reward_risk_ratio: float = 2.0,
-        instrument: str = "MNQ",
         point_value: float = 2.0,
     ) -> None:
         self.account_balance = account_balance
         self.risk_percent = risk_percent
         self.stop_atr_multiplier = stop_atr_multiplier
         self.reward_risk_ratio = reward_risk_ratio
-        self.instrument = instrument.upper()
         self.point_value = point_value
 
     def run(
@@ -47,35 +44,19 @@ class RiskStage:
         atr = context["atr"]
         rsi = context["rsi"]
         decision = context["decision"]
-
-        if hasattr(
-            decision,
-            "decision",
-        ):
-            decision_value = decision.decision
-        else:
-            decision_value = decision
-
         intelligence = context["intelligence"]
 
-        if decision_value == "ESPERAR":
-            validator = TradeValidator()
+    if decision.decision == "ESPERAR":
+        context.update(
+            {
+                "risk_manager": None,
+                "dynamic_risk": None,
+                "trade_levels": None,
+                "validator": None,
+            }
+        )
 
-            validator.is_valid = False
-            validator.reasons.append(
-                "La decisión final es ESPERAR."
-            )
-
-            context.update(
-                {
-                    "risk_manager": None,
-                    "dynamic_risk": None,
-                    "trade_levels": None,
-                    "validator": validator,
-                }
-            )
-
-            return context
+        return context
 
         risk_manager = RiskManager(
             account_balance=self.account_balance,
@@ -87,70 +68,28 @@ class RiskStage:
             risk_percent=self.risk_percent,
             stop_atr_multiplier=self.stop_atr_multiplier,
             reward_risk_ratio=self.reward_risk_ratio,
-            instrument=self.instrument,
         )
 
         dynamic_risk.calculate(
             atr=atr.atr,
+            point_value=self.point_value,
         )
 
         trade_levels = TradeLevels()
-
         trade_levels.calculate(
-            direction=decision_value,
+            direction=decision.decision,
             entry_price=current_price,
             stop_distance=dynamic_risk.stop_distance,
             take_profit_distance=dynamic_risk.take_profit_distance,
         )
 
         validator = TradeValidator()
-
-        confluence_result = context.get(
-            "confluence_result"
-        )
-
-        bos = context.get(
-            "bos"
-        )
-
-        liquidity = context.get(
-            "liquidity"
-        )
-
         validator.validate(
-            decision=decision,
+            decision=decision.decision,
             confidence=intelligence.confidence,
             contracts=dynamic_risk.contracts,
             rsi_status=rsi.status,
             atr_status=atr.status,
-            confluence_score=(
-                confluence_result.score
-                if confluence_result
-                else 0
-            ),
-            bos_confirmed=(
-                str(bos.bos).upper() == "SÍ"
-                if bos
-                else False
-            ),
-            liquidity_confirmed=(
-                str(liquidity.sweep_detected).upper() == "SÍ"
-                if liquidity
-                else False
-            ),
-        )
-
-        execution_status = ExecutionStatus(
-            status=(
-                ExecutionStatus.APPROVED
-                if validator.is_valid
-                else ExecutionStatus.BLOCKED_RISK
-            ),
-            reason=(
-                "Riesgo aprobado."
-                if validator.is_valid
-                else validator.reasons[0]
-            ),
         )
 
         context.update(
@@ -159,7 +98,6 @@ class RiskStage:
                 "dynamic_risk": dynamic_risk,
                 "trade_levels": trade_levels,
                 "validator": validator,
-                "execution_status": execution_status,
             }
         )
 

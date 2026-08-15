@@ -34,7 +34,14 @@ class BacktestMarketStage:
                 "'backtest_candles'."
             )
 
-        candles = context["backtest_candles"]
+        candles = list(
+            context["backtest_candles"]
+        )
+
+        if "backtest_next_candle" in context:
+            candles.append(
+                context["backtest_next_candle"]
+            )
 
         if not candles:
             raise ValueError(
