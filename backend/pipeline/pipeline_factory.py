@@ -68,7 +68,6 @@ class PipelineFactory:
                 ExecutionStage(
                     trade_log_path=settings.trade_log_path,
                     simulated_log_path=settings.simulated_log_path,
-                    instrument=settings.instrument,
                 ),
                 ReportingStage(),
             ]
@@ -104,15 +103,15 @@ class PipelineFactory:
                 liquidity_tolerance=settings.liquidity_tolerance,
             ),
             IntelligenceStage(),
-            DecisionStage(
-                reward_risk_ratio=settings.reward_risk_ratio,
-            ),
             RiskStage(
                 account_balance=settings.account_balance,
                 risk_percent=settings.risk_percent,
                 stop_atr_multiplier=settings.stop_atr_multiplier,
                 reward_risk_ratio=settings.reward_risk_ratio,
                 instrument=settings.instrument,
+            ),
+            DecisionStage(
+                reward_risk_ratio=settings.reward_risk_ratio,
             ),
             TradePlanStage(),
         ]

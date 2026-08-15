@@ -42,6 +42,8 @@ class TradeJournalV2:
         self,
 
         analytics_v2=None,
+        breakdown_analytics_v2=None,
+        breakdown_analytics=None,
 
         *args,
 
@@ -51,7 +53,38 @@ class TradeJournalV2:
 
         self.trades = []
 
+        if (
+            analytics_v2 is not None
+            and not hasattr(
+                analytics_v2,
+                "calculate",
+            )
+        ):
+            raise TypeError(
+                "analytics_v2 debe implementar calculate."
+            )
+
         self.analytics_v2 = analytics_v2
+
+        if breakdown_analytics_v2 is None:
+            breakdown_analytics_v2 = (
+                breakdown_analytics
+            )
+
+        if (
+            breakdown_analytics_v2 is not None
+            and not hasattr(
+                breakdown_analytics_v2,
+                "calculate",
+            )
+        ):
+            raise TypeError(
+                "breakdown_analytics_v2 debe implementar calculate."
+            )
+
+        self.breakdown_analytics_v2 = (
+            breakdown_analytics_v2
+        )
 
 
 
@@ -366,55 +399,94 @@ class TradeJournalV2:
             "closed_trades":
                 closed_trades,
 
+            "analytics":
+                self.get_analytics(),
+
+            "breakdown":
+                self.get_breakdown(),
+
         }
 
     def get_analytics(self):
         if self.analytics_v2 is None:
-            return {}
+            return None
 
-        trades = [
-            {
-                "trade_id": trade.trade_id,
-                "symbol": trade.symbol,
-                "direction": trade.direction,
-                "entry_price": trade.entry,
-                "exit_price": 0.0,
-                "quantity": trade.contracts,
-                "realized_pnl": trade.pnl,
-                "result": trade.result,
-            }
-            for trade in self.trades
-        ]
-
-        return self.analytics_v2.analyze(
-            trades=trades,
-            starting_balance=17000.0,
+        source_trades = getattr(
+            self,
+            "_closed_trades",
+            self.trades,
         )
+
+        trades = []
+
+        for trade in source_trades:
+            if isinstance(
+                trade,
+                dict,
+            ):
+                trades.append(
+                    trade
+                )
+
+            else:
+                trades.append(
+                    {
+                        "trade_id": trade.trade_id,
+                        "symbol": trade.symbol,
+                        "direction": trade.direction,
+                        "entry_price": trade.entry,
+                        "exit_price": 0.0,
+                        "quantity": trade.contracts,
+                        "realized_pnl": trade.pnl,
+                        "status": trade.status,
+                        "result": trade.result,
+                    }
+                )
+
+        return self.analytics_v2.calculate(
+            trades=trades,
+        )
+
 
 
     def get_breakdown(self):
 
-        analytics = self.get_analytics()
+        if self.breakdown_analytics_v2 is None:
+            return None
 
-        if not analytics:
-            return {}
+        source_trades = getattr(
+            self,
+            "_closed_trades",
+            self.trades,
+        )
 
-        return {
-            "wins": analytics.get(
-                "wins",
-                0,
-            ),
-            "losses": analytics.get(
-                "losses",
-                0,
-            ),
-            "break_even": analytics.get(
-                "break_even",
-                0,
-            ),
-            "win_rate": analytics.get(
-                "win_rate",
-                0.0,
-            ),
-        }
+        trades = []
+
+        for trade in source_trades:
+            if isinstance(
+                trade,
+                dict,
+            ):
+                trades.append(
+                    trade
+                )
+
+            else:
+                trades.append(
+                    {
+                        "trade_id": trade.trade_id,
+                        "symbol": trade.symbol,
+                        "direction": trade.direction,
+                        "session": "",
+                        "strategy": "",
+                        "timeframe": "",
+                        "exit_reason": "",
+                        "realized_pnl": trade.pnl,
+                        "status": trade.status,
+                    }
+                )
+
+        return self.breakdown_analytics_v2.calculate(
+            trades=trades,
+        )
 
