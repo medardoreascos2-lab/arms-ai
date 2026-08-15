@@ -84,6 +84,7 @@ def create_backtesting_orchestrator_v2(
     settings: ArmsSettings | None = None,
     collector=None,
     minimum_trades: int = 10,
+    registry_service=None,
 ) -> BacktestingOrchestratorV2:
     """
     Construye el orquestador institucional completo.
@@ -168,6 +169,9 @@ def create_backtesting_orchestrator_v2(
         return StrategyCertificationPipelineV2(
             validation_pipeline=(
                 validation_adapter
+            ),
+            registry_service=(
+                registry_service
             ),
         )
 

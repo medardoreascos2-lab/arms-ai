@@ -282,6 +282,7 @@ class PortfolioManagerV2:
         *,
         position_id: str,
         exit_price: float,
+        realized_pnl: float | None = None,
     ) -> dict[str, object]:
 
         if position_id not in self._open_positions:
@@ -300,6 +301,14 @@ class PortfolioManagerV2:
             position_id
         )
 
+        previous_realized_pnl = float(
+            position.get(
+                "realized_pnl",
+                0.0,
+            )
+            or 0.0
+        )
+
         quantity = float(
             position["quantity"]
         )
@@ -316,19 +325,52 @@ class PortfolioManagerV2:
             position["direction"]
         ).upper()
 
+        previous_realized = float(
+            position.get(
+                "realized_pnl",
+                0.0,
+            )
+            or 0.0
+        )
+
         if direction == "LONG":
-            pnl = (
+            remaining_pnl = (
                 exit_price - entry
             ) * quantity * point_value
         else:
-            pnl = (
+            remaining_pnl = (
                 entry - exit_price
             ) * quantity * point_value
+
+
+        if "total_pnl" in position:
+
+            pnl = float(
+                position.get(
+                    "total_pnl",
+                    0.0,
+                )
+                or 0.0
+            )
+
+        elif realized_pnl is not None:
+
+            pnl = float(
+                realized_pnl
+            )
+
+        else:
+
+            pnl = round(
+                previous_realized + remaining_pnl,
+                10,
+            )
 
         position = deepcopy(position)
 
         position["status"] = "CLOSED"
         position["exit_price"] = exit_price
+
         position["realized_pnl"] = round(
             pnl,
             10,

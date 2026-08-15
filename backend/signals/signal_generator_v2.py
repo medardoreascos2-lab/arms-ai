@@ -65,13 +65,38 @@ class SignalGeneratorV2:
         trade_validation,
     ):
 
+        from backend.models.trade_plan import TradePlan
+
         if not isinstance(
             trade_plan,
-            dict,
+            (
+                dict,
+                TradePlan,
+            ),
         ):
             raise TypeError(
                 "trade_plan inválido."
             )
+
+        def get_trade_plan_value(
+            key,
+            default=None,
+        ):
+            if isinstance(
+                trade_plan,
+                dict,
+            ):
+                return trade_plan.get(
+                    key,
+                    default,
+                )
+
+            return getattr(
+                trade_plan,
+                key,
+                default,
+            )
+
 
         if not isinstance(
             trade_validation,
@@ -105,7 +130,7 @@ class SignalGeneratorV2:
 
         direction = (
             str(
-                trade_plan.get(
+                get_trade_plan_value(
                     "direction",
                     "",
                 )
@@ -113,6 +138,24 @@ class SignalGeneratorV2:
             .strip()
             .upper()
         )
+
+        if not direction:
+            decision = (
+                str(
+                    get_trade_plan_value(
+                        "decision",
+                        "",
+                    )
+                )
+                .strip()
+                .upper()
+            )
+
+            if decision == "EXECUTE_LONG":
+                direction = "LONG"
+
+            elif decision == "EXECUTE_SHORT":
+                direction = "SHORT"
 
         if (
             direction
@@ -123,7 +166,7 @@ class SignalGeneratorV2:
             )
 
         probability = float(
-            trade_plan.get(
+            get_trade_plan_value(
                 "probability",
                 0.0,
             )
@@ -137,7 +180,7 @@ class SignalGeneratorV2:
             )
 
         confluence_score = float(
-            trade_plan.get(
+            get_trade_plan_value(
                 "confluence_score",
                 0.0,
             )
@@ -154,7 +197,7 @@ class SignalGeneratorV2:
 
         grade = (
             str(
-                trade_plan.get(
+                get_trade_plan_value(
                     "grade",
                     "",
                 )
@@ -165,10 +208,17 @@ class SignalGeneratorV2:
 
         blocking = []
 
-        if not trade_plan.get(
-            "approved",
-            False,
-        ):
+        trade_plan_approved = (
+            get_trade_plan_value(
+                "approved",
+                get_trade_plan_value(
+                    "authorized",
+                    False,
+                ),
+            )
+        )
+
+        if not trade_plan_approved:
             blocking.append(
                 "trade_plan_not_approved"
             )
@@ -229,16 +279,16 @@ class SignalGeneratorV2:
             "symbol": symbol,
             "timeframe": timeframe,
             "direction": direction,
-            "entry_price": trade_plan.get(
+            "entry_price": get_trade_plan_value(
                 "entry_price"
             ),
-            "stop_loss": trade_plan.get(
+            "stop_loss": get_trade_plan_value(
                 "stop_loss"
             ),
-            "take_profit": trade_plan.get(
+            "take_profit": get_trade_plan_value(
                 "take_profit"
             ),
-            "contracts": trade_plan.get(
+            "contracts": get_trade_plan_value(
                 "contracts"
             ),
             "probability": probability,
@@ -256,8 +306,8 @@ class SignalGeneratorV2:
             "summary": (
                 f"{symbol} "
                 f"{direction} "
-                f"ENTRY {trade_plan.get('entry_price')} "
-                f"SL {trade_plan.get('stop_loss')} "
-                f"TP {trade_plan.get('take_profit')}"
+                f"ENTRY {get_trade_plan_value('entry_price')} "
+                f"SL {get_trade_plan_value('stop_loss')} "
+                f"TP {get_trade_plan_value('take_profit')}"
             ),
         }

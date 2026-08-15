@@ -14,6 +14,7 @@ class ArmsSettings:
     risk_percent: float = 0.5
     stop_atr_multiplier: float = 1.5
     reward_risk_ratio: float = 2.0
+    instrument: str = "MNQ"
     point_value: float = 2.0
 
     ema_period: int = 50
@@ -78,10 +79,12 @@ class ArmsSettings:
                 "reward_risk_ratio debe ser mayor que cero."
             )
 
-        if self.point_value <= 0:
+        if not self.instrument.strip():
             raise ValueError(
-                "point_value debe ser mayor que cero."
+                "instrument no puede estar vacío."
             )
+
+        self.instrument = self.instrument.upper()
 
         if self.ema_period <= 0:
             raise ValueError(

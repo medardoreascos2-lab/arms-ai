@@ -5,3 +5,10 @@ venv/
 .env
 
 data/
+
+# ARMS AI generated files
+*.backup.py
+*.backup
+*.db
+backtest_output_test/
+reports/test/

@@ -286,6 +286,12 @@ class BacktestingOrchestratorV2:
             certification_pipeline_factory
         )
 
+        self.last_certification_pipeline = None
+
+        self.last_certification_result = None
+
+        self.last_score_result = None
+
     @staticmethod
     def _normalize_win_rate(
         value,
@@ -468,6 +474,14 @@ class BacktestingOrchestratorV2:
             )
         )
 
+        self.last_certification_pipeline = (
+            certification_pipeline
+        )
+
+        self.last_score_result = (
+            score_result
+        )
+
         if not callable(
             getattr(
                 certification_pipeline,
@@ -482,6 +496,10 @@ class BacktestingOrchestratorV2:
 
         certification_result = (
             certification_pipeline.run()
+        )
+
+        self.last_certification_result = (
+            certification_result
         )
 
         certification = getattr(

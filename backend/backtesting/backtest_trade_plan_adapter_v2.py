@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.models.trade_plan import TradePlan
+
 from backend.strategies.trading_strategy_v2 import (
     TradingActionV2,
     TradingDecisionV2,
@@ -28,7 +30,7 @@ class BacktestTradePlanAdapterV2:
         *,
         decision: TradingDecisionV2,
         candle: dict[str, Any],
-    ) -> dict[str, object]:
+    ) -> TradePlan:
 
         if not isinstance(
             decision,
@@ -164,27 +166,39 @@ class BacktestTradePlanAdapterV2:
             4,
         )
 
-        return {
-            "approved": True,
-            "status": "ACTIVE",
-            "direction": direction,
-            "entry_price": entry_price,
-            "stop_loss": stop_loss,
-            "take_profit": take_profit,
-            "risk_points": risk_points,
-            "reward_points": reward_points,
-            "reward_risk_ratio": (
-                reward_risk_ratio
+        return TradePlan(
+            symbol=str(
+                candle.get(
+                    "symbol",
+                    "NQ",
+                )
             ),
-            "contracts": contracts,
-            "probability": (
+            timeframe=str(
+                candle.get(
+                    "timeframe",
+                    "1m",
+                )
+            ),
+            decision=source_decision,
+            confidence=str(
                 decision.confidence
             ),
-            "confluence_score": (
-                confluence_score
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            contracts=contracts,
+            risk_amount=(
+                risk_points * contracts
             ),
-            "grade": grade,
-            "source_decision": (
-                source_decision
+            authorized=True,
+            probability=float(
+                decision.confidence
             ),
-        }
+            confluence_score=confluence_score,
+            grade=grade,
+            reasons=[
+                f"Grade {grade}",
+                f"Confluence {confluence_score}",
+                f"RR {reward_risk_ratio}",
+            ],
+        )

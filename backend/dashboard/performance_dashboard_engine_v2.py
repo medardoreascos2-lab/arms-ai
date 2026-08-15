@@ -15,6 +15,7 @@ class PerformanceDashboardEngineV2:
         portfolio_manager_v2=None,
         trade_journal_v2=None,
         performance_score_engine_v2=None,
+        performance_analytics_v2=None,
     ) -> None:
 
         if (
@@ -82,6 +83,11 @@ class PerformanceDashboardEngineV2:
             performance_score_engine_v2
         )
 
+
+        self.performance_analytics_v2 = (
+            performance_analytics_v2
+        )
+
     def build(
         self,
     ) -> dict[str, object]:
@@ -107,13 +113,24 @@ class PerformanceDashboardEngineV2:
             else None
         )
 
-        analytics = (
-            trade_journal_summary.get(
-                "analytics"
+        analytics = None
+
+
+        if (
+            self.performance_analytics_v2
+            is not None
+            and self.trade_journal_v2
+            is not None
+        ):
+
+            analytics = (
+                self.performance_analytics_v2.analyze(
+                    trades=(
+                        self.trade_journal_v2.get_trades()
+                    ),
+                    starting_balance=17000.0,
+                )
             )
-            if trade_journal_summary
-            else None
-        )
 
         breakdown = (
             trade_journal_summary.get(
@@ -161,7 +178,7 @@ class PerformanceDashboardEngineV2:
                 "expectancy":
                     analytics["expectancy"],
                 "net_profit":
-                    analytics["net_profit"],
+                    analytics["net_pnl"],
             }
             if analytics
             else None

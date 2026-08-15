@@ -197,7 +197,6 @@ class ConfluenceEngine:
 
         approved = (
             score >= self.MINIMUM_TRADE_SCORE
-            and risk_approved
             and direction_valid
         )
 

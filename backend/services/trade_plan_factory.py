@@ -24,6 +24,7 @@ class TradePlanFactory:
         take_profit: float | None,
         contracts: int,
         risk_amount: float,
+        instrument: str = "MNQ",
     ) -> TradePlan:
         reasons = self._build_reasons(council_result)
 
@@ -31,6 +32,7 @@ class TradePlanFactory:
             return TradePlan(
                 symbol=symbol,
                 timeframe=timeframe,
+                instrument=instrument,
                 decision="NO_TRADE",
                 confidence=council_result.confidence,
                 entry_price=None,
@@ -39,12 +41,16 @@ class TradePlanFactory:
                 contracts=0,
                 risk_amount=0.0,
                 authorized=False,
+                probability=council_result.probability,
+                confluence_score=council_result.confluence_score,
+                grade=council_result.grade,
                 reasons=reasons,
             )
 
         return TradePlan(
             symbol=symbol,
             timeframe=timeframe,
+            instrument=instrument,
             decision=council_result.action,
             confidence=council_result.confidence,
             entry_price=entry_price,
@@ -53,6 +59,9 @@ class TradePlanFactory:
             contracts=contracts,
             risk_amount=risk_amount,
             authorized=True,
+            probability=council_result.probability,
+            confluence_score=council_result.confluence_score,
+            grade=council_result.grade,
             reasons=reasons,
         )
 

@@ -203,6 +203,7 @@ class BacktestSessionV2:
         ] = []
 
         self.active_position_id: str | None = None
+        self.candle_history: list[dict[str, object]] = []
 
     def run(self) -> int:
         """
@@ -217,59 +218,65 @@ class BacktestSessionV2:
         self.submission_results.clear()
         self.position_update_results.clear()
         self.active_position_id = None
+        self.candle_history.clear()
 
-        def on_candle(
-            candle: Any,
-            publish_result: Any,
-        ) -> None:
+    def on_candle(
+        candle: Any,
+        publish_result: Any,
+    ) -> None:
 
-            normalized_candle = self._normalize_candle(
-                candle
+        normalized_candle = self._normalize_candle(
+            candle
+        )
+
+        self._update_active_position_if_configured(
+            candle=normalized_candle,
+        )
+
+        self.candle_history.append(
+            normalized_candle
+        )
+
+        context = {
+            "candle": normalized_candle,
+            "history": self.candle_history,
+            "publish_result": publish_result,
+        }
+
+        decision = (
+            self.strategy_runner_v2.run(
+                context
+            )
+        )
+
+        if not isinstance(
+            decision,
+            TradingDecisionV2,
+        ):
+            raise TypeError(
+                "strategy_runner_v2 debe devolver "
+                "TradingDecisionV2."
             )
 
-            self._update_active_position_if_configured(
-                candle=normalized_candle,
-            )
+        self.decisions.append(
+            decision
+        )
 
-            context = {
-                "candle": normalized_candle,
-                "publish_result": publish_result,
-            }
+        if (
+            decision.action
+            is TradingActionV2.HOLD
+        ):
+            return
 
-            decision = (
-                self.strategy_runner_v2.run(
-                    context
-                )
-            )
+        self._generate_signal_if_configured(
+            decision=decision,
+            candle=normalized_candle,
+        )
 
-            if not isinstance(
-                decision,
-                TradingDecisionV2,
-            ):
-                raise TypeError(
-                    "strategy_runner_v2 debe devolver "
-                    "TradingDecisionV2."
-                )
-
-            self.decisions.append(
-                decision
-            )
-
-            if (
-                decision.action
-                is TradingActionV2.HOLD
-            ):
-                return
-
-            self._generate_signal_if_configured(
-                decision=decision,
-                candle=normalized_candle,
-            )
-
-            self._execute_trade_if_configured(
-                decision=decision,
-                candle=normalized_candle,
-            )
+        self._execute_trade_if_configured(
+            decision=decision,
+            candle=normalized_candle,
+        )
 
         return self.backtest_runner_v2.run(
             on_candle=on_candle,

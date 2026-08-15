@@ -6,21 +6,56 @@ from backend.models.trade_plan import TradePlan
 
 
 class ExecutionSimulator:
-    def __init__(self, point_value: float = 2.0):
-        if point_value <= 0:
+
+    INSTRUMENT_VALUES = {
+        "NQ": 5.0,
+        "MNQ": 0.5,
+    }
+
+    def __init__(
+        self,
+        point_value: float | None = None,
+    ):
+
+        if point_value is not None and point_value <= 0:
             raise ValueError(
                 "El valor por punto debe ser mayor que cero."
             )
 
-        self.point_value = point_value
+        self.point_value = (
+            point_value
+            if point_value is not None
+            else 0.5
+        )
+
         self.status_message: str | None = None
+
 
     def execute(
         self,
         trade_plan: TradePlan,
         next_candle: Candle,
     ) -> SimulatedTrade | None:
+
         self.status_message = None
+
+        instrument = (
+            getattr(
+                trade_plan,
+                "instrument",
+                "MNQ",
+            )
+            .upper()
+        )
+
+        if instrument not in self.INSTRUMENT_VALUES:
+            raise ValueError(
+                f"Instrumento no soportado: {instrument}"
+            )
+
+        self.point_value = (
+            self.INSTRUMENT_VALUES[instrument]
+        )
 
         if not trade_plan.authorized:
             self.status_message = (
@@ -46,6 +81,7 @@ class ExecutionSimulator:
             "BUY",
             "BUSCAR COMPRAS",
         }:
+
             if next_candle.low <= trade_plan.stop_loss:
                 result = "STOP LOSS"
                 exit_price = trade_plan.stop_loss
@@ -58,12 +94,16 @@ class ExecutionSimulator:
                 result = "CIERRE DE VELA"
                 exit_price = next_candle.close
 
-            points = exit_price - trade_plan.entry_price
+            points = (
+                exit_price
+                - trade_plan.entry_price
+            )
 
         elif trade_plan.decision in {
             "SELL",
             "BUSCAR VENTAS",
         }:
+
             if next_candle.high >= trade_plan.stop_loss:
                 result = "STOP LOSS"
                 exit_price = trade_plan.stop_loss
@@ -76,7 +116,10 @@ class ExecutionSimulator:
                 result = "CIERRE DE VELA"
                 exit_price = next_candle.close
 
-            points = trade_plan.entry_price - exit_price
+            points = (
+                trade_plan.entry_price
+                - exit_price
+            )
 
         else:
             self.status_message = (

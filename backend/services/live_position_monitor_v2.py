@@ -19,6 +19,10 @@ from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
 
+from backend.intelligence.trade_learning_service_v2 import (
+    TradeLearningServiceV2,
+)
+
 from backend.portfolio.portfolio_manager_v2 import (
     PortfolioManagerV2,
 )
@@ -57,6 +61,11 @@ class LivePositionMonitorV2:
         portfolio_manager_v2:
         PortfolioManagerV2
         | None = None,
+
+        trade_learning_service_v2:
+        TradeLearningServiceV2
+        | None = None,
+
     ) -> None:
         required_methods = (
             "get_active_positions",
@@ -163,6 +172,11 @@ class LivePositionMonitorV2:
 
         self.portfolio_manager_v2 = (
             portfolio_manager_v2
+        )
+
+
+        self.trade_learning_service_v2 = (
+            trade_learning_service_v2
         )
 
     def _persist_position(
@@ -501,16 +515,52 @@ class LivePositionMonitorV2:
                     self.portfolio_manager_v2
                     is not None
                 ):
-                    self.portfolio_manager_v2.close_position(
-                        position_id=str(
-                            result_position[
-                                "position_id"
-                            ]
-                        ),
-                        exit_price=(
-                            normalized_current_price
-                        ),
+                    closed_result = (
+                        self.portfolio_manager_v2.close_position(
+                            position_id=str(
+                                result_position[
+                                    "position_id"
+                                ]
+                            ),
+                            exit_price=(
+                                normalized_current_price
+                            ),
+                            realized_pnl=float(
+                                result_position.get(
+                                    "total_pnl",
+                                    result_position.get(
+                                        "realized_pnl",
+                                        0.0,
+                                    ),
+                                )
+                                or 0.0
+                            ),
+                        )
                     )
+
+                    if (
+                        isinstance(
+                            closed_result,
+                            dict,
+                        )
+                        and isinstance(
+                            closed_result.get(
+                                "position"
+                            ),
+                            dict,
+                        )
+                    ):
+                        result_position[
+                            "realized_pnl"
+                        ] = float(
+                            closed_result[
+                                "position"
+                            ].get(
+                                "realized_pnl",
+                                0.0,
+                            )
+                            or 0.0
+                        )
 
                 trade_journal_v2 = getattr(
                     self.trade_lifecycle_service,
@@ -532,12 +582,14 @@ class LivePositionMonitorV2:
                             in trade_journal_v2
                             .get_open_trades()
                             if str(
-                                trade.get(
-                                    "position_id",
+                                getattr(
+                                    trade,
+                                    "trade_id",
                                     "",
                                 )
+                            ).endswith(
+                                position_id
                             )
-                            == position_id
                         ),
                         None,
                     )
@@ -545,9 +597,7 @@ class LivePositionMonitorV2:
                     if matching_trade is not None:
                         trade_journal_v2.close_trade(
                             trade_id=str(
-                                matching_trade[
-                                    "trade_id"
-                                ]
+                                matching_trade.trade_id
                             ),
                             exit_price=float(
                                 result_position.get(
@@ -556,16 +606,6 @@ class LivePositionMonitorV2:
                                 )
                                 or normalized_current_price
                             ),
-                            exit_time=datetime.now(
-                                timezone.utc
-                            ),
-                            exit_reason=str(
-                                result_position.get(
-                                    "close_reason",
-                                    "MARKET_UPDATE",
-                                )
-                                or "MARKET_UPDATE"
-                            ),
                             point_value=float(
                                 result_position.get(
                                     "point_value",
@@ -573,7 +613,61 @@ class LivePositionMonitorV2:
                                 )
                                 or 1.0
                             ),
+                            result="WIN"
+                            if str(
+                                result_position.get(
+                                    "close_reason",
+                                    "",
+                                )
+                            ).upper()
+                            == "TAKE_PROFIT"
+                            else "CLOSED",
                         )
+
+                        if (
+                            self.trade_learning_service_v2
+                            is not None
+                        ):
+
+                            self.trade_learning_service_v2.process_closed_trade(
+
+                                trade_id=str(
+                                    matching_trade.trade_id
+                                ),
+
+                                symbol=str(
+                                    matching_trade.symbol
+                                ),
+
+                                direction=str(
+                                    matching_trade.direction
+                                ),
+
+                                strategy=(
+                                    "ARMS AI Decision Engine"
+                                ),
+
+                                entry=float(
+                                    matching_trade.entry
+                                ),
+
+                                exit_price=float(
+                                    result_position.get(
+                                        "exit_price",
+                                        normalized_current_price,
+                                    )
+                                    or normalized_current_price
+                                ),
+
+                                contracts=int(
+                                    matching_trade.contracts
+                                ),
+
+                                real_pnl=float(
+                                    matching_trade.pnl
+                                ),
+
+                            )
 
                 performance_metrics = (
                     result.get(

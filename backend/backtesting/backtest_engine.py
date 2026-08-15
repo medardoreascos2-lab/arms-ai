@@ -5,6 +5,7 @@ from backend.backtesting.historical_data_loader import (
     HistoricalDataLoader,
 )
 from backend.backtesting.statistics_engine import StatisticsEngine
+from backend.backtesting.metrics_engine import MetricsEngine
 from backend.models.backtest_result import BacktestResult
 from backend.models.candle import Candle
 
@@ -38,6 +39,8 @@ class BacktestEngine:
         self.statistics_engine = (
             statistics_engine or StatisticsEngine()
         )
+
+        self.metrics_engine = MetricsEngine()
         self.historical_data_loader = (
             historical_data_loader or HistoricalDataLoader()
         )
@@ -105,6 +108,10 @@ class BacktestEngine:
 
             result.trades.append(simulated_trade)
 
+            self.metrics_engine.register_trade(
+                simulated_trade.pnl
+            )
+
             pnl = getattr(
                 simulated_trade,
                 "pnl",
@@ -120,6 +127,10 @@ class BacktestEngine:
 
         result.statistics = (
             self.statistics_engine.calculate(pnls)
+        )
+
+        result.metrics = (
+            self.metrics_engine.report()
         )
 
         return result

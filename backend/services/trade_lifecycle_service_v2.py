@@ -1571,6 +1571,19 @@ class TradeLifecycleServiceV2(
                 ),
             )
 
+            updated_position[
+                "realized_pnl"
+            ] = float(
+                updated_position.get(
+                    "total_pnl",
+                    updated_position.get(
+                        "realized_pnl",
+                        0.0,
+                    ),
+                )
+                or 0.0
+            )
+
             trade_record = (
                 self.trade_history_manager.record(
                     position=updated_position,

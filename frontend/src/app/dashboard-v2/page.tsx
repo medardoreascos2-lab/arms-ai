@@ -12,9 +12,54 @@ import {
   getDashboardLive,
   getDashboardWebSocketUrl,
   getDashboardWidgets,
+  getStrategyRanking,
+  getBacktestingDashboard,
+  getTradeSetup,
+  getExecutionApproval,
+  getExecutionSimulator,
+  getExecutionManager,
+  getPerformanceIntelligence,
+  getAILearning,
+  getAIPattern,
+  getTradingMemory,
+  getAIDecisionMemory,
+  getConfidenceFusion,
+  getIntelligenceDecisionV3,
+  getExecutionPipeline,
+
+  getLearningSummary,
+  getIntelligenceDecision,
+  getAIDecision,
   type JsonObject,
   type JsonValue,
 } from "@/lib/dashboardApi";
+
+
+import StrategyIntelligenceCard from "@/components/dashboard-v2/StrategyIntelligenceCard";
+
+import AccountOverviewCard from "@/components/dashboard-v2/AccountOverviewCard";
+import RiskManagementCard from "@/components/dashboard-v2/RiskManagementCard";
+import PerformanceAnalyticsCard from "@/components/dashboard-v2/PerformanceAnalyticsCard";
+import BacktestingAnalyticsCard from "@/components/dashboard-v2/BacktestingAnalyticsCard";
+import TradeSetupIntelligenceCard from "@/components/dashboard-v2/TradeSetupIntelligenceCard";
+
+import ExecutionApprovalCard from "@/components/dashboard-v2/ExecutionApprovalCard";
+import ExecutionSimulatorCard from "@/components/dashboard-v2/ExecutionSimulatorCard";
+import ExecutionManagerCard from "@/components/dashboard-v2/ExecutionManagerCard";
+import PerformanceIntelligenceCard from "@/components/dashboard-v2/PerformanceIntelligenceCard";
+import AILearningIntelligenceCard from "@/components/dashboard-v2/AILearningIntelligenceCard";
+import AIPatternIntelligenceCard from "@/components/dashboard-v2/AIPatternIntelligenceCard";
+import AITradingMemoryIntelligenceCard from "@/components/dashboard-v2/AITradingMemoryIntelligenceCard";
+import AIDecisionMemoryIntelligenceCard from "@/components/dashboard-v2/AIDecisionMemoryIntelligenceCard";
+import ConfidenceFusionIntelligenceCard from "@/components/dashboard-v2/ConfidenceFusionIntelligenceCard";
+import AIDecisionEngineV3Card from "@/components/dashboard-v2/AIDecisionEngineV3Card";
+
+import TradeExecutionPlanCard from "@/components/dashboard-v2/TradeExecutionPlanCard";
+
+import ExecutionPipelineCard from "@/components/dashboard-v2/ExecutionPipelineCard";
+import AIDecisionEngineCard from "@/components/dashboard-v2/AIDecisionEngineCard";
+import TradeJournalCard from "@/components/dashboard-v2/TradeJournalCard";
+import StrategyRankingCard from "@/components/dashboard-v2/StrategyRankingCard";
 
 
 type ConnectionStatus =
@@ -206,6 +251,159 @@ export default function DashboardV2Page() {
     null
   );
 
+
+  const [
+    strategyRanking,
+    setStrategyRanking,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+  const [
+    backtestingDashboard,
+    setBacktestingDashboard,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    tradeSetup,
+    setTradeSetup,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    executionApproval,
+    setExecutionApproval,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    executionSimulation,
+    setExecutionSimulation,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    executionPlan,
+    setExecutionPlan,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    performanceData,
+    setPerformanceData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    aiPatternData,
+    setAiPatternData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+
+  const [
+    aiLearningData,
+    setAILearningData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    tradingMemoryData,
+    setTradingMemoryData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    aiDecisionMemoryData,
+    setAIDecisionMemoryData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    confidenceFusionData,
+    setConfidenceFusionData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    intelligenceDecisionV3Data,
+    setIntelligenceDecisionV3Data,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    intelligenceTradePlanData,
+    setIntelligenceTradePlanData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    executionPipelineData,
+    setExecutionPipelineData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    learningIntelligenceData,
+    setLearningIntelligenceData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    intelligenceDecisionData,
+    setIntelligenceDecisionData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+
+
+
+
+
+  const [
+    aiDecision,
+    setAiDecision,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+
+  
+
   const [
     latestEvent,
     setLatestEvent,
@@ -253,10 +451,42 @@ export default function DashboardV2Page() {
           const [
             liveResult,
             widgetResult,
+            rankingResult,
+            backtestingResult,
+            tradeSetupResult,
+            aiDecisionResult,
+            executionApprovalResult,
+            executionSimulationResult,
+            executionPlanResult,
+            performanceResult,
+            aiPatternResult,
+            aiLearningResult,
+            tradingMemoryResult,
+            aiDecisionMemoryResult,
+            confidenceFusionResult,
+            intelligenceDecisionV3Result,
+            executionPipelineResult,
+            learningIntelligenceResult,
           ] = await Promise.all(
             [
               getDashboardLive(),
               getDashboardWidgets(),
+              getStrategyRanking(),
+              getBacktestingDashboard(),
+              getTradeSetup(),
+              getAIDecision(),
+              getExecutionApproval(),
+              getExecutionSimulator(),
+              getExecutionManager(),
+              getPerformanceIntelligence(),
+              getAIPattern(),
+              getAILearning(),
+              getTradingMemory(),
+              getAIDecisionMemory(),
+              getConfidenceFusion(),
+              getIntelligenceDecisionV3(),
+              getExecutionPipeline(),
+              getLearningSummary(),
             ]
           );
 
@@ -267,6 +497,146 @@ export default function DashboardV2Page() {
           setWidgets(
             widgetResult
           );
+
+          setStrategyRanking(
+            rankingResult
+          );
+
+          setBacktestingDashboard(
+            backtestingResult
+          );
+
+
+          setTradeSetup(
+            tradeSetupResult
+          );
+
+
+          console.log(
+            "AI DECISION RESULT:",
+            JSON.stringify(
+              aiDecisionResult,
+              null,
+              2
+            )
+          );
+
+
+          console.log(
+            "EXECUTION APPROVAL RESULT:",
+            JSON.stringify(
+              executionApprovalResult,
+              null,
+              2
+            )
+          );
+
+
+          console.log(
+            "EXECUTION SIMULATION RESULT:",
+            JSON.stringify(
+              executionSimulationResult,
+              null,
+              2
+            )
+          );
+
+
+          console.log(
+            "EXECUTION PLAN RESULT:",
+            JSON.stringify(
+              {
+                executionPlanResult,
+                performanceResult,
+            aiPatternResult,
+            aiLearningResult,
+              },
+              null,
+              2
+            )
+          );
+
+
+          setAiDecision(
+            aiDecisionResult
+          );
+
+
+          setExecutionApproval(
+            executionApprovalResult
+          );
+
+
+          setExecutionSimulation(
+            executionSimulationResult
+          );
+
+
+          setExecutionPlan(
+            executionPlanResult
+          );
+
+
+          console.log(
+            "PERFORMANCE RESULT:",
+            performanceResult
+          );
+
+
+          setPerformanceData(
+            performanceResult
+          );
+
+
+          setAILearningData(
+            aiLearningResult
+          );
+
+
+          setAiPatternData(
+            aiPatternResult
+          );
+
+
+          setTradingMemoryData(
+            tradingMemoryResult
+          );
+
+
+          setAIDecisionMemoryData(
+            aiDecisionMemoryResult
+          );
+
+
+          setConfidenceFusionData(
+            confidenceFusionResult
+          );
+
+
+          setIntelligenceDecisionV3Data(
+            intelligenceDecisionV3Result
+          );
+
+
+          setIntelligenceTradePlanData(
+            intelligenceDecisionV3Result.trade_plan as JsonObject
+          );
+
+
+          setExecutionPipelineData(
+            executionPipelineResult
+          );
+
+
+          setLearningIntelligenceData(
+            learningIntelligenceResult
+          );
+
+
+          setIntelligenceDecisionV3Data(
+            intelligenceDecisionV3Result
+          );
+
 
           setLastUpdated(
             new Date()
@@ -552,6 +922,12 @@ export default function DashboardV2Page() {
           )}
         </section>
 
+
+        <section className="mt-6">
+          <StrategyIntelligenceCard />
+        </section>
+
+
         <section className="mt-6 grid gap-6 xl:grid-cols-3">
           <div className="xl:col-span-2">
             <DataPanel
@@ -565,6 +941,1108 @@ export default function DashboardV2Page() {
             data={latestEvent}
           />
         </section>
+
+        <section className="mt-6">
+          <AccountOverviewCard
+            data={
+              isObject(
+                liveSnapshot?.account_state
+              )
+                ? {
+                    balance:
+                      Number(
+                        liveSnapshot.account_state.balance
+                      ),
+
+                    equity:
+                      Number(
+                        liveSnapshot.account_state.equity
+                      ),
+
+                    daily_pnl:
+                      Number(
+                        liveSnapshot.account_state.daily_pnl
+                      ),
+
+                    drawdown:
+                      Number(
+                        liveSnapshot.account_state.drawdown
+                      ),
+
+                    open_risk:
+                      Number(
+                        liveSnapshot.account_state.open_risk
+                      ),
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <RiskManagementCard
+            data={
+              isObject(
+                liveSnapshot?.account_state
+              )
+                ? {
+                    trading_blocked:
+                      Boolean(
+                        liveSnapshot.account_state.trading_blocked
+                      ),
+
+                    blocking_reasons:
+                      Array.isArray(
+                        liveSnapshot.account_state.blocking_reasons
+                      )
+                        ? liveSnapshot.account_state.blocking_reasons.map(
+                            String
+                          )
+                        : [],
+
+                    drawdown:
+                      Number(
+                        liveSnapshot.account_state.drawdown
+                      ),
+
+                    open_risk:
+                      Number(
+                        liveSnapshot.account_state.open_risk
+                      ),
+
+                    daily_loss_used:
+                      Number(
+                        liveSnapshot.account_state.daily_loss_used
+                      ),
+
+                    remaining_daily_loss_capacity:
+                      Number(
+                        liveSnapshot.account_state.remaining_daily_loss_capacity
+                      ),
+
+                    remaining_drawdown_capacity:
+                      Number(
+                        liveSnapshot.account_state.remaining_drawdown_capacity
+                      ),
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <PerformanceAnalyticsCard
+            data={
+              isObject(
+                liveSnapshot?.analytics
+              )
+                ? {
+                    total_trades:
+                      Number(
+                        liveSnapshot.analytics.total_trades
+                      ),
+
+                    winning_trades:
+                      Number(
+                        liveSnapshot.analytics.winning_trades
+                      ),
+
+                    losing_trades:
+                      Number(
+                        liveSnapshot.analytics.losing_trades
+                      ),
+
+                    win_rate:
+                      Number(
+                        liveSnapshot.analytics.win_rate
+                      ),
+
+                    profit_factor:
+                      Number(
+                        liveSnapshot.analytics.profit_factor
+                      ),
+
+                    expectancy:
+                      Number(
+                        liveSnapshot.analytics.expectancy
+                      ),
+
+                    net_profit:
+                      Number(
+                        liveSnapshot.analytics.net_profit
+                      ),
+
+                    average_win:
+                      Number(
+                        liveSnapshot.analytics.average_win
+                      ),
+
+                    average_loss:
+                      Number(
+                        liveSnapshot.analytics.average_loss
+                      ),
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <TradeJournalCard
+            data={
+              isObject(
+                liveSnapshot?.trade_journal_summary
+              )
+                ? {
+                    open_trades:
+                      Number(
+                        liveSnapshot.trade_journal_summary.open_trades
+                      ),
+
+                    closed_trades:
+                      Number(
+                        liveSnapshot.trade_journal_summary.closed_trades
+                      ),
+
+                    winning_trades:
+                      Number(
+                        liveSnapshot.trade_journal_summary.winning_trades
+                      ),
+
+                    losing_trades:
+                      Number(
+                        liveSnapshot.trade_journal_summary.losing_trades
+                      ),
+
+                    total_realized_pnl:
+                      Number(
+                        liveSnapshot.trade_journal_summary.total_realized_pnl
+                      ),
+
+                    win_rate:
+                      Number(
+                        liveSnapshot.trade_journal_summary.win_rate
+                      ),
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <StrategyRankingCard
+            data={
+              isObject(
+                strategyRanking
+              )
+              ? {
+                  ranking:
+                    Array.isArray(
+                      strategyRanking.ranking
+                    )
+                    ? strategyRanking.ranking.map(
+                        (item) => ({
+                          name:
+                            String(
+                              (item as JsonObject).name
+                            ),
+
+                          score:
+                            Number(
+                              (item as JsonObject).score
+                            ),
+
+                          confidence:
+                            String(
+                              (item as JsonObject).confidence
+                            ),
+
+                          status:
+                            String(
+                              (item as JsonObject).status
+                            ),
+                        })
+                      )
+                    : [],
+                }
+              : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <AIDecisionEngineCard
+            data={
+              aiDecision
+                ? {
+                    decision:
+                      String(
+                        aiDecision.summary ?? "ANALYZE"
+                      ),
+
+                    direction:
+                      String(
+                        aiDecision.risk_level ?? "NEUTRAL"
+                      ).toUpperCase(),
+
+                    strategy_id:
+                      null,
+
+                    confidence:
+                      Number(
+                        aiDecision.score ?? 0
+                      ),
+
+                    action:
+                      String(
+                        aiDecision.risk_level ?? "WAIT"
+                      ).toUpperCase(),
+
+                    reasons:
+                      Array.isArray(
+                        aiDecision.recommendations
+                      )
+                        ? aiDecision.recommendations.map(
+                            String
+                          )
+                        : [],
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <BacktestingAnalyticsCard
+            data={
+              isObject(
+                backtestingDashboard?.performance
+              )
+                ? {
+                    total_runs:
+                      Number(
+                        backtestingDashboard.performance.total_trades
+                      ),
+
+                    total_strategies:
+                      isObject(
+                        backtestingDashboard.strategy_performance
+                      )
+                        && isObject(
+                          backtestingDashboard.strategy_performance.strategies
+                        )
+                        ? Object.keys(
+                            backtestingDashboard.strategy_performance.strategies
+                          ).length
+                        : 0,
+
+                    best_strategy:
+                      isObject(
+                        backtestingDashboard.strategy_performance
+                      )
+                        && isObject(
+                          backtestingDashboard.strategy_performance.best_strategy
+                        )
+                        ? String(
+                            backtestingDashboard.strategy_performance.best_strategy.strategy_name
+                          )
+                        : "N/A",
+
+                    worst_strategy:
+                      "N/A",
+
+                    win_rate:
+                      Number(
+                        backtestingDashboard.performance.win_rate
+                      ),
+
+                    profit_factor:
+                      isObject(
+                        backtestingDashboard.metrics
+                      )
+                        ? Number(
+                            backtestingDashboard.metrics.profit_factor
+                          )
+                        : 0,
+
+                    max_drawdown:
+                      isObject(
+                        backtestingDashboard.metrics
+                      )
+                        ? Number(
+                            backtestingDashboard.metrics.max_drawdown
+                          )
+                        : 0,
+
+                    recommendation:
+                      isObject(
+                        backtestingDashboard.performance_report
+                      )
+                        ? String(
+                            backtestingDashboard.performance_report.rating
+                          )
+                        : "N/A",
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <ExecutionApprovalCard
+            data={
+              executionApproval
+                ? {
+                    status:
+                      String(
+                        executionApproval.status
+                      ),
+
+                    symbol:
+                      String(
+                        executionApproval.symbol
+                      ),
+
+                    direction:
+                      String(
+                        executionApproval.direction
+                      ),
+
+                    entry:
+                      Number(
+                        executionApproval.entry
+                      ),
+
+                    stop_loss:
+                      Number(
+                        executionApproval.stop_loss
+                      ),
+
+                    take_profit:
+                      Number(
+                        executionApproval.take_profit
+                      ),
+
+                    risk_amount:
+                      Number(
+                        executionApproval.risk_amount
+                      ),
+
+                    confidence:
+                      Number(
+                        executionApproval.confidence
+                      ),
+
+                    validation:
+                      Array.isArray(
+                        executionApproval.validation
+                      )
+                        ? executionApproval.validation.map(
+                            String
+                          )
+                        : [],
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <ExecutionSimulatorCard
+            data={
+              executionSimulation
+                ? {
+                    status:
+                      String(
+                        executionSimulation.status
+                      ),
+
+                    symbol:
+                      String(
+                        executionSimulation.symbol
+                      ),
+
+                    direction:
+                      String(
+                        executionSimulation.direction
+                      ),
+
+                    entry:
+                      Number(
+                        executionSimulation.entry
+                      ),
+
+                    stop_loss:
+                      Number(
+                        executionSimulation.stop_loss
+                      ),
+
+                    take_profit:
+                      Number(
+                        executionSimulation.take_profit
+                      ),
+
+                    risk_points:
+                      Number(
+                        executionSimulation.risk_points
+                      ),
+
+                    reward_points:
+                      Number(
+                        executionSimulation.reward_points
+                      ),
+
+                    risk_reward:
+                      Number(
+                        executionSimulation.risk_reward
+                      ),
+
+                    contracts:
+                      Number(
+                        executionSimulation.contracts
+                      ),
+
+                    max_loss:
+                      Number(
+                        executionSimulation.max_loss
+                      ),
+
+                    expected_profit:
+                      Number(
+                        executionSimulation.expected_profit
+                      ),
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <ExecutionManagerCard
+            data={
+              executionPlan
+                ? {
+                    status:
+                      String(
+                        executionPlan.status
+                      ),
+
+                    symbol:
+                      String(
+                        executionPlan.symbol
+                      ),
+
+                    direction:
+                      String(
+                        executionPlan.direction
+                      ),
+
+                    order_type:
+                      String(
+                        executionPlan.order_type
+                      ),
+
+                    contracts:
+                      Number(
+                        executionPlan.contracts
+                      ),
+
+                    entry:
+                      Number(
+                        executionPlan.entry
+                      ),
+
+                    stop_loss:
+                      Number(
+                        executionPlan.stop_loss
+                      ),
+
+                    take_profit:
+                      Number(
+                        executionPlan.take_profit
+                      ),
+
+                    risk_amount:
+                      Number(
+                        executionPlan.risk_amount
+                      ),
+
+                    validation:
+                      Array.isArray(
+                        executionPlan.validation
+                      )
+                        ? executionPlan.validation.map(String)
+                        : [],
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <PerformanceIntelligenceCard
+            data={
+              performanceData
+                ? {
+                    total_trades:
+                      Number(
+                        performanceData.total_trades
+                      ),
+
+                    winning_trades:
+                      Number(
+                        performanceData.winning_trades
+                      ),
+
+                    losing_trades:
+                      Number(
+                        performanceData.losing_trades
+                      ),
+
+                    win_rate:
+                      Number(
+                        performanceData.win_rate
+                      ),
+
+                    total_profit:
+                      Number(
+                        performanceData.total_profit
+                      ),
+
+                    average_trade:
+                      Number(
+                        performanceData.average_trade
+                      ),
+
+                    best_trade:
+                      Number(
+                        performanceData.best_trade
+                      ),
+
+                    worst_trade:
+                      Number(
+                        performanceData.worst_trade
+                      ),
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <AILearningIntelligenceCard
+            data={
+              aiLearningData
+                ? {
+                    trades_analyzed:
+                      Number(
+                        aiLearningData.trades_analyzed
+                      ),
+
+                    win_rate:
+                      Number(
+                        aiLearningData.win_rate
+                      ),
+
+                    total_profit:
+                      Number(
+                        aiLearningData.total_profit
+                      ),
+
+                    performance_level:
+                      String(
+                        aiLearningData.performance_level
+                      ),
+
+                    insights:
+                      Array.isArray(
+                        aiLearningData.insights
+                      )
+                        ? aiLearningData.insights.map(String)
+                        : [],
+
+                    recommendations:
+                      Array.isArray(
+                        aiLearningData.recommendations
+                      )
+                        ? aiLearningData.recommendations.map(String)
+                        : [],
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <AIPatternIntelligenceCard
+            data={
+              aiPatternData
+                ? {
+                    trades_analyzed:
+                      Number(
+                        aiPatternData.trades_analyzed
+                      ),
+
+                    buy_trades:
+                      Number(
+                        aiPatternData.buy_trades
+                      ),
+
+                    sell_trades:
+                      Number(
+                        aiPatternData.sell_trades
+                      ),
+
+                    average_profit:
+                      Number(
+                        aiPatternData.average_profit
+                      ),
+
+                    average_loss:
+                      Number(
+                        aiPatternData.average_loss
+                      ),
+
+                    best_direction:
+                      String(
+                        aiPatternData.best_direction
+                      ),
+
+                    pattern_quality:
+                      String(
+                        aiPatternData.pattern_quality
+                      ),
+
+                    insights:
+                      Array.isArray(
+                        aiPatternData.insights
+                      )
+                        ? aiPatternData.insights.map(String)
+                        : [],
+
+                    recommendations:
+                      Array.isArray(
+                        aiPatternData.recommendations
+                      )
+                        ? aiPatternData.recommendations.map(String)
+                        : [],
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <AITradingMemoryIntelligenceCard
+            data={
+              tradingMemoryData
+                ? {
+                    trades_analyzed:
+                      Number(tradingMemoryData.trades_analyzed),
+
+                    buy_count:
+                      Number(tradingMemoryData.buy_count),
+
+                    sell_count:
+                      Number(tradingMemoryData.sell_count),
+
+                    dominant_strategy:
+                      String(tradingMemoryData.dominant_strategy),
+
+                    memory_quality:
+                      String(tradingMemoryData.memory_quality),
+
+                    winning_patterns:
+                      Array.isArray(tradingMemoryData.winning_patterns)
+                        ? tradingMemoryData.winning_patterns.map(String)
+                        : [],
+
+                    losing_patterns:
+                      Array.isArray(tradingMemoryData.losing_patterns)
+                        ? tradingMemoryData.losing_patterns.map(String)
+                        : [],
+
+                    insights:
+                      Array.isArray(tradingMemoryData.insights)
+                        ? tradingMemoryData.insights.map(String)
+                        : [],
+
+                    recommendations:
+                      Array.isArray(tradingMemoryData.recommendations)
+                        ? tradingMemoryData.recommendations.map(String)
+                        : [],
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <TradeSetupIntelligenceCard
+            data={
+              isObject(
+                tradeSetup
+              )
+                ? {
+                    symbol:
+                      String(
+                        tradeSetup.symbol
+                      ),
+
+                    direction:
+                      String(
+                        tradeSetup.direction
+                      ),
+
+                    entry:
+                      Number(
+                        tradeSetup.entry
+                      ),
+
+                    stop_loss:
+                      Number(
+                        tradeSetup.stop_loss
+                      ),
+
+                    take_profit:
+                      Number(
+                        tradeSetup.take_profit
+                      ),
+
+                    risk_reward:
+                      String(
+                        tradeSetup.risk_reward
+                      ),
+
+                    quality:
+                      String(
+                        tradeSetup.quality
+                      ),
+
+                    validation:
+                      Array.isArray(
+                        tradeSetup.validation
+                      )
+                        ? tradeSetup.validation.map(
+                            String
+                          )
+                        : [],
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <AIDecisionMemoryIntelligenceCard
+            data={
+              aiDecisionMemoryData
+                ? {
+                    technical_confidence:
+                      Number(
+                        aiDecisionMemoryData.technical_confidence
+                      ),
+
+                    memory_confidence:
+                      Number(
+                        aiDecisionMemoryData.memory_confidence
+                      ),
+
+                    memory_adjustment:
+                      Number(
+                        aiDecisionMemoryData.memory_adjustment
+                      ),
+
+                    final_confidence:
+                      Number(
+                        aiDecisionMemoryData.final_confidence
+                      ),
+
+                    memory_reliability:
+                      String(
+                        aiDecisionMemoryData.memory_reliability
+                      ),
+
+                    decision:
+                      String(
+                        aiDecisionMemoryData.decision
+                      ),
+
+                    explanation:
+                      Array.isArray(
+                        aiDecisionMemoryData.explanation
+                      )
+                        ? aiDecisionMemoryData.explanation.map(String)
+                        : [],
+
+                    recommendations:
+                      Array.isArray(
+                        aiDecisionMemoryData.recommendations
+                      )
+                        ? aiDecisionMemoryData.recommendations.map(String)
+                        : [],
+
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        <section className="mt-6">
+          <ConfidenceFusionIntelligenceCard
+            data={
+              confidenceFusionData
+                ? {
+                    technical_score:
+                      Number(
+                        confidenceFusionData.technical_score
+                      ),
+
+                    probability_score:
+                      Number(
+                        confidenceFusionData.probability_score
+                      ),
+
+                    structure_score:
+                      Number(
+                        confidenceFusionData.structure_score
+                      ),
+
+                    risk_score:
+                      Number(
+                        confidenceFusionData.risk_score
+                      ),
+
+                    memory_score:
+                      Number(
+                        confidenceFusionData.memory_score
+                      ),
+
+                    final_confidence:
+                      Number(
+                        confidenceFusionData.final_confidence
+                      ),
+
+                    quality:
+                      String(
+                        confidenceFusionData.quality
+                      ),
+
+                    decision:
+                      String(
+                        confidenceFusionData.decision
+                      ),
+
+                    explanation:
+                      Array.isArray(
+                        confidenceFusionData.explanation
+                      )
+                        ? confidenceFusionData.explanation.map(String)
+                        : [],
+
+                    recommendations:
+                      Array.isArray(
+                        confidenceFusionData.recommendations
+                      )
+                        ? confidenceFusionData.recommendations.map(String)
+                        : [],
+
+                  }
+                : null
+            }
+          />
+        </section>
+
+
+        
+        <section className="mt-6">
+
+          <AIDecisionEngineV3Card
+
+            data={
+
+              intelligenceDecisionV3Data
+
+                ? {
+
+                    symbol:
+                      String(
+                        intelligenceDecisionV3Data.symbol
+                      ),
+
+                    direction:
+                      String(
+                        intelligenceDecisionV3Data.direction
+                      ),
+
+                    confidence:
+                      Number(
+                        intelligenceDecisionV3Data.confidence
+                      ),
+
+                    quality:
+                      String(
+                        intelligenceDecisionV3Data.quality
+                      ),
+
+                    decision:
+                      String(
+                        intelligenceDecisionV3Data.decision
+                      ),
+
+                    execution_status:
+                      String(
+                        intelligenceDecisionV3Data.execution_status
+                      ),
+
+                    risk_allowed:
+                      Boolean(
+                        intelligenceDecisionV3Data.risk_allowed
+                      ),
+
+                    risk_score:
+                      Number(
+                        intelligenceDecisionV3Data.risk_score
+                      ),
+
+                  }
+
+                : null
+
+            }
+
+          />
+
+        </section>
+
+
+        <section className="mt-6">
+
+          <TradeExecutionPlanCard
+
+            data={
+
+              intelligenceTradePlanData
+
+                ? {
+
+                    entry:
+                      Number(
+                        intelligenceTradePlanData.entry
+                      ),
+
+                    stop_loss:
+                      Number(
+                        intelligenceTradePlanData.stop_loss
+                      ),
+
+                    take_profit:
+                      Number(
+                        intelligenceTradePlanData.take_profit
+                      ),
+
+                    risk_amount:
+                      Number(
+                        intelligenceTradePlanData.risk_amount
+                      ),
+
+                    reward_amount:
+                      Number(
+                        intelligenceTradePlanData.reward_amount
+                      ),
+
+                    risk_reward_ratio:
+                      Number(
+                        intelligenceTradePlanData.risk_reward_ratio
+                      ),
+
+                    contracts:
+                      Number(
+                        intelligenceTradePlanData.contracts
+                      ),
+
+                    approved:
+                      Boolean(
+                        intelligenceTradePlanData.approved
+                      ),
+
+                  }
+
+                : null
+
+            }
+
+          />
+
+        </section>
+
+
+        <section className="mt-6">
+
+          <ExecutionPipelineCard
+
+            data={
+
+              executionPipelineData
+
+                ? {
+
+                    trade_id:
+                      String(
+                        executionPipelineData.trade_id
+                      ),
+
+                    symbol:
+                      String(
+                        executionPipelineData.symbol
+                      ),
+
+                    direction:
+                      String(
+                        executionPipelineData.direction
+                      ),
+
+                    execution_status:
+                      String(
+                        executionPipelineData.execution_status
+                      ),
+
+                    journal_status:
+                      String(
+                        executionPipelineData.journal_status
+                      ),
+
+                    message:
+                      String(
+                        executionPipelineData.message
+                      ),
+
+                  }
+
+                : null
+
+            }
+
+          />
+
+        </section>
+
 
         <section className="mt-6">
           <DataPanel

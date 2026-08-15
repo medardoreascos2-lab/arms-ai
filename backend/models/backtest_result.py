@@ -18,6 +18,11 @@ class BacktestResult:
     statistics: BacktestStatistics = field(
         default_factory=BacktestStatistics
     )
+
+
+    metrics: dict[str, Any] = field(
+        default_factory=dict
+    )
     equity_curve: EquityCurve = field(
         init=False
     )

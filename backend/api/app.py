@@ -32,6 +32,10 @@ from backend.analytics.trade_journal_breakdown_analytics_v2 import (
 from backend.analytics.performance_analytics_v2 import (
     PerformanceAnalyticsV2,
 )
+
+from backend.intelligence.trade_learning_service_v2 import (
+    TradeLearningServiceV2,
+)
 from backend.analytics.trade_history_manager_v2 import (
     TradeHistoryManagerV2,
 )
@@ -84,6 +88,20 @@ from backend.services.runtime_context_v2 import (
 
 from backend.api.dashboard_widgets_api_v2 import (
     create_dashboard_widgets_router_v2,
+)
+
+
+from backend.api.routers.strategy_intelligence_service_api_v2 import (
+    router as strategy_intelligence_service_router,
+)
+
+
+from backend.api.routers.strategy_ranking_dashboard_api_v2 import (
+    router as strategy_ranking_dashboard_router,
+)
+
+from backend.api.routers.strategy_intelligence_api_v2 import (
+    router as strategy_intelligence_router,
 )
 
 from backend.dashboard.widgets.dashboard_widget_registry_v2 import (
@@ -249,6 +267,8 @@ from backend.api.routers.backtesting_api_v2 import (
     create_backtesting_router_v2,
 )
 
+from pathlib import Path
+
 from fastapi import FastAPI
 
 
@@ -294,8 +314,20 @@ from backend.backtesting.backtest_candidate_factory_v2 import (
     BacktestCandidateFactoryV2,
 )
 
+from backend.backtesting.strategy_backtest_factory_v2 import (
+    build_strategy_backtest_pipeline,
+)
+
 from backend.backtesting.parameter_evaluator import (
     ParameterEvaluator,
+)
+
+from backend.backtesting.parameter_evaluator_adapter_v2 import (
+    ParameterEvaluatorAdapterV2,
+)
+
+from backend.backtesting.parameter_backtest_engine_factory_v2 import (
+    ParameterBacktestEngineFactoryV2,
 )
 
 
@@ -336,8 +368,13 @@ from backend.backtesting.strategy_certification_pipeline_v2 import (
     StrategyCertificationPipelineV2,
 )
 
+from backend.backtesting.strategy_certification_entrypoint_v2 import (
+    StrategyCertificationEntryPointV2,
+)
+
 from backend.backtesting.backtesting_orchestrator_factory_v2 import (
     ValidationPipelineExecutionAdapterV2,
+    create_backtesting_orchestrator_v2,
 )
 
 from backend.backtesting.validation_pipeline_factory_v2 import (
@@ -487,6 +524,72 @@ from backend.backtesting.strategy_registry_dashboard_provider_v2 import (
 from backend.api.routers.strategy_registry_api_v2 import (
     create_strategy_registry_router_v2,
 )
+
+from backend.api.routers.trade_setup_api_v2 import (
+    router as trade_setup_router,
+)
+
+
+from backend.api.routers.execution_approval_api_v2 import (
+    router as execution_approval_router,
+)
+
+
+from backend.api.routers.execution_simulator_api_v2 import (
+    router as execution_simulator_router,
+)
+
+
+from backend.api.routers.execution_manager_api_v2 import (
+    router as execution_manager_router,
+)
+
+
+from backend.api.routers.performance_intelligence_api_v2 import (
+    router as performance_intelligence_router,
+)
+
+
+from backend.api.routers.ai_learning_api_v2 import (
+    router as ai_learning_router,
+)
+
+
+from backend.api.routers.ai_pattern_api_v2 import (
+    router as ai_pattern_router,
+)
+
+
+from backend.api.routers.trading_memory_api_v2 import (
+    router as trading_memory_router,
+)
+
+
+from backend.api.routers.ai_decision_memory_api_v2 import (
+    router as ai_decision_memory_router,
+)
+
+
+from backend.api.routers.confidence_fusion_api_v2 import (
+    router as confidence_fusion_router,
+)
+
+
+from backend.api.routers.intelligence_decision_api_v2 import (
+    router as intelligence_decision_router,
+)
+
+
+from backend.api.routers.learning_intelligence_api_v2 import (
+    router as learning_intelligence_router,
+)
+
+
+from backend.api.routers.intelligence_decision_api_v3 import (
+    router as intelligence_decision_v3_router,
+    configure_execution_pipeline_v3,
+)
+
 
 
 
@@ -1186,17 +1289,32 @@ def create_app(
                     candidate_factory=(
                         BacktestCandidateFactoryV2(
                             pipeline_factory=(
-                                lambda parameters: None
+                                lambda parameters: (
+                                    build_strategy_backtest_pipeline(
+                                        parameters,
+                                        csv_path=Path(
+                                            "data/backtest/nq_history.csv"
+                                        ),
+                                    )
+                                )
                             )
                         )
                     ),
                     testing_evaluator=(
+                ParameterEvaluatorAdapterV2(
+                    evaluator=(
                         ParameterEvaluator(
                             engine_factory=(
-                                lambda parameters: None
+                                ParameterBacktestEngineFactoryV2(
+                                    csv_path=Path(
+                                        "data/backtest/nq_history.csv"
+                                    )
+                                )
                             )
                         )
-                    ),
+                    )
+                )
+            ),
                 )
             ),
         )
@@ -1221,29 +1339,16 @@ def create_app(
     )
 
 
-    app.state.strategy_certification_pipeline_v2 = (
-        StrategyCertificationPipelineV2(
-            validation_pipeline=(
-                ValidationPipelineExecutionAdapterV2(
-                    validation_pipeline=(
-                        create_validation_pipeline_v2(
-                            walk_forward_pipeline=(
-                                app.state
-                                .walk_forward_pipeline_v2
-                            ),
-                            monte_carlo_pipeline=(
-                                app.state
-                                .monte_carlo_pipeline_v2
-                            ),
-                        )
-                    ),
-                    backtest_score=(
-                        0.0
-                    ),
-                    output_directory=(
-                        "data/certification"
-                    ),
-                )
+
+    app.state.backtesting_orchestrator_v2 = (
+        create_backtesting_orchestrator_v2(
+            walk_forward_pipeline=(
+                app.state
+                .walk_forward_pipeline_v2
+            ),
+            monte_carlo_pipeline=(
+                app.state
+                .monte_carlo_pipeline_v2
             ),
             registry_service=(
                 app.state
@@ -1251,6 +1356,17 @@ def create_app(
             ),
         )
     )
+
+
+    app.state.strategy_certification_pipeline_v2 = (
+        StrategyCertificationEntryPointV2(
+            orchestrator=(
+                app.state
+                .backtesting_orchestrator_v2
+            )
+        )
+    )
+
 
 
     app.state.strategy_registry_dashboard_provider_v2 = (
@@ -1670,6 +1786,14 @@ def create_app(
         or TradeJournalV2()
     )
 
+
+    configure_execution_pipeline_v3(
+        journal=(
+            app.state.trade_journal_v2
+        )
+    )
+
+
     app.state.performance_service_v2 = (
         PerformanceServiceV2(
             journal=(
@@ -1719,6 +1843,14 @@ def create_app(
     )
 
 
+    dashboard_performance_analytics_v2 = (
+        PerformanceAnalyticsV2(
+            risk_free_rate=0.0,
+            trading_days_per_year=252,
+        )
+    )
+
+
     app.state.performance_dashboard_engine_v2 = (
         PerformanceDashboardEngineV2(
             account_state_manager_v2=(
@@ -1729,6 +1861,9 @@ def create_app(
             ),
             trade_journal_v2=(
                 lifecycle_trade_journal_v2
+            ),
+            performance_analytics_v2=(
+                dashboard_performance_analytics_v2
             ),
             performance_score_engine_v2=(
                 PerformanceScoreEngineV2()
@@ -1744,6 +1879,11 @@ def create_app(
             ),
         )
     )
+
+    app.state.trade_learning_service_v2 = (
+        TradeLearningServiceV2()
+    )
+
 
     app.state.live_position_monitor_v2 = (
         LivePositionMonitorV2(
@@ -1776,6 +1916,11 @@ def create_app(
             portfolio_manager_v2=(
                 lifecycle_portfolio_manager_v2
             ),
+
+            trade_learning_service_v2=(
+                app.state.trade_learning_service_v2
+            ),
+
         )
     )
 
@@ -2016,9 +2161,17 @@ def create_app(
     )
 
     if backtesting_orchestrator_v2 is None:
-        backtesting_orchestrator_v2 = (
-            BacktestingUnavailableOrchestratorV2()
+
+        backtesting_orchestrator_v2 = getattr(
+            app.state,
+            "backtesting_orchestrator_v2",
+            None,
         )
+
+        if backtesting_orchestrator_v2 is None:
+            backtesting_orchestrator_v2 = (
+                BacktestingUnavailableOrchestratorV2()
+            )
 
     if not callable(
         getattr(
@@ -2318,6 +2471,86 @@ def create_app(
                 app.state.dashboard_widget_registry_v2
             ),
         )
+    )
+
+
+    app.include_router(
+        strategy_intelligence_router
+    )
+
+
+    app.include_router(
+        trade_setup_router
+    )
+
+
+    app.include_router(
+        execution_approval_router
+    )
+
+
+    app.include_router(
+        execution_simulator_router
+    )
+
+
+    app.include_router(
+        execution_manager_router
+    )
+
+
+    app.include_router(
+        performance_intelligence_router
+    )
+
+
+    app.include_router(
+        ai_learning_router
+    )
+
+
+    app.include_router(
+        ai_pattern_router
+    )
+
+
+    app.include_router(
+        trading_memory_router
+    )
+
+
+    app.include_router(
+        learning_intelligence_router
+    )
+
+
+    app.include_router(
+        ai_decision_memory_router
+    )
+
+
+    app.include_router(
+        confidence_fusion_router
+    )
+
+
+    app.include_router(
+        intelligence_decision_router
+    )
+
+
+    app.include_router(
+        intelligence_decision_v3_router
+    )
+
+
+    app.include_router(
+        strategy_intelligence_service_router
+    )
+
+
+    app.include_router(
+        strategy_ranking_dashboard_router
     )
 
     app.include_router(
