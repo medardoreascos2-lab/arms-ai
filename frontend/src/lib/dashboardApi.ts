@@ -135,6 +135,44 @@ Promise<JsonObject> {
   );
 }
 
+
+export function getRiskDashboard():
+Promise<JsonObject> {
+
+  return getJson(
+    "/api/v2/dashboard/risk"
+  );
+
+}
+
+
+
+export function getAccountProfile():
+Promise<JsonObject> {
+
+  return getJson(
+    "/api/v2/dashboard/account"
+  );
+
+}
+
+
+
+export function switchAccount(
+  account_name: string
+):
+Promise<JsonObject> {
+
+  return postJson(
+    "/api/v2/dashboard/account/switch",
+    {
+      account_name,
+    }
+  );
+
+}
+
+
 export function getDashboardWebSocketUrl():
 string {
   return (

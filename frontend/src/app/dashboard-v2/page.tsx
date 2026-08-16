@@ -12,6 +12,9 @@ import {
   getDashboardLive,
   getDashboardWebSocketUrl,
   getDashboardWidgets,
+  getRiskDashboard,
+  getAccountProfile,
+  switchAccount,
   getStrategyRanking,
   getBacktestingDashboard,
   getTradeSetup,
@@ -39,6 +42,8 @@ import StrategyIntelligenceCard from "@/components/dashboard-v2/StrategyIntellig
 
 import AccountOverviewCard from "@/components/dashboard-v2/AccountOverviewCard";
 import RiskManagementCard from "@/components/dashboard-v2/RiskManagementCard";
+import RiskProfileCard from "@/components/dashboard-v2/RiskProfileCard";
+import AccountSelectorCard from "@/components/dashboard-v2/AccountSelectorCard";
 import PerformanceAnalyticsCard from "@/components/dashboard-v2/PerformanceAnalyticsCard";
 import BacktestingAnalyticsCard from "@/components/dashboard-v2/BacktestingAnalyticsCard";
 import TradeSetupIntelligenceCard from "@/components/dashboard-v2/TradeSetupIntelligenceCard";
@@ -276,6 +281,22 @@ export default function DashboardV2Page() {
 
 
   const [
+    riskProfileData,
+    setRiskProfileData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
+    accountData,
+    setAccountData,
+  ] = useState<JsonObject | null>(
+    null
+  );
+
+
+  const [
     executionApproval,
     setExecutionApproval,
   ] = useState<JsonObject | null>(
@@ -442,6 +463,52 @@ export default function DashboardV2Page() {
     >(null);
 
 
+  const handleChangeAccount =
+    useCallback(
+      async (
+        account: string
+      ) => {
+
+        try {
+
+          await switchAccount(
+            account
+          );
+
+
+          const updatedAccount =
+            await getAccountProfile();
+
+
+          setAccountData(
+            updatedAccount
+          );
+
+
+          const updatedRisk =
+            await getRiskDashboard();
+
+
+          setRiskProfileData(
+            updatedRisk
+          );
+
+
+        } catch (error) {
+
+          console.error(
+            "ACCOUNT SWITCH ERROR:",
+            error
+          );
+
+        }
+
+      },
+      []
+    );
+
+
+
   const loadDashboard =
     useCallback(
       async () => {
@@ -467,6 +534,8 @@ export default function DashboardV2Page() {
             intelligenceDecisionV3Result,
             executionPipelineResult,
             learningIntelligenceResult,
+            riskResult,
+            accountResult,
           ] = await Promise.all(
             [
               getDashboardLive(),
@@ -487,6 +556,8 @@ export default function DashboardV2Page() {
               getIntelligenceDecisionV3(),
               getExecutionPipeline(),
               getLearningSummary(),
+              getRiskDashboard(),
+              getAccountProfile(),
             ]
           );
 
@@ -509,6 +580,16 @@ export default function DashboardV2Page() {
 
           setTradeSetup(
             tradeSetupResult
+          );
+
+
+          setRiskProfileData(
+            riskResult
+          );
+
+
+          setAccountData(
+            accountResult
           );
 
 
@@ -943,6 +1024,49 @@ export default function DashboardV2Page() {
         </section>
 
         <section className="mt-6">
+          <AccountSelectorCard
+            data={
+              isObject(
+                accountData
+              )
+                ? {
+                    account:
+                      String(
+                        accountData.account
+                      ),
+
+                    balance:
+                      Number(
+                        accountData.balance
+                      ),
+
+                    risk_percent:
+                      Number(
+                        accountData.risk_percent
+                      ),
+
+                    daily_loss_limit:
+                      Number(
+                        accountData.daily_loss_limit
+                      ),
+
+                    max_drawdown:
+                      Number(
+                        accountData.max_drawdown
+                      ),
+                  }
+                : null
+            }
+
+            onChangeAccount={
+              handleChangeAccount
+            }
+          />
+        </section>
+
+
+
+        <section className="mt-6">
           <AccountOverviewCard
             data={
               isObject(
@@ -1030,6 +1154,55 @@ export default function DashboardV2Page() {
             }
           />
         </section>
+
+
+        <section className="mt-6">
+          <RiskProfileCard
+            data={
+              isObject(
+                riskProfileData
+              )
+                ? {
+                    account:
+                      String(
+                        riskProfileData.account
+                      ),
+
+                    balance:
+                      Number(
+                        riskProfileData.balance
+                      ),
+
+                    risk_percent:
+                      Number(
+                        riskProfileData.risk_percent
+                      ),
+
+                    risk_per_trade:
+                      Number(
+                        riskProfileData.risk_per_trade
+                      ),
+
+                    daily_loss_limit:
+                      Number(
+                        riskProfileData.daily_loss_limit
+                      ),
+
+                    max_drawdown:
+                      Number(
+                        riskProfileData.max_drawdown
+                      ),
+
+                    status:
+                      String(
+                        riskProfileData.status
+                      ),
+                  }
+                : null
+            }
+          />
+        </section>
+
 
 
         <section className="mt-6">

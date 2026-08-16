@@ -100,6 +100,18 @@ from backend.api.routers.strategy_ranking_dashboard_api_v2 import (
     router as strategy_ranking_dashboard_router,
 )
 
+from backend.api.routers.risk_dashboard_api_v2 import (
+    router as risk_dashboard_router,
+)
+
+from backend.api.routers.account_switch_api_v2 import (
+    router as account_switch_router,
+)
+
+from backend.api.routers.account_profile_api_v2 import (
+    router as account_profile_router,
+)
+
 from backend.api.routers.strategy_intelligence_api_v2 import (
     router as strategy_intelligence_router,
 )
@@ -1263,13 +1275,15 @@ def create_app(
         WalkForwardPipelineV2(
             window_generator=(
                 WalkForwardWindowGeneratorV2(
-                    training_size=100,
-                    testing_size=20,
-                    step_size=20,
+                    training_size=300,
+                    testing_size=100,
+                    step_size=100,
                 )
             ),
             dataset_splitter=(
-                WalkForwardDatasetSplitterV2()
+                WalkForwardDatasetSplitterV2(
+                    warmup_size=50,
+                )
             ),
             walk_forward_optimizer=(
                 WalkForwardOptimizerV2(
@@ -2551,6 +2565,24 @@ def create_app(
 
     app.include_router(
         strategy_ranking_dashboard_router
+    )
+
+
+    register_router_v2(
+        app,
+        risk_dashboard_router,
+    )
+
+
+    register_router_v2(
+        app,
+        account_switch_router,
+    )
+
+
+    register_router_v2(
+        app,
+        account_profile_router,
     )
 
     app.include_router(
