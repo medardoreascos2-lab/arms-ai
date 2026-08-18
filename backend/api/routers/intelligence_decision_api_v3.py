@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 
 from backend.intelligence.technical_intelligence_adapter import (
@@ -298,25 +298,24 @@ def intelligence_decision_v3():
 @router.post(
     "/monitor-price-debug"
 )
-def monitor_price_debug_v3():
+def monitor_price_debug_v3(request: Request):
 
-    from backend.api.app import app
 
 
     before_positions = (
-        app.state
+        request.app.state
         .trade_lifecycle_service_v2
         .get_active_positions()
     )
 
     before_journal = (
-        app.state
+        request.app.state
         .trade_journal_v2
         .get_trades()
     )
 
     result = (
-        app.state
+        request.app.state
         .live_position_monitor_v2
         .process_price(
             symbol="NQ",
@@ -325,13 +324,13 @@ def monitor_price_debug_v3():
     )
 
     after_positions = (
-        app.state
+        request.app.state
         .trade_lifecycle_service_v2
         .get_active_positions()
     )
 
     after_journal = (
-        app.state
+        request.app.state
         .trade_journal_v2
         .get_trades()
     )
@@ -347,17 +346,17 @@ def monitor_price_debug_v3():
         "after_journal": after_journal,
 
         "active_positions_after":
-            app.state
+            request.app.state
             .trade_lifecycle_service_v2
             .get_active_positions(),
 
         "journal":
-            app.state
+            request.app.state
             .trade_journal_v2
             .get_trades(),
 
         "portfolio":
-            app.state
+            request.app.state
             .portfolio_manager_v2
             .get_summary(),
     }
@@ -367,24 +366,23 @@ def monitor_price_debug_v3():
 @router.get(
     "/position-debug"
 )
-def position_debug_v3():
+def position_debug_v3(request: Request):
 
-    from backend.api.app import app
 
 
     return {
         "active_positions":
-            app.state
+            request.app.state
             .trade_lifecycle_service_v2
             .get_active_positions(),
 
         "portfolio":
-            app.state
+            request.app.state
             .portfolio_manager_v2
             .get_summary(),
 
         "journal":
-            app.state
+            request.app.state
             .trade_journal_v2
             .get_trades(),
     }
@@ -419,14 +417,13 @@ def journal_debug_v3():
 @router.get(
     "/execution-pipeline"
 )
-def execution_pipeline_v3():
+def execution_pipeline_v3(request: Request):
 
 
-    from backend.api.app import app
 
 
     result = (
-        app.state
+        request.app.state
         .trade_lifecycle_service_v2
         .submit_signal(
             signal={
@@ -467,13 +464,13 @@ def execution_pipeline_v3():
 )
 def market_price_v3(
     payload: dict,
+    request: Request,
 ):
 
-    from backend.api.app import app
 
 
     result = (
-        app.state
+        request.app.state
         .price_feed_service_v2
         .process_price(
             symbol=payload.get(
