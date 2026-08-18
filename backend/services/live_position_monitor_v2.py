@@ -27,6 +27,10 @@ from backend.portfolio.portfolio_manager_v2 import (
     PortfolioManagerV2,
 )
 
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
+
 
 class LivePositionMonitorV2:
     """
@@ -608,10 +612,19 @@ class LivePositionMonitorV2:
                             ),
                             point_value=float(
                                 result_position.get(
-                                    "point_value",
-                                    1.0,
+                                    "point_value"
                                 )
-                                or 1.0
+                                or InstrumentProfileEngine()
+                                .get_profile(
+                                    symbol=str(
+                                        result_position.get(
+                                            "symbol",
+                                            matching_trade.symbol,
+                                        )
+                                    )
+                                )[
+                                    "point_value"
+                                ]
                             ),
                             result="WIN"
                             if str(
@@ -622,6 +635,12 @@ class LivePositionMonitorV2:
                             ).upper()
                             == "TAKE_PROFIT"
                             else "CLOSED",
+                            exit_reason=str(
+                                result_position.get(
+                                    "close_reason",
+                                    "",
+                                )
+                            ),
                         )
 
                         if (

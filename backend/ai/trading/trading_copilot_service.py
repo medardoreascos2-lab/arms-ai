@@ -130,17 +130,43 @@ class TradingCopilotService:
                 "approved": bool(
                     validator.is_valid
                 ),
-                "risk_amount": dynamic_risk.risk_amount,
-                "stop_distance": dynamic_risk.stop_distance,
+                "risk_amount": (
+                    dynamic_risk.risk_amount
+                    if dynamic_risk is not None
+                    else None
+                ),
+                "stop_distance": (
+                    dynamic_risk.stop_distance
+                    if dynamic_risk is not None
+                    else None
+                ),
                 "take_profit_distance": (
                     dynamic_risk.take_profit_distance
+                    if dynamic_risk is not None
+                    else None
                 ),
-                "contracts": dynamic_risk.contracts,
+                "contracts": (
+                    dynamic_risk.contracts
+                    if dynamic_risk is not None
+                    else None
+                ),
             },
             "trade": {
-                "entry_price": trade_levels.entry_price,
-                "stop_loss": trade_levels.stop_loss,
-                "take_profit": trade_levels.take_profit,
+                "entry_price": (
+                    trade_levels.entry_price
+                    if trade_levels is not None
+                    else None
+                ),
+                "stop_loss": (
+                    trade_levels.stop_loss
+                    if trade_levels is not None
+                    else None
+                ),
+                "take_profit": (
+                    trade_levels.take_profit
+                    if trade_levels is not None
+                    else None
+                ),
             },
         }
 

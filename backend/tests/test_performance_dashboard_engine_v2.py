@@ -337,3 +337,110 @@ def test_rejects_invalid_dependencies(
         build_engine(
             **kwargs,
         )
+
+
+def test_uses_trade_journal_analytics_as_fallback():
+
+    engine = build_engine(
+        account_state_manager=(
+            FakeAccountStateManager()
+        ),
+        portfolio_manager=(
+            FakePortfolioManager()
+        ),
+        trade_journal=(
+            FakeTradeJournal()
+        ),
+    )
+
+    result = engine.build()
+
+    assert result["analytics"] is not None
+
+    assert (
+        result["analytics"]["win_rate"]
+        == pytest.approx(
+            66.6666666667
+        )
+    )
+
+    assert (
+        result["performance_overview"][
+            "win_rate"
+        ]
+        == pytest.approx(
+            66.6666666667
+        )
+    )
+
+    assert (
+        result["performance_overview"][
+            "net_profit"
+        ]
+        == 100.0
+    )
+
+
+def test_new_analytics_ratio_is_exposed_as_percent():
+
+    class FakeAnalytics:
+
+        def analyze(
+            self,
+            *,
+            trades,
+            starting_balance,
+        ):
+            return {
+                "total_trades": 2,
+                "wins": 1,
+                "losses": 1,
+                "break_even": 0,
+                "win_rate": 0.5,
+                "profit_factor": 2.0,
+                "expectancy": 25.0,
+                "net_pnl": 50.0,
+            }
+
+    class FakeJournalWithTrades(
+        FakeTradeJournal
+    ):
+
+        def get_trades(self):
+            return []
+
+    engine = PerformanceDashboardEngineV2(
+        account_state_manager_v2=(
+            FakeAccountStateManager()
+        ),
+        portfolio_manager_v2=(
+            FakePortfolioManager()
+        ),
+        trade_journal_v2=(
+            FakeJournalWithTrades()
+        ),
+        performance_analytics_v2=(
+            FakeAnalytics()
+        ),
+    )
+
+    result = engine.build()
+
+    assert (
+        result["analytics"]["win_rate"]
+        == 0.5
+    )
+
+    assert (
+        result["performance_overview"][
+            "win_rate"
+        ]
+        == 50.0
+    )
+
+    assert (
+        result["performance_overview"][
+            "net_profit"
+        ]
+        == 50.0
+    )

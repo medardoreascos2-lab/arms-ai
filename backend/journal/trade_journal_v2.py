@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
 
@@ -33,9 +33,18 @@ class TradeJournalEntry:
 
     
 
+
     position_id: str = ""
 
-    created_at: datetime = datetime.now()
+    created_at: datetime = field(
+        default_factory=datetime.now
+    )
+
+    exit_reason: str = ""
+
+    exit_price: float = 0.0
+
+    closed_at: datetime | None = None
 
     def __getitem__(self, key):
 
@@ -43,9 +52,12 @@ class TradeJournalEntry:
             "quantity": "contracts",
             "entry_price": "entry",
             "entry_time": "created_at",
+            "exit_reason": "exit_reason",
+            "exit_price": "exit_price",
+            "closed_at": "closed_at",
+            "realized_pnl": "pnl",
             "stop": "stop_loss",
             "target": "take_profit",
-            "realized_pnl": "pnl",
         }
 
         key = aliases.get(
@@ -68,9 +80,12 @@ class TradeJournalEntry:
             "quantity": "contracts",
             "entry_price": "entry",
             "entry_time": "created_at",
+            "exit_reason": "exit_reason",
+            "exit_price": "exit_price",
+            "closed_at": "closed_at",
+            "realized_pnl": "pnl",
             "stop": "stop_loss",
             "target": "take_profit",
-            "realized_pnl": "pnl",
         }
 
         key = aliases.get(
@@ -238,6 +253,23 @@ class TradeJournalV2:
 
             created_at=datetime.now(),
 
+            exit_reason=str(
+                trade.get(
+                    "exit_reason",
+                    "",
+                )
+            ),
+
+            exit_price=float(
+                trade.get(
+                    "exit_price",
+                    0.0,
+                )
+                or 0.0
+            ),
+
+            closed_at=None,
+
             symbol=str(
                 trade.get(
                     "symbol",
@@ -396,7 +428,23 @@ class TradeJournalV2:
                         float(pnl)
                     )
 
+                trade.exit_price = float(
+                    exit_price
+                    if exit_price is not None
+                    else 0.0
+                )
+
+                trade.closed_at = (
+                    exit_time
+                    if exit_time is not None
+                    else datetime.now()
+                )
+
                 if exit_reason:
+
+                    trade.exit_reason = str(
+                        exit_reason
+                    )
 
                     trade.reasoning.append(
                         f"Trade cerrado: {exit_reason}"

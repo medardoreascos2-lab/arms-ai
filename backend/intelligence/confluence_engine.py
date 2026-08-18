@@ -198,6 +198,7 @@ class ConfluenceEngine:
         approved = (
             score >= self.MINIMUM_TRADE_SCORE
             and direction_valid
+            and risk_approved
         )
 
         action = direction if approved else "NO_TRADE"

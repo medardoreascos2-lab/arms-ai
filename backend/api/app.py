@@ -112,6 +112,10 @@ from backend.api.routers.account_profile_api_v2 import (
     router as account_profile_router,
 )
 
+from backend.api.routers.account_manager_api_v2 import (
+    router as account_manager_router,
+)
+
 from backend.api.routers.strategy_intelligence_api_v2 import (
     router as strategy_intelligence_router,
 )
@@ -2583,6 +2587,12 @@ def create_app(
     register_router_v2(
         app,
         account_profile_router,
+    )
+
+
+    register_router_v2(
+        app,
+        account_manager_router,
     )
 
     app.include_router(

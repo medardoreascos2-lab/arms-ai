@@ -113,7 +113,13 @@ class PerformanceDashboardEngineV2:
             else None
         )
 
-        analytics = None
+        analytics = (
+            trade_journal_summary.get(
+                "analytics"
+            )
+            if trade_journal_summary
+            else None
+        )
 
 
         if (
@@ -125,9 +131,27 @@ class PerformanceDashboardEngineV2:
 
             analytics = (
                 self.performance_analytics_v2.analyze(
-                    trades=(
-                        self.trade_journal_v2.get_trades()
-                    ),
+                    trades=[
+                        trade
+                        if isinstance(
+                            trade,
+                            dict,
+                        )
+                        else {
+                            "trade_id": trade.trade_id,
+                            "symbol": trade.symbol,
+                            "direction": trade.direction,
+                            "entry_price": trade.entry,
+                            "exit_price": trade.exit_price,
+                            "quantity": trade.contracts,
+                            "realized_pnl": trade.pnl,
+                            "status": trade.status,
+                            "result": trade.result,
+                            "exit_reason": trade.exit_reason,
+                        }
+                        for trade
+                        in self.trade_journal_v2.get_trades()
+                    ],
                     starting_balance=17000.0,
                 )
             )
@@ -172,13 +196,23 @@ class PerformanceDashboardEngineV2:
                 "total_trades":
                     analytics["total_trades"],
                 "win_rate":
-                    analytics["win_rate"],
+                    (
+                        analytics["win_rate"] * 100.0
+                        if "net_pnl" in analytics
+                        else analytics["win_rate"]
+                    ),
                 "profit_factor":
                     analytics["profit_factor"],
                 "expectancy":
                     analytics["expectancy"],
                 "net_profit":
-                    analytics["net_pnl"],
+                    analytics.get(
+                        "net_pnl",
+                        analytics.get(
+                            "net_profit",
+                            0.0,
+                        ),
+                    ),
             }
             if analytics
             else None
