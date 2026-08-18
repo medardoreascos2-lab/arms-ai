@@ -494,24 +494,3 @@ def market_price_v3(
 
 
     return result
-
-
-
-@router.get(
-    "/position-debug"
-)
-def position_debug_v3():
-
-    from backend.api.app import app
-
-    positions = (
-        app.state
-        .trade_lifecycle_service_v2
-        .get_active_positions()
-    )
-
-    return {
-        "positions": positions,
-        "total": len(positions),
-    }
-
