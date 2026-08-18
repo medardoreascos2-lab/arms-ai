@@ -17,6 +17,8 @@ class InstrumentProfileEngine:
         ] = {
             "MNQ": {
                 "symbol": "MNQ",
+                "contract_class": "MICRO",
+                "family": "NASDAQ_100",
                 "name": (
                     "Micro E-mini Nasdaq-100"
                 ),
@@ -27,6 +29,8 @@ class InstrumentProfileEngine:
             },
             "NQ": {
                 "symbol": "NQ",
+                "contract_class": "MINI",
+                "family": "NASDAQ_100",
                 "name": (
                     "E-mini Nasdaq-100"
                 ),
@@ -37,6 +41,8 @@ class InstrumentProfileEngine:
             },
             "MES": {
                 "symbol": "MES",
+                "contract_class": "MICRO",
+                "family": "SP500",
                 "name": (
                     "Micro E-mini S&P 500"
                 ),
@@ -47,6 +53,8 @@ class InstrumentProfileEngine:
             },
             "ES": {
                 "symbol": "ES",
+                "contract_class": "MINI",
+                "family": "SP500",
                 "name": (
                     "E-mini S&P 500"
                 ),

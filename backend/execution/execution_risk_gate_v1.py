@@ -98,6 +98,7 @@ class ExecutionRiskGateV1:
             .validate_trade(
                 contracts=contracts,
                 risk_amount=risk_amount,
+                symbol=normalized_symbol,
             )
         )
 

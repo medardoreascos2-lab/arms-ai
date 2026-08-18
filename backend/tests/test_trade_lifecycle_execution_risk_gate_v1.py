@@ -49,6 +49,7 @@ class FakeApprovedValidator:
         self,
         contracts: int,
         risk_amount: float,
+        symbol: str | None = None,
     ):
 
         return {
@@ -72,6 +73,7 @@ class FakeBlockedValidator:
         self,
         contracts: int,
         risk_amount: float,
+        symbol: str | None = None,
     ):
 
         return {

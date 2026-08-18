@@ -148,3 +148,47 @@ def test_rejects_unsupported_symbol():
         engine.get_profile(
             symbol="YM"
         )
+
+
+def test_mnq_is_micro_contract():
+    engine = build_engine()
+
+    result = engine.get_profile(
+        symbol="MNQ"
+    )
+
+    assert result["contract_class"] == "MICRO"
+    assert result["family"] == "NASDAQ_100"
+
+
+def test_nq_is_mini_contract():
+    engine = build_engine()
+
+    result = engine.get_profile(
+        symbol="NQ"
+    )
+
+    assert result["contract_class"] == "MINI"
+    assert result["family"] == "NASDAQ_100"
+
+
+def test_mes_is_micro_contract():
+    engine = build_engine()
+
+    result = engine.get_profile(
+        symbol="MES"
+    )
+
+    assert result["contract_class"] == "MICRO"
+    assert result["family"] == "SP500"
+
+
+def test_es_is_mini_contract():
+    engine = build_engine()
+
+    result = engine.get_profile(
+        symbol="ES"
+    )
+
+    assert result["contract_class"] == "MINI"
+    assert result["family"] == "SP500"
