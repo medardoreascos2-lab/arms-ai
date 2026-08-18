@@ -329,10 +329,10 @@ class PositionManagerV2:
             )
         )
 
-        quantity = int(
+        quantity = float(
             position.get(
                 "quantity",
-                0,
+                0.0,
             )
         )
 
@@ -404,9 +404,27 @@ class PositionManagerV2:
             updated[
                 "exit_price"
             ] = normalized_current_price
+            previous_realized_pnl = float(
+                position.get(
+                    "realized_pnl",
+                    0.0,
+                )
+                or 0.0
+            )
+
             updated[
                 "realized_pnl"
-            ] = unrealized_pnl
+            ] = round(
+                previous_realized_pnl
+                + unrealized_pnl,
+                10,
+            )
+
+            updated[
+                "total_pnl"
+            ] = updated[
+                "realized_pnl"
+            ]
 
         elif hit_stop_loss:
             updated["status"] = "CLOSED"
@@ -416,8 +434,26 @@ class PositionManagerV2:
             updated[
                 "exit_price"
             ] = normalized_current_price
+            previous_realized_pnl = float(
+                position.get(
+                    "realized_pnl",
+                    0.0,
+                )
+                or 0.0
+            )
+
             updated[
                 "realized_pnl"
-            ] = unrealized_pnl
+            ] = round(
+                previous_realized_pnl
+                + unrealized_pnl,
+                10,
+            )
+
+            updated[
+                "total_pnl"
+            ] = updated[
+                "realized_pnl"
+            ]
 
         return updated

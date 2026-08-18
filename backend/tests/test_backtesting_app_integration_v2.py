@@ -87,22 +87,28 @@ def test_backtesting_endpoint_is_registered():
     )
 
 
-def test_default_orchestrator_returns_503():
+def test_default_orchestrator_is_configured():
 
-    client = TestClient(
-        create_app()
+    app = create_app()
+
+    assert hasattr(
+        app.state,
+        "backtesting_orchestrator_v2",
     )
+
+    assert (
+        app.state.backtesting_orchestrator_v2
+        is not None
+    )
+
+    client = TestClient(app)
 
     response = client.post(
         "/api/v2/backtesting/run",
         json=valid_payload(),
     )
 
-    assert response.status_code == 503
-
-    assert response.json()["detail"] == (
-        "backtesting_orchestrator_not_configured"
-    )
+    assert response.status_code == 200
 
 
 def test_accepts_injected_orchestrator():

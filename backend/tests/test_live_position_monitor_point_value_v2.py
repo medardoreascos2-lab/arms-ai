@@ -31,15 +31,22 @@ class FakeJournal:
         trade_id,
         exit_price,
         point_value,
+        pnl,
         result,
         exit_reason=None,
     ):
         self.point_value = point_value
 
-        self.trade.pnl = (
+        calculated_pnl = (
             (exit_price - self.trade.entry)
             * self.trade.contracts
             * point_value
+        )
+
+        self.trade.pnl = (
+            pnl
+            if pnl != 0.0
+            else calculated_pnl
         )
 
 

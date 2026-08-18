@@ -401,32 +401,38 @@ class TradeJournalV2:
                     result
                 )
 
-                if (
+                supplied_pnl = float(
+                    pnl
+                )
+
+                if supplied_pnl != 0.0:
+                    trade.pnl = round(
+                        supplied_pnl,
+                        2,
+                    )
+
+                elif (
                     exit_price is not None
                 ):
                     if trade.direction.upper() == "LONG":
                         calculated_pnl = (
                             float(exit_price)
                             - float(trade.entry)
-                        ) * int(trade.contracts) * float(point_value)
+                        ) * float(trade.contracts) * float(point_value)
 
                     else:
                         calculated_pnl = (
                             float(trade.entry)
                             - float(exit_price)
-                        ) * int(trade.contracts) * float(point_value)
+                        ) * float(trade.contracts) * float(point_value)
 
-                    trade.pnl = (
-                        round(
-                            calculated_pnl,
-                            2
-                        )
+                    trade.pnl = round(
+                        calculated_pnl,
+                        2,
                     )
 
                 else:
-                    trade.pnl = (
-                        float(pnl)
-                    )
+                    trade.pnl = supplied_pnl
 
                 trade.exit_price = float(
                     exit_price

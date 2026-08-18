@@ -626,6 +626,16 @@ class LivePositionMonitorV2:
                                     "point_value"
                                 ]
                             ),
+                            pnl=float(
+                                result_position.get(
+                                    "total_pnl",
+                                    result_position.get(
+                                        "realized_pnl",
+                                        0.0,
+                                    ),
+                                )
+                                or 0.0
+                            ),
                             result="WIN"
                             if str(
                                 result_position.get(
