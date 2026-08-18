@@ -1,5 +1,5 @@
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
 venv/
 .env
@@ -12,3 +12,9 @@ data/
 *.db
 backtest_output_test/
 reports/test/
+
+# ARMS AI local development artifacts
+.pytest_cache/
+tmp_*/
+*.pre_contract_patch
+*.pre_certification_contract_patch
