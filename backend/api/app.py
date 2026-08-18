@@ -1137,7 +1137,6 @@ def create_app(
                 minimum_confluence_score=0.80,
                 allowed_grades={
                     "A+",
-                    "A",
                 },
             )
         )
