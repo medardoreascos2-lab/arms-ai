@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from backend.backtesting.csv_candle_loader_v2 import (
+    CsvCandleLoaderV2,
+)
+
 from backend.backtesting.monte_carlo_report_v2 import (
     MonteCarloReportV2,
 )
@@ -167,15 +171,21 @@ class StrategyValidationPipelineV2:
             output_directory
         )
 
+        loader = CsvCandleLoaderV2(
+            csv_path=Path(
+                "data/backtest/nq_history.csv"
+            ),
+            symbol="NQ",
+            timeframe="1m",
+        )
+
+
+        items = loader.load()
+
+
         walk_forward_result = (
             self.walk_forward_pipeline.run(
-                items=[
-                    {
-                        "price": 100,
-                        "volume": 1,
-                    }
-                    for _ in range(150)
-                ],
+                items=items,
                 parameter_sets=[
                     {
                         "ema": 50,

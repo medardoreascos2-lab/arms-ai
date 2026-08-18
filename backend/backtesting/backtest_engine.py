@@ -81,6 +81,7 @@ class BacktestEngine:
                     "backtest_candles": historical_window,
                     "backtest_candle": historical_window[-1],
                     "backtest_next_candle": next_candle,
+                    "future_candles": candles[end_index:],
                 }
             )
 

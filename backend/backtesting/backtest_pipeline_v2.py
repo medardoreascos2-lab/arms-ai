@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from datetime import datetime
+
+from backend.models.candle import Candle
 
 from backend.backtesting.backtest_report_v2 import (
     BacktestReportV2,
@@ -129,6 +132,7 @@ class BacktestPipelineV2:
         output_directory,
         json_filename: str = "backtest.json",
         html_filename: str = "backtest.html",
+        candles=None,
     ) -> BacktestPipelineResultV2:
 
         normalized_json_filename = str(
@@ -152,6 +156,28 @@ class BacktestPipelineV2:
         normalized_output_directory = Path(
             output_directory
         )
+
+        if candles is not None:
+
+            if not isinstance(
+                candles,
+                list,
+            ):
+                candles = list(
+                    candles
+                )
+
+            normalized_candles = [
+                self._normalize_candle(
+                    candle
+                )
+                for candle in candles
+            ]
+
+            self.backtest_session_v2.backtest_runner_v2.replay_engine_v2.load(
+                normalized_candles
+            )
+
 
         candles_processed = int(
             self.backtest_session_v2.run()
@@ -203,4 +229,77 @@ class BacktestPipelineV2:
             report=report,
             json_path=Path(json_path),
             html_path=Path(html_path),
+        )
+
+    @staticmethod
+    def _normalize_candle(
+        candle,
+    ) -> Candle:
+
+        if isinstance(
+            candle,
+            Candle,
+        ):
+            return candle
+
+
+        if not isinstance(
+            candle,
+            dict,
+        ):
+            raise TypeError(
+                "Cada candle debe ser dict o Candle."
+            )
+
+
+        timestamp = candle.get(
+            "timestamp"
+        )
+
+
+        if isinstance(
+            timestamp,
+            str,
+        ):
+            timestamp = datetime.fromisoformat(
+                timestamp
+            )
+
+
+        if timestamp is None:
+            timestamp = datetime.now()
+
+
+        return Candle(
+            symbol=str(
+                candle.get(
+                    "symbol",
+                    "NQ",
+                )
+            ),
+            timeframe=str(
+                candle.get(
+                    "timeframe",
+                    "1m",
+                )
+            ),
+            open=float(
+                candle["open"]
+            ),
+            high=float(
+                candle["high"]
+            ),
+            low=float(
+                candle["low"]
+            ),
+            close=float(
+                candle["close"]
+            ),
+            volume=float(
+                candle.get(
+                    "volume",
+                    0,
+                )
+            ),
+            timestamp=timestamp,
         )

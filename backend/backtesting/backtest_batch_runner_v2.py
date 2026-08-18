@@ -17,6 +17,7 @@ class BacktestBatchItemV2:
 
     name: str
     pipeline: Any
+    candles: list[Any] | None = None
     json_filename: str = "backtest.json"
     html_filename: str = "backtest.html"
 
@@ -221,17 +222,27 @@ class BacktestBatchRunnerV2:
             )
 
             try:
+                pipeline_kwargs = {
+                    "output_directory": (
+                        item_output_directory
+                    ),
+                    "json_filename": (
+                        item.json_filename
+                    ),
+                    "html_filename": (
+                        item.html_filename
+                    ),
+                }
+
+                if item.candles is not None:
+                    pipeline_kwargs[
+                        "candles"
+                    ] = item.candles
+
+
                 pipeline_result = (
                     item.pipeline.run(
-                        output_directory=(
-                            item_output_directory
-                        ),
-                        json_filename=(
-                            item.json_filename
-                        ),
-                        html_filename=(
-                            item.html_filename
-                        ),
+                        **pipeline_kwargs
                     )
                 )
 

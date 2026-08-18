@@ -77,6 +77,78 @@ class BacktestEnginePipelineAdapterV2:
         )
 
 
+        future_candles = (
+            initial_context.get(
+                "future_candles",
+                []
+            )
+        )
+
+
+        normalized_future = []
+
+
+        for item in future_candles:
+
+
+            if isinstance(
+                item,
+                Candle,
+            ):
+
+                normalized_future.append(
+                    item
+                )
+
+                continue
+
+
+
+            price = float(
+                item.get(
+                    "price",
+                    item.get(
+                        "close",
+                        0,
+                    ),
+                )
+            )
+
+
+            normalized_future.append(
+                Candle(
+                    symbol="NQ",
+                    timeframe="1m",
+                    open=price,
+                    high=float(
+                        item.get(
+                            "high",
+                            price,
+                        )
+                    ),
+                    low=float(
+                        item.get(
+                            "low",
+                            price,
+                        )
+                    ),
+                    close=price,
+                    volume=float(
+                        item.get(
+                            "volume",
+                            0,
+                        )
+                    ),
+                    timestamp=datetime.now(),
+                )
+            )
+
+
+        session.future_candles = (
+            normalized_future
+        )
+
+
         session.backtest_runner_v2.replay_engine_v2.load(
             candles
         )
@@ -100,9 +172,9 @@ class BacktestEnginePipelineAdapterV2:
             )
 
 
-        if session.submission_results:
+        if session.simulated_trades:
             context["simulated_trade"] = (
-                session.submission_results[-1]
+                session.simulated_trades[-1]
             )
 
 

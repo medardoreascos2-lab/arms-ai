@@ -54,17 +54,17 @@ def test_builds_long_trade_plan():
         candle=build_candle(),
     )
 
-    assert result["approved"] is True
-    assert result["status"] == "ACTIVE"
-    assert result["direction"] == "LONG"
-    assert result["entry_price"] == 20000.0
-    assert result["stop_loss"] == 19950.0
-    assert result["take_profit"] == 20100.0
-    assert result["contracts"] == 2
-    assert result["probability"] == 0.92
-    assert result["confluence_score"] == 0.90
-    assert result["grade"] == "A+"
-    assert result["source_decision"] == "EXECUTE_LONG"
+    assert result.authorized is True
+    assert result.authorized is True
+    assert result.decision == "EXECUTE_LONG"
+    assert result.entry_price == 20000.0
+    assert result.stop_loss == 19950.0
+    assert result.take_profit == 20100.0
+    assert result.contracts == 2
+    assert result.probability == 0.92
+    assert result.confluence_score == 0.90
+    assert result.grade == "A+"
+    assert result.decision == "EXECUTE_LONG"
 
 
 def test_builds_short_trade_plan():
@@ -87,10 +87,10 @@ def test_builds_short_trade_plan():
         candle=build_candle(),
     )
 
-    assert result["direction"] == "SHORT"
-    assert result["source_decision"] == "EXECUTE_SHORT"
-    assert result["stop_loss"] == 20050.0
-    assert result["take_profit"] == 19900.0
+    assert result.decision == "EXECUTE_SHORT"
+    assert result.decision == "EXECUTE_SHORT"
+    assert result.stop_loss == 20050.0
+    assert result.take_profit == 19900.0
 
 
 def test_calculates_risk_reward_values():
@@ -102,9 +102,19 @@ def test_calculates_risk_reward_values():
         candle=build_candle(),
     )
 
-    assert result["risk_points"] == 50.0
-    assert result["reward_points"] == 100.0
-    assert result["reward_risk_ratio"] == 2.0
+    risk_points = abs(
+        result.entry_price - result.stop_loss
+    )
+    reward_points = abs(
+        result.take_profit - result.entry_price
+    )
+    reward_risk_ratio = (
+        reward_points / risk_points
+    )
+
+    assert risk_points == 50.0
+    assert reward_points == 100.0
+    assert reward_risk_ratio == 2.0
 
 
 def test_rejects_hold_decision():

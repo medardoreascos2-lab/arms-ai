@@ -22,7 +22,14 @@ from backend.backtesting.monte_carlo_simulator_v2 import (
 
 class FakeWalkForwardPipeline:
 
-    def run(self):
+    def run(
+        self,
+        *,
+        items=None,
+        parameter_sets=None,
+        output_directory=None,
+        **kwargs,
+    ):
         return WalkForwardOptimizationResultV2(
             window_results=[
                 {
@@ -41,34 +48,54 @@ class FakeWalkForwardPipeline:
         )
 
 
+
 class FakeMonteCarloPipeline:
 
-    def run(self):
-        return MonteCarloReportV2(
-            simulation_result=MonteCarloSimulationResultV2(
-                starting_balance=10000.0,
-                final_equities=[
-                    10150.0,
-                    10050.0,
-                ],
-                maximum_drawdowns=[
-                    60.0,
-                    120.0,
-                ],
-                equity_curves=[
-                    [
-                        10000.0,
-                        10100.0,
-                        10150.0,
-                    ],
-                    [
-                        10000.0,
-                        10020.0,
-                        10050.0,
-                    ],
-                ],
-            )
+    def run(
+        self,
+        *,
+        trade_pnls=None,
+        starting_balance=None,
+        output_directory=None,
+        **kwargs,
+    ):
+
+        from backend.backtesting.monte_carlo_simulator_v2 import (
+            MonteCarloSimulationResultV2,
         )
+
+        return type(
+            "FakeMonteCarloResult",
+            (),
+            {
+                "report": MonteCarloReportV2(
+                    simulation_result=MonteCarloSimulationResultV2(
+                        starting_balance=10000.0,
+                        final_equities=[
+                            10100.0,
+                            10200.0,
+                        ],
+                        maximum_drawdowns=[
+                            50.0,
+                            75.0,
+                        ],
+                        equity_curves=[
+                            [
+                                10000.0,
+                                10050.0,
+                                10100.0,
+                            ],
+                            [
+                                10000.0,
+                                10100.0,
+                                10200.0,
+                            ],
+                        ],
+                    )
+                )
+            },
+        )()
+
 
 
 class FakeJsonExporter:
