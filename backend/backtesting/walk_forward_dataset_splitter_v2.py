@@ -10,6 +10,21 @@ class WalkForwardDatasetSplitterV2:
     previamente generadas y validadas.
     """
 
+    def __init__(
+        self,
+        *,
+        warmup_size: int = 0,
+    ) -> None:
+
+        if warmup_size < 0:
+            raise ValueError(
+                "warmup_size no puede ser negativo."
+            )
+
+        self.warmup_size = int(
+            warmup_size
+        )
+
     REQUIRED_WINDOW_KEYS = (
         "window_index",
         "training_start",
@@ -82,9 +97,15 @@ class WalkForwardDatasetSplitterV2:
                 ]
             )
 
+            testing_start = max(
+                0,
+                window["testing_start"]
+                - self.warmup_size,
+            )
+
             testing_items = deepcopy(
                 normalized_items[
-                    window["testing_start"]:
+                    testing_start:
                     window["testing_end"]
                 ]
             )

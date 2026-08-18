@@ -20,12 +20,18 @@ class FakeTrainingOptimizerV2:
         *,
         candidates,
         output_directory,
+        candles=None,
     ):
         self.calls.append(
             {
                 "candidates": candidates,
                 "output_directory": Path(
                     output_directory
+                ),
+                "candles": (
+                    list(candles)
+                    if candles is not None
+                    else None
                 ),
             }
         )

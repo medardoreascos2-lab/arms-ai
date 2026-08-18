@@ -174,6 +174,9 @@ class WalkForwardOptimizerV2:
                 training_result = (
                     self.training_optimizer.optimize(
                         candidates=candidates,
+                        candles=deepcopy(
+                            dataset["training_items"]
+                        ),
                         output_directory=(
                             window_output_directory
                         ),

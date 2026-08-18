@@ -24,6 +24,8 @@ class BacktestOptimizationCandidateV2:
         default_factory=dict
     )
 
+    candles: list[Any] | None = None
+
     def __post_init__(self) -> None:
 
         normalized_name = str(
@@ -79,6 +81,7 @@ class BacktestOptimizationCandidateV2:
         return BacktestBatchItemV2(
             name=self.name,
             pipeline=self.pipeline,
+            candles=self.candles,
             json_filename=self.json_filename,
             html_filename=self.html_filename,
         )
@@ -216,6 +219,7 @@ class BacktestOptimizerV2:
         *,
         candidates,
         output_directory,
+        candles=None,
     ) -> BacktestOptimizationResultV2:
 
         normalized_candidates = list(
@@ -241,6 +245,10 @@ class BacktestOptimizerV2:
             candidate.to_batch_item()
             for candidate in normalized_candidates
         ]
+
+        if candles is not None:
+            for item in batch_items:
+                item.candles = candles
 
         batch_result = self.batch_runner.run(
             items=batch_items,
