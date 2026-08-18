@@ -11,6 +11,12 @@ CalendarResolver = Callable[
 ]
 
 
+SpecialHoursResolver = Callable[
+    ...,
+    bool | None,
+]
+
+
 class MarketHoursServiceV2:
     """
     Fail-closed market-hours gate for supported
@@ -57,6 +63,9 @@ class MarketHoursServiceV2:
         calendar_resolver: (
             CalendarResolver | None
         ) = None,
+        special_hours_resolver: (
+            SpecialHoursResolver | None
+        ) = None,
     ) -> None:
         if (
             calendar_resolver is not None
@@ -71,6 +80,21 @@ class MarketHoursServiceV2:
 
         self.calendar_resolver = (
             calendar_resolver
+        )
+
+        if (
+            special_hours_resolver is not None
+            and not callable(
+                special_hours_resolver
+            )
+        ):
+            raise TypeError(
+                "special_hours_resolver debe ser "
+                "callable o None."
+            )
+
+        self.special_hours_resolver = (
+            special_hours_resolver
         )
 
     def is_regular_session_open(
@@ -182,6 +206,29 @@ class MarketHoursServiceV2:
                 "retornar bool o None."
             )
 
+        if self.special_hours_resolver is not None:
+            special_hours_status = (
+                self.special_hours_resolver(
+                    symbol=normalized_symbol,
+                    timestamp=timestamp,
+                )
+            )
+
+            if (
+                special_hours_status is not None
+                and not isinstance(
+                    special_hours_status,
+                    bool,
+                )
+            ):
+                raise TypeError(
+                    "special_hours_resolver debe "
+                    "retornar bool o None."
+                )
+
+            if special_hours_status is False:
+                return False
+
         return calendar_status
 
     def build_market_context(
@@ -240,9 +287,36 @@ class MarketHoursServiceV2:
                     "retornar bool o None."
                 )
 
+        special_hours_status: bool | None = None
+
+        if self.special_hours_resolver is not None:
+            special_hours_status = (
+                self.special_hours_resolver(
+                    symbol=normalized_symbol,
+                    timestamp=timestamp,
+                )
+            )
+
+            if (
+                special_hours_status is not None
+                and not isinstance(
+                    special_hours_status,
+                    bool,
+                )
+            ):
+                raise TypeError(
+                    "special_hours_resolver debe "
+                    "retornar bool o None."
+                )
+
+        special_hours_allows = (
+            special_hours_status is not False
+        )
+
         market_is_open = bool(
             regular_session_open
             and calendar_status is True
+            and special_hours_allows
         )
 
         return {
