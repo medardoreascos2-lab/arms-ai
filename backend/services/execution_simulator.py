@@ -7,9 +7,11 @@ from backend.models.trade_plan import TradePlan
 
 class ExecutionSimulator:
 
+    # Dollar value per full index point.
+    # Keep synchronized with InstrumentProfileEngine.
     INSTRUMENT_VALUES = {
-        "NQ": 5.0,
-        "MNQ": 0.5,
+        "NQ": 20.0,
+        "MNQ": 2.0,
     }
 
     def __init__(

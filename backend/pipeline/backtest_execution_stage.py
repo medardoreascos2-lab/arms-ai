@@ -35,6 +35,9 @@ class BacktestExecutionStage:
         current_candle = context["backtest_candle"]
         next_candle = context["backtest_next_candle"]
 
+        trade_plan.instrument = self.instrument
+        trade_plan.symbol = self.instrument
+
         simulator = ExecutionSimulator()
 
         metrics_engine = MetricsEngine()

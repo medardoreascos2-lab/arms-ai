@@ -17,8 +17,10 @@ class TradePlanStub:
         stop_loss=98.0,
         take_profit=104.0,
         contracts=2,
+        instrument="MNQ",
     ):
-        self.symbol = "TEST"
+        self.symbol = instrument
+        self.instrument = instrument
         self.timeframe = "1m"
         self.authorized = authorized
         self.decision = decision
@@ -30,30 +32,41 @@ class TradePlanStub:
 
 def build_candle(
     *,
+    symbol="MNQ",
     open_price=100.0,
     high=101.0,
     low=99.0,
     close=100.5,
 ):
     return Candle(
-        symbol="TEST",
+        symbol=symbol,
         timeframe="1m",
         open=open_price,
         high=high,
         low=low,
         close=close,
         volume=1000,
-        timestamp=datetime(2026, 1, 1, 9, 31),
+        timestamp=datetime(
+            2026,
+            1,
+            1,
+            9,
+            31,
+        ),
     )
 
 
-def test_backtest_execution_stage_executes_authorized_plan():
+def test_backtest_execution_stage_executes_authorized_mnq_plan():
     context = {
-        "trade_plan": TradePlanStub(),
+        "trade_plan": TradePlanStub(
+            instrument="MNQ",
+        ),
         "backtest_candle": build_candle(
+            symbol="MNQ",
             close=100.0,
         ),
         "backtest_next_candle": build_candle(
+            symbol="MNQ",
             high=104.5,
             low=99.0,
             close=103.0,
@@ -61,7 +74,7 @@ def test_backtest_execution_stage_executes_authorized_plan():
     }
 
     result = BacktestExecutionStage(
-        point_value=2.0,
+        instrument="MNQ",
     ).run(context)
 
     simulated_trade = result["simulated_trade"]
@@ -69,7 +82,63 @@ def test_backtest_execution_stage_executes_authorized_plan():
     assert simulated_trade is not None
     assert simulated_trade.result == "TAKE PROFIT"
     assert simulated_trade.exit_price == 104.0
+
+    # 4 points * $2.00 * 2 contracts
+    assert simulated_trade.point_value == 2.0
     assert simulated_trade.pnl == 16.0
+
+    assert (
+        result["trade_plan"].instrument
+        == "MNQ"
+    )
+    assert (
+        result["trade_plan"].symbol
+        == "MNQ"
+    )
+    assert simulated_trade.symbol == "MNQ"
+
+
+def test_backtest_execution_stage_executes_authorized_nq_plan():
+    context = {
+        "trade_plan": TradePlanStub(
+            instrument="MNQ",
+        ),
+        "backtest_candle": build_candle(
+            symbol="NQ",
+            close=100.0,
+        ),
+        "backtest_next_candle": build_candle(
+            symbol="NQ",
+            high=104.5,
+            low=99.0,
+            close=103.0,
+        ),
+    }
+
+    result = BacktestExecutionStage(
+        instrument="NQ",
+    ).run(context)
+
+    simulated_trade = result["simulated_trade"]
+
+    assert simulated_trade is not None
+    assert simulated_trade.result == "TAKE PROFIT"
+    assert simulated_trade.exit_price == 104.0
+
+    # Canonical NQ contract:
+    # 4 points * $20.00 * 2 contracts
+    assert simulated_trade.point_value == 20.0
+    assert simulated_trade.pnl == 160.0
+
+    assert (
+        result["trade_plan"].instrument
+        == "NQ"
+    )
+    assert (
+        result["trade_plan"].symbol
+        == "NQ"
+    )
+    assert simulated_trade.symbol == "NQ"
 
 
 def test_backtest_execution_stage_blocks_unauthorized_plan():
@@ -88,11 +157,14 @@ def test_backtest_execution_stage_blocks_unauthorized_plan():
         "backtest_next_candle": build_candle(),
     }
 
-    result = BacktestExecutionStage().run(context)
+    result = BacktestExecutionStage().run(
+        context
+    )
 
     assert result["simulated_trade"] is None
+
     assert (
-        result["execution_status"]
+        result["execution_result"]
         == "Operación no ejecutada: plan no autorizado."
     )
 
@@ -107,11 +179,49 @@ def test_backtest_execution_stage_preserves_context():
         "session_allowed": True,
     }
 
-    result = BacktestExecutionStage().run(context)
+    result = BacktestExecutionStage().run(
+        context
+    )
 
     assert result["session_allowed"] is True
     assert "simulated_trade" in result
-    assert "execution_status" in result
+    assert "execution_result" in result
+    assert "execution_simulator" in result
+    assert "backtest_metrics" in result
+
+
+def test_backtest_execution_stage_overrides_plan_instrument():
+    plan = TradePlanStub(
+        instrument="MNQ",
+    )
+
+    context = {
+        "trade_plan": plan,
+        "backtest_candle": build_candle(
+            symbol="NQ",
+            close=100.0,
+        ),
+        "backtest_next_candle": build_candle(
+            symbol="NQ",
+            high=104.5,
+            low=99.0,
+            close=103.0,
+        ),
+    }
+
+    result = BacktestExecutionStage(
+        instrument="NQ",
+    ).run(context)
+
+    assert plan.instrument == "NQ"
+    assert plan.symbol == "NQ"
+
+    simulated_trade = result["simulated_trade"]
+
+    assert simulated_trade is not None
+    assert simulated_trade.symbol == "NQ"
+    assert simulated_trade.point_value == 20.0
+    assert simulated_trade.pnl == 160.0
 
 
 def test_backtest_execution_stage_requires_trade_plan():
