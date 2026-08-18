@@ -54,6 +54,10 @@ from backend.execution.risk_manager_v2 import (
     RiskManagerV2,
 )
 
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+
 from backend.portfolio.portfolio_manager_v2 import (
     PortfolioManagerV2,
 )
@@ -125,6 +129,9 @@ class TradeLifecycleServiceV2(
         | None = None,
         broker_connector_v2:
         BrokerConnectorV2
+        | None = None,
+        execution_risk_gate_v1:
+        ExecutionRiskGateV1
         | None = None,
     ) -> None:
         if not isinstance(
@@ -256,6 +263,24 @@ class TradeLifecycleServiceV2(
 
         self.risk_manager_v2 = (
             risk_manager_v2
+        )
+
+
+        if (
+            execution_risk_gate_v1
+            is not None
+            and not isinstance(
+                execution_risk_gate_v1,
+                ExecutionRiskGateV1,
+            )
+        ):
+            raise TypeError(
+                "execution_risk_gate_v1 debe ser "
+                "ExecutionRiskGateV1."
+            )
+
+        self.execution_risk_gate_v1 = (
+            execution_risk_gate_v1
         )
 
 
@@ -995,7 +1020,136 @@ class TradeLifecycleServiceV2(
                 }
 
         # ======================================
-        # 5. EJECUTAR ORDEN MEDIANTE BROKER
+        # 5. BARRERA FINAL DE RIESGO
+        # ======================================
+
+        execution_risk_gate_result = None
+
+        if (
+            not signal_blocked
+            and self.execution_risk_gate_v1
+            is not None
+        ):
+            if risk_evaluation is None:
+                raise ValueError(
+                    "execution_risk_gate_v1 requiere "
+                    "risk_evaluation. Configure "
+                    "risk_manager_v2 y risk_context."
+                )
+
+            gate_risk_amount = float(
+                risk_evaluation.get(
+                    "actual_risk",
+                    risk_evaluation.get(
+                        "risk_amount",
+                        0.0,
+                    ),
+                )
+            )
+
+            gate_contracts = int(
+                prepared_order.get(
+                    "contracts",
+                    working_signal.get(
+                        "contracts",
+                        0,
+                    ),
+                )
+            )
+
+            gate_direction = (
+                str(
+                    prepared_order.get(
+                        "direction",
+                        working_signal.get(
+                            "direction",
+                            "",
+                        ),
+                    )
+                )
+                .strip()
+                .upper()
+            )
+
+            gate_side = (
+                "BUY"
+                if gate_direction
+                in {
+                    "LONG",
+                    "BUY",
+                }
+                else (
+                    "SELL"
+                    if gate_direction
+                    in {
+                        "SHORT",
+                        "SELL",
+                    }
+                    else gate_direction
+                )
+            )
+
+            execution_risk_gate_result = (
+                self.execution_risk_gate_v1
+                .evaluate_trade(
+                    symbol=str(
+                        prepared_order.get(
+                            "symbol",
+                            working_signal.get(
+                                "symbol",
+                                "",
+                            ),
+                        )
+                    ),
+                    side=gate_side,
+                    contracts=gate_contracts,
+                    risk_amount=gate_risk_amount,
+                )
+            )
+
+            if (
+                execution_risk_gate_result.get(
+                    "execution"
+                )
+                != "APPROVED"
+            ):
+                return {
+                    "accepted": False,
+                    "reason": (
+                        "execution_risk_gate_blocked"
+                    ),
+                    "risk_evaluation": (
+                        risk_evaluation
+                    ),
+                    "exposure_evaluation": (
+                        exposure_evaluation
+                    ),
+                    "portfolio_risk_evaluation": (
+                        portfolio_risk_evaluation
+                    ),
+                    "order_validation": (
+                        order_validation
+                    ),
+                    "execution_risk_gate": (
+                        execution_risk_gate_result
+                    ),
+                    "prepared_order": (
+                        prepared_order
+                    ),
+                    "execution": None,
+                    "position": None,
+                    "active_position_id": None,
+                    "portfolio_summary": (
+                        self.portfolio_manager_v2
+                        .get_summary()
+                        if self.portfolio_manager_v2
+                        is not None
+                        else None
+                    ),
+                }
+
+        # ======================================
+        # 6. EJECUTAR ORDEN MEDIANTE BROKER
         # ======================================
 
         execution = (
@@ -1350,6 +1504,9 @@ class TradeLifecycleServiceV2(
             ),
             "order_validation": (
                 order_validation
+            ),
+            "execution_risk_gate": (
+                execution_risk_gate_result
             ),
             "prepared_order": (
                 prepared_order
