@@ -78,6 +78,22 @@ from backend.signals.signal_generator_v2 import (
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.execution.exposure_manager_v2 import (
+    ExposureManagerV2,
+)
+from backend.execution.portfolio_risk_engine_v2 import (
+    PortfolioRiskEngineV2,
+)
+from backend.execution.order_validation_engine_v2 import (
+    OrderValidationEngineV2,
+)
+
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
@@ -1185,6 +1201,51 @@ def create_app(
             )
         )
 
+        position_sizing_engine_v2 = (
+            PositionSizingEngineV2()
+        )
+
+        risk_manager_v2 = RiskManagerV2(
+            position_sizing_engine=(
+                position_sizing_engine_v2
+            ),
+            maximum_daily_loss=3000.0,
+            maximum_total_drawdown=4500.0,
+            maximum_contracts=20,
+            maximum_open_positions=1,
+        )
+
+        exposure_manager_v2 = ExposureManagerV2(
+            maximum_total_open_risk=500.0,
+            maximum_symbol_open_risk=300.0,
+            maximum_total_contracts=10,
+            maximum_symbol_contracts=6,
+        )
+
+        portfolio_risk_engine_v2 = (
+            PortfolioRiskEngineV2(
+                maximum_total_open_risk=1000.0,
+                maximum_floating_loss=600.0,
+                maximum_long_risk=700.0,
+                maximum_short_risk=700.0,
+                maximum_symbol_risk=500.0,
+            )
+        )
+
+        order_validation_engine_v2 = (
+            OrderValidationEngineV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                allowed_symbols={
+                    "NQ",
+                    "MNQ",
+                    "ES",
+                    "MES",
+                },
+            )
+        )
+
         trade_lifecycle_service_v2 = (
             TradeLifecycleServiceV2(
                 execution_manager=(
@@ -1212,6 +1273,18 @@ def create_app(
                         risk_free_rate=0.0,
                         trading_days_per_year=252,
                     )
+                ),
+                risk_manager_v2=(
+                    risk_manager_v2
+                ),
+                order_validation_engine_v2=(
+                    order_validation_engine_v2
+                ),
+                exposure_manager_v2=(
+                    exposure_manager_v2
+                ),
+                portfolio_risk_engine_v2=(
+                    portfolio_risk_engine_v2
                 ),
                 portfolio_manager_v2=(
                     portfolio_manager_v2
