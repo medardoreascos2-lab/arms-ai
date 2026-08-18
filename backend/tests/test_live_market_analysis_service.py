@@ -4552,6 +4552,23 @@ def test_live_analysis_submits_signal_to_trade_lifecycle_v2():
         SignalGeneratorV2,
     )
 
+    class RecordingAccountStateManagerV2:
+        def get_state(
+            self,
+        ):
+            return {
+                "daily_pnl": 125.0,
+                "drawdown": 250.0,
+            }
+
+    class RecordingPortfolioManagerV2:
+        def __init__(
+            self,
+        ) -> None:
+            self.account_state_manager_v2 = (
+                RecordingAccountStateManagerV2()
+            )
+
     class RecordingTradeLifecycleServiceV2(
         TradeLifecycleServiceV2
     ):
@@ -4559,17 +4576,24 @@ def test_live_analysis_submits_signal_to_trade_lifecycle_v2():
             self,
         ) -> None:
             self.calls = []
+            self.portfolio_manager_v2 = (
+                RecordingPortfolioManagerV2()
+            )
 
         def submit_signal(
             self,
             *,
             signal,
             order_type,
+            risk_context=None,
+            order_context=None,
         ):
             self.calls.append(
                 {
                     "signal": signal,
                     "order_type": order_type,
+                    "risk_context": risk_context,
+                    "order_context": order_context,
                 }
             )
 
@@ -4680,6 +4704,25 @@ def test_live_analysis_submits_signal_to_trade_lifecycle_v2():
         call["order_type"]
         == "MARKET"
     )
+
+    assert call["risk_context"] == {
+        "account_balance": 17000.0,
+        "risk_percent": 0.5,
+        "point_value": 2.0,
+        "daily_pnl": 125.0,
+        "total_drawdown": 250.0,
+        "current_price": float(
+            candle_store.get_latest(
+                symbol="NQ",
+                timeframe="5m",
+                limit=60,
+            )[-1].close
+        ),
+    }
+
+    assert call["order_context"] == {
+        "market_is_open": False,
+    }
 
     assert (
         result["trade_lifecycle_v2"][

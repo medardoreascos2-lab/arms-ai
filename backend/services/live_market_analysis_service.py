@@ -2680,6 +2680,93 @@ class LiveMarketAnalysisService:
                 self.trade_lifecycle_service_v2
                 is not None
             ):
+                portfolio_manager_v2 = getattr(
+                    self.trade_lifecycle_service_v2,
+                    "portfolio_manager_v2",
+                    None,
+                )
+
+                account_state_manager_v2 = getattr(
+                    portfolio_manager_v2,
+                    "account_state_manager_v2",
+                    None,
+                )
+
+                if account_state_manager_v2 is None:
+                    raise ValueError(
+                        "execution_context_unavailable: "
+                        "account_state_manager_v2"
+                    )
+
+                account_state = (
+                    account_state_manager_v2.get_state()
+                )
+
+                if not isinstance(
+                    account_state,
+                    dict,
+                ):
+                    raise ValueError(
+                        "execution_context_unavailable: "
+                        "account_state"
+                    )
+
+                required_account_fields = (
+                    "daily_pnl",
+                    "drawdown",
+                )
+
+                missing_account_fields = [
+                    field
+                    for field
+                    in required_account_fields
+                    if field not in account_state
+                ]
+
+                if missing_account_fields:
+                    raise ValueError(
+                        "execution_context_incomplete: "
+                        + ", ".join(
+                            missing_account_fields
+                        )
+                    )
+
+                current_price = float(
+                    candles[-1].close
+                )
+
+                risk_context = {
+                    "account_balance": float(
+                        account_balance
+                    ),
+                    "risk_percent": float(
+                        risk_percent
+                    ),
+                    "point_value": float(
+                        point_value
+                    ),
+                    "daily_pnl": float(
+                        account_state[
+                            "daily_pnl"
+                        ]
+                    ),
+                    "total_drawdown": float(
+                        account_state[
+                            "drawdown"
+                        ]
+                    ),
+                    "current_price": (
+                        current_price
+                    ),
+                }
+
+                order_context = {
+                    # FAIL-CLOSED:
+                    # no existe todavía una fuente
+                    # certificada de horario de mercado.
+                    "market_is_open": False,
+                }
+
                 result[
                     "trade_lifecycle_v2"
                 ] = (
@@ -2688,6 +2775,12 @@ class LiveMarketAnalysisService:
                             "signal_v2"
                         ],
                         order_type="MARKET",
+                        risk_context=(
+                            risk_context
+                        ),
+                        order_context=(
+                            order_context
+                        ),
                     )
                 )
         
