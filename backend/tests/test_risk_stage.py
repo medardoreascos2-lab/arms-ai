@@ -78,3 +78,18 @@ def test_risk_stage_requires_pipeline_dependencies():
         match="current_price",
     ):
         stage.run({})
+
+
+def test_risk_stage_uses_technical_decision_contract():
+    context = build_context()
+    context = IntelligenceStage().run(context)
+
+    technical_decision = context["technical_decision"]
+
+    # Prove RiskStage does not depend on the compatibility
+    # alias context["decision"].
+    context["decision"] = object()
+
+    result = RiskStage().run(context)
+
+    assert result["technical_decision"] is technical_decision

@@ -67,3 +67,15 @@ def test_intelligence_stage_requires_pipeline_dependencies():
         match="current_price",
     ):
         stage.run({})
+
+
+def test_intelligence_stage_exposes_technical_decision():
+    context = build_context()
+
+    result = IntelligenceStage().run(context)
+
+    assert "technical_decision" in result
+    assert (
+        result["technical_decision"]
+        is result["decision"]
+    )

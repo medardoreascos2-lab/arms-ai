@@ -72,6 +72,15 @@ class IntelligenceStage:
             {
                 "trend": trend,
                 "intelligence": intelligence,
+                # Canonical preliminary technical decision.
+                #
+                # RiskStage consumes this value before DecisionStage
+                # produces the final A+ decision.
+                "technical_decision": decision,
+
+                # Temporary compatibility alias.
+                # DecisionStage later replaces context["decision"]
+                # with the canonical final decision.
                 "decision": decision,
                 "decision_engine": decision_engine,
             }

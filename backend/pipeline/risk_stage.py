@@ -17,7 +17,7 @@ class RiskStage:
         "current_price",
         "atr",
         "rsi",
-        "decision",
+        "technical_decision",
         "intelligence",
     )
 
@@ -46,7 +46,7 @@ class RiskStage:
         current_price = context["current_price"]
         atr = context["atr"]
         rsi = context["rsi"]
-        decision = context["decision"]
+        decision = context["technical_decision"]
 
         if hasattr(
             decision,
