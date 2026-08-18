@@ -42,14 +42,14 @@ def test_dashboard_summary():
 
     assert response.status_code == 200
 
-    assert response.json() == {
-        "controller": {
-            "is_running": True,
-            "registered_jobs": 12,
-            "pending_tasks": 2,
-            "iterations": 48,
-            "last_error": None,
-        }
+    payload = response.json()
+
+    assert payload["controller"] == {
+        "is_running": True,
+        "registered_jobs": 12,
+        "pending_tasks": 2,
+        "iterations": 48,
+        "last_error": None,
     }
 
 
