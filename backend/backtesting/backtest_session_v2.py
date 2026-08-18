@@ -4,6 +4,22 @@ from typing import Any
 
 from backend.models.candle import Candle
 
+from backend.backtesting.backtest_execution_simulator_v2 import (
+    BacktestExecutionSimulatorV2,
+)
+
+from backend.risk.risk_pipeline_v1 import (
+    RiskPipelineV1,
+)
+
+from backend.risk.account_config_manager_v1 import (
+    AccountConfigManagerV1,
+)
+
+from backend.backtesting.backtest_execution_adapter_v2 import (
+    BacktestExecutionAdapterV2,
+)
+
 from backend.backtesting.backtest_report_v2 import (
     BacktestReportV2,
 )
@@ -17,6 +33,10 @@ from backend.services.signal_submission_target_v2 import (
     SignalSubmissionTargetV2,
 )
 
+
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
 
 class BacktestSessionV2:
     """
@@ -163,6 +183,20 @@ class BacktestSessionV2:
         self.trade_executor_v2 = (
             trade_executor_v2
         )
+
+        self.account_config = (
+            AccountConfigManagerV1()
+        )
+
+
+        self.risk_pipeline = (
+            RiskPipelineV1(
+                profile=(
+                    self.account_config
+                    .get_profile()
+                )
+            )
+        )
         self.backtest_trade_plan_adapter_v2 = (
             backtest_trade_plan_adapter_v2
         )
@@ -198,12 +232,18 @@ class BacktestSessionV2:
             dict[str, object]
         ] = []
 
+        self.simulated_trades: list[
+            object
+        ] = []
+
         self.position_update_results: list[
             dict[str, object]
         ] = []
 
         self.active_position_id: str | None = None
         self.candle_history: list[dict[str, object]] = []
+
+        self.future_candles = []
 
     def run(self) -> int:
         """
@@ -216,70 +256,83 @@ class BacktestSessionV2:
         self.trade_plans.clear()
         self.signals.clear()
         self.submission_results.clear()
+        self.simulated_trades.clear()
         self.position_update_results.clear()
         self.active_position_id = None
         self.candle_history.clear()
 
-    def on_candle(
-        candle: Any,
-        publish_result: Any,
-    ) -> None:
+        def on_candle(
+                candle: Any,
+                publish_result: Any,
+            ) -> None:
 
-        normalized_candle = self._normalize_candle(
-            candle
-        )
-
-        self._update_active_position_if_configured(
-            candle=normalized_candle,
-        )
-
-        self.candle_history.append(
-            normalized_candle
-        )
-
-        context = {
-            "candle": normalized_candle,
-            "history": self.candle_history,
-            "publish_result": publish_result,
-        }
-
-        decision = (
-            self.strategy_runner_v2.run(
-                context
-            )
-        )
-
-        if not isinstance(
-            decision,
-            TradingDecisionV2,
-        ):
-            raise TypeError(
-                "strategy_runner_v2 debe devolver "
-                "TradingDecisionV2."
+            normalized_candle = self._normalize_candle(
+                candle
             )
 
-        self.decisions.append(
-            decision
-        )
+            self._update_active_position_if_configured(
+                candle=normalized_candle,
+            )
 
-        if (
-            decision.action
-            is TradingActionV2.HOLD
-        ):
-            return
+            self.candle_history.append(
+                normalized_candle
+            )
 
-        self._generate_signal_if_configured(
-            decision=decision,
-            candle=normalized_candle,
-        )
+            context = {
+                "candle": normalized_candle,
+                "history": self.candle_history,
+                "publish_result": publish_result,
 
-        self._execute_trade_if_configured(
-            decision=decision,
-            candle=normalized_candle,
-        )
+                "active_position_id": (
+                    self.active_position_id
+                ),
 
-        return self.backtest_runner_v2.run(
+                "has_active_position": (
+                    self.active_position_id
+                    is not None
+                ),
+            }
+
+            decision = (
+                self.strategy_runner_v2.run(
+                    context
+                )
+            )
+
+            if not isinstance(
+                decision,
+                TradingDecisionV2,
+            ):
+                raise TypeError(
+                    "strategy_runner_v2 debe devolver "
+                    "TradingDecisionV2."
+                )
+
+            self.decisions.append(
+                decision
+            )
+
+            if (
+                decision.action
+                is TradingActionV2.HOLD
+            ):
+                return
+
+            self._generate_signal_if_configured(
+                decision=decision,
+                candle=normalized_candle,
+            )
+
+            self._execute_trade_if_configured(
+                decision=decision,
+                candle=normalized_candle,
+            )
+        candles_processed = self.backtest_runner_v2.run(
             on_candle=on_candle,
+        )
+
+        return int(
+            candles_processed
         )
 
     def build_report(
@@ -488,6 +541,20 @@ class BacktestSessionV2:
                 submission_result
             )
 
+
+            simulated_trade = getattr(
+                submission_result,
+                "simulated_trade",
+                None,
+            )
+
+
+            if simulated_trade is not None:
+                self.simulated_trades.append(
+                    simulated_trade
+                )
+
+
             if isinstance(
                 submission_result,
                 dict,
@@ -499,11 +566,28 @@ class BacktestSessionV2:
                     )
                 )
 
-                active_position_id = (
-                    submission_result.get(
-                        "active_position_id"
+                active_position_id = None
+
+
+                if isinstance(
+                    submission_result,
+                    dict,
+                ):
+
+                    active_position_id = (
+                        submission_result.get(
+                            "active_position_id"
+                        )
                     )
-                )
+
+
+                else:
+
+                    active_position_id = getattr(
+                        submission_result,
+                        "active_position_id",
+                        None,
+                    )
 
                 if (
                     accepted
@@ -596,6 +680,7 @@ class BacktestSessionV2:
         if self.trade_executor_v2 is None:
             return
 
+
         symbol = str(
             candle.get(
                 "symbol",
@@ -603,10 +688,12 @@ class BacktestSessionV2:
             )
         ).strip()
 
+
         if not symbol:
             raise ValueError(
                 "candle debe contener symbol."
             )
+
 
         price = float(
             candle.get(
@@ -615,15 +702,82 @@ class BacktestSessionV2:
             )
         )
 
+
         if price <= 0:
             raise ValueError(
-                "candle debe contener un close "
-                "mayor que cero."
+                "candle debe contener close válido."
             )
 
-        self.trade_executor_v2.execute(
-            symbol=symbol,
-            decision=decision,
-            price=price,
-            quantity=1.0,
+
+        is_long = (
+            decision.action.value == "BUY"
+        )
+
+
+        if hasattr(
+            self.trade_executor_v2,
+            "future_candles",
+        ):
+
+            self.trade_executor_v2.future_candles = (
+                self.future_candles
+            )
+
+
+        risk_result = (
+            self.risk_pipeline.evaluate(
+                entry=price,
+                stop_loss=decision.metadata.get(
+                    "stop_loss"
+                ),
+                point_value=float(
+                    InstrumentProfileEngine()
+                    .get_profile(
+                        symbol=symbol
+                    )["point_value"]
+                ),
+            )
+        )
+
+
+        if not risk_result.allowed:
+
+            return None
+
+
+
+        simulated_trade = (
+            self.trade_executor_v2.execute(
+                symbol=symbol,
+                direction=(
+                    "BUY"
+                    if is_long
+                    else "SELL"
+                ),
+                entry=price,
+                stop_loss=decision.metadata.get(
+                    "stop_loss"
+                ),
+
+                take_profit=decision.metadata.get(
+                    "take_profit"
+                ),
+                contracts=(
+                    risk_result.contracts
+                ),
+                risk_amount=(
+                    risk_result.risk_amount
+                ),
+                approved=True,
+            )
+        )
+
+
+        self.simulated_trades.append(
+            simulated_trade
+        )
+
+
+        self.submission_results.append(
+            simulated_trade
         )

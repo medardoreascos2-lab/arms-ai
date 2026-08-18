@@ -22,6 +22,8 @@ class SimulatedTrade:
 
     status: str
 
+    pnl: float
+
     reasoning: List[str]
 
 
@@ -85,6 +87,8 @@ class TradeExecutionSimulatorV2:
 
                 status="BLOCKED",
 
+                pnl=0.0,
+
                 reasoning=[
 
                     "Operación rechazada por validación AI."
@@ -127,6 +131,10 @@ class TradeExecutionSimulatorV2:
             risk_amount=risk_amount,
 
             status="OPEN",
+
+            # Realized PnL remains zero
+            # until the position is closed.
+            pnl=0.0,
 
             reasoning=reasoning,
 

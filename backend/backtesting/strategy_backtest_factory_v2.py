@@ -28,6 +28,10 @@ from backend.backtesting.backtest_session_v2 import (
     BacktestSessionV2,
 )
 
+from backend.backtesting.backtest_execution_adapter_v2 import (
+    BacktestExecutionAdapterV2,
+)
+
 from backend.backtesting.backtest_trade_plan_adapter_v2 import (
     BacktestTradePlanAdapterV2,
 )
@@ -44,6 +48,10 @@ from backend.backtesting.replay_market_data_bridge_v2 import (
     ReplayMarketDataBridgeV2,
 )
 
+
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
 
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
@@ -87,7 +95,12 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
         ),
         position_manager=(
             PositionManagerV2(
-                point_value=2.0,
+                point_value=float(
+                    InstrumentProfileEngine()
+                    .get_profile(
+                        symbol="NQ"
+                    )["point_value"]
+                ),
             )
         ),
         trade_history_manager=(
@@ -151,6 +164,11 @@ def build_strategy_backtest_pipeline(
                 )
             )
         ),
+
+        trade_executor_v2=(
+            BacktestExecutionAdapterV2()
+        ),
+
         backtest_trade_plan_adapter_v2=(
             BacktestTradePlanAdapterV2()
         ),

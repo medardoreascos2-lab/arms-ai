@@ -48,10 +48,24 @@ class FakeStrategyRunner:
 
     def run(self, context):
 
+        if self.action is TradingActionV2.BUY:
+            metadata = {
+                "stop_loss": 19950.0,
+                "take_profit": 20100.0,
+            }
+        elif self.action is TradingActionV2.SELL:
+            metadata = {
+                "stop_loss": 20050.0,
+                "take_profit": 19900.0,
+            }
+        else:
+            metadata = {}
+
         return TradingDecisionV2(
             action=self.action,
             confidence=0.95,
             reason="TEST DECISION",
+            metadata=metadata,
         )
 
 
@@ -64,18 +78,30 @@ class FakeTradeExecutor:
         self,
         *,
         symbol,
-        decision,
-        price,
-        quantity,
+        direction,
+        entry,
+        stop_loss,
+        take_profit,
+        contracts,
+        risk_amount,
+        approved,
     ):
+        result = {
+            "symbol": symbol,
+            "direction": direction,
+            "entry": entry,
+            "stop_loss": stop_loss,
+            "take_profit": take_profit,
+            "contracts": contracts,
+            "risk_amount": risk_amount,
+            "approved": approved,
+        }
+
         self.calls.append(
-            {
-                "symbol": symbol,
-                "decision": decision,
-                "price": price,
-                "quantity": quantity,
-            }
+            result
         )
+
+        return result
 
 
 def build_session(
@@ -113,9 +139,13 @@ def test_backtest_session_executes_buy_trade():
     call = executor.calls[0]
 
     assert call["symbol"] == "NQ"
-    assert call["decision"].action is TradingActionV2.BUY
-    assert call["price"] == 20000.0
-    assert call["quantity"] == 1.0
+    assert call["direction"] == "BUY"
+    assert call["entry"] == 20000.0
+    assert call["stop_loss"] == 19950.0
+    assert call["take_profit"] == 20100.0
+    assert call["contracts"] == 1
+    assert call["risk_amount"] == 250.0
+    assert call["approved"] is True
 
 
 def test_backtest_session_executes_sell_trade():
@@ -133,10 +163,14 @@ def test_backtest_session_executes_sell_trade():
 
     call = executor.calls[0]
 
-    assert call["decision"].action is TradingActionV2.SELL
+    assert call["direction"] == "SELL"
     assert call["symbol"] == "NQ"
-    assert call["price"] == 20000.0
-    assert call["quantity"] == 1.0
+    assert call["entry"] == 20000.0
+    assert call["stop_loss"] == 20050.0
+    assert call["take_profit"] == 19900.0
+    assert call["contracts"] == 1
+    assert call["risk_amount"] == 250.0
+    assert call["approved"] is True
 
 
 def test_backtest_session_does_not_execute_hold():

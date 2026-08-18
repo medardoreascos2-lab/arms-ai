@@ -1,3 +1,12 @@
+from backend.execution.trade_execution_simulator_v2 import (
+    SimulatedTrade,
+)
+
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
+
+
 class BacktestExecutionSimulatorV2:
     """
     Simula ejecución profesional
@@ -6,12 +15,35 @@ class BacktestExecutionSimulatorV2:
 
     def simulate(
         self,
+        symbol: str,
         direction: str,
         entry: float,
         stop_loss: float,
         take_profit: float,
+        contracts: int,
+        risk_amount: float,
         candles,
-    ) -> dict:
+    ) -> SimulatedTrade:
+
+        normalized_symbol = str(
+            symbol
+        ).strip().upper()
+
+        if not normalized_symbol:
+            raise ValueError(
+                "symbol no puede estar vacío."
+            )
+
+        profile = (
+            InstrumentProfileEngine()
+            .get_profile(
+                symbol=normalized_symbol
+            )
+        )
+
+        point_value = float(
+            profile["point_value"]
+        )
 
         exit_price = None
         result = "NO_RESULT"
@@ -58,28 +90,63 @@ class BacktestExecutionSimulatorV2:
 
         if exit_price is None:
 
+            if not candles:
+                return SimulatedTrade(
+                    symbol=normalized_symbol,
+                    direction=direction,
+                    entry=entry,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    contracts=contracts,
+                    risk_amount=risk_amount,
+                    status="NO_DATA",
+                    pnl=0.0,
+                    reasoning=[
+                        "No hay velas futuras para evaluar."
+                    ],
+                )
+
+
             exit_price = candles[-1].close
 
 
         if direction == "BUY":
 
             pnl = (
-                exit_price - entry
+                (
+                    exit_price - entry
+                )
+                *
+                contracts
+                * point_value
             )
 
             risk = (
-                entry - stop_loss
+                (
+                    entry - stop_loss
+                )
+                * contracts
+                * point_value
             )
 
 
         elif direction == "SELL":
 
             pnl = (
-                entry - exit_price
+                (
+                    entry - exit_price
+                )
+                *
+                contracts
+                * point_value
             )
 
             risk = (
-                stop_loss - entry
+                (
+                    stop_loss - entry
+                )
+                * contracts
+                * point_value
             )
 
 
@@ -94,15 +161,21 @@ class BacktestExecutionSimulatorV2:
         )
 
 
-        return {
-            "direction": direction,
-            "entry": entry,
-            "stop_loss": stop_loss,
-            "take_profit": take_profit,
-            "exit_price": exit_price,
-            "pnl": pnl,
-            "rr": rr,
-            "result": result,
-            "exit_reason": exit_reason,
-            "bars_held": bars_held,
-        }
+        return SimulatedTrade(
+            symbol=normalized_symbol,
+            direction=direction,
+            entry=entry,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            contracts=contracts,
+            risk_amount=risk_amount,
+            status=result,
+            pnl=float(
+                pnl
+            ),
+            reasoning=[
+                exit_reason,
+                f"RR={rr}",
+                f"BARS={bars_held}",
+            ],
+        )

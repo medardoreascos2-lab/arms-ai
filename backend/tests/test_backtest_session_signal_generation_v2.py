@@ -141,7 +141,7 @@ def test_generates_long_signal():
     assert signal["entry_price"] == 20000.0
     assert signal["stop_loss"] == 19950.0
     assert signal["take_profit"] == 20100.0
-    assert signal["contracts"] == 2
+    assert signal["contracts"] == 1
 
 
 def test_generates_short_signal():
