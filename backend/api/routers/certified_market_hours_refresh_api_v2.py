@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 from typing import Protocol
 
@@ -27,6 +28,17 @@ class MarketHoursLifecycleProtocol(Protocol):
         ...
 
 
+class MarketHoursCoverageProviderProtocol(
+    Protocol
+):
+    def is_date_covered(
+        self,
+        *,
+        target_date: date,
+    ) -> bool:
+        ...
+
+
 class CertifiedMarketHoursRefreshRequestV2(BaseModel):
     file_path: str
 
@@ -35,6 +47,9 @@ def create_certified_market_hours_refresh_router_v2(
     *,
     refresh_service: RuntimeRefreshServiceProtocol,
     lifecycle: MarketHoursLifecycleProtocol | None = None,
+    runtime_provider: (
+        MarketHoursCoverageProviderProtocol | None
+    ) = None,
 ) -> APIRouter:
     if refresh_service is None:
         raise ValueError(
@@ -70,6 +85,19 @@ def create_certified_market_hours_refresh_router_v2(
                     "lifecycle debe implementar "
                     f"{method_name}()."
                 )
+
+    if runtime_provider is not None:
+        coverage_method = getattr(
+            runtime_provider,
+            "is_date_covered",
+            None,
+        )
+
+        if not callable(coverage_method):
+            raise TypeError(
+                "runtime_provider debe implementar "
+                "is_date_covered()."
+            )
 
     router = APIRouter(
         prefix="/api/v2/market-hours",
@@ -114,5 +142,42 @@ def create_certified_market_hours_refresh_router_v2(
                     last_activation_report
                 ),
             }
+
+    @router.get("/coverage")
+    def get_certified_market_hours_coverage(
+        date: date,
+    ) -> dict[str, object]:
+        provider = runtime_provider
+
+        if lifecycle is not None:
+            get_active_provider = getattr(
+                lifecycle,
+                "get_active_provider",
+                None,
+            )
+
+            if callable(get_active_provider):
+                active_provider = get_active_provider()
+
+                if active_provider is not None:
+                    provider = active_provider
+
+        if provider is None:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Certified market hours runtime "
+                    "provider unavailable."
+                ),
+            )
+
+        covered = provider.is_date_covered(
+            target_date=date,
+        )
+
+        return {
+            "date": date.isoformat(),
+            "covered": covered,
+        }
 
     return router

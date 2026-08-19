@@ -288,3 +288,184 @@ def test_router_rejects_invalid_lifecycle():
             refresh_service=FakeRefreshService(),
             lifecycle=object(),
         )
+
+
+
+class FakeCoverageProvider:
+    def __init__(
+        self,
+        *,
+        covered_dates=None,
+    ) -> None:
+        self.covered_dates = set(
+            covered_dates or []
+        )
+        self.calls = []
+
+    def is_date_covered(
+        self,
+        *,
+        target_date,
+    ) -> bool:
+        self.calls.append(target_date)
+
+        return target_date in self.covered_dates
+
+
+def build_client_with_coverage_provider(
+    provider,
+):
+    service = FakeRefreshService()
+
+    app = FastAPI()
+
+    app.include_router(
+        create_certified_market_hours_refresh_router_v2(
+            refresh_service=service,
+            runtime_provider=provider,
+        )
+    )
+
+    return TestClient(app), service
+
+
+def test_coverage_endpoint_reports_covered_date():
+    from datetime import date
+
+    provider = FakeCoverageProvider(
+        covered_dates={
+            date(2026, 8, 18),
+        }
+    )
+
+    client, service = (
+        build_client_with_coverage_provider(
+            provider
+        )
+    )
+
+    response = client.get(
+        "/api/v2/market-hours/coverage",
+        params={
+            "date": "2026-08-18",
+        },
+    )
+
+    assert response.status_code == 200
+    assert service.calls == []
+
+    assert provider.calls == [
+        date(2026, 8, 18)
+    ]
+
+    assert response.json() == {
+        "date": "2026-08-18",
+        "covered": True,
+    }
+
+
+def test_coverage_endpoint_reports_uncovered_gap():
+    from datetime import date
+
+    provider = FakeCoverageProvider(
+        covered_dates={
+            date(2026, 8, 18),
+            date(2026, 8, 20),
+        }
+    )
+
+    client, service = (
+        build_client_with_coverage_provider(
+            provider
+        )
+    )
+
+    response = client.get(
+        "/api/v2/market-hours/coverage",
+        params={
+            "date": "2026-08-19",
+        },
+    )
+
+    assert response.status_code == 200
+    assert service.calls == []
+
+    assert provider.calls == [
+        date(2026, 8, 19)
+    ]
+
+    assert response.json() == {
+        "date": "2026-08-19",
+        "covered": False,
+    }
+
+
+def test_coverage_endpoint_requires_date():
+    provider = FakeCoverageProvider()
+
+    client, service = (
+        build_client_with_coverage_provider(
+            provider
+        )
+    )
+
+    response = client.get(
+        "/api/v2/market-hours/coverage"
+    )
+
+    assert response.status_code == 422
+    assert service.calls == []
+    assert provider.calls == []
+
+
+def test_coverage_endpoint_rejects_invalid_date():
+    provider = FakeCoverageProvider()
+
+    client, service = (
+        build_client_with_coverage_provider(
+            provider
+        )
+    )
+
+    response = client.get(
+        "/api/v2/market-hours/coverage",
+        params={
+            "date": "not-a-date",
+        },
+    )
+
+    assert response.status_code == 422
+    assert service.calls == []
+    assert provider.calls == []
+
+
+def test_coverage_endpoint_returns_503_without_provider():
+    client, service = build_client()
+
+    response = client.get(
+        "/api/v2/market-hours/coverage",
+        params={
+            "date": "2026-08-19",
+        },
+    )
+
+    assert response.status_code == 503
+    assert service.calls == []
+
+    assert response.json() == {
+        "detail": (
+            "Certified market hours runtime "
+            "provider unavailable."
+        )
+    }
+
+
+def test_router_rejects_invalid_runtime_provider():
+    with pytest.raises(
+        TypeError,
+        match="runtime_provider debe implementar",
+    ):
+        create_certified_market_hours_refresh_router_v2(
+            refresh_service=FakeRefreshService(),
+            runtime_provider=object(),
+        )
