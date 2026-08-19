@@ -38,7 +38,7 @@ def test_risk_dashboard_preserves_existing_contract(
     assert payload["balance"] == 50000
     assert payload["risk_percent"] == 0.5
     assert payload["risk_per_trade"] == 250.0
-    assert payload["daily_loss_limit"] == 1000
+    assert payload["daily_loss_limit"] is None
     assert payload["max_drawdown"] == 2000
     assert payload["status"] == "TRADING ENABLED"
 

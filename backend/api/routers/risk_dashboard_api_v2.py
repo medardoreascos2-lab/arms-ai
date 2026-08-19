@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
-from backend.api.dashboard.risk_dashboard_api_v1 import (
-    RiskDashboardAPIv1,
+from backend.accounts.account_config_manager_v2 import (
+    AccountConfigManagerV2,
 )
 from backend.risk.risk_event_analytics_v2 import (
     RiskEventAnalyticsV2,
@@ -16,7 +16,26 @@ router = APIRouter(
 )
 
 
-risk_api = RiskDashboardAPIv1()
+def _get_manager(
+    request: Request,
+) -> AccountConfigManagerV2:
+
+    manager = getattr(
+        request.app.state,
+        "account_config_manager_v2",
+        None,
+    )
+
+    if not isinstance(
+        manager,
+        AccountConfigManagerV2,
+    ):
+        raise RuntimeError(
+            "AccountConfigManagerV2 runtime "
+            "no disponible."
+        )
+
+    return manager
 
 
 @router.get("/risk")
@@ -24,9 +43,28 @@ def get_risk_dashboard(
     request: Request,
 ) -> dict[str, object]:
 
-    dashboard = dict(
-        risk_api.get_risk_dashboard()
-    )
+    manager = _get_manager(request)
+    profile = manager.get_active_account()
+
+    balance = float(profile.account_size)
+    risk_percent = float(profile.risk_percent)
+
+    dashboard: dict[str, object] = {
+        "account":
+            manager.get_active_account_name(),
+        "balance":
+            balance,
+        "risk_percent":
+            risk_percent,
+        "risk_per_trade":
+            balance * (risk_percent / 100.0),
+        "daily_loss_limit":
+            profile.daily_loss_limit,
+        "max_drawdown":
+            profile.max_drawdown,
+        "status":
+            "TRADING ENABLED",
+    }
 
     lifecycle = getattr(
         request.app.state,
