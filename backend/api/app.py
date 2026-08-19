@@ -1425,7 +1425,9 @@ def create_app(
                 trade_journal_v2=(
                     trade_journal_v2
                 ),
-                starting_balance=17000.0,
+                starting_balance=(
+                    active_starting_balance
+                ),
             )
         )
 

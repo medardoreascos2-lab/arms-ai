@@ -105,8 +105,8 @@ def test_main_app_trade_lifecycle_api_flow():
     metrics = performance_response.json()
 
     assert metrics["total_trades"] == 0
-    assert metrics["starting_balance"] == 17000.0
-    assert metrics["ending_balance"] == 17000.0
+    assert metrics["starting_balance"] == 50000.0
+    assert metrics["ending_balance"] == 50000.0
 
 
 def test_create_app_uses_injected_trade_lifecycle_service_v2():

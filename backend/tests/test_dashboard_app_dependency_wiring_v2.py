@@ -105,14 +105,14 @@ def test_dashboard_starts_ready_with_account_state():
         snapshot["account_overview"][
             "balance"
         ]
-        == 17000.0
+        == 50000.0
     )
 
     assert (
         snapshot["account_overview"][
             "equity"
         ]
-        == 17000.0
+        == 50000.0
     )
 
     assert (

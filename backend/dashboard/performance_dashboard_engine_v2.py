@@ -152,7 +152,14 @@ class PerformanceDashboardEngineV2:
                         for trade
                         in self.trade_journal_v2.get_trades()
                     ],
-                    starting_balance=17000.0,
+                    starting_balance=float(
+                        account_state.get(
+                            "starting_balance",
+                            portfolio_summary[
+                                "starting_balance"
+                            ],
+                        )
+                    ),
                 )
             )
 
