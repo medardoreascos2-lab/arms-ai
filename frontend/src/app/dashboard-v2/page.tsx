@@ -1149,6 +1149,13 @@ export default function DashboardV2Page() {
                       Number(
                         liveSnapshot.account_state.remaining_drawdown_capacity
                       ),
+
+                    event_analytics:
+                      isObject(
+                        riskProfileData?.event_analytics
+                      )
+                        ? riskProfileData.event_analytics
+                        : null,
                   }
                 : null
             }
