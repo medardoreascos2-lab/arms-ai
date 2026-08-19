@@ -93,6 +93,18 @@ from backend.execution.portfolio_risk_engine_v2 import (
 from backend.execution.order_validation_engine_v2 import (
     OrderValidationEngineV2,
 )
+from backend.accounts.account_config_manager_v2 import (
+    AccountConfigManagerV2,
+)
+from backend.risk.multi_account_risk_engine_v2 import (
+    MultiAccountRiskEngineV2,
+)
+from backend.risk.trade_risk_validator_v2 import (
+    TradeRiskValidatorV2,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
 
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
@@ -763,6 +775,9 @@ def create_app(
     trade_lifecycle_service_v2:
     TradeLifecycleServiceV2
     | None = None,
+    account_config_manager_v2:
+    AccountConfigManagerV2
+    | None = None,
     runtime_context:
     RuntimeContextV2
     | None = None,
@@ -798,6 +813,24 @@ def create_app(
         raise TypeError(
             "runtime_context debe ser "
             "RuntimeContextV2."
+        )
+
+    if (
+        account_config_manager_v2
+        is not None
+        and not isinstance(
+            account_config_manager_v2,
+            AccountConfigManagerV2,
+        )
+    ):
+        raise TypeError(
+            "account_config_manager_v2 debe ser "
+            "AccountConfigManagerV2."
+        )
+
+    if account_config_manager_v2 is None:
+        account_config_manager_v2 = (
+            AccountConfigManagerV2()
         )
 
     if runtime_context is not None:
@@ -1258,6 +1291,30 @@ def create_app(
             )
         )
 
+        multi_account_risk_engine_v2 = (
+            MultiAccountRiskEngineV2(
+                account_manager=(
+                    account_config_manager_v2
+                ),
+            )
+        )
+
+        trade_risk_validator_v2 = (
+            TradeRiskValidatorV2(
+                risk_engine=(
+                    multi_account_risk_engine_v2
+                ),
+            )
+        )
+
+        execution_risk_gate_v1 = (
+            ExecutionRiskGateV1(
+                validator=(
+                    trade_risk_validator_v2
+                ),
+            )
+        )
+
         trade_lifecycle_service_v2 = (
             TradeLifecycleServiceV2(
                 execution_manager=(
@@ -1297,6 +1354,9 @@ def create_app(
                 ),
                 portfolio_risk_engine_v2=(
                     portfolio_risk_engine_v2
+                ),
+                execution_risk_gate_v1=(
+                    execution_risk_gate_v1
                 ),
                 portfolio_manager_v2=(
                     portfolio_manager_v2
@@ -1839,6 +1899,10 @@ def create_app(
 
     app.state.trade_lifecycle_service_v2 = (
         trade_lifecycle_service_v2
+    )
+
+    app.state.account_config_manager_v2 = (
+        account_config_manager_v2
     )
 
     app.state.trade_planner_v2 = (

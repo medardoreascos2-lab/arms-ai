@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from backend.accounts.account_config_manager_v2 import (
     AccountConfigManagerV2,
@@ -11,12 +11,34 @@ router = APIRouter(
 )
 
 
-manager = AccountConfigManagerV2()
+def _get_manager(
+    request: Request,
+) -> AccountConfigManagerV2:
+    manager = getattr(
+        request.app.state,
+        "account_config_manager_v2",
+        None,
+    )
+
+    if not isinstance(
+        manager,
+        AccountConfigManagerV2,
+    ):
+        raise RuntimeError(
+            "AccountConfigManagerV2 runtime "
+            "no disponible."
+        )
+
+    return manager
 
 
 
 @router.get("")
-def get_account_manager():
+def get_account_manager(
+    request: Request,
+):
+
+    manager = _get_manager(request)
 
     account = (
         manager
@@ -55,7 +77,11 @@ def get_account_manager():
 
 
 @router.get("/available")
-def get_available_accounts():
+def get_available_accounts(
+    request: Request,
+):
+
+    manager = _get_manager(request)
 
     return {
 
@@ -70,7 +96,10 @@ def get_available_accounts():
 @router.post("/switch")
 def switch_account(
     account_name: str,
+    request: Request,
 ):
+
+    manager = _get_manager(request)
 
     account = (
         manager
