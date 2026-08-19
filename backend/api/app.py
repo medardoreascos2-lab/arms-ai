@@ -1244,17 +1244,47 @@ def create_app(
         )
 
     if trade_lifecycle_service_v2 is None:
+        active_account_profile = (
+            account_config_manager_v2
+            .get_active_account()
+        )
+
+        active_starting_balance = float(
+            active_account_profile.account_size
+        )
+
+        active_maximum_daily_loss = (
+            None
+            if active_account_profile.daily_loss_limit
+            is None
+            else float(
+                active_account_profile.daily_loss_limit
+            )
+        )
+
+        active_maximum_total_drawdown = float(
+            active_account_profile.max_drawdown
+        )
+
         account_state_manager_v2 = (
             AccountStateManagerV2(
-                starting_balance=17000.0,
-                maximum_daily_loss=3000.0,
-                maximum_total_drawdown=4500.0,
+                starting_balance=(
+                    active_starting_balance
+                ),
+                maximum_daily_loss=(
+                    active_maximum_daily_loss
+                ),
+                maximum_total_drawdown=(
+                    active_maximum_total_drawdown
+                ),
             )
         )
 
         portfolio_manager_v2 = (
             PortfolioManagerV2(
-                starting_balance=17000.0,
+                starting_balance=(
+                    active_starting_balance
+                ),
                 account_state_manager_v2=(
                     account_state_manager_v2
                 ),
@@ -1280,8 +1310,12 @@ def create_app(
             position_sizing_engine=(
                 position_sizing_engine_v2
             ),
-            maximum_daily_loss=3000.0,
-            maximum_total_drawdown=4500.0,
+            maximum_daily_loss=(
+                active_maximum_daily_loss
+            ),
+            maximum_total_drawdown=(
+                active_maximum_total_drawdown
+            ),
             maximum_contracts=20,
             maximum_open_positions=1,
         )
