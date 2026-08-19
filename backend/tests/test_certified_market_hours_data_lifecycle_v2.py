@@ -225,3 +225,53 @@ def test_rejects_invalid_loader():
         CertifiedMarketHoursDataLifecycleV2(
             loader=object(),
         )
+
+
+def test_runtime_checkpoint_restores_active_state(
+    tmp_path,
+):
+    path = write_snapshot(tmp_path)
+
+    lifecycle = CertifiedMarketHoursDataLifecycleV2()
+
+    lifecycle.activate_from_file(
+        file_path=path,
+    )
+
+    original_provider = lifecycle.get_active_provider()
+    original_path = lifecycle.get_active_path()
+    original_status = lifecycle.get_status()
+    original_report = lifecycle.get_last_activation_report()
+
+    checkpoint = lifecycle.create_runtime_checkpoint()
+
+    second_dir = tmp_path / "second"
+    second_dir.mkdir()
+
+    second_path = write_snapshot(
+        second_dir,
+    )
+
+    lifecycle.activate_from_file(
+        file_path=second_path,
+    )
+
+    assert (
+        lifecycle.get_active_provider()
+        is not original_provider
+    )
+
+    lifecycle.restore_runtime_checkpoint(
+        checkpoint=checkpoint,
+    )
+
+    assert (
+        lifecycle.get_active_provider()
+        is original_provider
+    )
+    assert lifecycle.get_active_path() == original_path
+    assert lifecycle.get_status() == original_status
+    assert (
+        lifecycle.get_last_activation_report()
+        == original_report
+    )

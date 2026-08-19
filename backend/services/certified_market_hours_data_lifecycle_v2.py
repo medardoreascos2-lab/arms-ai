@@ -103,6 +103,89 @@ class CertifiedMarketHoursDataLifecycleV2:
             self._last_activation_report
         )
 
+    def create_runtime_checkpoint(
+        self,
+    ) -> dict[str, object]:
+        return {
+            "status": self._status,
+            "active_provider": self._active_provider,
+            "active_path": self._active_path,
+            "last_activation_report": (
+                None
+                if self._last_activation_report is None
+                else dict(self._last_activation_report)
+            ),
+        }
+
+    def restore_runtime_checkpoint(
+        self,
+        *,
+        checkpoint: dict[str, object],
+    ) -> None:
+        if not isinstance(checkpoint, dict):
+            raise TypeError(
+                "checkpoint debe ser dict."
+            )
+
+        required = {
+            "status",
+            "active_provider",
+            "active_path",
+            "last_activation_report",
+        }
+
+        if set(checkpoint) != required:
+            raise ValueError(
+                "checkpoint de market hours inválido."
+            )
+
+        status = checkpoint["status"]
+        provider = checkpoint["active_provider"]
+        active_path = checkpoint["active_path"]
+        report = checkpoint["last_activation_report"]
+
+        if status not in {
+            self.STATUS_EMPTY,
+            self.STATUS_READY,
+            self.STATUS_FAILED,
+        }:
+            raise ValueError(
+                "checkpoint status inválido."
+            )
+
+        if provider is not None and not isinstance(
+            provider,
+            CertifiedMarketHoursRuntimeProviderV2,
+        ):
+            raise TypeError(
+                "checkpoint provider inválido."
+            )
+
+        if active_path is not None and not isinstance(
+            active_path,
+            Path,
+        ):
+            raise TypeError(
+                "checkpoint active_path inválido."
+            )
+
+        if report is not None and not isinstance(
+            report,
+            dict,
+        ):
+            raise TypeError(
+                "checkpoint report inválido."
+            )
+
+        self._status = status
+        self._active_provider = provider
+        self._active_path = active_path
+        self._last_activation_report = (
+            None
+            if report is None
+            else dict(report)
+        )
+
     def activate_from_file(
         self,
         *,
