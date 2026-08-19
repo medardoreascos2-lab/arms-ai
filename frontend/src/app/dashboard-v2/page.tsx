@@ -827,15 +827,13 @@ export default function DashboardV2Page() {
               ) {
                 if (
                   isObject(
-                    payload.data
+                    payload.dashboard
                   )
                 ) {
                   setLiveSnapshot(
-                    payload.data
+                    payload.dashboard
                   );
                 }
-
-                void loadDashboard();
               }
 
               setLastUpdated(
