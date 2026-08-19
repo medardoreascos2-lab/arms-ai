@@ -132,6 +132,10 @@ from backend.api.routers.risk_dashboard_api_v2 import (
     router as risk_dashboard_router,
 )
 
+from backend.api.routers.execution_risk_events_api_v2 import (
+    router as execution_risk_events_router,
+)
+
 from backend.api.routers.account_switch_api_v2 import (
     router as account_switch_router,
 )
@@ -2786,6 +2790,11 @@ def create_app(
     register_router_v2(
         app,
         risk_dashboard_router,
+    )
+
+    register_router_v2(
+        app,
+        execution_risk_events_router,
     )
 
 
