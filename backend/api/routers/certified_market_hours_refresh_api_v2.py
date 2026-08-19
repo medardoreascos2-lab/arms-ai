@@ -14,6 +14,19 @@ class RuntimeRefreshServiceProtocol(Protocol):
         ...
 
 
+class MarketHoursLifecycleProtocol(Protocol):
+    def get_status(self) -> str:
+        ...
+
+    def get_active_path(self) -> Path | None:
+        ...
+
+    def get_last_activation_report(
+        self,
+    ) -> dict[str, object] | None:
+        ...
+
+
 class CertifiedMarketHoursRefreshRequestV2(BaseModel):
     file_path: str
 
@@ -21,6 +34,7 @@ class CertifiedMarketHoursRefreshRequestV2(BaseModel):
 def create_certified_market_hours_refresh_router_v2(
     *,
     refresh_service: RuntimeRefreshServiceProtocol,
+    lifecycle: MarketHoursLifecycleProtocol | None = None,
 ) -> APIRouter:
     if refresh_service is None:
         raise ValueError(
@@ -38,6 +52,24 @@ def create_certified_market_hours_refresh_router_v2(
             "refresh_service debe implementar "
             "refresh_from_file()."
         )
+
+    if lifecycle is not None:
+        for method_name in (
+            "get_status",
+            "get_active_path",
+            "get_last_activation_report",
+        ):
+            method = getattr(
+                lifecycle,
+                method_name,
+                None,
+            )
+
+            if not callable(method):
+                raise TypeError(
+                    "lifecycle debe implementar "
+                    f"{method_name}()."
+                )
 
     router = APIRouter(
         prefix="/api/v2/market-hours",
@@ -59,5 +91,28 @@ def create_certified_market_hours_refresh_router_v2(
         return refresh_service.refresh_from_file(
             file_path=file_path,
         )
+
+    if lifecycle is not None:
+
+        @router.get("/status")
+        def get_certified_market_hours_status(
+        ) -> dict[str, object]:
+            active_path = lifecycle.get_active_path()
+            last_activation_report = (
+                lifecycle.get_last_activation_report()
+            )
+
+            return {
+                "status": lifecycle.get_status(),
+                "active": active_path is not None,
+                "active_path": (
+                    None
+                    if active_path is None
+                    else str(active_path)
+                ),
+                "last_activation_report": (
+                    last_activation_report
+                ),
+            }
 
     return router

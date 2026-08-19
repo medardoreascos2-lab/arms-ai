@@ -2581,6 +2581,10 @@ def create_app(
                 app.state
                 .market_hours_runtime_refresh_service_v2
             ),
+            lifecycle=(
+                app.state
+                .market_hours_data_lifecycle_v2
+            ),
         )
     )
 
