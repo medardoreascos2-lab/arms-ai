@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 
 router = APIRouter(
@@ -12,6 +12,18 @@ router = APIRouter(
 @router.get("/risk-events")
 def get_execution_risk_events(
     request: Request,
+    symbol: str | None = None,
+    event_type: str | None = None,
+    start_timestamp: str | None = None,
+    end_timestamp: str | None = None,
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+    ),
+    offset: int = Query(
+        default=0,
+        ge=0,
+    ),
 ) -> dict[str, object]:
     lifecycle = getattr(
         request.app.state,
@@ -39,7 +51,41 @@ def get_execution_risk_events(
             "count": 0,
         }
 
-    events = gate.get_risk_events()
+    logger = getattr(
+        gate,
+        "logger",
+        None,
+    )
+
+    store = getattr(
+        logger,
+        "store",
+        None,
+    )
+
+    if store is None:
+        events = gate.get_risk_events()
+
+        return {
+            "status": "READY",
+            "events": events,
+            "count": len(events),
+        }
+
+    try:
+        events = store.query_events(
+            symbol=symbol,
+            event_type=event_type,
+            start_timestamp=start_timestamp,
+            end_timestamp=end_timestamp,
+            limit=limit,
+            offset=offset,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
 
     return {
         "status": "READY",

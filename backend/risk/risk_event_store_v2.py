@@ -166,6 +166,144 @@ class RiskEventStoreV2:
             self._events
         )
 
+    def query_events(
+        self,
+        *,
+        symbol: str | None = None,
+        event_type: str | None = None,
+        start_timestamp: str | None = None,
+        end_timestamp: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        if not isinstance(
+            offset,
+            int,
+        ) or isinstance(
+            offset,
+            bool,
+        ) or offset < 0:
+            raise ValueError(
+                "offset no puede ser negativo."
+            )
+
+        if limit is not None:
+            if not isinstance(
+                limit,
+                int,
+            ) or isinstance(
+                limit,
+                bool,
+            ) or limit <= 0:
+                raise ValueError(
+                    "limit debe ser mayor que cero."
+                )
+
+        normalized_symbol = None
+
+        if symbol is not None:
+            normalized_symbol = (
+                str(symbol)
+                .strip()
+                .upper()
+            )
+
+            if not normalized_symbol:
+                raise ValueError(
+                    "symbol no puede estar vacío."
+                )
+
+        normalized_event_type = None
+
+        if event_type is not None:
+            normalized_event_type = (
+                str(event_type)
+                .strip()
+                .upper()
+            )
+
+            if not normalized_event_type:
+                raise ValueError(
+                    "event_type no puede estar vacío."
+                )
+
+        events = self.get_events()
+
+        filtered: list[
+            dict[str, Any]
+        ] = []
+
+        for event in events:
+            if normalized_symbol is not None:
+                event_symbol = (
+                    str(
+                        event.get(
+                            "symbol",
+                            "",
+                        )
+                    )
+                    .strip()
+                    .upper()
+                )
+
+                if (
+                    event_symbol
+                    != normalized_symbol
+                ):
+                    continue
+
+            if normalized_event_type is not None:
+                current_event_type = (
+                    str(
+                        event.get(
+                            "event_type",
+                            "",
+                        )
+                    )
+                    .strip()
+                    .upper()
+                )
+
+                if (
+                    current_event_type
+                    != normalized_event_type
+                ):
+                    continue
+
+            timestamp = str(
+                event.get(
+                    "timestamp",
+                    "",
+                )
+            )
+
+            if (
+                start_timestamp is not None
+                and timestamp < start_timestamp
+            ):
+                continue
+
+            if (
+                end_timestamp is not None
+                and timestamp > end_timestamp
+            ):
+                continue
+
+            filtered.append(
+                event
+            )
+
+        if limit is None:
+            return filtered[offset:]
+
+        if offset == 0:
+            return filtered[-limit:]
+
+        return filtered[
+            offset:
+            offset + limit
+        ]
+
     def clear(
         self,
     ) -> None:
