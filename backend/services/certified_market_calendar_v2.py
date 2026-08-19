@@ -29,6 +29,27 @@ class CertifiedCalendarSnapshotV2:
     covered_dates: frozenset[date]
     closed_dates: frozenset[date]
 
+    def is_date_covered(
+        self,
+        *,
+        target_date: date,
+    ) -> bool:
+        """
+        Return whether target_date belongs to the
+        explicit certified coverage set.
+
+        Coverage is membership-based. A date between
+        the minimum and maximum covered dates is not
+        considered covered unless it is explicitly
+        present in covered_dates.
+        """
+        if not isinstance(target_date, date):
+            raise TypeError(
+                "target_date debe ser date."
+            )
+
+        return target_date in self.covered_dates
+
     def __post_init__(
         self,
     ) -> None:

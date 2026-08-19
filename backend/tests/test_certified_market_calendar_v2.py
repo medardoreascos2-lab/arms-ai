@@ -513,3 +513,78 @@ def test_regular_schedule_still_has_priority():
         )
         is False
     )
+
+
+def test_snapshot_reports_explicitly_covered_date():
+    snapshot = CertifiedCalendarSnapshotV2(
+        covered_dates=frozenset(
+            {
+                date(2026, 8, 18),
+                date(2026, 8, 20),
+            }
+        ),
+        closed_dates=frozenset(),
+    )
+
+    assert (
+        snapshot.is_date_covered(
+            target_date=date(2026, 8, 18),
+        )
+        is True
+    )
+
+
+def test_snapshot_reports_uncovered_gap_date():
+    snapshot = CertifiedCalendarSnapshotV2(
+        covered_dates=frozenset(
+            {
+                date(2026, 8, 18),
+                date(2026, 8, 20),
+            }
+        ),
+        closed_dates=frozenset(),
+    )
+
+    assert (
+        snapshot.is_date_covered(
+            target_date=date(2026, 8, 19),
+        )
+        is False
+    )
+
+
+def test_snapshot_reports_date_outside_coverage():
+    snapshot = CertifiedCalendarSnapshotV2(
+        covered_dates=frozenset(
+            {
+                date(2026, 8, 18),
+            }
+        ),
+        closed_dates=frozenset(),
+    )
+
+    assert (
+        snapshot.is_date_covered(
+            target_date=date(2026, 8, 20),
+        )
+        is False
+    )
+
+
+def test_snapshot_coverage_query_rejects_non_date():
+    snapshot = CertifiedCalendarSnapshotV2(
+        covered_dates=frozenset(
+            {
+                date(2026, 8, 18),
+            }
+        ),
+        closed_dates=frozenset(),
+    )
+
+    with pytest.raises(
+        TypeError,
+        match="target_date",
+    ):
+        snapshot.is_date_covered(
+            target_date="2026-08-18",
+        )
