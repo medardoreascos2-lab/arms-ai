@@ -9,7 +9,7 @@ class AccountStateManagerV2:
         self,
         *,
         starting_balance: float,
-        maximum_daily_loss: float,
+        maximum_daily_loss: float | None,
         maximum_total_drawdown: float,
     ) -> None:
 
@@ -17,8 +17,10 @@ class AccountStateManagerV2:
             starting_balance
         )
 
-        maximum_daily_loss = float(
-            maximum_daily_loss
+        maximum_daily_loss = (
+            None
+            if maximum_daily_loss is None
+            else float(maximum_daily_loss)
         )
 
         maximum_total_drawdown = float(
@@ -30,9 +32,13 @@ class AccountStateManagerV2:
                 "starting_balance debe ser mayor que cero."
             )
 
-        if maximum_daily_loss <= 0:
+        if (
+            maximum_daily_loss is not None
+            and maximum_daily_loss <= 0
+        ):
             raise ValueError(
-                "maximum_daily_loss debe ser mayor que cero."
+                "maximum_daily_loss debe ser mayor que cero "
+                "cuando está definido."
             )
 
         if maximum_total_drawdown <= 0:
@@ -299,10 +305,14 @@ class AccountStateManagerV2:
             -daily_pnl,
         )
 
-        remaining = max(
-            0.0,
-            self.maximum_daily_loss
-            - daily_loss_used,
+        remaining = (
+            None
+            if self.maximum_daily_loss is None
+            else max(
+                0.0,
+                self.maximum_daily_loss
+                - daily_loss_used,
+            )
         )
 
         self._state[
@@ -326,7 +336,8 @@ class AccountStateManagerV2:
         ]
 
         if (
-            daily_loss_used
+            self.maximum_daily_loss is not None
+            and daily_loss_used
             >= self.maximum_daily_loss
         ):
             reasons.append(

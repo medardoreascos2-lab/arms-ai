@@ -331,3 +331,27 @@ def test_rejects_invalid_configuration(
         AccountStateManagerV2(
             **configuration,
         )
+
+
+def test_none_maximum_daily_loss_does_not_block():
+    manager = AccountStateManagerV2(
+        starting_balance=150000.0,
+        maximum_daily_loss=None,
+        maximum_total_drawdown=4500.0,
+    )
+
+    result = manager.record_daily_pnl(
+        daily_pnl=-5000.0,
+    )
+
+    state = result["state"]
+
+    assert state["daily_loss_used"] == 5000.0
+    assert (
+        state["remaining_daily_loss_capacity"]
+        is None
+    )
+    assert (
+        "daily_loss_limit_reached"
+        not in state["blocking_reasons"]
+    )

@@ -17,7 +17,7 @@ class RiskManagerV2:
         *,
         position_sizing_engine:
         PositionSizingEngineV2,
-        maximum_daily_loss: float,
+        maximum_daily_loss: float | None,
         maximum_total_drawdown: float,
         maximum_contracts: int,
         maximum_open_positions: int,
@@ -31,8 +31,10 @@ class RiskManagerV2:
                 "PositionSizingEngineV2."
             )
 
-        normalized_daily_loss = float(
-            maximum_daily_loss
+        normalized_daily_loss = (
+            None
+            if maximum_daily_loss is None
+            else float(maximum_daily_loss)
         )
 
         normalized_drawdown = float(
@@ -47,10 +49,13 @@ class RiskManagerV2:
             maximum_open_positions
         )
 
-        if normalized_daily_loss <= 0:
+        if (
+            normalized_daily_loss is not None
+            and normalized_daily_loss <= 0
+        ):
             raise ValueError(
                 "maximum_daily_loss debe ser "
-                "mayor que cero."
+                "mayor que cero cuando está definido."
             )
 
         if normalized_drawdown <= 0:
@@ -166,10 +171,14 @@ class RiskManagerV2:
             -normalized_daily_pnl,
         )
 
-        remaining_daily_loss_capacity = max(
-            0.0,
-            self.maximum_daily_loss
-            - daily_loss_used,
+        remaining_daily_loss_capacity = (
+            None
+            if self.maximum_daily_loss is None
+            else max(
+                0.0,
+                self.maximum_daily_loss
+                - daily_loss_used,
+            )
         )
 
         remaining_drawdown_capacity = max(
@@ -200,20 +209,21 @@ class RiskManagerV2:
                 "position_sizing_not_approved"
             )
 
-        if (
-            daily_loss_used
-            >= self.maximum_daily_loss
-        ):
-            blocking_reasons.append(
-                "daily_loss_limit_reached"
-            )
-        elif (
-            projected_daily_loss
-            > self.maximum_daily_loss
-        ):
-            blocking_reasons.append(
-                "projected_daily_loss_exceeded"
-            )
+        if self.maximum_daily_loss is not None:
+            if (
+                daily_loss_used
+                >= self.maximum_daily_loss
+            ):
+                blocking_reasons.append(
+                    "daily_loss_limit_reached"
+                )
+            elif (
+                projected_daily_loss
+                > self.maximum_daily_loss
+            ):
+                blocking_reasons.append(
+                    "projected_daily_loss_exceeded"
+                )
 
         if (
             normalized_total_drawdown

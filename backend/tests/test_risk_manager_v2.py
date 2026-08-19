@@ -333,3 +333,37 @@ def test_rejects_negative_open_positions():
             total_drawdown=0.0,
             open_positions=-1,
         )
+
+
+def test_allows_none_maximum_daily_loss():
+    manager = RiskManagerV2(
+        position_sizing_engine=PositionSizingEngineV2(),
+        maximum_daily_loss=None,
+        maximum_total_drawdown=4500.0,
+        maximum_contracts=15,
+        maximum_open_positions=5,
+    )
+
+    result = manager.evaluate(
+        account_balance=150000.0,
+        risk_percent=0.1,
+        stop_points=30.0,
+        point_value=2.0,
+        daily_pnl=-5000.0,
+        total_drawdown=0.0,
+        open_positions=0,
+    )
+
+    assert result["maximum_daily_loss"] is None
+    assert (
+        result["remaining_daily_loss_capacity"]
+        is None
+    )
+    assert (
+        "daily_loss_limit_reached"
+        not in result["blocking_reasons"]
+    )
+    assert (
+        "projected_daily_loss_exceeded"
+        not in result["blocking_reasons"]
+    )
