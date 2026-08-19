@@ -669,6 +669,9 @@ from backend.services.live_candle_store import (
 from backend.services.certified_market_hours_runtime_provider_v2 import (
     CertifiedMarketHoursRuntimeProviderV2,
 )
+from backend.services.certified_market_hours_snapshot_loader_v2 import (
+    CertifiedMarketHoursSnapshotLoaderV2,
+)
 
 from backend.trend.trend_engine_v2 import (
     TrendEngineV2,
@@ -1698,8 +1701,31 @@ def create_app(
         live_candle_store
     )
 
+    market_hours_calendar_snapshot_v2 = None
+    market_hours_special_hours_snapshot_v2 = None
+
+    if settings.certified_market_hours_path is not None:
+        (
+            market_hours_calendar_snapshot_v2,
+            market_hours_special_hours_snapshot_v2,
+        ) = (
+            CertifiedMarketHoursSnapshotLoaderV2()
+            .load_from_file(
+                file_path=(
+                    settings.certified_market_hours_path
+                )
+            )
+        )
+
     app.state.market_hours_runtime_provider_v2 = (
-        CertifiedMarketHoursRuntimeProviderV2()
+        CertifiedMarketHoursRuntimeProviderV2(
+            calendar_snapshot=(
+                market_hours_calendar_snapshot_v2
+            ),
+            special_hours_snapshot=(
+                market_hours_special_hours_snapshot_v2
+            ),
+        )
     )
 
     app.state.market_hours_service_v2 = (
