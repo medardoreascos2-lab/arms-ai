@@ -88,8 +88,6 @@ def intelligence_decision_dashboard():
 
         probability_score=90,
 
-        risk_score=100,
-
         memory_score=100,
 
     )

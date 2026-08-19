@@ -1276,37 +1276,49 @@ export default function DashboardV2Page() {
               isObject(
                 liveSnapshot?.trade_journal_summary
               )
-                ? {
-                    open_trades:
-                      Number(
-                        liveSnapshot.trade_journal_summary.open_trades
-                      ),
+                ? (() => {
+                    const journalSummary =
+                      liveSnapshot.trade_journal_summary;
 
-                    closed_trades:
-                      Number(
-                        liveSnapshot.trade_journal_summary.closed_trades
-                      ),
+                    const journalAnalytics =
+                      isObject(
+                        journalSummary.analytics
+                      )
+                        ? journalSummary.analytics
+                        : null;
 
-                    winning_trades:
-                      Number(
-                        liveSnapshot.trade_journal_summary.winning_trades
-                      ),
+                    return {
+                      open_trades:
+                        Number(
+                          journalSummary.open_trades
+                        ),
 
-                    losing_trades:
-                      Number(
-                        liveSnapshot.trade_journal_summary.losing_trades
-                      ),
+                      closed_trades:
+                        Number(
+                          journalSummary.closed_trades
+                        ),
 
-                    total_realized_pnl:
-                      Number(
-                        liveSnapshot.trade_journal_summary.total_realized_pnl
-                      ),
+                      winning_trades:
+                        Number(
+                          journalAnalytics?.winning_trades
+                        ),
 
-                    win_rate:
-                      Number(
-                        liveSnapshot.trade_journal_summary.win_rate
-                      ),
-                  }
+                      losing_trades:
+                        Number(
+                          journalAnalytics?.losing_trades
+                        ),
+
+                      total_realized_pnl:
+                        Number(
+                          journalAnalytics?.total_realized_pnl
+                        ),
+
+                      win_rate:
+                        Number(
+                          journalAnalytics?.win_rate
+                        ),
+                    };
+                  })()
                 : null
             }
           />

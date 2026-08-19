@@ -447,6 +447,10 @@ def execution_pipeline_v3(request: Request):
                 "point_value": 20,
                 "current_price": 23500,
                 "account_size": 150000,
+                "account_balance": 150000,
+                "risk_percent": 1,
+                "daily_pnl": 0,
+                "total_drawdown": 0,
             },
 
             order_context={
