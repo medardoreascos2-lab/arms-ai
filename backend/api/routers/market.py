@@ -353,6 +353,11 @@ def receive_market_webhook(
             "trade_lifecycle_service_v2",
             None,
         ),
+        market_hours_service_v2=getattr(
+            request.app.state,
+            "market_hours_service_v2",
+            None,
+        ),
     )
 
     if service.can_analyze(
@@ -591,6 +596,11 @@ def analyze_live_market(
         trade_lifecycle_service_v2=getattr(
             request.app.state,
             "trade_lifecycle_service_v2",
+            None,
+        ),
+        market_hours_service_v2=getattr(
+            request.app.state,
+            "market_hours_service_v2",
             None,
         ),
     )

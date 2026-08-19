@@ -666,6 +666,9 @@ from backend.services.live_analysis_store import (
 from backend.services.live_candle_store import (
     LiveCandleStore,
 )
+from backend.services.certified_market_hours_runtime_provider_v2 import (
+    CertifiedMarketHoursRuntimeProviderV2,
+)
 
 from backend.trend.trend_engine_v2 import (
     TrendEngineV2,
@@ -1693,6 +1696,16 @@ def create_app(
 
     app.state.live_candle_store = (
         live_candle_store
+    )
+
+    app.state.market_hours_runtime_provider_v2 = (
+        CertifiedMarketHoursRuntimeProviderV2()
+    )
+
+    app.state.market_hours_service_v2 = (
+        app.state
+        .market_hours_runtime_provider_v2
+        .get_market_hours_service()
     )
 
     app.state.trend_engine_v2 = (
