@@ -92,6 +92,26 @@ class CertifiedMarketHoursRuntimeProviderV2:
             )
         )
 
+    def is_date_covered(
+        self,
+        *,
+        target_date,
+    ) -> bool:
+        """
+        Return whether target_date is explicitly covered
+        by the certified calendar snapshot.
+
+        If no certified snapshot is active, coverage is
+        false. Otherwise the domain snapshot owns the
+        membership semantics and validation.
+        """
+        if self.calendar_snapshot is None:
+            return False
+
+        return self.calendar_snapshot.is_date_covered(
+            target_date=target_date,
+        )
+
     def get_market_hours_service(
         self,
     ) -> MarketHoursServiceV2:

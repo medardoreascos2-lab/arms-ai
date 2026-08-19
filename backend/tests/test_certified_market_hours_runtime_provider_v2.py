@@ -241,3 +241,83 @@ def test_provider_rejects_invalid_snapshots(
                 keyword: value,
             }
         )
+
+
+def test_provider_reports_explicit_covered_date():
+    from datetime import date
+
+    calendar = CertifiedCalendarSnapshotV2(
+        covered_dates=frozenset(
+            {
+                date(2026, 8, 18),
+                date(2026, 8, 20),
+            }
+        ),
+        closed_dates=frozenset(),
+    )
+
+    provider = CertifiedMarketHoursRuntimeProviderV2(
+        calendar_snapshot=calendar,
+    )
+
+    assert (
+        provider.is_date_covered(
+            target_date=date(2026, 8, 18),
+        )
+        is True
+    )
+
+
+def test_provider_reports_internal_coverage_gap():
+    from datetime import date
+
+    calendar = CertifiedCalendarSnapshotV2(
+        covered_dates=frozenset(
+            {
+                date(2026, 8, 18),
+                date(2026, 8, 20),
+            }
+        ),
+        closed_dates=frozenset(),
+    )
+
+    provider = CertifiedMarketHoursRuntimeProviderV2(
+        calendar_snapshot=calendar,
+    )
+
+    assert (
+        provider.is_date_covered(
+            target_date=date(2026, 8, 19),
+        )
+        is False
+    )
+
+
+def test_provider_without_snapshot_is_not_covered():
+    from datetime import date
+
+    provider = CertifiedMarketHoursRuntimeProviderV2()
+
+    assert (
+        provider.is_date_covered(
+            target_date=date(2026, 8, 18),
+        )
+        is False
+    )
+
+
+def test_provider_preserves_snapshot_date_validation():
+    provider = CertifiedMarketHoursRuntimeProviderV2(
+        calendar_snapshot=CertifiedCalendarSnapshotV2(
+            covered_dates=frozenset(),
+            closed_dates=frozenset(),
+        )
+    )
+
+    with pytest.raises(
+        TypeError,
+        match="target_date",
+    ):
+        provider.is_date_covered(
+            target_date="2026-08-18",
+        )
