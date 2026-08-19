@@ -675,6 +675,9 @@ from backend.services.certified_market_hours_runtime_provider_v2 import (
 from backend.services.certified_market_hours_runtime_refresh_service_v2 import (
     CertifiedMarketHoursRuntimeRefreshServiceV2,
 )
+from backend.api.routers.certified_market_hours_refresh_api_v2 import (
+    create_certified_market_hours_refresh_router_v2,
+)
 
 from backend.trend.trend_engine_v2 import (
     TrendEngineV2,
@@ -2570,6 +2573,15 @@ def create_app(
                 .strategy_registry_v2
             ),
         ),
+    )
+
+    app.include_router(
+        create_certified_market_hours_refresh_router_v2(
+            refresh_service=(
+                app.state
+                .market_hours_runtime_refresh_service_v2
+            ),
+        )
     )
 
     app.include_router(
