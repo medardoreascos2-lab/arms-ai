@@ -92,6 +92,9 @@ from backend.signals.signal_engine import (
 from backend.services.live_candle_store import (
     LiveCandleStore,
 )
+from backend.services.market_hours_service_v2 import (
+    MarketHoursServiceV2,
+)
 from backend.services.live_signal_store import (
     LiveSignalStore,
 )
@@ -188,6 +191,9 @@ class LiveMarketAnalysisService:
         | None = None,
         trade_lifecycle_service_v2:
         TradeLifecycleServiceV2
+        | None = None,
+        market_hours_service_v2:
+        MarketHoursServiceV2
         | None = None,
 ) -> None:
         self.candle_store = candle_store
@@ -358,6 +364,23 @@ class LiveMarketAnalysisService:
 
         self.trade_lifecycle_service_v2 = (
             trade_lifecycle_service_v2
+        )
+
+
+        if (
+            market_hours_service_v2 is not None
+            and not isinstance(
+                market_hours_service_v2,
+                MarketHoursServiceV2,
+            )
+        ):
+            raise TypeError(
+                "market_hours_service_v2 debe ser "
+                "MarketHoursServiceV2."
+            )
+
+        self.market_hours_service_v2 = (
+            market_hours_service_v2
         )
 
 
@@ -2760,11 +2783,30 @@ class LiveMarketAnalysisService:
                     ),
                 }
 
+                market_is_open = False
+
+                if (
+                    self.market_hours_service_v2
+                    is not None
+                ):
+                    market_is_open = (
+                        self.market_hours_service_v2
+                        .is_market_open(
+                            symbol=symbol,
+                            timestamp=(
+                                candles[-1].timestamp
+                            ),
+                        )
+                    )
+
                 order_context = {
                     # FAIL-CLOSED:
-                    # no existe todavía una fuente
-                    # certificada de horario de mercado.
-                    "market_is_open": False,
+                    # without a configured/certified
+                    # market-hours service, execution
+                    # remains blocked.
+                    "market_is_open": (
+                        market_is_open
+                    ),
                 }
 
                 result[
