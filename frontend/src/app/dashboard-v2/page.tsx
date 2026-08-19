@@ -1226,12 +1226,12 @@ export default function DashboardV2Page() {
 
                     winning_trades:
                       Number(
-                        liveSnapshot.analytics.winning_trades
+                        liveSnapshot.analytics.wins
                       ),
 
                     losing_trades:
                       Number(
-                        liveSnapshot.analytics.losing_trades
+                        liveSnapshot.analytics.losses
                       ),
 
                     win_rate:
@@ -1251,7 +1251,7 @@ export default function DashboardV2Page() {
 
                     net_profit:
                       Number(
-                        liveSnapshot.analytics.net_profit
+                        liveSnapshot.analytics.net_pnl
                       ),
 
                     average_win:
@@ -1310,7 +1310,7 @@ export default function DashboardV2Page() {
 
                       total_realized_pnl:
                         Number(
-                          journalAnalytics?.total_realized_pnl
+                          journalAnalytics?.net_profit
                         ),
 
                       win_rate:
@@ -2193,39 +2193,76 @@ export default function DashboardV2Page() {
 
               executionPipelineData
 
-                ? {
+                ? (() => {
 
-                    trade_id:
+                    const pipelinePosition =
+                      isObject(
+                        executionPipelineData.position
+                      )
+                        ? executionPipelineData.position
+                        : null;
+
+                    const pipelineExecution =
+                      isObject(
+                        executionPipelineData.execution
+                      )
+                        ? executionPipelineData.execution
+                        : null;
+
+                    const accepted =
+                      executionPipelineData.accepted === true;
+
+                    const reason =
                       String(
-                        executionPipelineData.trade_id
-                      ),
+                        executionPipelineData.reason ?? ""
+                      );
 
-                    symbol:
-                      String(
-                        executionPipelineData.symbol
-                      ),
+                    return {
 
-                    direction:
-                      String(
-                        executionPipelineData.direction
-                      ),
+                      trade_id:
+                        String(
+                          executionPipelineData.active_position_id
+                          ?? pipelinePosition?.position_id
+                          ?? "-"
+                        ),
 
-                    execution_status:
-                      String(
-                        executionPipelineData.execution_status
-                      ),
+                      symbol:
+                        String(
+                          pipelinePosition?.symbol
+                          ?? "NQ"
+                        ),
 
-                    journal_status:
-                      String(
-                        executionPipelineData.journal_status
-                      ),
+                      direction:
+                        String(
+                          pipelinePosition?.direction
+                          ?? "-"
+                        ),
 
-                    message:
-                      String(
-                        executionPipelineData.message
-                      ),
+                      execution_status:
+                        accepted
+                          ? String(
+                              pipelineExecution?.status
+                              ?? "ACCEPTED"
+                            )
+                          : "BLOCKED",
 
-                  }
+                      journal_status:
+                        accepted
+                          ? "RECORDED"
+                          : "NOT_RECORDED",
+
+                      message:
+                        accepted
+                          ? "Lifecycle execution accepted."
+                          : (
+                              reason
+                                ? `Blocked: ${reason}`
+                                : "Execution not accepted."
+                            ),
+
+                    };
+
+                  })()
 
                 : null
 
