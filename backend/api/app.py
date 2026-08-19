@@ -672,6 +672,9 @@ from backend.services.certified_market_hours_data_lifecycle_v2 import (
 from backend.services.certified_market_hours_runtime_provider_v2 import (
     CertifiedMarketHoursRuntimeProviderV2,
 )
+from backend.services.certified_market_hours_runtime_refresh_service_v2 import (
+    CertifiedMarketHoursRuntimeRefreshServiceV2,
+)
 
 from backend.trend.trend_engine_v2 import (
     TrendEngineV2,
@@ -1736,6 +1739,15 @@ def create_app(
         app.state
         .market_hours_runtime_provider_v2
         .get_market_hours_service()
+    )
+
+    app.state.market_hours_runtime_refresh_service_v2 = (
+        CertifiedMarketHoursRuntimeRefreshServiceV2(
+            app_state=app.state,
+            lifecycle=(
+                app.state.market_hours_data_lifecycle_v2
+            ),
+        )
     )
 
     app.state.trend_engine_v2 = (

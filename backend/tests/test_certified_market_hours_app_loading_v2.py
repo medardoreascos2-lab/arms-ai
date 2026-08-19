@@ -198,6 +198,61 @@ def test_create_app_exposes_market_hours_data_lifecycle_v2(
     assert lifecycle.get_active_path() == path
 
 
+
+def test_create_app_exposes_runtime_refresh_service_v2(
+    tmp_path,
+):
+    path = _write_snapshot(
+        tmp_path,
+        covered_dates=["2026-08-18"],
+    )
+
+    app = create_app(
+        settings=APISettings(
+            certified_market_hours_path=str(path),
+        )
+    )
+
+    refresh_service = (
+        app.state
+        .market_hours_runtime_refresh_service_v2
+    )
+
+    assert (
+        refresh_service.app_state
+        is app.state
+    )
+    assert (
+        refresh_service.lifecycle
+        is app.state.market_hours_data_lifecycle_v2
+    )
+
+
+def test_create_app_refresh_service_uses_same_runtime_state(
+    tmp_path,
+):
+    path = _write_snapshot(
+        tmp_path,
+        covered_dates=["2026-08-18"],
+    )
+
+    app = create_app(
+        settings=APISettings(
+            certified_market_hours_path=str(path),
+        )
+    )
+
+    refresh_service = (
+        app.state
+        .market_hours_runtime_refresh_service_v2
+    )
+
+    assert (
+        refresh_service.lifecycle.get_active_provider()
+        is app.state.market_hours_runtime_provider_v2
+    )
+
+
 def test_create_app_without_certified_path_exposes_empty_lifecycle():
     app = create_app(
         settings=APISettings(
