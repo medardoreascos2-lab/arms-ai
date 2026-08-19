@@ -81,6 +81,17 @@ def submit_position(
             direction=direction,
         ),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.3,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+            "current_price": 100.0,
+        },
+        order_context={
+            "market_is_open": True,
+        },
     )
 
     assert result["accepted"] is True

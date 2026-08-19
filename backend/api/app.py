@@ -105,6 +105,12 @@ from backend.risk.trade_risk_validator_v2 import (
 from backend.execution.execution_risk_gate_v1 import (
     ExecutionRiskGateV1,
 )
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
+from backend.risk.risk_event_store_v2 import (
+    RiskEventStoreV2,
+)
 
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
@@ -785,6 +791,8 @@ def create_app(
     runtime_context:
     RuntimeContextV2
     | None = None,
+    risk_event_store_path_v2:
+    Path | str | None = None,
     backtesting_orchestrator_v2=None,
     backtesting_job_manager_v2=None,
     backtesting_job_queue_v2=None,
@@ -1206,6 +1214,20 @@ def create_app(
             )
         )
 
+    resolved_risk_event_store_path_v2 = (
+        risk_event_store_path_v2
+        if risk_event_store_path_v2 is not None
+        else Path("data/risk_events.json")
+    )
+
+    risk_event_store_v2 = RiskEventStoreV2(
+        path=resolved_risk_event_store_path_v2,
+    )
+
+    risk_event_logger_v1 = RiskEventLoggerV1(
+        store=risk_event_store_v2,
+    )
+
     # TRADE LIFECYCLE SERVICE V2
 
     if (
@@ -1316,6 +1338,7 @@ def create_app(
                 validator=(
                     trade_risk_validator_v2
                 ),
+                logger=risk_event_logger_v1,
             )
         )
 
@@ -1372,6 +1395,29 @@ def create_app(
             )
         )
 
+    if trade_lifecycle_service_v2 is None:
+        raise RuntimeError(
+            "trade_lifecycle_service_v2 no fue inicializado."
+        )
+
+    execution_risk_gate_v1 = getattr(
+        trade_lifecycle_service_v2,
+        "execution_risk_gate_v1",
+        None,
+    )
+
+    if execution_risk_gate_v1 is None:
+        execution_risk_gate_v1 = ExecutionRiskGateV1(
+            logger=risk_event_logger_v1,
+        )
+        trade_lifecycle_service_v2.execution_risk_gate_v1 = (
+            execution_risk_gate_v1
+        )
+    else:
+        execution_risk_gate_v1.logger = (
+            risk_event_logger_v1
+        )
+
     @asynccontextmanager
     async def lifespan(app):
 
@@ -1401,6 +1447,16 @@ def create_app(
         title=settings.title,
         version=settings.version,
         debug=settings.debug,
+    )
+
+    app.state.risk_event_store_v2 = (
+        risk_event_store_v2
+    )
+    app.state.risk_event_logger_v1 = (
+        risk_event_logger_v1
+    )
+    app.state.execution_risk_gate_v1 = (
+        execution_risk_gate_v1
     )
 
     app.state.strategy_registry_v2 = (

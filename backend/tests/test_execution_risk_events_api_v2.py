@@ -3,13 +3,17 @@ from fastapi.testclient import TestClient
 from backend.api.app import create_app
 
 
-def _client():
-    app = create_app()
+def _client(tmp_path):
+    app = create_app(
+        risk_event_store_path_v2=(
+            tmp_path / "risk_events.json"
+        ),
+    )
     return app, TestClient(app)
 
 
-def test_execution_risk_events_route_exists():
-    app, client = _client()
+def test_execution_risk_events_route_exists(tmp_path):
+    app, client = _client(tmp_path)
 
     response = client.get(
         "/api/v2/execution/risk-events"
@@ -32,8 +36,8 @@ def test_execution_risk_events_route_exists():
     assert gate is not None
 
 
-def test_execution_risk_events_reads_runtime_gate():
-    app, client = _client()
+def test_execution_risk_events_reads_runtime_gate(tmp_path):
+    app, client = _client(tmp_path)
 
     gate = (
         app.state
@@ -74,8 +78,8 @@ def test_execution_risk_events_reads_runtime_gate():
     assert "timestamp" in event
 
 
-def test_execution_risk_events_returns_copy():
-    app, client = _client()
+def test_execution_risk_events_returns_copy(tmp_path):
+    app, client = _client(tmp_path)
 
     gate = (
         app.state

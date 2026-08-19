@@ -66,6 +66,17 @@ def test_webhook_close_syncs_journal_and_dashboard():
     submitted = lifecycle.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.3,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+            "current_price": 100.0,
+        },
+        order_context={
+            "market_is_open": True,
+        },
     )
 
     assert submitted["accepted"] is True
@@ -128,7 +139,7 @@ def test_webhook_close_syncs_journal_and_dashboard():
 
     assert (
         closed_trade["realized_pnl"]
-        == 39.0
+        == 97.5
     )
 
     snapshot = (
@@ -186,7 +197,7 @@ def test_webhook_close_syncs_journal_and_dashboard():
         ][
             "net_profit"
         ]
-        == 39.0
+        == 97.5
     )
 
     assert (
@@ -195,5 +206,5 @@ def test_webhook_close_syncs_journal_and_dashboard():
         ][
             "balance"
         ]
-        == 17039.0
+        == 17097.5
     )

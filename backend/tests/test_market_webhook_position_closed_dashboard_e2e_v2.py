@@ -67,6 +67,17 @@ def test_position_closed_reaches_dashboard_websocket():
     submitted = service.submit_signal(
         signal=build_trade_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.3,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+            "current_price": 100.0,
+        },
+        order_context={
+            "market_is_open": True,
+        },
     )
 
     assert submitted["accepted"] is True
