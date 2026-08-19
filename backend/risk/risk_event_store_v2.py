@@ -227,6 +227,48 @@ class RiskEventStoreV2:
                     "event_type no puede estar vacío."
                 )
 
+        def validate_timestamp_filter(
+            value: str | None,
+            name: str,
+        ) -> None:
+            if value is None:
+                return
+
+            from datetime import datetime
+
+            candidate = str(value).strip()
+
+            if not candidate:
+                raise ValueError(
+                    f"{name} no puede estar vacío."
+                )
+
+            normalized = candidate
+
+            if normalized.endswith("Z"):
+                normalized = (
+                    normalized[:-1]
+                    + "+00:00"
+                )
+
+            try:
+                datetime.fromisoformat(
+                    normalized
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"{name} debe ser un timestamp ISO 8601 válido."
+                ) from exc
+
+        validate_timestamp_filter(
+            start_timestamp,
+            "start_timestamp",
+        )
+        validate_timestamp_filter(
+            end_timestamp,
+            "end_timestamp",
+        )
+
         events = self.get_events()
 
         filtered: list[

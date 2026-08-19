@@ -278,3 +278,65 @@ def test_query_rejects_negative_offset(
         raise AssertionError(
             "Expected ValueError"
         )
+
+
+def test_query_rejects_invalid_start_timestamp(
+    tmp_path,
+):
+    store = build_store(tmp_path)
+
+    try:
+        store.query_events(
+            start_timestamp="not-a-timestamp",
+        )
+    except ValueError as exc:
+        assert "start_timestamp" in str(exc)
+    else:
+        raise AssertionError(
+            "Expected ValueError for invalid "
+            "start_timestamp."
+        )
+
+
+def test_query_rejects_invalid_end_timestamp(
+    tmp_path,
+):
+    store = build_store(tmp_path)
+
+    try:
+        store.query_events(
+            end_timestamp="not-a-timestamp",
+        )
+    except ValueError as exc:
+        assert "end_timestamp" in str(exc)
+    else:
+        raise AssertionError(
+            "Expected ValueError for invalid "
+            "end_timestamp."
+        )
+
+
+def test_empty_store_rejects_invalid_timestamp(
+    tmp_path,
+):
+    from backend.risk.risk_event_store_v2 import (
+        RiskEventStoreV2,
+    )
+
+    store = RiskEventStoreV2(
+        path=tmp_path / "empty-risk-events.json"
+    )
+
+    assert store.get_events() == []
+
+    try:
+        store.query_events(
+            start_timestamp="not-a-timestamp",
+        )
+    except ValueError as exc:
+        assert "start_timestamp" in str(exc)
+    else:
+        raise AssertionError(
+            "Empty store must still validate "
+            "timestamp filters."
+        )
