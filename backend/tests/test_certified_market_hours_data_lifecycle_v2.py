@@ -275,3 +275,46 @@ def test_runtime_checkpoint_restores_active_state(
         lifecycle.get_last_activation_report()
         == original_report
     )
+
+
+def test_activation_report_exposes_coverage_range(
+    tmp_path,
+):
+    lifecycle = CertifiedMarketHoursDataLifecycleV2()
+
+    path = write_snapshot(
+        tmp_path,
+        covered_dates=[
+            "2026-08-20",
+            "2026-08-18",
+            "2026-08-19",
+        ],
+    )
+
+    report = lifecycle.activate_from_file(
+        file_path=path,
+    )
+
+    assert report["coverage_start"] == "2026-08-18"
+    assert report["coverage_end"] == "2026-08-20"
+    assert report["covered_dates"] == 3
+
+
+def test_activation_report_empty_coverage_has_no_range(
+    tmp_path,
+):
+    lifecycle = CertifiedMarketHoursDataLifecycleV2()
+
+    path = write_snapshot(
+        tmp_path,
+        covered_dates=[],
+    )
+
+    report = lifecycle.activate_from_file(
+        file_path=path,
+    )
+
+    assert report["success"] is True
+    assert report["coverage_start"] is None
+    assert report["coverage_end"] is None
+    assert report["covered_dates"] == 0

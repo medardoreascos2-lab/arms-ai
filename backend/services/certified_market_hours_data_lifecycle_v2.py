@@ -217,12 +217,33 @@ class CertifiedMarketHoursDataLifecycleV2:
                 )
             )
 
+            coverage_start = (
+                min(calendar_snapshot.covered_dates)
+                if calendar_snapshot.covered_dates
+                else None
+            )
+            coverage_end = (
+                max(calendar_snapshot.covered_dates)
+                if calendar_snapshot.covered_dates
+                else None
+            )
+
             report: dict[str, object] = {
                 "success": True,
                 "status": self.STATUS_READY,
                 "started_at": started_at,
                 "completed_at": self._utc_now(),
                 "source": str(path),
+                "coverage_start": (
+                    coverage_start.isoformat()
+                    if coverage_start is not None
+                    else None
+                ),
+                "coverage_end": (
+                    coverage_end.isoformat()
+                    if coverage_end is not None
+                    else None
+                ),
                 "covered_dates": len(
                     calendar_snapshot.covered_dates
                 ),
@@ -253,6 +274,8 @@ class CertifiedMarketHoursDataLifecycleV2:
                 "started_at": started_at,
                 "completed_at": self._utc_now(),
                 "source": str(path),
+                "coverage_start": None,
+                "coverage_end": None,
                 "covered_dates": None,
                 "closed_dates": None,
                 "special_hours": None,
