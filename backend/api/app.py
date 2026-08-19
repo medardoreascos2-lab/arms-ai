@@ -666,11 +666,11 @@ from backend.services.live_analysis_store import (
 from backend.services.live_candle_store import (
     LiveCandleStore,
 )
+from backend.services.certified_market_hours_data_lifecycle_v2 import (
+    CertifiedMarketHoursDataLifecycleV2,
+)
 from backend.services.certified_market_hours_runtime_provider_v2 import (
     CertifiedMarketHoursRuntimeProviderV2,
-)
-from backend.services.certified_market_hours_snapshot_loader_v2 import (
-    CertifiedMarketHoursSnapshotLoaderV2,
 )
 
 from backend.trend.trend_engine_v2 import (
@@ -1701,31 +1701,35 @@ def create_app(
         live_candle_store
     )
 
-    market_hours_calendar_snapshot_v2 = None
-    market_hours_special_hours_snapshot_v2 = None
+    app.state.market_hours_data_lifecycle_v2 = (
+        CertifiedMarketHoursDataLifecycleV2()
+    )
 
     if settings.certified_market_hours_path is not None:
-        (
-            market_hours_calendar_snapshot_v2,
-            market_hours_special_hours_snapshot_v2,
-        ) = (
-            CertifiedMarketHoursSnapshotLoaderV2()
-            .load_from_file(
-                file_path=(
-                    settings.certified_market_hours_path
-                )
+        app.state.market_hours_data_lifecycle_v2.activate_from_file(
+            file_path=(
+                settings.certified_market_hours_path
             )
         )
 
-    app.state.market_hours_runtime_provider_v2 = (
-        CertifiedMarketHoursRuntimeProviderV2(
-            calendar_snapshot=(
-                market_hours_calendar_snapshot_v2
-            ),
-            special_hours_snapshot=(
-                market_hours_special_hours_snapshot_v2
-            ),
+        market_hours_runtime_provider_v2 = (
+            app.state
+            .market_hours_data_lifecycle_v2
+            .get_active_provider()
         )
+
+        if market_hours_runtime_provider_v2 is None:
+            raise RuntimeError(
+                "certified market hours activation "
+                "did not produce a runtime provider"
+            )
+    else:
+        market_hours_runtime_provider_v2 = (
+            CertifiedMarketHoursRuntimeProviderV2()
+        )
+
+    app.state.market_hours_runtime_provider_v2 = (
+        market_hours_runtime_provider_v2
     )
 
     app.state.market_hours_service_v2 = (
