@@ -12,8 +12,8 @@ class ExposureManagerV2:
         *,
         maximum_total_open_risk: float,
         maximum_symbol_open_risk: float,
-        maximum_total_contracts: int,
-        maximum_symbol_contracts: int,
+        maximum_total_contracts: int | None,
+        maximum_symbol_contracts: int | None,
     ) -> None:
         normalized_total_risk = float(
             maximum_total_open_risk
@@ -23,12 +23,16 @@ class ExposureManagerV2:
             maximum_symbol_open_risk
         )
 
-        normalized_total_contracts = int(
-            maximum_total_contracts
+        normalized_total_contracts = (
+            None
+            if maximum_total_contracts is None
+            else int(maximum_total_contracts)
         )
 
-        normalized_symbol_contracts = int(
-            maximum_symbol_contracts
+        normalized_symbol_contracts = (
+            None
+            if maximum_symbol_contracts is None
+            else int(maximum_symbol_contracts)
         )
 
         if normalized_total_risk <= 0:
@@ -43,16 +47,22 @@ class ExposureManagerV2:
                 "mayor que cero."
             )
 
-        if normalized_total_contracts <= 0:
+        if (
+            normalized_total_contracts is not None
+            and normalized_total_contracts <= 0
+        ):
             raise ValueError(
                 "maximum_total_contracts debe ser "
-                "mayor que cero."
+                "mayor que cero cuando está definido."
             )
 
-        if normalized_symbol_contracts <= 0:
+        if (
+            normalized_symbol_contracts is not None
+            and normalized_symbol_contracts <= 0
+        ):
             raise ValueError(
                 "maximum_symbol_contracts debe ser "
-                "mayor que cero."
+                "mayor que cero cuando está definido."
             )
 
         if (
@@ -65,7 +75,9 @@ class ExposureManagerV2:
             )
 
         if (
-            normalized_symbol_contracts
+            normalized_symbol_contracts is not None
+            and normalized_total_contracts is not None
+            and normalized_symbol_contracts
             > normalized_total_contracts
         ):
             raise ValueError(
@@ -308,7 +320,8 @@ class ExposureManagerV2:
             )
 
         if (
-            projected_total_contracts
+            self.maximum_total_contracts is not None
+            and projected_total_contracts
             > self.maximum_total_contracts
         ):
             blocking_reasons.append(
@@ -316,7 +329,8 @@ class ExposureManagerV2:
             )
 
         if (
-            projected_symbol_contracts
+            self.maximum_symbol_contracts is not None
+            and projected_symbol_contracts
             > self.maximum_symbol_contracts
         ):
             blocking_reasons.append(
@@ -390,15 +404,23 @@ class ExposureManagerV2:
                     10,
                 ),
             ),
-            "remaining_total_contract_capacity": max(
-                0,
-                self.maximum_total_contracts
-                - projected_total_contracts,
+            "remaining_total_contract_capacity": (
+                None
+                if self.maximum_total_contracts is None
+                else max(
+                    0,
+                    self.maximum_total_contracts
+                    - projected_total_contracts,
+                )
             ),
-            "remaining_symbol_contract_capacity": max(
-                0,
-                self.maximum_symbol_contracts
-                - projected_symbol_contracts,
+            "remaining_symbol_contract_capacity": (
+                None
+                if self.maximum_symbol_contracts is None
+                else max(
+                    0,
+                    self.maximum_symbol_contracts
+                    - projected_symbol_contracts,
+                )
             ),
             "maximum_total_open_risk": (
                 self.maximum_total_open_risk

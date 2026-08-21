@@ -1360,8 +1360,8 @@ def create_app(
         exposure_manager_v2 = ExposureManagerV2(
             maximum_total_open_risk=500.0,
             maximum_symbol_open_risk=300.0,
-            maximum_total_contracts=10,
-            maximum_symbol_contracts=6,
+            maximum_total_contracts=None,
+            maximum_symbol_contracts=None,
         )
 
         portfolio_risk_engine_v2 = (

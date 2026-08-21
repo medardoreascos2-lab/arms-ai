@@ -459,3 +459,101 @@ def test_rejects_symbol_limits_above_total_limits():
             maximum_total_contracts=5,
             maximum_symbol_contracts=6,
         )
+
+
+def test_allows_none_contract_caps():
+    manager = ExposureManagerV2(
+        maximum_total_open_risk=5000.0,
+        maximum_symbol_open_risk=5000.0,
+        maximum_total_contracts=None,
+        maximum_symbol_contracts=None,
+    )
+
+    result = manager.evaluate(
+        open_positions=[],
+        candidate_symbol="MNQ",
+        candidate_contracts=50,
+        candidate_stop_points=10.0,
+        candidate_point_value=2.0,
+    )
+
+    assert result["approved"] is True
+
+    assert (
+        "maximum_total_contracts_exceeded"
+        not in result["blocking_reasons"]
+    )
+
+    assert (
+        "maximum_symbol_contracts_exceeded"
+        not in result["blocking_reasons"]
+    )
+
+    assert (
+        result["remaining_total_contract_capacity"]
+        is None
+    )
+
+    assert (
+        result["remaining_symbol_contract_capacity"]
+        is None
+    )
+
+    assert result["maximum_total_contracts"] is None
+    assert result["maximum_symbol_contracts"] is None
+
+
+def test_allows_total_contract_cap_without_symbol_cap():
+    manager = ExposureManagerV2(
+        maximum_total_open_risk=5000.0,
+        maximum_symbol_open_risk=5000.0,
+        maximum_total_contracts=50,
+        maximum_symbol_contracts=None,
+    )
+
+    result = manager.evaluate(
+        open_positions=[],
+        candidate_symbol="MNQ",
+        candidate_contracts=40,
+        candidate_stop_points=1.0,
+        candidate_point_value=2.0,
+    )
+
+    assert result["approved"] is True
+    assert (
+        result["remaining_total_contract_capacity"]
+        == 10
+    )
+    assert (
+        result["remaining_symbol_contract_capacity"]
+        is None
+    )
+
+
+def test_allows_symbol_contract_cap_without_total_cap():
+    manager = ExposureManagerV2(
+        maximum_total_open_risk=5000.0,
+        maximum_symbol_open_risk=5000.0,
+        maximum_total_contracts=None,
+        maximum_symbol_contracts=25,
+    )
+
+    result = manager.evaluate(
+        open_positions=[],
+        candidate_symbol="MNQ",
+        candidate_contracts=26,
+        candidate_stop_points=1.0,
+        candidate_point_value=2.0,
+    )
+
+    assert result["approved"] is False
+
+    assert (
+        "maximum_symbol_contracts_exceeded"
+        in result["blocking_reasons"]
+    )
+
+    assert (
+        "maximum_total_contracts_exceeded"
+        not in result["blocking_reasons"]
+    )
