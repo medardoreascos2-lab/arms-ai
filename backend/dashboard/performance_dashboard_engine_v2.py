@@ -127,6 +127,8 @@ class PerformanceDashboardEngineV2:
             is not None
             and self.trade_journal_v2
             is not None
+            and account_state is not None
+            and portfolio_summary is not None
         ):
 
             analytics = (

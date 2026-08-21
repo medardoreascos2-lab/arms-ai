@@ -79,7 +79,7 @@ def build_runtime_context(
     *,
     settings: ArmsSettings | None = None,
     execution_mode: str = "PAPER",
-    maximum_contracts: int = 20,
+    maximum_contracts: int | None = None,
     fill_market_orders_immediately: bool = True,
     slippage_points: float = 0.0,
     risk_free_rate: float = 0.0,
@@ -87,9 +87,58 @@ def build_runtime_context(
 ) -> RuntimeContextV2:
     resolved_settings = settings or ArmsSettings()
 
+    contract_limit_resolver = None
+
+    if maximum_contracts is None:
+        from backend.accounts.account_config_manager_v2 import (
+            AccountConfigManagerV2,
+        )
+        from backend.instruments.instrument_profile_engine import (
+            InstrumentProfileEngine,
+        )
+
+        account = (
+            AccountConfigManagerV2()
+            .get_active_account()
+        )
+
+        instrument_profiles = (
+            InstrumentProfileEngine()
+        )
+
+        def resolve_contract_limit(
+            symbol: str,
+        ) -> int:
+            profile = (
+                instrument_profiles
+                .get_profile(symbol=symbol)
+            )
+
+            return account.get_contract_limit(
+                profile["contract_class"]
+            )
+
+        resolved_maximum_contracts = min(
+            account.get_contract_limit("MINI"),
+            account.get_contract_limit("MICRO"),
+        )
+
+        contract_limit_resolver = (
+            resolve_contract_limit
+        )
+    else:
+        resolved_maximum_contracts = (
+            maximum_contracts
+        )
+
     execution_manager = ExecutionManagerV2(
         execution_mode=execution_mode,
-        maximum_contracts=maximum_contracts,
+        maximum_contracts=(
+            resolved_maximum_contracts
+        ),
+        contract_limit_resolver=(
+            contract_limit_resolver
+        ),
     )
 
     paper_execution_engine = PaperExecutionEngineV2(

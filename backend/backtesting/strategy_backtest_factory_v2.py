@@ -80,11 +80,46 @@ from backend.strategies.parameterized_strategy_runner_v2 import (
 
 def build_lifecycle() -> TradeLifecycleServiceV2:
 
+    from backend.accounts.account_config_manager_v2 import (
+        AccountConfigManagerV2,
+    )
+
+    account = (
+        AccountConfigManagerV2()
+        .get_active_account()
+    )
+
+    instrument_profiles = (
+        InstrumentProfileEngine()
+    )
+
+    def resolve_contract_limit(
+        symbol: str,
+    ) -> int:
+        profile = (
+            instrument_profiles
+            .get_profile(symbol=symbol)
+        )
+
+        return account.get_contract_limit(
+            profile["contract_class"]
+        )
+
+    runtime_contract_limit = min(
+        account.get_contract_limit("MINI"),
+        account.get_contract_limit("MICRO"),
+    )
+
     return TradeLifecycleServiceV2(
         execution_manager=(
             ExecutionManagerV2(
                 execution_mode="PAPER",
-                maximum_contracts=20,
+                maximum_contracts=(
+                    runtime_contract_limit
+                ),
+                contract_limit_resolver=(
+                    resolve_contract_limit
+                ),
             )
         ),
         paper_execution_engine=(

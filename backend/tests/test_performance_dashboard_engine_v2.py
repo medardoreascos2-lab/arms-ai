@@ -444,3 +444,32 @@ def test_new_analytics_ratio_is_exposed_as_percent():
         ]
         == 50.0
     )
+
+
+def test_build_with_journal_and_analytics_but_no_account_is_safe():
+    from backend.analytics.performance_analytics_v2 import (
+        PerformanceAnalyticsV2,
+    )
+    from backend.journal.trade_journal_v2 import (
+        TradeJournalV2,
+    )
+
+    engine = PerformanceDashboardEngineV2(
+        account_state_manager_v2=None,
+        portfolio_manager_v2=None,
+        trade_journal_v2=TradeJournalV2(),
+        performance_analytics_v2=(
+            PerformanceAnalyticsV2(
+                risk_free_rate=0.0,
+                trading_days_per_year=252,
+            )
+        ),
+    )
+
+    result = engine.build()
+
+    assert result["dashboard_status"] == "EMPTY"
+    assert result["account_state"] is None
+    assert result["portfolio_summary"] is None
+    assert result["analytics"] is None
+    assert result["risk_status"] is None
