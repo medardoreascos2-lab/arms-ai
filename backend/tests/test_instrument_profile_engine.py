@@ -192,3 +192,95 @@ def test_es_is_mini_contract():
 
     assert result["contract_class"] == "MINI"
     assert result["family"] == "SP500"
+
+
+def test_contract_caps_are_classified_as_legacy_safety_caps():
+    engine = build_engine()
+
+    for symbol in (
+        "NQ",
+        "MNQ",
+        "ES",
+        "MES",
+    ):
+        profile = engine.get_profile(
+            symbol=symbol
+        )
+
+        assert (
+            profile["contract_limit_source"]
+            == "LEGACY_SAFETY_CAP"
+        )
+
+
+def test_micro_profile_legacy_cap_is_not_active_account_limit():
+    from backend.accounts.account_config_manager_v2 import (
+        AccountConfigManagerV2,
+    )
+
+    engine = build_engine()
+
+    account = (
+        AccountConfigManagerV2()
+        .get_active_account()
+    )
+
+    mnq = engine.get_profile(
+        symbol="MNQ"
+    )
+
+    mes = engine.get_profile(
+        symbol="MES"
+    )
+
+    assert mnq["maximum_contracts"] == 20
+    assert mes["maximum_contracts"] == 20
+
+    assert (
+        account.get_contract_limit(
+            mnq["contract_class"]
+        )
+        == 50
+    )
+
+    assert (
+        account.get_contract_limit(
+            mes["contract_class"]
+        )
+        == 50
+    )
+
+
+def test_mini_profile_legacy_cap_matches_current_account_by_coincidence():
+    from backend.accounts.account_config_manager_v2 import (
+        AccountConfigManagerV2,
+    )
+
+    engine = build_engine()
+
+    account = (
+        AccountConfigManagerV2()
+        .get_active_account()
+    )
+
+    for symbol in (
+        "NQ",
+        "ES",
+    ):
+        profile = engine.get_profile(
+            symbol=symbol
+        )
+
+        assert profile["maximum_contracts"] == 5
+
+        assert (
+            account.get_contract_limit(
+                profile["contract_class"]
+            )
+            == 5
+        )
+
+        assert (
+            profile["contract_limit_source"]
+            == "LEGACY_SAFETY_CAP"
+        )

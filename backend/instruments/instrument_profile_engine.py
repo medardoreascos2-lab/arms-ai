@@ -26,6 +26,7 @@ class InstrumentProfileEngine:
                 "tick_size": 0.25,
                 "tick_value": 0.50,
                 "maximum_contracts": 20,
+                "contract_limit_source": "LEGACY_SAFETY_CAP",
             },
             "NQ": {
                 "symbol": "NQ",
@@ -38,6 +39,7 @@ class InstrumentProfileEngine:
                 "tick_size": 0.25,
                 "tick_value": 5.0,
                 "maximum_contracts": 5,
+                "contract_limit_source": "LEGACY_SAFETY_CAP",
             },
             "MES": {
                 "symbol": "MES",
@@ -50,6 +52,7 @@ class InstrumentProfileEngine:
                 "tick_size": 0.25,
                 "tick_value": 1.25,
                 "maximum_contracts": 20,
+                "contract_limit_source": "LEGACY_SAFETY_CAP",
             },
             "ES": {
                 "symbol": "ES",
@@ -62,6 +65,7 @@ class InstrumentProfileEngine:
                 "tick_size": 0.25,
                 "tick_value": 12.50,
                 "maximum_contracts": 5,
+                "contract_limit_source": "LEGACY_SAFETY_CAP",
             },
         }
 
