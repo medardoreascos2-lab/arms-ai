@@ -1095,6 +1095,41 @@ export default function DashboardV2Page() {
                       Number(
                         liveSnapshot.account_state.open_risk
                       ),
+
+                    account_stage:
+                      String(
+                        liveSnapshot.account_state.account_stage ?? ""
+                      ),
+
+                    evaluation_status:
+                      String(
+                        liveSnapshot.account_state.evaluation_status ?? ""
+                      ),
+
+                    profit_target:
+                      Number(
+                        liveSnapshot.account_state.profit_target ?? 0
+                      ),
+
+                    profit_achieved:
+                      Number(
+                        liveSnapshot.account_state.profit_achieved ?? 0
+                      ),
+
+                    profit_remaining:
+                      Number(
+                        liveSnapshot.account_state.profit_remaining ?? 0
+                      ),
+
+                    profit_progress_percent:
+                      Number(
+                        liveSnapshot.account_state.profit_progress_percent ?? 0
+                      ),
+
+                    target_reached:
+                      Boolean(
+                        liveSnapshot.account_state.target_reached
+                      ),
                   }
                 : null
             }
