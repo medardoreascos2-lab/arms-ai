@@ -65,6 +65,14 @@ class AccountStateManagerV2:
         self._state = {
             "starting_balance": starting_balance,
             "profit_target": profit_target,
+            "profit_achieved": 0.0,
+            "profit_remaining": profit_target,
+            "profit_progress_percent": (
+                0.0
+                if profit_target is not None
+                else None
+            ),
+            "target_reached": False,
             "balance": starting_balance,
             "equity": starting_balance,
             "peak_equity": starting_balance,
@@ -227,6 +235,65 @@ class AccountStateManagerV2:
         self._state[
             "realized_pnl"
         ] = realized_pnl
+
+        profit_target = (
+            self.profit_target
+        )
+
+        profit_achieved = round(
+            realized_pnl,
+            10,
+        )
+
+        if profit_target is None:
+            profit_remaining = None
+            profit_progress_percent = None
+            target_reached = False
+        else:
+            profit_remaining = round(
+                max(
+                    0.0,
+                    profit_target
+                    - profit_achieved,
+                ),
+                10,
+            )
+
+            profit_progress_percent = round(
+                max(
+                    0.0,
+                    min(
+                        100.0,
+                        (
+                            profit_achieved
+                            / profit_target
+                        )
+                        * 100.0,
+                    ),
+                ),
+                10,
+            )
+
+            target_reached = (
+                profit_achieved
+                >= profit_target
+            )
+
+        self._state[
+            "profit_achieved"
+        ] = profit_achieved
+
+        self._state[
+            "profit_remaining"
+        ] = profit_remaining
+
+        self._state[
+            "profit_progress_percent"
+        ] = profit_progress_percent
+
+        self._state[
+            "target_reached"
+        ] = target_reached
 
         self._state[
             "unrealized_pnl"

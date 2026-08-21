@@ -199,6 +199,22 @@ class PerformanceDashboardEngineV2:
                     account_state.get(
                         "profit_target"
                     ),
+                "profit_achieved":
+                    account_state.get(
+                        "profit_achieved"
+                    ),
+                "profit_remaining":
+                    account_state.get(
+                        "profit_remaining"
+                    ),
+                "profit_progress_percent":
+                    account_state.get(
+                        "profit_progress_percent"
+                    ),
+                "target_reached":
+                    account_state.get(
+                        "target_reached"
+                    ),
             }
             if account_state
             else None
