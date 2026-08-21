@@ -7,6 +7,18 @@ from backend.analytics.trade_history_manager_v2 import (
     TradeHistoryManagerV2,
 )
 from backend.config_settings import ArmsSettings
+from backend.account.account_state_manager_v2 import (
+    AccountStateManagerV2,
+)
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.portfolio.portfolio_manager_v2 import (
+    PortfolioManagerV2,
+)
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
@@ -56,6 +68,17 @@ class RuntimeContextV2:
     trade_history_manager: TradeHistoryManagerV2
     performance_analytics: PerformanceAnalyticsV2
 
+    account_state_manager_v2: (
+        AccountStateManagerV2
+    )
+    portfolio_manager_v2: (
+        PortfolioManagerV2
+    )
+    position_sizing_engine_v2: (
+        PositionSizingEngineV2
+    )
+    risk_manager_v2: RiskManagerV2
+
     protective_order_registry: (
         ProtectiveOrderRegistryV2
     )
@@ -85,27 +108,49 @@ def build_runtime_context(
     risk_free_rate: float = 0.0,
     trading_days_per_year: int = 252,
 ) -> RuntimeContextV2:
+    settings_were_explicit = (
+        settings is not None
+    )
+
     resolved_settings = settings or ArmsSettings()
+
+    from backend.accounts.account_config_manager_v2 import (
+        AccountConfigManagerV2,
+    )
+    from backend.instruments.instrument_profile_engine import (
+        InstrumentProfileEngine,
+    )
+
+    active_account = (
+        AccountConfigManagerV2()
+        .get_active_account()
+    )
+
+    active_starting_balance = (
+        float(resolved_settings.account_balance)
+        if settings_were_explicit
+        else float(active_account.account_size)
+    )
+
+    active_maximum_daily_loss = (
+        None
+        if active_account.daily_loss_limit is None
+        else float(
+            active_account.daily_loss_limit
+        )
+    )
+
+    active_maximum_total_drawdown = float(
+        active_account.max_drawdown
+    )
+
+    instrument_profiles = (
+        InstrumentProfileEngine()
+    )
 
     contract_limit_resolver = None
 
     if maximum_contracts is None:
-        from backend.accounts.account_config_manager_v2 import (
-            AccountConfigManagerV2,
-        )
-        from backend.instruments.instrument_profile_engine import (
-            InstrumentProfileEngine,
-        )
-
-        account = (
-            AccountConfigManagerV2()
-            .get_active_account()
-        )
-
-        instrument_profiles = (
-            InstrumentProfileEngine()
-        )
-
         def resolve_contract_limit(
             symbol: str,
         ) -> int:
@@ -114,13 +159,13 @@ def build_runtime_context(
                 .get_profile(symbol=symbol)
             )
 
-            return account.get_contract_limit(
+            return active_account.get_contract_limit(
                 profile["contract_class"]
             )
 
         resolved_maximum_contracts = min(
-            account.get_contract_limit("MINI"),
-            account.get_contract_limit("MICRO"),
+            active_account.get_contract_limit("MINI"),
+            active_account.get_contract_limit("MICRO"),
         )
 
         contract_limit_resolver = (
@@ -136,6 +181,54 @@ def build_runtime_context(
         maximum_contracts=(
             resolved_maximum_contracts
         ),
+        contract_limit_resolver=(
+            contract_limit_resolver
+        ),
+    )
+
+    account_state_manager_v2 = (
+        AccountStateManagerV2(
+            starting_balance=(
+                active_starting_balance
+            ),
+            maximum_daily_loss=(
+                active_maximum_daily_loss
+            ),
+            maximum_total_drawdown=(
+                active_maximum_total_drawdown
+            ),
+        )
+    )
+
+    portfolio_manager_v2 = (
+        PortfolioManagerV2(
+            starting_balance=(
+                active_starting_balance
+            ),
+            account_state_manager_v2=(
+                account_state_manager_v2
+            ),
+        )
+    )
+
+    position_sizing_engine_v2 = (
+        PositionSizingEngineV2()
+    )
+
+    risk_manager_v2 = RiskManagerV2(
+        position_sizing_engine=(
+            position_sizing_engine_v2
+        ),
+        maximum_daily_loss=(
+            active_maximum_daily_loss
+        ),
+        maximum_total_drawdown=(
+            active_maximum_total_drawdown
+        ),
+        maximum_contracts=(
+            resolved_maximum_contracts
+        ),
+        maximum_open_positions=1,
         contract_limit_resolver=(
             contract_limit_resolver
         ),
@@ -181,8 +274,14 @@ def build_runtime_context(
         performance_analytics=(
             performance_analytics
         ),
+        risk_manager_v2=(
+            risk_manager_v2
+        ),
+        portfolio_manager_v2=(
+            portfolio_manager_v2
+        ),
         starting_balance=(
-            resolved_settings.account_balance
+            active_starting_balance
         ),
         protective_order_registry_v2=(
             protective_order_registry
@@ -242,6 +341,18 @@ def build_runtime_context(
         ),
         performance_analytics=(
             performance_analytics
+        ),
+        account_state_manager_v2=(
+            account_state_manager_v2
+        ),
+        portfolio_manager_v2=(
+            portfolio_manager_v2
+        ),
+        position_sizing_engine_v2=(
+            position_sizing_engine_v2
+        ),
+        risk_manager_v2=(
+            risk_manager_v2
         ),
         protective_order_registry=(
             protective_order_registry

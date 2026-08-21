@@ -118,3 +118,111 @@ def test_explicit_runtime_contract_override_is_preserved():
             execution.get_contract_limit(symbol)
             == 7
         )
+
+
+def test_runtime_context_exposes_active_account_runtime_managers():
+    context = build_runtime_context()
+
+    assert (
+        context.account_state_manager_v2
+        is not None
+    )
+
+    assert (
+        context.portfolio_manager_v2
+        is not None
+    )
+
+    assert (
+        context.position_sizing_engine_v2
+        is not None
+    )
+
+    assert (
+        context.risk_manager_v2
+        is not None
+    )
+
+
+def test_runtime_context_uses_active_account_financial_rules():
+    context = build_runtime_context()
+
+    lifecycle = (
+        context.trade_lifecycle_service
+    )
+
+    account_state = (
+        context.account_state_manager_v2
+    )
+
+    portfolio = (
+        context.portfolio_manager_v2
+    )
+
+    risk = (
+        context.risk_manager_v2
+    )
+
+    assert (
+        lifecycle.starting_balance
+        == 50000.0
+    )
+
+    assert (
+        portfolio.starting_balance
+        == 50000.0
+    )
+
+    assert (
+        account_state.maximum_daily_loss
+        is None
+    )
+
+    assert (
+        account_state.maximum_total_drawdown
+        == 2000.0
+    )
+
+    assert (
+        risk.maximum_daily_loss
+        is None
+    )
+
+    assert (
+        risk.maximum_total_drawdown
+        == 2000.0
+    )
+
+
+def test_runtime_context_execution_and_risk_contract_limits_match():
+    context = build_runtime_context()
+
+    expected = {
+        "NQ": 5,
+        "MNQ": 50,
+        "ES": 5,
+        "MES": 50,
+    }
+
+    execution = (
+        context.execution_manager
+    )
+
+    risk = (
+        context.risk_manager_v2
+    )
+
+    for symbol, expected_limit in expected.items():
+        assert (
+            execution.get_contract_limit(
+                symbol
+            )
+            == expected_limit
+        )
+
+        assert (
+            risk.get_contract_limit(
+                symbol
+            )
+            == expected_limit
+        )
