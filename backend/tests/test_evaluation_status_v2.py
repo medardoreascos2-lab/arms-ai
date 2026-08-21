@@ -148,3 +148,110 @@ def test_runtime_uses_active_account_stage():
         state["evaluation_status"]
         == "IN_PROGRESS"
     )
+
+
+def test_trading_combine_fails_at_maximum_total_drawdown():
+    manager = AccountStateManagerV2(
+        starting_balance=50000.0,
+        maximum_daily_loss=None,
+        maximum_total_drawdown=2000.0,
+        profit_target=3000.0,
+        account_stage="TRADING_COMBINE",
+    )
+
+    result = manager.update_from_portfolio(
+        portfolio_summary={
+            "open_positions": 0,
+            "closed_positions": 1,
+            "total_realized_pnl": -2000.0,
+            "total_unrealized_pnl": 0.0,
+            "total_pnl": -2000.0,
+            "account_equity": 48000.0,
+        }
+    )
+
+    state = result["state"]
+
+    assert state["evaluation_status"] == "FAILED"
+    assert state["trading_blocked"] is True
+    assert (
+        "maximum_total_drawdown_reached"
+        in state["blocking_reasons"]
+    )
+
+
+def test_trading_combine_stays_in_progress_before_drawdown_breach():
+    manager = AccountStateManagerV2(
+        starting_balance=50000.0,
+        maximum_daily_loss=None,
+        maximum_total_drawdown=2000.0,
+        profit_target=3000.0,
+        account_stage="TRADING_COMBINE",
+    )
+
+    result = manager.update_from_portfolio(
+        portfolio_summary={
+            "open_positions": 0,
+            "closed_positions": 1,
+            "total_realized_pnl": -1999.0,
+            "total_unrealized_pnl": 0.0,
+            "total_pnl": -1999.0,
+            "account_equity": 48001.0,
+        }
+    )
+
+    state = result["state"]
+
+    assert state["evaluation_status"] == "IN_PROGRESS"
+    assert state["trading_blocked"] is False
+
+
+def test_trading_combine_passed_status_is_not_replaced_by_failure():
+    manager = AccountStateManagerV2(
+        starting_balance=50000.0,
+        maximum_daily_loss=None,
+        maximum_total_drawdown=2000.0,
+        profit_target=3000.0,
+        account_stage="TRADING_COMBINE",
+    )
+
+    result = manager.update_from_portfolio(
+        portfolio_summary={
+            "open_positions": 0,
+            "closed_positions": 1,
+            "total_realized_pnl": 3000.0,
+            "total_unrealized_pnl": 0.0,
+            "total_pnl": 3000.0,
+            "account_equity": 53000.0,
+        }
+    )
+
+    state = result["state"]
+
+    assert state["evaluation_status"] == "PASSED"
+    assert state["trading_blocked"] is False
+
+
+def test_funded_account_does_not_become_evaluation_failed():
+    manager = AccountStateManagerV2(
+        starting_balance=50000.0,
+        maximum_daily_loss=None,
+        maximum_total_drawdown=2000.0,
+        profit_target=3000.0,
+        account_stage="FUNDED",
+    )
+
+    result = manager.update_from_portfolio(
+        portfolio_summary={
+            "open_positions": 0,
+            "closed_positions": 1,
+            "total_realized_pnl": -2000.0,
+            "total_unrealized_pnl": 0.0,
+            "total_pnl": -2000.0,
+            "account_equity": 48000.0,
+        }
+    )
+
+    state = result["state"]
+
+    assert state["evaluation_status"] != "FAILED"

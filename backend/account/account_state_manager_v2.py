@@ -317,9 +317,14 @@ class AccountStateManagerV2:
             == "TRADING_COMBINE"
         ):
             evaluation_status = (
-                "PASSED"
-                if target_reached
-                else "IN_PROGRESS"
+                "FAILED"
+                if drawdown
+                >= self.maximum_total_drawdown
+                else (
+                    "PASSED"
+                    if target_reached
+                    else "IN_PROGRESS"
+                )
             )
         else:
             evaluation_status = (
