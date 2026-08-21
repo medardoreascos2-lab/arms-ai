@@ -1338,6 +1338,23 @@ def create_app(
                 )
             )
 
+        from backend.instruments.instrument_profile_engine import (
+            InstrumentProfileEngine,
+        )
+
+        if (
+            position_sizing_engine
+            .instrument_profile_engine
+            is None
+        ):
+            position_sizing_engine.instrument_profile_engine = (
+                InstrumentProfileEngine()
+            )
+
+        position_sizing_engine.contract_limit_resolver = (
+            resolve_active_contract_limit
+        )
+
         risk_manager_v2 = RiskManagerV2(
             position_sizing_engine=(
                 position_sizing_engine_v2

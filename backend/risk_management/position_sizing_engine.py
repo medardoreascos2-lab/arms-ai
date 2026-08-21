@@ -22,6 +22,7 @@ class PositionSizingEngine:
         instrument_profile_engine:
         InstrumentProfileEngine
         | None = None,
+        contract_limit_resolver=None,
     ) -> None:
         if minimum_contracts <= 0:
             raise ValueError(
@@ -58,6 +59,42 @@ class PositionSizingEngine:
         self.instrument_profile_engine = (
             instrument_profile_engine
         )
+        self.contract_limit_resolver = (
+            contract_limit_resolver
+        )
+
+    def get_contract_limit(
+        self,
+        symbol: str,
+    ) -> int:
+        if self.contract_limit_resolver is None:
+            return self.maximum_contracts
+
+        limit = self.contract_limit_resolver(
+            symbol
+        )
+
+        if isinstance(limit, bool):
+            raise TypeError(
+                "contract limit resolver debe "
+                "devolver int."
+            )
+
+        try:
+            normalized_limit = int(limit)
+        except (TypeError, ValueError) as exc:
+            raise TypeError(
+                "contract limit resolver debe "
+                "devolver int."
+            ) from exc
+
+        if normalized_limit <= 0:
+            raise ValueError(
+                "contract limit debe ser "
+                "mayor que cero."
+            )
+
+        return normalized_limit
 
     def calculate_for_symbol(
         self,
@@ -81,14 +118,21 @@ class PositionSizingEngine:
             )
         )
 
-        instrument_maximum = int(
-            profile["maximum_contracts"]
-        )
+        if self.contract_limit_resolver is None:
+            instrument_maximum = int(
+                profile["maximum_contracts"]
+            )
 
-        effective_maximum = min(
-            self.maximum_contracts,
-            instrument_maximum,
-        )
+            effective_maximum = min(
+                self.maximum_contracts,
+                instrument_maximum,
+            )
+        else:
+            effective_maximum = (
+                self.get_contract_limit(
+                    symbol
+                )
+            )
 
         result = self._calculate_with_limits(
             account_balance=account_balance,
