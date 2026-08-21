@@ -631,6 +631,12 @@ class TradeLifecycleServiceV2(
                     open_positions=len(
                         self._active_positions
                     ),
+                    symbol=str(
+                        working_signal.get(
+                            "symbol",
+                            "",
+                        )
+                    ).strip().upper(),
                 )
             )
 

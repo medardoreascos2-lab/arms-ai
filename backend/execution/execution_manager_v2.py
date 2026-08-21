@@ -29,6 +29,7 @@ class ExecutionManagerV2:
         *,
         execution_mode: str,
         maximum_contracts: int,
+        contract_limit_resolver=None,
     ) -> None:
         normalized_execution_mode = (
             str(execution_mode)
@@ -62,6 +63,42 @@ class ExecutionManagerV2:
         self.maximum_contracts = (
             normalized_maximum_contracts
         )
+        self.contract_limit_resolver = (
+            contract_limit_resolver
+        )
+
+    def get_contract_limit(
+        self,
+        symbol: str,
+    ) -> int:
+        if self.contract_limit_resolver is None:
+            return self.maximum_contracts
+
+        limit = self.contract_limit_resolver(
+            symbol
+        )
+
+        if isinstance(limit, bool):
+            raise TypeError(
+                "contract limit resolver debe "
+                "devolver int."
+            )
+
+        try:
+            normalized_limit = int(limit)
+        except (TypeError, ValueError) as exc:
+            raise TypeError(
+                "contract limit resolver debe "
+                "devolver int."
+            ) from exc
+
+        if normalized_limit <= 0:
+            raise ValueError(
+                "contract limit debe ser "
+                "mayor que cero."
+            )
+
+        return normalized_limit
 
     @staticmethod
     def _optional_float(
@@ -181,7 +218,9 @@ class ExecutionManagerV2:
                 "invalid_contract_quantity"
             )
 
-        if quantity > self.maximum_contracts:
+        allowed_contracts = self.get_contract_limit(symbol)
+
+        if quantity > allowed_contracts:
             blocking_reasons.append(
                 "maximum_contracts_exceeded"
             )

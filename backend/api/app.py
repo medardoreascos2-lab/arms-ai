@@ -1306,6 +1306,38 @@ def create_app(
             PositionSizingEngineV2()
         )
 
+        active_mini_contract_limit = (
+            active_account_profile
+            .get_contract_limit("MINI")
+        )
+        active_micro_contract_limit = (
+            active_account_profile
+            .get_contract_limit("MICRO")
+        )
+        active_runtime_contract_limit = min(
+            active_mini_contract_limit,
+            active_micro_contract_limit,
+        )
+
+        def resolve_active_contract_limit(
+            symbol: str,
+        ) -> int:
+            from backend.instruments.instrument_profile_engine import (
+                InstrumentProfileEngine,
+            )
+
+            instrument_profile = (
+                InstrumentProfileEngine()
+                .get_profile(symbol=symbol)
+            )
+
+            return (
+                active_account_profile
+                .get_contract_limit(
+                    instrument_profile["contract_class"]
+                )
+            )
+
         risk_manager_v2 = RiskManagerV2(
             position_sizing_engine=(
                 position_sizing_engine_v2
@@ -1316,8 +1348,13 @@ def create_app(
             maximum_total_drawdown=(
                 active_maximum_total_drawdown
             ),
-            maximum_contracts=20,
+            maximum_contracts=(
+                active_runtime_contract_limit
+            ),
             maximum_open_positions=1,
+            contract_limit_resolver=(
+                resolve_active_contract_limit
+            ),
         )
 
         exposure_manager_v2 = ExposureManagerV2(
@@ -1381,7 +1418,12 @@ def create_app(
                 execution_manager=(
                     ExecutionManagerV2(
                         execution_mode="PAPER",
-                        maximum_contracts=20,
+                        maximum_contracts=(
+                            active_runtime_contract_limit
+                        ),
+                        contract_limit_resolver=(
+                            resolve_active_contract_limit
+                        ),
                     )
                 ),
                 paper_execution_engine=(

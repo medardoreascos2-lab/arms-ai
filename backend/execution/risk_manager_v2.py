@@ -21,6 +21,7 @@ class RiskManagerV2:
         maximum_total_drawdown: float,
         maximum_contracts: int,
         maximum_open_positions: int,
+        contract_limit_resolver=None,
     ) -> None:
         if not isinstance(
             position_sizing_engine,
@@ -98,6 +99,26 @@ class RiskManagerV2:
         self.maximum_open_positions = (
             normalized_maximum_open_positions
         )
+        self.contract_limit_resolver = (
+            contract_limit_resolver
+        )
+
+    def get_contract_limit(
+        self,
+        symbol: str,
+    ) -> int:
+        if self.contract_limit_resolver is None:
+            return self.maximum_contracts
+
+        limit = self.contract_limit_resolver(symbol)
+        normalized_limit = int(limit)
+
+        if normalized_limit <= 0:
+            raise ValueError(
+                "contract limit debe ser mayor que cero."
+            )
+
+        return normalized_limit
 
     def evaluate(
         self,
@@ -109,6 +130,7 @@ class RiskManagerV2:
         daily_pnl: float,
         total_drawdown: float,
         open_positions: int,
+        symbol: str | None = None,
     ) -> dict[str, object]:
         normalized_total_drawdown = float(
             total_drawdown
@@ -248,7 +270,13 @@ class RiskManagerV2:
                 "maximum_open_positions_reached"
             )
 
-        if contracts > self.maximum_contracts:
+        allowed_contracts = (
+            self.maximum_contracts
+            if symbol is None
+            else self.get_contract_limit(symbol)
+        )
+
+        if contracts > allowed_contracts:
             blocking_reasons.append(
                 "maximum_contracts_exceeded"
             )
