@@ -195,6 +195,10 @@ class PerformanceDashboardEngineV2:
                     account_state["drawdown"],
                 "open_risk":
                     account_state["open_risk"],
+                "profit_target":
+                    account_state.get(
+                        "profit_target"
+                    ),
             }
             if account_state
             else None

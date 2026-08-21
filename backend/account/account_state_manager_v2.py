@@ -11,6 +11,7 @@ class AccountStateManagerV2:
         starting_balance: float,
         maximum_daily_loss: float | None,
         maximum_total_drawdown: float,
+        profit_target: float | None = None,
     ) -> None:
 
         starting_balance = float(
@@ -25,6 +26,12 @@ class AccountStateManagerV2:
 
         maximum_total_drawdown = float(
             maximum_total_drawdown
+        )
+
+        profit_target = (
+            None
+            if profit_target is None
+            else float(profit_target)
         )
 
         if starting_balance <= 0:
@@ -46,8 +53,18 @@ class AccountStateManagerV2:
                 "maximum_total_drawdown debe ser mayor que cero."
             )
 
+        if (
+            profit_target is not None
+            and profit_target <= 0
+        ):
+            raise ValueError(
+                "profit_target debe ser mayor que cero "
+                "cuando está definido."
+            )
+
         self._state = {
             "starting_balance": starting_balance,
+            "profit_target": profit_target,
             "balance": starting_balance,
             "equity": starting_balance,
             "peak_equity": starting_balance,
@@ -75,6 +92,8 @@ class AccountStateManagerV2:
         self.maximum_total_drawdown = (
             maximum_total_drawdown
         )
+
+        self.profit_target = profit_target
 
     def get_state(
         self,

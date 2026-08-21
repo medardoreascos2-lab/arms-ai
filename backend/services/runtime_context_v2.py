@@ -144,6 +144,12 @@ def build_runtime_context(
         active_account.max_drawdown
     )
 
+    active_profit_target = (
+        None
+        if active_account.profit_target is None
+        else float(active_account.profit_target)
+    )
+
     instrument_profiles = (
         InstrumentProfileEngine()
     )
@@ -196,6 +202,9 @@ def build_runtime_context(
             ),
             maximum_total_drawdown=(
                 active_maximum_total_drawdown
+            ),
+            profit_target=(
+                active_profit_target
             ),
         )
     )
