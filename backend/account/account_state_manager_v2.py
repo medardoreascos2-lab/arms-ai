@@ -12,6 +12,7 @@ class AccountStateManagerV2:
         maximum_daily_loss: float | None,
         maximum_total_drawdown: float,
         profit_target: float | None = None,
+        account_stage: str | None = None,
     ) -> None:
 
         starting_balance = float(
@@ -32,6 +33,14 @@ class AccountStateManagerV2:
             None
             if profit_target is None
             else float(profit_target)
+        )
+
+        account_stage = (
+            None
+            if account_stage is None
+            else str(account_stage)
+            .strip()
+            .upper()
         )
 
         if starting_balance <= 0:
@@ -64,6 +73,13 @@ class AccountStateManagerV2:
 
         self._state = {
             "starting_balance": starting_balance,
+            "account_stage": account_stage,
+            "evaluation_status": (
+                "IN_PROGRESS"
+                if account_stage
+                == "TRADING_COMBINE"
+                else "NOT_APPLICABLE"
+            ),
             "profit_target": profit_target,
             "profit_achieved": 0.0,
             "profit_remaining": profit_target,
@@ -102,6 +118,7 @@ class AccountStateManagerV2:
         )
 
         self.profit_target = profit_target
+        self.account_stage = account_stage
 
     def get_state(
         self,
@@ -294,6 +311,24 @@ class AccountStateManagerV2:
         self._state[
             "target_reached"
         ] = target_reached
+
+        if (
+            self.account_stage
+            == "TRADING_COMBINE"
+        ):
+            evaluation_status = (
+                "PASSED"
+                if target_reached
+                else "IN_PROGRESS"
+            )
+        else:
+            evaluation_status = (
+                "NOT_APPLICABLE"
+            )
+
+        self._state[
+            "evaluation_status"
+        ] = evaluation_status
 
         self._state[
             "unrealized_pnl"

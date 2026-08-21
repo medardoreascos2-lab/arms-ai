@@ -215,6 +215,14 @@ class PerformanceDashboardEngineV2:
                     account_state.get(
                         "target_reached"
                     ),
+                "account_stage":
+                    account_state.get(
+                        "account_stage"
+                    ),
+                "evaluation_status":
+                    account_state.get(
+                        "evaluation_status"
+                    ),
             }
             if account_state
             else None

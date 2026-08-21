@@ -150,6 +150,12 @@ def build_runtime_context(
         else float(active_account.profit_target)
     )
 
+    active_account_stage = (
+        None
+        if active_account.account_stage is None
+        else str(active_account.account_stage)
+    )
+
     instrument_profiles = (
         InstrumentProfileEngine()
     )
@@ -205,6 +211,9 @@ def build_runtime_context(
             ),
             profit_target=(
                 active_profit_target
+            ),
+            account_stage=(
+                active_account_stage
             ),
         )
     )
