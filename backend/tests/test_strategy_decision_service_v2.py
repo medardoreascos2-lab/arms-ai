@@ -14,6 +14,8 @@ class FakeSelectionService:
 
     def get_selected_strategy(
         self,
+        *,
+        market_context=None,
     ):
 
         return {
@@ -88,6 +90,8 @@ def test_strategy_decision_service_without_strategy():
 
         def get_selected_strategy(
             self,
+            *,
+            market_context=None,
         ):
 
             return None

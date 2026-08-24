@@ -113,7 +113,9 @@ class StrategyDecisionServiceV2:
 
             strategy = (
                 self.selection_service
-                .get_selected_strategy()
+                .get_selected_strategy(
+                    market_context=market_context,
+                )
             )
 
         else:

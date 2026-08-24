@@ -98,12 +98,17 @@ class StrategySelectionServiceV2:
 
     def get_selected_strategy(
         self,
+        *,
+        market_context: dict | None = None,
     ) -> dict | None:
 
-        return self.select(
-            market_context={
+        if market_context is None:
+            market_context = {
                 "trend": "BULLISH",
                 "structure": "BOS_CONFIRMED",
                 "risk_allowed": True,
             }
+
+        return self.select(
+            market_context=market_context,
         )
