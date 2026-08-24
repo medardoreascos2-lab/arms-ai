@@ -99,7 +99,13 @@ class ExecutionServiceV2:
         if trade_plan.get(
             "status"
         ) != "READY":
-            return None
+            return {
+                "status": "BLOCKED",
+                "reason": trade_plan.get(
+                    "reason",
+                    "INVALID_TRADE_PLAN",
+                ),
+            }
 
 
 
@@ -113,6 +119,14 @@ class ExecutionServiceV2:
         )
 
 
+
+        if risk_validation.get(
+            "status"
+        ) != "APPROVED":
+            return {
+                "status": "BLOCKED",
+                "reason": "RISK_NOT_APPROVED",
+            }
 
         return self.execution_engine.execute(
             trade_plan=trade_plan,
