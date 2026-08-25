@@ -9,6 +9,12 @@ from backend.analytics.trade_history_manager_v2 import (
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
@@ -17,6 +23,9 @@ from backend.execution.position_manager_v2 import (
 )
 from backend.portfolio.portfolio_manager_v2 import (
     PortfolioManagerV2,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
 )
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
@@ -31,8 +40,12 @@ def build_portfolio_manager() -> PortfolioManagerV2:
 
 def build_service(
     *,
+    execution_risk_gate_v1=None,
     portfolio_manager_v2=None,
 ) -> TradeLifecycleServiceV2:
+    if execution_risk_gate_v1 is None:
+        execution_risk_gate_v1 = ExecutionRiskGateV1()
+
     return TradeLifecycleServiceV2(
         execution_manager=(
             ExecutionManagerV2(
@@ -60,10 +73,23 @@ def build_service(
                 trading_days_per_year=252,
             )
         ),
-        risk_manager_v2=None,
+        risk_manager_v2=(
+            RiskManagerV2(
+                position_sizing_engine=(
+                    PositionSizingEngineV2()
+                ),
+                maximum_daily_loss=3000.0,
+                maximum_total_drawdown=4500.0,
+                maximum_contracts=20,
+                maximum_open_positions=1,
+            )
+        ),
         exposure_manager_v2=None,
         portfolio_risk_engine_v2=None,
         order_validation_engine_v2=None,
+        execution_risk_gate_v1=(
+            execution_risk_gate_v1
+        ),
         portfolio_manager_v2=(
             portfolio_manager_v2
         ),
@@ -115,6 +141,9 @@ def test_rejects_invalid_portfolio_manager():
         match="portfolio_manager_v2",
     ):
         build_service(
+            execution_risk_gate_v1=(
+                ExecutionRiskGateV1()
+            ),
             portfolio_manager_v2=object(),
         )
 
@@ -129,6 +158,14 @@ def test_submit_signal_registers_open_position_in_portfolio():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+            "current_price": 100.0,
+        },
     )
 
     assert result["accepted"] is True
@@ -162,6 +199,14 @@ def test_submit_signal_returns_portfolio_summary():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+            "current_price": 100.0,
+        },
     )
 
     assert result["accepted"] is True
@@ -189,6 +234,14 @@ def test_submit_signal_without_portfolio_manager():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+            "current_price": 100.0,
+        },
     )
 
     assert result["accepted"] is True
