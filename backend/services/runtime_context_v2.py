@@ -16,6 +16,9 @@ from backend.execution.position_sizing_engine_v2 import (
 from backend.execution.risk_manager_v2 import (
     RiskManagerV2,
 )
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
 from backend.portfolio.portfolio_manager_v2 import (
     PortfolioManagerV2,
 )
@@ -280,6 +283,8 @@ def build_runtime_context(
 
     trade_journal_v2 = TradeJournalV2()
 
+    execution_risk_gate_v1 = ExecutionRiskGateV1()
+
     trade_lifecycle_service = TradeLifecycleServiceV2(
         execution_manager=execution_manager,
         paper_execution_engine=(
@@ -294,6 +299,9 @@ def build_runtime_context(
         ),
         risk_manager_v2=(
             risk_manager_v2
+        ),
+        execution_risk_gate_v1=(
+            execution_risk_gate_v1
         ),
         portfolio_manager_v2=(
             portfolio_manager_v2
