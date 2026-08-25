@@ -13,12 +13,32 @@ from backend.backtesting.backtest_trade_plan_adapter_v2 import (
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
+from backend.accounts.profiles.takeprofit_profiles import (
+    TakeProfitTraderProfiles,
+)
+
+TEST_ACCOUNT = (
+    TakeProfitTraderProfiles.account_150k()
+)
+
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
@@ -42,7 +62,7 @@ class FakeBacktestRunner:
         if on_candle is not None:
             on_candle(
                 {
-                    "symbol": "NQ",
+                    "symbol": "MNQ",
                     "timeframe": "5m",
                     "close": 20000.0,
                 },
@@ -77,17 +97,43 @@ class FakeStrategyRunner:
 
 def build_lifecycle_service() -> TradeLifecycleServiceV2:
 
+    position_sizing_engine = (
+        PositionSizingEngineV2()
+    )
+
+    risk_manager_v2 = RiskManagerV2(
+        position_sizing_engine=(
+            position_sizing_engine
+        ),
+        maximum_daily_loss=(
+            TEST_ACCOUNT.daily_loss_limit
+        ),
+        maximum_total_drawdown=(
+            TEST_ACCOUNT.max_drawdown
+        ),
+        maximum_contracts=(
+            TEST_ACCOUNT.max_contracts
+        ),
+        maximum_open_positions=1,
+    )
+
     return TradeLifecycleServiceV2(
+        risk_manager_v2=(
+            risk_manager_v2
+        ),
         execution_manager=ExecutionManagerV2(
             execution_mode="PAPER",
-            maximum_contracts=20,
+            maximum_contracts=TEST_ACCOUNT.max_contracts,
         ),
         paper_execution_engine=PaperExecutionEngineV2(
             fill_market_orders_immediately=True,
             slippage_points=0.25,
         ),
         position_manager=PositionManagerV2(
-            point_value=2.0,
+            point_value=float(
+                InstrumentProfileEngine()
+                .get_profile(symbol="MNQ")["point_value"]
+            ),
         ),
         trade_history_manager=TradeHistoryManagerV2(),
         performance_analytics=PerformanceAnalyticsV2(
@@ -95,6 +141,9 @@ def build_lifecycle_service() -> TradeLifecycleServiceV2:
             trading_days_per_year=252,
         ),
         starting_balance=17000.0,
+        execution_risk_gate_v1=(
+            ExecutionRiskGateV1()
+        ),
     )
 
 
@@ -123,6 +172,16 @@ def test_backtest_opens_position_through_lifecycle_service():
         signal_generator_v2=build_signal_generator(),
         signal_submission_target_v2=lifecycle,
         signal_order_type="MARKET",
+        signal_risk_context={
+            "account_balance": float(TEST_ACCOUNT.account_size),
+            "risk_percent": float(TEST_ACCOUNT.risk_percent),
+            "point_value": float(InstrumentProfileEngine().get_profile(symbol="MNQ")["point_value"]),
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
+        signal_order_context={
+            "market_is_open": True,
+        },
     )
 
     processed = session.run()
@@ -144,5 +203,5 @@ def test_backtest_opens_position_through_lifecycle_service():
     active_positions = lifecycle.get_active_positions()
 
     assert len(active_positions) == 1
-    assert active_positions[0]["symbol"] == "NQ"
+    assert active_positions[0]["symbol"] == "MNQ"
     assert active_positions[0]["direction"] == "LONG"

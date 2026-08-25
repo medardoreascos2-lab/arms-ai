@@ -7,12 +7,32 @@ from backend.analytics.trade_history_manager_v2 import (
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
+from backend.accounts.profiles.takeprofit_profiles import (
+    TakeProfitTraderProfiles,
+)
+
+TEST_ACCOUNT = (
+    TakeProfitTraderProfiles.account_150k()
+)
+
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
@@ -20,17 +40,43 @@ from backend.services.trade_lifecycle_service_v2 import (
 
 def build_service() -> TradeLifecycleServiceV2:
 
+    position_sizing_engine = (
+        PositionSizingEngineV2()
+    )
+
+    risk_manager_v2 = RiskManagerV2(
+        position_sizing_engine=(
+            position_sizing_engine
+        ),
+        maximum_daily_loss=(
+            TEST_ACCOUNT.daily_loss_limit
+        ),
+        maximum_total_drawdown=(
+            TEST_ACCOUNT.max_drawdown
+        ),
+        maximum_contracts=(
+            TEST_ACCOUNT.max_contracts
+        ),
+        maximum_open_positions=1,
+    )
+
     return TradeLifecycleServiceV2(
+        risk_manager_v2=(
+            risk_manager_v2
+        ),
         execution_manager=ExecutionManagerV2(
             execution_mode="PAPER",
-            maximum_contracts=20,
+            maximum_contracts=TEST_ACCOUNT.max_contracts,
         ),
         paper_execution_engine=PaperExecutionEngineV2(
             fill_market_orders_immediately=True,
             slippage_points=0.25,
         ),
         position_manager=PositionManagerV2(
-            point_value=2.0,
+            point_value=float(
+                InstrumentProfileEngine()
+                .get_profile(symbol="MNQ")["point_value"]
+            ),
         ),
         trade_history_manager=TradeHistoryManagerV2(),
         performance_analytics=PerformanceAnalyticsV2(
@@ -38,6 +84,9 @@ def build_service() -> TradeLifecycleServiceV2:
             trading_days_per_year=252,
         ),
         starting_balance=17000.0,
+        execution_risk_gate_v1=(
+            ExecutionRiskGateV1()
+        ),
     )
 
 
@@ -47,7 +96,7 @@ def build_valid_signal() -> dict[str, object]:
         "approved": True,
         "status": "READY",
         "decision": "SEND_SIGNAL",
-        "symbol": "NQ",
+        "symbol": "MNQ",
         "timeframe": "5M",
         "direction": "LONG",
         "entry_price": 20000.0,
@@ -73,6 +122,16 @@ def test_position_can_be_updated_after_submission():
     result = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": float(TEST_ACCOUNT.account_size),
+            "risk_percent": float(TEST_ACCOUNT.risk_percent),
+            "point_value": float(InstrumentProfileEngine().get_profile(symbol="MNQ")["point_value"]),
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
+        order_context={
+            "market_is_open": True,
+        },
     )
 
     assert result["accepted"] is True
@@ -100,6 +159,16 @@ def test_position_closes_at_take_profit_and_records_trade():
     submitted = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": float(TEST_ACCOUNT.account_size),
+            "risk_percent": float(TEST_ACCOUNT.risk_percent),
+            "point_value": float(InstrumentProfileEngine().get_profile(symbol="MNQ")["point_value"]),
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
+        order_context={
+            "market_is_open": True,
+        },
     )
 
     assert submitted["accepted"] is True
@@ -125,7 +194,7 @@ def test_position_closes_at_take_profit_and_records_trade():
 
     trade = result["trade_record"]["trade"]
 
-    assert trade["symbol"] == "NQ"
+    assert trade["symbol"] == "MNQ"
     assert trade["direction"] == "LONG"
     assert trade["realized_pnl"] > 0
 
@@ -134,7 +203,7 @@ def test_position_closes_at_take_profit_and_records_trade():
     history = service.get_trade_history()
 
     assert len(history) == 1
-    assert history[0]["symbol"] == "NQ"
+    assert history[0]["symbol"] == "MNQ"
     assert history[0]["realized_pnl"] > 0
 
     metrics = service.get_performance_metrics()
@@ -151,6 +220,16 @@ def test_position_closes_at_stop_loss_and_records_loss():
     submitted = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": float(TEST_ACCOUNT.account_size),
+            "risk_percent": float(TEST_ACCOUNT.risk_percent),
+            "point_value": float(InstrumentProfileEngine().get_profile(symbol="MNQ")["point_value"]),
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
+        order_context={
+            "market_is_open": True,
+        },
     )
 
     assert submitted["accepted"] is True
@@ -176,7 +255,7 @@ def test_position_closes_at_stop_loss_and_records_loss():
 
     trade = result["trade_record"]["trade"]
 
-    assert trade["symbol"] == "NQ"
+    assert trade["symbol"] == "MNQ"
     assert trade["direction"] == "LONG"
     assert trade["close_reason"] == "STOP_LOSS"
     assert trade["result"] == "LOSS"

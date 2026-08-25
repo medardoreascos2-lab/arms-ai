@@ -57,6 +57,18 @@ from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
 
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
@@ -93,6 +105,10 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
         InstrumentProfileEngine()
     )
 
+    position_sizing_engine = (
+        PositionSizingEngineV2()
+    )
+
     def resolve_contract_limit(
         symbol: str,
     ) -> int:
@@ -110,7 +126,29 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
         account.get_contract_limit("MICRO"),
     )
 
+    risk_manager_v2 = RiskManagerV2(
+        position_sizing_engine=(
+            position_sizing_engine
+        ),
+        maximum_daily_loss=(
+            account.daily_loss_limit
+        ),
+        maximum_total_drawdown=(
+            account.max_drawdown
+        ),
+        maximum_contracts=(
+            account.max_contracts
+        ),
+        maximum_open_positions=1,
+        contract_limit_resolver=(
+            resolve_contract_limit
+        ),
+    )
+
     return TradeLifecycleServiceV2(
+        risk_manager_v2=(
+            risk_manager_v2
+        ),
         execution_manager=(
             ExecutionManagerV2(
                 execution_mode="PAPER",
@@ -147,7 +185,14 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
                 trading_days_per_year=252,
             )
         ),
-        starting_balance=17000.0,
+        starting_balance=float(
+            AccountConfigManagerV2()
+            .get_active_account()
+            .account_size
+        ),
+        execution_risk_gate_v1=(
+            ExecutionRiskGateV1()
+        ),
     )
 
 
@@ -190,6 +235,34 @@ def build_strategy_backtest_pipeline(
 
     lifecycle = build_lifecycle()
 
+    active_account = (
+        AccountConfigManagerV2()
+        .get_active_account()
+    )
+
+    nq_profile = (
+        InstrumentProfileEngine()
+        .get_profile(symbol="NQ")
+    )
+
+    signal_risk_context = {
+        "account_balance": float(
+            active_account.account_size
+        ),
+        "risk_percent": float(
+            active_account.risk_percent
+        ),
+        "point_value": float(
+            nq_profile["point_value"]
+        ),
+        "daily_pnl": 0.0,
+        "total_drawdown": 0.0,
+    }
+
+    signal_order_context = {
+        "market_is_open": True,
+    }
+
     session = BacktestSessionV2(
         backtest_runner_v2=runner,
         strategy_runner_v2=(
@@ -214,6 +287,12 @@ def build_strategy_backtest_pipeline(
             lifecycle
         ),
         signal_order_type="MARKET",
+        signal_risk_context=(
+            signal_risk_context
+        ),
+        signal_order_context=(
+            signal_order_context
+        ),
     )
 
     return BacktestPipelineV2(
