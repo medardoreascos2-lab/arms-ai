@@ -21,9 +21,31 @@ from backend.execution.position_sizing_engine_v2 import (
 from backend.execution.risk_manager_v2 import (
     RiskManagerV2,
 )
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
+
+
+class FakeApprovedValidator:
+
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "RISK-INTEGRATION-TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }
 
 
 def build_service(
@@ -48,6 +70,12 @@ def build_service(
         ),
         risk_manager_v2=risk_manager,
         starting_balance=17000.0,
+        execution_risk_gate_v1=(
+            ExecutionRiskGateV1(
+                validator=FakeApprovedValidator(),
+                logger=RiskEventLoggerV1(),
+            )
+        ),
     )
 
 
@@ -207,7 +235,7 @@ def test_submit_signal_requires_risk_context_when_manager_configured():
         )
 
 
-def test_submit_signal_works_without_risk_manager():
+def test_submit_signal_without_risk_manager_is_fail_closed():
     service = build_service(
         risk_manager=None,
     )
@@ -215,10 +243,11 @@ def test_submit_signal_works_without_risk_manager():
     signal = build_risk_signal()
     signal["contracts"] = 2
 
-    result = service.submit_signal(
-        signal=signal,
-        order_type="MARKET",
-    )
-
-    assert result["accepted"] is True
-    assert result["risk_evaluation"] is None
+    with pytest.raises(
+        ValueError,
+        match="risk_evaluation",
+    ):
+        service.submit_signal(
+            signal=signal,
+            order_type="MARKET",
+        )

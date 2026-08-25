@@ -24,6 +24,12 @@ from backend.execution.position_sizing_engine_v2 import (
 from backend.execution.risk_manager_v2 import (
     RiskManagerV2,
 )
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
 from backend.execution.exposure_manager_v2 import (
     ExposureManagerV2,
 )
@@ -62,6 +68,22 @@ def build_portfolio_risk_engine(
         maximum_short_risk=700.0,
         maximum_symbol_risk=500.0,
     )
+
+
+class FakeApprovedValidator:
+
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "PORTFOLIO-RISK-TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }
 
 
 def build_service(
@@ -104,6 +126,12 @@ def build_service(
             portfolio_risk_engine_v2
         ),
         starting_balance=17000.0,
+        execution_risk_gate_v1=(
+            ExecutionRiskGateV1(
+                validator=FakeApprovedValidator(),
+                logger=RiskEventLoggerV1(),
+            )
+        ),
     )
 
 

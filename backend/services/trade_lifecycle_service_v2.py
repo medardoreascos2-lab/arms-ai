@@ -131,8 +131,7 @@ class TradeLifecycleServiceV2(
         BrokerConnectorV2
         | None = None,
         execution_risk_gate_v1:
-        ExecutionRiskGateV1
-        | None = None,
+        ExecutionRiskGateV1,
     ) -> None:
         if not isinstance(
             execution_manager,
@@ -266,17 +265,13 @@ class TradeLifecycleServiceV2(
         )
 
 
-        if (
-            execution_risk_gate_v1
-            is not None
-            and not isinstance(
-                execution_risk_gate_v1,
-                ExecutionRiskGateV1,
-            )
+        if not isinstance(
+            execution_risk_gate_v1,
+            ExecutionRiskGateV1,
         ):
             raise TypeError(
-                "execution_risk_gate_v1 debe ser "
-                "ExecutionRiskGateV1."
+                "execution_risk_gate_v1 es obligatorio "
+                "y debe ser ExecutionRiskGateV1."
             )
 
         self.execution_risk_gate_v1 = (
@@ -689,12 +684,25 @@ class TradeLifecycleServiceV2(
                     ),
                 }
 
+            requested_contracts = int(
+                working_signal.get(
+                    "contracts",
+                    0,
+                )
+            )
+
+            risk_allowed_contracts = int(
+                risk_evaluation.get(
+                    "contracts",
+                    0,
+                )
+            )
+
             working_signal[
                 "contracts"
-            ] = int(
-                risk_evaluation[
-                    "contracts"
-                ]
+            ] = min(
+                requested_contracts,
+                risk_allowed_contracts,
             )
 
         # ======================================
@@ -1031,11 +1039,7 @@ class TradeLifecycleServiceV2(
 
         execution_risk_gate_result = None
 
-        if (
-            not signal_blocked
-            and self.execution_risk_gate_v1
-            is not None
-        ):
+        if not signal_blocked:
             if risk_evaluation is None:
                 raise ValueError(
                     "execution_risk_gate_v1 requiere "

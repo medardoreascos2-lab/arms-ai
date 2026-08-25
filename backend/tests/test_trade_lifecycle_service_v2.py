@@ -9,15 +9,43 @@ from backend.analytics.trade_history_manager_v2 import (
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
+
+
+class FakeApprovedValidator:
+
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "LIFECYCLE-TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }
 
 
 def build_service() -> TradeLifecycleServiceV2:
@@ -49,6 +77,19 @@ def build_service() -> TradeLifecycleServiceV2:
             )
         ),
         starting_balance=17000.0,
+        risk_manager_v2=RiskManagerV2(
+            position_sizing_engine=PositionSizingEngineV2(),
+            maximum_daily_loss=3000.0,
+            maximum_total_drawdown=4500.0,
+            maximum_contracts=20,
+            maximum_open_positions=1,
+        ),
+        execution_risk_gate_v1=(
+            ExecutionRiskGateV1(
+                validator=FakeApprovedValidator(),
+                logger=RiskEventLoggerV1(),
+            )
+        ),
     )
 
 
@@ -82,6 +123,14 @@ def test_submits_signal_and_opens_position():
     result = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     assert result["accepted"] is True
@@ -142,6 +191,14 @@ def test_rejects_blocked_signal_without_position():
     result = service.submit_signal(
         signal=signal,
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     assert result["accepted"] is False
@@ -170,6 +227,14 @@ def test_updates_open_position():
     submitted = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     position_id = submitted[
@@ -220,6 +285,14 @@ def test_closes_position_and_records_trade():
     submitted = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     position_id = submitted[
@@ -275,6 +348,14 @@ def test_recalculates_performance_after_close():
     submitted = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     result = service.update_position(
@@ -301,6 +382,14 @@ def test_returns_active_positions():
     submitted = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     positions = service.get_active_positions()
@@ -323,6 +412,14 @@ def test_removes_position_after_close():
     submitted = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     service.update_position(
@@ -343,6 +440,14 @@ def test_returns_trade_history():
     submitted = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     service.update_position(
@@ -375,11 +480,27 @@ def test_blocks_second_position_when_one_is_open():
     first = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     second = service.submit_signal(
         signal=build_valid_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     assert first["accepted"] is True
@@ -408,6 +529,14 @@ def test_supports_short_position_lifecycle():
     submitted = service.submit_signal(
         signal=signal,
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": -500.0,
+            "total_drawdown": 1000.0,
+            "current_price": 100.0,
+        },
     )
 
     assert (
@@ -511,6 +640,12 @@ def test_rejects_invalid_starting_balance():
                 )
             ),
             starting_balance=0.0,
+            execution_risk_gate_v1=(
+                ExecutionRiskGateV1(
+                    validator=FakeApprovedValidator(),
+                    logger=RiskEventLoggerV1(),
+                )
+            ),
         )
 
 
@@ -574,6 +709,12 @@ def test_rejects_invalid_dependency(
             )
         ),
         "starting_balance": 17000.0,
+        "execution_risk_gate_v1": (
+            ExecutionRiskGateV1(
+                validator=FakeApprovedValidator(),
+                logger=RiskEventLoggerV1(),
+            )
+        ),
     }
 
     arguments[

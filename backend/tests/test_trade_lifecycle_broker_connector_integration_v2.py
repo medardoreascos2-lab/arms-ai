@@ -21,6 +21,18 @@ from backend.execution.paper_execution_engine_v2 import (
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
@@ -55,6 +67,32 @@ def build_paper_engine(
     )
 
 
+def build_risk_manager() -> RiskManagerV2:
+    return RiskManagerV2(
+        position_sizing_engine=PositionSizingEngineV2(),
+        maximum_daily_loss=3000.0,
+        maximum_total_drawdown=4500.0,
+        maximum_contracts=20,
+        maximum_open_positions=1,
+    )
+
+
+class FakeApprovedValidator:
+
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "BROKER-INTEGRATION-TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }
+
+
 def build_service(
     *,
     broker_connector_v2=None,
@@ -83,9 +121,16 @@ def build_service(
                 trading_days_per_year=252,
             )
         ),
+        risk_manager_v2=build_risk_manager(),
         starting_balance=17000.0,
         broker_connector_v2=(
             broker_connector_v2
+        ),
+        execution_risk_gate_v1=(
+            ExecutionRiskGateV1(
+                validator=FakeApprovedValidator(),
+                logger=RiskEventLoggerV1(),
+            )
         ),
     )
 
@@ -116,6 +161,13 @@ def test_lifecycle_executes_through_broker():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
     )
 
     assert result["accepted"] is True
@@ -155,6 +207,13 @@ def test_uses_injected_broker_connector():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
     )
 
     assert result["accepted"] is True
