@@ -7,11 +7,30 @@ from backend.analytics.trade_history_manager_v2 import (
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
+from backend.accounts.profiles.takeprofit_profiles import (
+    TakeProfitTraderProfiles,
+)
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+
+TEST_ACCOUNT = (
+    TakeProfitTraderProfiles.account_150k()
 )
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
@@ -39,6 +58,26 @@ def build_signal() -> dict[str, object]:
 
 
 def build_lifecycle() -> TradeLifecycleServiceV2:
+    position_sizing_engine = (
+        PositionSizingEngineV2()
+    )
+
+    risk_manager_v2 = RiskManagerV2(
+        position_sizing_engine=(
+            position_sizing_engine
+        ),
+        maximum_daily_loss=(
+            TEST_ACCOUNT.daily_loss_limit
+        ),
+        maximum_total_drawdown=(
+            TEST_ACCOUNT.max_drawdown
+        ),
+        maximum_contracts=(
+            TEST_ACCOUNT.max_contracts
+        ),
+        maximum_open_positions=1,
+    )
+
     return TradeLifecycleServiceV2(
         execution_manager=(
             ExecutionManagerV2(
@@ -67,6 +106,8 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
             )
         ),
         starting_balance=17000.0,
+        risk_manager_v2=risk_manager_v2,
+        execution_risk_gate_v1=ExecutionRiskGateV1(),
     )
 
 
@@ -76,6 +117,16 @@ def test_local_position_keeps_broker_position_id():
     result = lifecycle.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": float(TEST_ACCOUNT.account_size),
+            "risk_percent": float(TEST_ACCOUNT.risk_percent),
+            "point_value": float(
+                InstrumentProfileEngine()
+                .get_profile(symbol="NQ")["point_value"]
+            ),
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
     )
 
     assert result["accepted"] is True
@@ -106,6 +157,16 @@ def test_broker_position_can_be_found_from_local_position():
     result = lifecycle.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": float(TEST_ACCOUNT.account_size),
+            "risk_percent": float(TEST_ACCOUNT.risk_percent),
+            "point_value": float(
+                InstrumentProfileEngine()
+                .get_profile(symbol="NQ")["point_value"]
+            ),
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
     )
 
     local_position = result["position"]
@@ -152,6 +213,16 @@ def test_identity_survives_protection_update():
     result = lifecycle.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": float(TEST_ACCOUNT.account_size),
+            "risk_percent": float(TEST_ACCOUNT.risk_percent),
+            "point_value": float(
+                InstrumentProfileEngine()
+                .get_profile(symbol="NQ")["point_value"]
+            ),
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+        },
     )
 
     position = dict(

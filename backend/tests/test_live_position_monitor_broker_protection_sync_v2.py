@@ -22,6 +22,18 @@ from backend.execution.trailing_stop_engine_v2 import (
 from backend.services.live_position_monitor_v2 import (
     LivePositionMonitorV2,
 )
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
+from backend.accounts.profiles.takeprofit_profiles import (
+    TakeProfitTraderProfiles,
+)
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
@@ -76,6 +88,26 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
             )
         ),
         starting_balance=17000.0,
+        risk_manager_v2=RiskManagerV2(
+            position_sizing_engine=PositionSizingEngineV2(),
+            maximum_daily_loss=(
+                TakeProfitTraderProfiles
+                .account_150k()
+                .daily_loss_limit
+            ),
+            maximum_total_drawdown=(
+                TakeProfitTraderProfiles
+                .account_150k()
+                .max_drawdown
+            ),
+            maximum_contracts=(
+                TakeProfitTraderProfiles
+                .account_150k()
+                .max_contracts
+            ),
+            maximum_open_positions=1,
+        ),
+        execution_risk_gate_v1=ExecutionRiskGateV1(),
     )
 
 
@@ -85,6 +117,14 @@ def open_position(
     result = lifecycle.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+            "current_price": 100.0,
+        },
     )
 
     assert result["accepted"] is True
