@@ -8,8 +8,8 @@ from backend.backtesting.backtest_execution_simulator_v2 import (
     BacktestExecutionSimulatorV2,
 )
 
-from backend.risk.risk_pipeline_v1 import (
-    RiskPipelineV1,
+from backend.backtesting.backtest_risk_adapter_factory_v2 import (
+    BacktestRiskAdapterFactoryV2,
 )
 
 from backend.risk.account_config_manager_v1 import (
@@ -190,11 +190,8 @@ class BacktestSessionV2:
 
 
         self.risk_pipeline = (
-            RiskPipelineV1(
-                profile=(
-                    self.account_config
-                    .get_profile()
-                )
+            BacktestRiskAdapterFactoryV2.create(
+                account_config=self.account_config,
             )
         )
         self.backtest_trade_plan_adapter_v2 = (
@@ -724,18 +721,43 @@ class BacktestSessionV2:
             )
 
 
+        stop_loss = decision.metadata.get(
+            "stop_loss"
+        )
+
+        if stop_loss is None:
+            raise ValueError(
+                "La decisión debe contener stop_loss "
+                "para evaluar riesgo."
+            )
+
+        profile = (
+            self.account_config.get_profile()
+        )
+
+        point_value = float(
+            InstrumentProfileEngine()
+            .get_profile(
+                symbol=symbol
+            )["point_value"]
+        )
+
         risk_result = (
             self.risk_pipeline.evaluate(
-                entry=price,
-                stop_loss=decision.metadata.get(
-                    "stop_loss"
+                account_balance=float(
+                    profile.account_balance
                 ),
-                point_value=float(
-                    InstrumentProfileEngine()
-                    .get_profile(
-                        symbol=symbol
-                    )["point_value"]
+                risk_percent=float(
+                    profile.risk_percent
                 ),
+                stop_points=abs(
+                    price - float(stop_loss)
+                ),
+                point_value=point_value,
+                daily_pnl=0.0,
+                total_drawdown=0.0,
+                open_positions=0,
+                symbol=symbol,
             )
         )
 
