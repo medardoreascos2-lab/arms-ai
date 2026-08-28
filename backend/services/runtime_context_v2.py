@@ -264,6 +264,9 @@ def build_runtime_context(
 
     position_manager = PositionManagerV2(
         point_value=resolved_settings.point_value,
+        instrument_profile_engine=(
+            instrument_profiles
+        ),
     )
 
     trade_history_manager = TradeHistoryManagerV2()
@@ -291,6 +294,9 @@ def build_runtime_context(
             paper_execution_engine
         ),
         position_manager=position_manager,
+        instrument_profile_engine=(
+            instrument_profiles
+        ),
         trade_history_manager=(
             trade_history_manager
         ),
