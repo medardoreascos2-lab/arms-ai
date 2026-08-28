@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
+
 
 class PositionManagerV2:
     """
@@ -23,6 +27,9 @@ class PositionManagerV2:
         self,
         *,
         point_value: float,
+        instrument_profile_engine:
+        InstrumentProfileEngine
+        | None = None,
     ) -> None:
         normalized_point_value = float(
             point_value
@@ -36,6 +43,30 @@ class PositionManagerV2:
 
         self.point_value = (
             normalized_point_value
+        )
+
+        self.instrument_profile_engine = (
+            instrument_profile_engine
+            if instrument_profile_engine is not None
+            else None
+        )
+
+    def _resolve_point_value(
+        self,
+        *,
+        symbol: str,
+    ) -> float:
+        if self.instrument_profile_engine is None:
+            return self.point_value
+
+        profile = (
+            self.instrument_profile_engine.get_profile(
+                symbol=symbol,
+            )
+        )
+
+        return float(
+            profile["point_value"]
         )
 
     def open_position(
@@ -96,6 +127,23 @@ class PositionManagerV2:
             )
             .strip()
             .upper()
+        )
+
+        symbol = (
+            str(
+                execution.get(
+                    "symbol",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+        )
+
+        point_value = (
+            self._resolve_point_value(
+                symbol=symbol,
+            )
         )
 
         if side not in self.VALID_SIDES:
@@ -216,16 +264,7 @@ class PositionManagerV2:
                     "execution_mode"
                 )
             ),
-            "symbol": (
-                str(
-                    execution.get(
-                        "symbol",
-                        "",
-                    )
-                )
-                .strip()
-                .upper()
-            ),
+            "symbol": symbol,
             "direction": direction,
             "quantity": quantity,
             "entry_price": (
@@ -244,7 +283,7 @@ class PositionManagerV2:
             "exit_price": None,
             "close_reason": None,
             "point_value": (
-                self.point_value
+                point_value
             ),
         }
 
@@ -336,6 +375,19 @@ class PositionManagerV2:
             )
         )
 
+        point_value = float(
+            position.get(
+                "point_value",
+                self.point_value,
+            )
+        )
+
+        if point_value <= 0:
+            raise ValueError(
+                "point_value debe ser "
+                "mayor que cero."
+            )
+
         if direction == "LONG":
             unrealized_points = (
                 normalized_current_price
@@ -376,7 +428,7 @@ class PositionManagerV2:
         unrealized_pnl = round(
             unrealized_points
             * quantity
-            * self.point_value,
+            * point_value,
             10,
         )
 

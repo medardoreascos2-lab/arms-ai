@@ -69,6 +69,9 @@ class LivePositionMonitorV2:
         trade_learning_service_v2:
         TradeLearningServiceV2
         | None = None,
+        instrument_profile_engine:
+        InstrumentProfileEngine
+        | None = None,
 
     ) -> None:
         required_methods = (
@@ -178,6 +181,12 @@ class LivePositionMonitorV2:
             portfolio_manager_v2
         )
 
+        self.instrument_profile_engine = (
+            instrument_profile_engine
+            if instrument_profile_engine is not None
+            else InstrumentProfileEngine()
+        )
+
 
         self.trade_learning_service_v2 = (
             trade_learning_service_v2
@@ -194,6 +203,16 @@ class LivePositionMonitorV2:
                 position=position,
             )
         )
+
+    def _resolve_point_value(
+        self,
+        *,
+        symbol: str,
+    ) -> float:
+        profile = self.instrument_profile_engine.get_profile(
+            symbol=symbol,
+        )
+        return float(profile["point_value"])
 
     def process_price(
         self,
@@ -332,8 +351,29 @@ class LivePositionMonitorV2:
                 self.realized_pnl_engine
                 is not None
             ):
+                point_value = (
+                    self._resolve_point_value(
+                        symbol=str(
+                            position_for_update.get(
+                                "symbol",
+                                normalized_symbol,
+                            )
+                        ),
+                    )
+                )
+
+                realized_engine = (
+                    self.realized_pnl_engine
+                    if float(
+                        self.realized_pnl_engine.point_value
+                    ) == point_value
+                    else RealizedPnLEngineV2(
+                        point_value=point_value,
+                    )
+                )
+
                 realized_result = (
-                    self.realized_pnl_engine.calculate(
+                    realized_engine.calculate(
                         position=(
                             position_for_update
                         ),

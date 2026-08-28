@@ -1342,6 +1342,10 @@ def create_app(
             InstrumentProfileEngine,
         )
 
+        instrument_profile_engine = (
+            InstrumentProfileEngine()
+        )
+
         if (
             position_sizing_engine
             .instrument_profile_engine
@@ -1452,7 +1456,13 @@ def create_app(
                 position_manager=(
                     PositionManagerV2(
                         point_value=2.0,
+                        instrument_profile_engine=(
+                            instrument_profile_engine
+                        ),
                     )
+                ),
+                instrument_profile_engine=(
+                    instrument_profile_engine
                 ),
                 trade_history_manager=(
                     TradeHistoryManagerV2()

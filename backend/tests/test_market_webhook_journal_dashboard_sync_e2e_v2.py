@@ -67,9 +67,9 @@ def test_webhook_close_syncs_journal_and_dashboard():
         signal=build_signal(),
         order_type="MARKET",
         risk_context={
-            "account_balance": 17000.0,
+            "account_balance": 150000.0,
             "risk_percent": 0.3,
-            "point_value": 2.0,
+            "point_value": 20.0,
             "daily_pnl": 0.0,
             "total_drawdown": 0.0,
             "current_price": 100.0,
@@ -139,7 +139,7 @@ def test_webhook_close_syncs_journal_and_dashboard():
 
     assert (
         closed_trade["realized_pnl"]
-        == 97.5
+        == 390.0
     )
 
     snapshot = (
@@ -197,7 +197,7 @@ def test_webhook_close_syncs_journal_and_dashboard():
         ][
             "net_profit"
         ]
-        == 97.5
+        == 390.0
     )
 
     assert (
@@ -206,5 +206,5 @@ def test_webhook_close_syncs_journal_and_dashboard():
         ][
             "balance"
         ]
-        == 17097.5
+        == 150390.0
     )

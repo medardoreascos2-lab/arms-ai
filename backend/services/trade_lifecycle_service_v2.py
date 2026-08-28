@@ -46,6 +46,10 @@ from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
 
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
+
 from backend.execution.order_validation_engine_v2 import (
     OrderValidationEngineV2,
 )
@@ -94,6 +98,9 @@ class TradeLifecycleServiceV2(
         execution_manager: ExecutionManagerV2,
         paper_execution_engine: PaperExecutionEngineV2,
         position_manager: PositionManagerV2,
+        instrument_profile_engine:
+        InstrumentProfileEngine
+        | None = None,
         trade_history_manager: TradeHistoryManagerV2,
         performance_analytics: PerformanceAnalyticsV2,
         starting_balance: float,
@@ -187,6 +194,10 @@ class TradeLifecycleServiceV2(
                 "starting_balance debe ser "
                 "mayor que cero."
             )
+
+        self.instrument_profile_engine = (
+            instrument_profile_engine
+        )
 
         self.execution_manager = (
             execution_manager
@@ -495,6 +506,39 @@ class TradeLifecycleServiceV2(
         working_signal = dict(
             signal
         )
+
+        normalized_symbol = (
+            str(
+                working_signal.get(
+                    "symbol",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+        )
+
+        if (
+            self.instrument_profile_engine
+            is not None
+        ):
+            instrument_profile = (
+                self.instrument_profile_engine.get_profile(
+                    symbol=normalized_symbol,
+                )
+            )
+
+            resolved_point_value = float(
+                instrument_profile["point_value"]
+            )
+
+            if isinstance(risk_context, dict):
+                risk_context = dict(
+                    risk_context
+                )
+                risk_context["point_value"] = (
+                    resolved_point_value
+                )
 
 
         signal_blocked = not bool(
