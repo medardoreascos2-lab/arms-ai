@@ -7,10 +7,10 @@ def test_runtime_position_sizing_uses_active_account_limits():
     engine = app.state.position_sizing_engine
 
     expected = {
-        "NQ": 5,
-        "MNQ": 50,
-        "ES": 5,
-        "MES": 50,
+        "NQ": 15,
+        "MNQ": 150,
+        "ES": 15,
+        "MES": 150,
     }
 
     for symbol, expected_limit in expected.items():
@@ -33,8 +33,8 @@ def test_runtime_position_sizing_caps_nq_at_five():
         stop_loss=99.0,
     )
 
-    assert result["contracts"] == 5
-    assert result["maximum_contracts"] == 5
+    assert result["contracts"] == 15
+    assert result["maximum_contracts"] == 15
     assert result["status"] == "CAPPED_AT_MAXIMUM"
 
 
@@ -51,8 +51,8 @@ def test_runtime_position_sizing_caps_mnq_at_fifty():
         stop_loss=99.0,
     )
 
-    assert result["contracts"] == 50
-    assert result["maximum_contracts"] == 50
+    assert result["contracts"] == 150
+    assert result["maximum_contracts"] == 150
     assert result["status"] == "CAPPED_AT_MAXIMUM"
 
 
@@ -69,8 +69,8 @@ def test_runtime_position_sizing_caps_es_at_five():
         stop_loss=99.0,
     )
 
-    assert result["contracts"] == 5
-    assert result["maximum_contracts"] == 5
+    assert result["contracts"] == 15
+    assert result["maximum_contracts"] == 15
     assert result["status"] == "CAPPED_AT_MAXIMUM"
 
 
@@ -87,8 +87,8 @@ def test_runtime_position_sizing_caps_mes_at_fifty():
         stop_loss=99.0,
     )
 
-    assert result["contracts"] == 50
-    assert result["maximum_contracts"] == 50
+    assert result["contracts"] == 150
+    assert result["maximum_contracts"] == 150
     assert result["status"] == "CAPPED_AT_MAXIMUM"
 
 

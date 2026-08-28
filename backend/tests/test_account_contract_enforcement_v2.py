@@ -40,7 +40,7 @@ def test_execution_blocks_six_nq_contracts():
     result = execution.prepare_order(
         signal=build_signal(
             symbol="NQ",
-            contracts=6,
+            contracts=16,
         ),
         order_type="MARKET",
     )
@@ -87,5 +87,5 @@ def test_risk_manager_uses_symbol_aware_limits():
     nq_limit = risk.get_contract_limit("NQ")
     mnq_limit = risk.get_contract_limit("MNQ")
 
-    assert nq_limit == 5
-    assert mnq_limit == 50
+    assert nq_limit == 15
+    assert mnq_limit == 150

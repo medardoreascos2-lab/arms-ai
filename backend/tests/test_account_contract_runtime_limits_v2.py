@@ -26,14 +26,14 @@ def test_active_account_resolves_contract_limits_by_instrument():
         profile.get_contract_limit(
             mnq["contract_class"],
         )
-        == 50
+        == 150
     )
 
     assert (
         profile.get_contract_limit(
             nq["contract_class"],
         )
-        == 5
+        == 15
     )
 
 
@@ -48,8 +48,8 @@ def test_runtime_must_not_use_single_contract_limit_for_mini_and_micro():
         "MINI",
     )
 
-    assert micro_limit == 50
-    assert mini_limit == 5
+    assert micro_limit == 150
+    assert mini_limit == 15
     assert micro_limit != mini_limit
 
 

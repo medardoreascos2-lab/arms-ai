@@ -1,3 +1,15 @@
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
 import pytest
 
 from backend.analytics.performance_analytics_v2 import (
@@ -38,6 +50,26 @@ def build_order_validator(
     )
 
 
+def build_risk_manager() -> RiskManagerV2:
+    return RiskManagerV2(
+        position_sizing_engine=PositionSizingEngineV2(),
+        maximum_daily_loss=3000.0,
+        maximum_total_drawdown=4500.0,
+        maximum_contracts=20,
+        maximum_open_positions=1,
+    )
+
+
+def build_risk_context() -> dict[str, object]:
+    return {
+        "account_balance": 17000.0,
+        "risk_percent": 0.5,
+        "point_value": 2.0,
+        "daily_pnl": 0.0,
+        "total_drawdown": 0.0,
+    }
+
+
 def build_service(
     *,
     order_validation_engine_v2=None,
@@ -69,11 +101,15 @@ def build_service(
                 trading_days_per_year=252,
             )
         ),
-        risk_manager_v2=None,
         order_validation_engine_v2=(
             order_validation_engine_v2
         ),
+        risk_manager_v2=build_risk_manager(),
         starting_balance=17000.0,
+        execution_risk_gate_v1=ExecutionRiskGateV1(
+            validator=FakeApprovedValidator(),
+            logger=RiskEventLoggerV1(),
+        ),
     )
 
 
@@ -141,6 +177,7 @@ def test_submit_signal_uses_order_validation():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
         order_context={
             "market_is_open": True,
         },
@@ -183,6 +220,7 @@ def test_submit_signal_blocks_closed_market():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
         order_context={
             "market_is_open": False,
         },
@@ -218,6 +256,7 @@ def test_submit_signal_blocks_disallowed_symbol():
     result = service.submit_signal(
         signal=signal,
         order_type="MARKET",
+        risk_context=build_risk_context(),
         order_context={
             "market_is_open": True,
         },
@@ -248,6 +287,7 @@ def test_submit_signal_blocks_invalid_reward_risk():
     result = service.submit_signal(
         signal=signal,
         order_type="MARKET",
+        risk_context=build_risk_context(),
         order_context={
             "market_is_open": True,
         },
@@ -284,6 +324,7 @@ def test_requires_order_context_when_validator_configured():
         service.submit_signal(
             signal=build_signal(),
             order_type="MARKET",
+        risk_context=build_risk_context(),
         )
 
 
@@ -301,6 +342,7 @@ def test_rejects_invalid_order_context_type():
         service.submit_signal(
             signal=build_signal(),
             order_type="MARKET",
+        risk_context=build_risk_context(),
             order_context=object(),
         )
 
@@ -313,6 +355,7 @@ def test_submit_signal_works_without_validator():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     assert result["accepted"] is True
@@ -329,6 +372,7 @@ def test_validator_receives_open_symbols():
     first_result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
         order_context={
             "market_is_open": True,
         },
@@ -339,6 +383,7 @@ def test_validator_receives_open_symbols():
     second_result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
         order_context={
             "market_is_open": True,
         },
@@ -349,3 +394,17 @@ def test_validator_receives_open_symbols():
         second_result["reason"]
         == "position_already_open"
     )
+
+class FakeApprovedValidator:
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }

@@ -1,3 +1,15 @@
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
 import pytest
 
 from backend.analytics.performance_analytics_v2 import (
@@ -57,6 +69,26 @@ def build_signal(
     }
 
 
+def build_risk_manager() -> RiskManagerV2:
+    return RiskManagerV2(
+        position_sizing_engine=PositionSizingEngineV2(),
+        maximum_daily_loss=3000.0,
+        maximum_total_drawdown=4500.0,
+        maximum_contracts=20,
+        maximum_open_positions=1,
+    )
+
+
+def build_risk_context() -> dict[str, object]:
+    return {
+        "account_balance": 17000.0,
+        "risk_percent": 0.5,
+        "point_value": 2.0,
+        "daily_pnl": 0.0,
+        "total_drawdown": 0.0,
+    }
+
+
 def build_service(
     *,
     registry=None,
@@ -89,7 +121,12 @@ def build_service(
                 trading_days_per_year=252,
             )
         ),
+        risk_manager_v2=build_risk_manager(),
         starting_balance=17000.0,
+        execution_risk_gate_v1=ExecutionRiskGateV1(
+            validator=FakeApprovedValidator(),
+            logger=RiskEventLoggerV1(),
+        ),
         protective_order_registry_v2=registry,
         oco_manager_v2=oco_manager,
     )
@@ -147,6 +184,7 @@ def test_open_position_creates_oco_group(
             direction=direction,
         ),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     assert result["accepted"] is True
@@ -206,6 +244,7 @@ def test_active_position_keeps_oco_group_id():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     position = result["position"]
@@ -236,6 +275,7 @@ def test_oco_uses_registry_child_order_ids():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     position = result["position"]
@@ -281,6 +321,7 @@ def test_oco_metadata_links_protection():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     position = result["position"]
@@ -315,6 +356,7 @@ def test_oco_snapshot_reports_active_group():
     service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     snapshot = service.oco_manager_v2.snapshot()
@@ -331,6 +373,7 @@ def test_registry_and_oco_have_one_active_record():
     service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     registry_snapshot = (
@@ -353,3 +396,17 @@ def test_registry_and_oco_have_one_active_record():
     )
 
     assert oco_snapshot["active_groups"] == 1
+
+class FakeApprovedValidator:
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }

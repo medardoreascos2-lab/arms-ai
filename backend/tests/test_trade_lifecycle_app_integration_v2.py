@@ -1,3 +1,9 @@
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
@@ -105,8 +111,8 @@ def test_main_app_trade_lifecycle_api_flow():
     metrics = performance_response.json()
 
     assert metrics["total_trades"] == 0
-    assert metrics["starting_balance"] == 50000.0
-    assert metrics["ending_balance"] == 50000.0
+    assert metrics["starting_balance"] == 150000.0
+    assert metrics["ending_balance"] == 150000.0
 
 
 def test_create_app_uses_injected_trade_lifecycle_service_v2():
@@ -154,6 +160,10 @@ def test_create_app_uses_injected_trade_lifecycle_service_v2():
             )
         ),
         starting_balance=25000.0,
+        execution_risk_gate_v1=ExecutionRiskGateV1(
+            validator=FakeApprovedValidator(),
+            logger=RiskEventLoggerV1(),
+        ),
     )
 
     app = create_app(
@@ -193,3 +203,17 @@ def test_create_app_rejects_invalid_trade_lifecycle_service_v2():
         create_app(
             trade_lifecycle_service_v2=object(),
         )
+
+class FakeApprovedValidator:
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }

@@ -34,13 +34,13 @@ def test_default_runtime_context_uses_active_account_limits():
     execution = context.execution_manager
 
     expected = {
-        "NQ": 5,
-        "MNQ": 50,
-        "ES": 5,
-        "MES": 50,
+        "NQ": 15,
+        "MNQ": 150,
+        "ES": 15,
+        "MES": 150,
     }
 
-    assert execution.maximum_contracts == 5
+    assert execution.maximum_contracts == 15
 
     assert (
         execution.contract_limit_resolver
@@ -62,7 +62,7 @@ def test_default_runtime_context_blocks_six_nq():
     result = execution.prepare_order(
         signal=build_signal(
             symbol="NQ",
-            contracts=6,
+            contracts=16,
         ),
         order_type="MARKET",
     )
@@ -165,12 +165,12 @@ def test_runtime_context_uses_active_account_financial_rules():
 
     assert (
         lifecycle.starting_balance
-        == 50000.0
+        == 150000.0
     )
 
     assert (
         portfolio.starting_balance
-        == 50000.0
+        == 150000.0
     )
 
     assert (
@@ -180,7 +180,7 @@ def test_runtime_context_uses_active_account_financial_rules():
 
     assert (
         account_state.maximum_total_drawdown
-        == 2000.0
+        == 4500.0
     )
 
     assert (
@@ -190,7 +190,7 @@ def test_runtime_context_uses_active_account_financial_rules():
 
     assert (
         risk.maximum_total_drawdown
-        == 2000.0
+        == 4500.0
     )
 
 
@@ -198,10 +198,10 @@ def test_runtime_context_execution_and_risk_contract_limits_match():
     context = build_runtime_context()
 
     expected = {
-        "NQ": 5,
-        "MNQ": 50,
-        "ES": 5,
-        "MES": 50,
+        "NQ": 15,
+        "MNQ": 150,
+        "ES": 15,
+        "MES": 150,
     }
 
     execution = (

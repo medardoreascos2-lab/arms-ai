@@ -1,3 +1,9 @@
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
 import pytest
 
 from backend.analytics.performance_analytics_v2 import (
@@ -15,12 +21,38 @@ from backend.execution.paper_execution_engine_v2 import (
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
 )
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
 from backend.services.live_position_monitor_v2 import (
     LivePositionMonitorV2,
 )
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
+
+
+def build_risk_manager() -> RiskManagerV2:
+    return RiskManagerV2(
+        position_sizing_engine=PositionSizingEngineV2(),
+        maximum_daily_loss=3000.0,
+        maximum_total_drawdown=4500.0,
+        maximum_contracts=20,
+        maximum_open_positions=1,
+    )
+
+
+def build_risk_context() -> dict[str, object]:
+    return {
+        "account_balance": 17000.0,
+        "risk_percent": 0.5,
+        "point_value": 2.0,
+        "daily_pnl": 0.0,
+        "total_drawdown": 0.0,
+    }
 
 
 def build_lifecycle() -> TradeLifecycleServiceV2:
@@ -51,7 +83,12 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
                 trading_days_per_year=252,
             )
         ),
+        risk_manager_v2=build_risk_manager(),
         starting_balance=17000.0,
+        execution_risk_gate_v1=ExecutionRiskGateV1(
+            validator=FakeApprovedValidator(),
+            logger=RiskEventLoggerV1(),
+        ),
     )
 
 
@@ -111,6 +148,7 @@ def open_position(
         monitor.trade_lifecycle_service.submit_signal(
             signal=signal,
             order_type="MARKET",
+            risk_context=build_risk_context(),
         )
     )
 
@@ -419,3 +457,17 @@ def test_rejects_invalid_lifecycle_service():
         LivePositionMonitorV2(
             trade_lifecycle_service=object(),
         )
+
+class FakeApprovedValidator:
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }

@@ -31,6 +31,8 @@ class SubmitTradeRequestV2(
         min_length=1,
     )
 
+    risk_context: dict[str, Any] | None = None
+
 
 class UpdatePositionRequestV2(
     BaseModel
@@ -87,6 +89,7 @@ def create_trade_lifecycle_router_v2(
             result = service.submit_signal(
                 signal=request.signal,
                 order_type=request.order_type,
+                risk_context=request.risk_context,
             )
         except (
             TypeError,

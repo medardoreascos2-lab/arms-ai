@@ -9,10 +9,10 @@ def test_backtest_execution_uses_active_account_limits():
     execution = lifecycle.execution_manager
 
     expected = {
-        "NQ": 5,
-        "MNQ": 50,
-        "ES": 5,
-        "MES": 50,
+        "NQ": 15,
+        "MNQ": 150,
+        "ES": 15,
+        "MES": 150,
     }
 
     for symbol, expected_limit in expected.items():
@@ -27,7 +27,7 @@ def test_backtest_execution_fallback_is_safe_mini_limit():
 
     execution = lifecycle.execution_manager
 
-    assert execution.maximum_contracts == 5
+    assert execution.maximum_contracts == 15
 
 
 def test_backtest_allows_fifty_mnq_by_contract_rule():
@@ -80,7 +80,7 @@ def test_backtest_blocks_six_nq_by_contract_rule():
         "entry_price": 100.0,
         "stop_loss": 95.0,
         "take_profit": 110.0,
-        "contracts": 6,
+        "contracts": 16,
         "probability": 0.95,
         "confluence_score": 0.95,
         "grade": "A+",

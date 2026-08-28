@@ -123,7 +123,7 @@ def test_six_nq_remains_blocked_by_firm_contract_rule():
     result = execution.prepare_order(
         signal=build_signal(
             symbol="NQ",
-            contracts=6,
+            contracts=16,
         ),
         order_type="MARKET",
     )

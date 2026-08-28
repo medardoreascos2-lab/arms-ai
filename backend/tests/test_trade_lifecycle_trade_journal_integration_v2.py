@@ -1,3 +1,15 @@
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
+from backend.execution.risk_manager_v2 import (
+    RiskManagerV2,
+)
+from backend.execution.position_sizing_engine_v2 import (
+    PositionSizingEngineV2,
+)
 from datetime import datetime
 
 import pytest
@@ -27,6 +39,26 @@ from backend.services.trade_lifecycle_service_v2 import (
 
 def build_journal() -> TradeJournalV2:
     return TradeJournalV2()
+
+
+def build_risk_manager() -> RiskManagerV2:
+    return RiskManagerV2(
+        position_sizing_engine=PositionSizingEngineV2(),
+        maximum_daily_loss=3000.0,
+        maximum_total_drawdown=4500.0,
+        maximum_contracts=20,
+        maximum_open_positions=1,
+    )
+
+
+def build_risk_context() -> dict[str, object]:
+    return {
+        "account_balance": 17000.0,
+        "risk_percent": 0.5,
+        "point_value": 2.0,
+        "daily_pnl": 0.0,
+        "total_drawdown": 0.0,
+    }
 
 
 def build_service(
@@ -60,8 +92,12 @@ def build_service(
                 trading_days_per_year=252,
             )
         ),
+        risk_manager_v2=build_risk_manager(),
         starting_balance=17000.0,
-        risk_manager_v2=None,
+        execution_risk_gate_v1=ExecutionRiskGateV1(
+            validator=FakeApprovedValidator(),
+            logger=RiskEventLoggerV1(),
+        ),
         order_validation_engine_v2=None,
         exposure_manager_v2=None,
         portfolio_risk_engine_v2=None,
@@ -128,6 +164,7 @@ def test_submit_signal_registers_open_trade():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     assert result["accepted"] is True
@@ -164,6 +201,7 @@ def test_submit_signal_returns_trade_journal_summary():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     assert result["accepted"] is True
@@ -191,6 +229,7 @@ def test_without_trade_journal_returns_none_summary():
     result = service.submit_signal(
         signal=build_signal(),
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     assert result["accepted"] is True
@@ -225,6 +264,7 @@ def test_blocked_signal_does_not_register_trade():
     result = service.submit_signal(
         signal=signal,
         order_type="MARKET",
+        risk_context=build_risk_context(),
     )
 
     assert result["accepted"] is False
@@ -236,3 +276,17 @@ def test_blocked_signal_does_not_register_trade():
         ]
         == 0
     )
+
+class FakeApprovedValidator:
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }

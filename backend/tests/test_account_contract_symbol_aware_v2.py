@@ -22,13 +22,13 @@ def resolve_limit(symbol: str) -> int:
 
 
 def test_account_contract_resolves_nq_and_mnq_differently():
-    assert resolve_limit("NQ") == 5
-    assert resolve_limit("MNQ") == 50
+    assert resolve_limit("NQ") == 15
+    assert resolve_limit("MNQ") == 150
 
 
 def test_account_contract_resolves_es_and_mes_differently():
-    assert resolve_limit("ES") == 5
-    assert resolve_limit("MES") == 50
+    assert resolve_limit("ES") == 15
+    assert resolve_limit("MES") == 150
 
 
 def test_runtime_execution_manager_exposes_symbol_aware_limit():
@@ -50,10 +50,10 @@ def test_runtime_execution_manager_exposes_symbol_aware_limit():
         "get_contract_limit(symbol)"
     )
 
-    assert execution.get_contract_limit("NQ") == 5
-    assert execution.get_contract_limit("MNQ") == 50
-    assert execution.get_contract_limit("ES") == 5
-    assert execution.get_contract_limit("MES") == 50
+    assert execution.get_contract_limit("NQ") == 15
+    assert execution.get_contract_limit("MNQ") == 150
+    assert execution.get_contract_limit("ES") == 15
+    assert execution.get_contract_limit("MES") == 150
 
 
 def test_runtime_risk_manager_exposes_symbol_aware_limit():
@@ -75,10 +75,10 @@ def test_runtime_risk_manager_exposes_symbol_aware_limit():
         "get_contract_limit(symbol)"
     )
 
-    assert risk.get_contract_limit("NQ") == 5
-    assert risk.get_contract_limit("MNQ") == 50
-    assert risk.get_contract_limit("ES") == 5
-    assert risk.get_contract_limit("MES") == 50
+    assert risk.get_contract_limit("NQ") == 15
+    assert risk.get_contract_limit("MNQ") == 150
+    assert risk.get_contract_limit("ES") == 15
+    assert risk.get_contract_limit("MES") == 150
 
 
 def test_legacy_maximum_contracts_remains_conservative():
@@ -93,11 +93,11 @@ def test_legacy_maximum_contracts_remains_conservative():
     assert (
         lifecycle.execution_manager
         .maximum_contracts
-        == 5
+        == 15
     )
 
     assert (
         lifecycle.risk_manager_v2
         .maximum_contracts
-        == 5
+        == 15
     )

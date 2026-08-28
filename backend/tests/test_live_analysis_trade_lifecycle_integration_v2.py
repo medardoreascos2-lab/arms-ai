@@ -1,3 +1,9 @@
+from backend.risk.risk_event_logger_v1 import (
+    RiskEventLoggerV1,
+)
+from backend.execution.execution_risk_gate_v1 import (
+    ExecutionRiskGateV1,
+)
 import pytest
 
 from backend.analytics.performance_analytics_v2 import (
@@ -58,6 +64,10 @@ def build_lifecycle_service() -> TradeLifecycleServiceV2:
             )
         ),
         starting_balance=17000.0,
+        execution_risk_gate_v1=ExecutionRiskGateV1(
+            validator=FakeApprovedValidator(),
+            logger=RiskEventLoggerV1(),
+        ),
     )
 
 
@@ -106,3 +116,17 @@ def test_live_service_rejects_invalid_trade_lifecycle_service():
         build_live_service(
             trade_lifecycle_service_v2=object(),
         )
+
+class FakeApprovedValidator:
+    def validate_trade(
+        self,
+        contracts: int,
+        risk_amount: float,
+        symbol: str | None = None,
+    ):
+        return {
+            "status": "APPROVED",
+            "account": "TEST",
+            "contracts": contracts,
+            "risk_used": risk_amount,
+        }
