@@ -82,9 +82,9 @@ def submit_position(
         ),
         order_type="MARKET",
         risk_context={
-            "account_balance": 17000.0,
-            "risk_percent": 0.3,
-            "point_value": 2.0,
+            "account_balance": 150000.0,
+            "risk_percent": 0.5,
+            "point_value": 20.0,
             "daily_pnl": 0.0,
             "total_drawdown": 0.0,
             "current_price": 100.0,

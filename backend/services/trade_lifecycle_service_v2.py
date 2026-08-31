@@ -1801,6 +1801,95 @@ class TradeLifecycleServiceV2(
                 )
             )
 
+            # V40: synchronize the closed position with
+            # the shared Portfolio and Trade Journal.
+            if self.portfolio_manager_v2 is not None:
+                self.portfolio_manager_v2.close_position(
+                    position_id=normalized_position_id,
+                    exit_price=float(
+                        updated_position.get(
+                            "exit_price",
+                            current_price,
+                        )
+                    ),
+                    realized_pnl=float(
+                        updated_position.get(
+                            "realized_pnl",
+                            0.0,
+                        )
+                    ),
+                )
+
+            if self.trade_journal_v2 is not None:
+                journal_trade_id = (
+                    "journal-"
+                    + normalized_position_id
+                )
+
+                point_value = updated_position.get(
+                    "point_value"
+                )
+
+                if point_value is None:
+                    profile = (
+                        self.instrument_profile_engine
+                        .get_profile(
+                            symbol=(
+                                str(
+                                    updated_position.get(
+                                        "symbol",
+                                        current_position.get(
+                                            "symbol",
+                                            "",
+                                        ),
+                                    )
+                                )
+                                .strip()
+                                .upper()
+                            )
+                        )
+                    )
+
+                    if isinstance(profile, dict):
+                        point_value = profile.get(
+                            "point_value"
+                        )
+
+                if point_value is None:
+                    raise ValueError(
+                        "point_value no pudo resolverse "
+                        "para el instrumento cerrado."
+                    )
+
+                self.trade_journal_v2.close_trade(
+                    trade_id=journal_trade_id,
+                    result=str(
+                        updated_position.get(
+                            "close_reason",
+                            "CLOSED",
+                        )
+                    ),
+                    pnl=float(
+                        updated_position.get(
+                            "realized_pnl",
+                            0.0,
+                        )
+                    ),
+                    exit_price=float(
+                        updated_position.get(
+                            "exit_price",
+                            current_price,
+                        )
+                    ),
+                    exit_reason=str(
+                        updated_position.get(
+                            "close_reason",
+                            "CLOSED",
+                        )
+                    ),
+                    point_value=float(point_value),
+                )
+
             self._active_positions.pop(
                 normalized_position_id,
                 None,

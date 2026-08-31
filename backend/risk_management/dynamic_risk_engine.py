@@ -3,11 +3,6 @@ import math
 
 class DynamicRiskEngine:
 
-    INSTRUMENT_VALUES = {
-        "NQ": 5.0,
-        "MNQ": 0.5,
-    }
-
     def __init__(
         self,
         account_balance: float,
@@ -15,6 +10,7 @@ class DynamicRiskEngine:
         stop_atr_multiplier: float = 1.5,
         reward_risk_ratio: float = 2.0,
         instrument: str = "MNQ",
+        point_value: float | None = None,
     ):
 
         if account_balance <= 0:
@@ -29,9 +25,14 @@ class DynamicRiskEngine:
 
         instrument = instrument.upper()
 
-        if instrument not in self.INSTRUMENT_VALUES:
+        if not instrument:
             raise ValueError(
-                f"Instrumento no soportado: {instrument}"
+                "El instrumento no puede estar vacío."
+            )
+
+        if point_value is None or point_value <= 0:
+            raise ValueError(
+                "El point_value debe ser mayor que cero."
             )
 
         self.account_balance = account_balance
@@ -40,7 +41,7 @@ class DynamicRiskEngine:
         self.reward_risk_ratio = reward_risk_ratio
 
         self.instrument = instrument
-        self.point_value = self.INSTRUMENT_VALUES[instrument]
+        self.point_value = point_value
 
         self.risk_amount = 0.0
         self.stop_distance = 0.0

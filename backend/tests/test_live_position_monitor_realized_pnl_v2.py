@@ -120,11 +120,11 @@ def test_realized_pnl_is_calculated_after_partial():
     pnl = result["realized_pnl_results"][0]
 
     assert pnl["calculated"] is True
-    assert pnl["realized_pnl"] == 20.0
+    assert pnl["realized_pnl"] == 200.0
 
     position = pnl["position"]
 
-    assert position["realized_pnl"] == 20.0
+    assert position["realized_pnl"] == 200.0
     assert position["partial_pnl_recorded"] is True
 
 

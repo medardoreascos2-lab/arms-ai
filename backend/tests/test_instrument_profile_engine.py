@@ -240,14 +240,14 @@ def test_micro_profile_legacy_cap_is_not_active_account_limit():
         account.get_contract_limit(
             mnq["contract_class"]
         )
-        == 50
+        == 150
     )
 
     assert (
         account.get_contract_limit(
             mes["contract_class"]
         )
-        == 50
+        == 150
     )
 
 
@@ -277,7 +277,7 @@ def test_mini_profile_legacy_cap_matches_current_account_by_coincidence():
             account.get_contract_limit(
                 profile["contract_class"]
             )
-            == 5
+            == 15
         )
 
         assert (

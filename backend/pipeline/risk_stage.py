@@ -2,6 +2,9 @@ from typing import Any
 
 from backend.risk import RiskManager
 from backend.risk_management.dynamic_risk_engine import DynamicRiskEngine
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
 from backend.risk_management.trade_levels import TradeLevels
 from backend.risk_management.trade_validator import TradeValidator
 from backend.models.execution_status import ExecutionStatus
@@ -35,6 +38,7 @@ class RiskStage:
         self.stop_atr_multiplier = stop_atr_multiplier
         self.reward_risk_ratio = reward_risk_ratio
         self.instrument = instrument.upper()
+        self.instrument_profile_engine = InstrumentProfileEngine()
         self.point_value = point_value
 
     def run(
@@ -82,12 +86,23 @@ class RiskStage:
             risk_percent=self.risk_percent,
         )
 
+        instrument_profile = (
+            self.instrument_profile_engine.get_profile(
+                symbol=self.instrument,
+            )
+        )
+
+        point_value = float(
+            instrument_profile["point_value"]
+        )
+
         dynamic_risk = DynamicRiskEngine(
             account_balance=self.account_balance,
             risk_percent=self.risk_percent,
             stop_atr_multiplier=self.stop_atr_multiplier,
             reward_risk_ratio=self.reward_risk_ratio,
             instrument=self.instrument,
+            point_value=point_value,
         )
 
         dynamic_risk.calculate(

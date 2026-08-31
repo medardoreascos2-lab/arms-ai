@@ -50,12 +50,12 @@ class FakeStrategyRunner:
 
         if self.action is TradingActionV2.BUY:
             metadata = {
-                "stop_loss": 19950.0,
+                "stop_loss": 19970.0,
                 "take_profit": 20100.0,
             }
         elif self.action is TradingActionV2.SELL:
             metadata = {
-                "stop_loss": 20050.0,
+                "stop_loss": 20030.0,
                 "take_profit": 19900.0,
             }
         else:
@@ -141,10 +141,10 @@ def test_backtest_session_executes_buy_trade():
     assert call["symbol"] == "NQ"
     assert call["direction"] == "BUY"
     assert call["entry"] == 20000.0
-    assert call["stop_loss"] == 19950.0
+    assert call["stop_loss"] == 19970.0
     assert call["take_profit"] == 20100.0
     assert call["contracts"] == 1
-    assert call["risk_amount"] == 250.0
+    assert call["risk_amount"] == 750.0
     assert call["approved"] is True
 
 
@@ -166,10 +166,10 @@ def test_backtest_session_executes_sell_trade():
     assert call["direction"] == "SELL"
     assert call["symbol"] == "NQ"
     assert call["entry"] == 20000.0
-    assert call["stop_loss"] == 20050.0
+    assert call["stop_loss"] == 20030.0
     assert call["take_profit"] == 19900.0
     assert call["contracts"] == 1
-    assert call["risk_amount"] == 250.0
+    assert call["risk_amount"] == 750.0
     assert call["approved"] is True
 
 

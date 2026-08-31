@@ -34,12 +34,12 @@ def test_risk_dashboard_preserves_existing_contract(
 
     payload = response.json()
 
-    assert payload["account"] == "TOPSTEP_50K"
-    assert payload["balance"] == 50000
+    assert payload["account"] == "TOPSTEP_150K"
+    assert payload["balance"] == 150000
     assert payload["risk_percent"] == 0.5
-    assert payload["risk_per_trade"] == 250.0
+    assert payload["risk_per_trade"] == 750.0
     assert payload["daily_loss_limit"] is None
-    assert payload["max_drawdown"] == 2000
+    assert payload["max_drawdown"] == 4500
     assert payload["status"] == "TRADING ENABLED"
 
 

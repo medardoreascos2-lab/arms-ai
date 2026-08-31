@@ -491,7 +491,28 @@ class LivePositionMonitorV2:
                     )
 
             # ======================================
-            # 5. ACTUALIZACIÓN DE LA POSICIÓN
+            # 5. RESOLUCIÓN DE POINT VALUE
+            # ======================================
+
+            if position_for_update.get(
+                "point_value"
+            ) is None:
+
+                position_for_update[
+                    "point_value"
+                ] = self._resolve_point_value(
+                    symbol=str(
+                        position_for_update.get(
+                            "symbol",
+                            normalized_symbol,
+                        )
+                    )
+                    .strip()
+                    .upper()
+                )
+
+            # ======================================
+            # 6. ACTUALIZACIÓN DE LA POSICIÓN
             # ======================================
 
             result = (
@@ -515,6 +536,148 @@ class LivePositionMonitorV2:
             result_position = result[
                 "position"
             ]
+
+            # V40: propagate the resolved point value into
+            # the lifecycle result before downstream Journal
+            # synchronization.
+
+            if (
+                result_position.get(
+                    "point_value"
+                ) is None
+                and position_for_update.get(
+                    "point_value"
+                ) is not None
+            ):
+                result_position[
+                    "point_value"
+                ] = position_for_update[
+                    "point_value"
+                ]
+
+            # V40: defensive Journal synchronization.
+            #
+            # TradeLifecycleServiceV2 normally owns the Journal
+            # close. If the lifecycle implementation already
+            # closed the Journal, there is no open trade here and
+            # nothing is done. This fallback only closes a Journal
+            # trade that remains open after a CLOSED lifecycle result.
+
+            journal = getattr(
+                self.trade_lifecycle_service,
+                "trade_journal_v2",
+                None,
+            )
+
+            if journal is not None:
+                get_open_trades = getattr(
+                    journal,
+                    "get_open_trades",
+                    None,
+                )
+
+                close_trade = getattr(
+                    journal,
+                    "close_trade",
+                    None,
+                )
+
+                if (
+                    callable(get_open_trades)
+                    and callable(close_trade)
+                ):
+                    open_trades = (
+                        get_open_trades()
+                    )
+
+                    matching_journal_trade = None
+
+                    for journal_trade in (
+                        open_trades or []
+                    ):
+                        if (
+                            str(
+                                getattr(
+                                    journal_trade,
+                                    "trade_id",
+                                    "",
+                                )
+                            )
+                            == (
+                                "journal-"
+                                + str(
+                                    result_position[
+                                        "position_id"
+                                    ]
+                                )
+                            )
+                            or str(
+                                getattr(
+                                    journal_trade,
+                                    "trade_id",
+                                    "",
+                                )
+                            )
+                        ):
+                            matching_journal_trade = (
+                                journal_trade
+                            )
+                            break
+
+                    if matching_journal_trade is not None:
+                        fallback_point_value = (
+                            result_position.get(
+                                "point_value"
+                            )
+                            or position_for_update.get(
+                                "point_value"
+                            )
+                            or self._resolve_point_value(
+                                symbol=normalized_symbol
+                            )
+                        )
+
+                        fallback_pnl = float(
+                            result_position.get(
+                                "realized_pnl",
+                                result_position.get(
+                                    "total_pnl",
+                                    0.0,
+                                ),
+                            )
+                            or 0.0
+                        )
+
+                        fallback_exit_price = float(
+                            result_position.get(
+                                "exit_price",
+                                normalized_current_price,
+                            )
+                            or normalized_current_price
+                        )
+
+                        fallback_reason = str(
+                            result_position.get(
+                                "close_reason",
+                                "CLOSED",
+                            )
+                        )
+
+                        close_trade(
+                            trade_id=str(
+                                getattr(
+                                    matching_journal_trade,
+                                    "trade_id",
+                                )
+                            ),
+                            result=fallback_reason,
+                            pnl=fallback_pnl,
+                            exit_price=fallback_exit_price,
+                            exit_reason=fallback_reason,
+                            point_value=float(
+                                fallback_point_value
+                            ),
+                        )
 
             if (
                 self.portfolio_manager_v2
@@ -555,94 +718,34 @@ class LivePositionMonitorV2:
             ):
                 closed_positions += 1
 
-                if (
-                    self.portfolio_manager_v2
-                    is not None
-                ):
-                    closed_result = (
+                # V40: TradeLifecycleServiceV2 normally owns
+                # Portfolio close synchronization. Keep this
+                # defensive fallback for monitor configurations
+                # whose lifecycle does not own the shared
+                # Portfolio. Only close when the position is
+                # still present in the Portfolio open set.
+                if self.portfolio_manager_v2 is not None:
+                    normalized_position_id = str(
+                        result_position["position_id"]
+                    )
+
+                    portfolio_position_is_open = any(
+                        str(
+                            portfolio_position.get(
+                                "position_id",
+                                "",
+                            )
+                        )
+                        == normalized_position_id
+                        for portfolio_position in (
+                            self.portfolio_manager_v2
+                            .get_open_positions()
+                        )
+                    )
+
+                    if portfolio_position_is_open:
                         self.portfolio_manager_v2.close_position(
-                            position_id=str(
-                                result_position[
-                                    "position_id"
-                                ]
-                            ),
-                            exit_price=(
-                                normalized_current_price
-                            ),
-                            realized_pnl=float(
-                                result_position.get(
-                                    "total_pnl",
-                                    result_position.get(
-                                        "realized_pnl",
-                                        0.0,
-                                    ),
-                                )
-                                or 0.0
-                            ),
-                        )
-                    )
-
-                    if (
-                        isinstance(
-                            closed_result,
-                            dict,
-                        )
-                        and isinstance(
-                            closed_result.get(
-                                "position"
-                            ),
-                            dict,
-                        )
-                    ):
-                        result_position[
-                            "realized_pnl"
-                        ] = float(
-                            closed_result[
-                                "position"
-                            ].get(
-                                "realized_pnl",
-                                0.0,
-                            )
-                            or 0.0
-                        )
-
-                trade_journal_v2 = getattr(
-                    self.trade_lifecycle_service,
-                    "trade_journal_v2",
-                    None,
-                )
-
-                if trade_journal_v2 is not None:
-                    position_id = str(
-                        result_position[
-                            "position_id"
-                        ]
-                    )
-
-                    matching_trade = next(
-                        (
-                            trade
-                            for trade
-                            in trade_journal_v2
-                            .get_open_trades()
-                            if str(
-                                getattr(
-                                    trade,
-                                    "trade_id",
-                                    "",
-                                )
-                            ).endswith(
-                                position_id
-                            )
-                        ),
-                        None,
-                    )
-
-                    if matching_trade is not None:
-                        trade_journal_v2.close_trade(
-                            trade_id=str(
-                                matching_trade.trade_id
-                            ),
+                            position_id=normalized_position_id,
                             exit_price=float(
                                 result_position.get(
                                     "exit_price",
@@ -650,93 +753,99 @@ class LivePositionMonitorV2:
                                 )
                                 or normalized_current_price
                             ),
-                            point_value=float(
+                            realized_pnl=float(
                                 result_position.get(
-                                    "point_value"
-                                )
-                                or InstrumentProfileEngine()
-                                .get_profile(
-                                    symbol=str(
-                                        result_position.get(
-                                            "symbol",
-                                            matching_trade.symbol,
-                                        )
-                                    )
-                                )[
-                                    "point_value"
-                                ]
-                            ),
-                            pnl=float(
-                                result_position.get(
-                                    "total_pnl",
+                                    "realized_pnl",
                                     result_position.get(
-                                        "realized_pnl",
+                                        "total_pnl",
                                         0.0,
                                     ),
                                 )
                                 or 0.0
                             ),
-                            result="WIN"
-                            if str(
-                                result_position.get(
-                                    "close_reason",
-                                    "",
-                                )
-                            ).upper()
-                            == "TAKE_PROFIT"
-                            else "CLOSED",
-                            exit_reason=str(
-                                result_position.get(
-                                    "close_reason",
-                                    "",
-                                )
-                            ),
                         )
 
-                        if (
-                            self.trade_learning_service_v2
-                            is not None
-                        ):
+                # Continue with downstream learning/telemetry.
+                if (
+                    self.trade_learning_service_v2
+                    is not None
+                ):
 
-                            self.trade_learning_service_v2.process_closed_trade(
+                    self.trade_learning_service_v2.process_closed_trade(
 
-                                trade_id=str(
-                                    matching_trade.trade_id
-                                ),
-
-                                symbol=str(
-                                    matching_trade.symbol
-                                ),
-
-                                direction=str(
-                                    matching_trade.direction
-                                ),
-
-                                strategy=(
-                                    "ARMS AI Decision Engine"
-                                ),
-
-                                entry=float(
-                                    matching_trade.entry
-                                ),
-
-                                exit_price=float(
-                                    result_position.get(
-                                        "exit_price",
-                                        normalized_current_price,
-                                    )
-                                    or normalized_current_price
-                                ),
-
-                                contracts=int(
-                                    matching_trade.contracts
-                                ),
-
-                                real_pnl=float(
-                                    matching_trade.pnl
-                                ),
-
+                        trade_id=str(
+                            getattr(
+                                matching_journal_trade,
+                                "trade_id",
+                                "",
                             )
+                        ),
+
+                        symbol=str(
+                            getattr(
+                                matching_journal_trade,
+                                "symbol",
+                                normalized_symbol,
+                            )
+                        ),
+
+                        direction=str(
+                            getattr(
+                                matching_journal_trade,
+                                "direction",
+                                result_position.get(
+                                    "direction",
+                                    "UNKNOWN",
+                                ),
+                            )
+                        ),
+
+                        strategy=(
+                            "ARMS AI Decision Engine"
+                        ),
+
+                        entry=float(
+                            getattr(
+                                matching_journal_trade,
+                                "entry",
+                                result_position.get(
+                                    "entry_price",
+                                    0.0,
+                                ),
+                            )
+                        ),
+
+                        exit_price=float(
+                            result_position.get(
+                                "exit_price",
+                                normalized_current_price,
+                            )
+                            or normalized_current_price
+                        ),
+
+                        contracts=int(
+                            getattr(
+                                matching_journal_trade,
+                                "contracts",
+                                result_position.get(
+                                    "quantity",
+                                    0,
+                                ),
+                            )
+                        ),
+
+                        real_pnl=float(
+                            getattr(
+                                matching_journal_trade,
+                                "pnl",
+                                result_position.get(
+                                    "realized_pnl",
+                                    0.0,
+                                ),
+                            )
+                        ),
+
+                    )
 
                 performance_metrics = (
                     result.get(

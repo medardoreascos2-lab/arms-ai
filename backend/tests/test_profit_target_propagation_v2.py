@@ -59,7 +59,7 @@ def test_runtime_uses_active_account_profit_target():
     )
 
 
-def test_runtime_profit_target_is_three_thousand():
+def test_runtime_profit_target_is_nine_thousand():
     context = build_runtime_context()
 
     state = (
@@ -67,4 +67,4 @@ def test_runtime_profit_target_is_three_thousand():
         .get_state()
     )
 
-    assert state["profit_target"] == 3000.0
+    assert state["profit_target"] == 9000.0
