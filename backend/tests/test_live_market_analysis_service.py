@@ -4626,6 +4626,32 @@ def test_live_analysis_submits_signal_to_trade_lifecycle_v2():
         RecordingTradeLifecycleServiceV2()
     )
 
+    from backend.execution.paper_execution_engine_v2 import (
+        PaperExecutionEngineV2,
+    )
+
+    class RecordingPaperExecutionEngineV2(
+        PaperExecutionEngineV2
+    ):
+        def __init__(self) -> None:
+            self.calls = []
+
+        def execute(
+            self,
+            *,
+            prepared_order,
+        ):
+            self.calls.append(
+                prepared_order
+            )
+            return {
+                "status": "UNEXPECTED_SECOND_EXECUTION",
+            }
+
+    paper_execution_engine_v2 = (
+        RecordingPaperExecutionEngineV2()
+    )
+
     service = LiveMarketAnalysisService(
         candle_store=candle_store,
         analysis_store=analysis_store,
@@ -4673,6 +4699,9 @@ def test_live_analysis_submits_signal_to_trade_lifecycle_v2():
         ),
         trade_lifecycle_service_v2=(
             lifecycle
+        ),
+        paper_execution_engine_v2=(
+            paper_execution_engine_v2
         ),
     )
 
@@ -4731,6 +4760,25 @@ def test_live_analysis_submits_signal_to_trade_lifecycle_v2():
             "status"
         ]
         == "TEST"
+    )
+
+    assert (
+        result["prepared_order_v2"]
+        is result["trade_lifecycle_v2"][
+            "prepared_order"
+        ]
+    )
+
+    assert (
+        result["paper_execution_v2"]
+        is result["trade_lifecycle_v2"][
+            "execution"
+        ]
+    )
+
+    assert (
+        paper_execution_engine_v2.calls
+        == []
     )
 
 

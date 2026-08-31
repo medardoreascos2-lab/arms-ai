@@ -2826,46 +2826,46 @@ class LiveMarketAnalysisService:
                     )
                 )
         
-        if (
-            self.execution_manager_v2
-            is not None
+        lifecycle_result_v2 = result.get(
+            "trade_lifecycle_v2"
+        )
+
+        if lifecycle_result_v2 is not None:
+            prepared_order_v2 = lifecycle_result_v2.get(
+                "prepared_order"
+            )
+            paper_execution_v2 = lifecycle_result_v2.get(
+                "execution"
+            )
+
+            if prepared_order_v2 is not None:
+                result["prepared_order_v2"] = prepared_order_v2
+
+            if paper_execution_v2 is not None:
+                result["paper_execution_v2"] = paper_execution_v2
+
+        elif (
+            self.execution_manager_v2 is not None
             and "signal_v2" in result
         ):
-            prepared_order = (
-                self.execution_manager_v2.prepare_order(
-                    signal=result[
-                        "signal_v2"
-                    ],
-                    order_type="MARKET",
-                )
+            prepared_order = self.execution_manager_v2.prepare_order(
+                signal=result["signal_v2"],
+                order_type="MARKET",
             )
 
-            prepared_order[
-                "source_signal_status"
-            ] = result[
-                "signal_v2"
-            ][
-                "status"
-            ]
-
-            result[
-                "prepared_order_v2"
-            ] = prepared_order
-
-
-        if (
-            self.paper_execution_engine_v2
-            is not None
-            and "prepared_order_v2" in result
-        ):
-            result["paper_execution_v2"] = (
-                self.paper_execution_engine_v2.execute(
-                    prepared_order=result[
-                        "prepared_order_v2"
-                    ],
-                )
+            prepared_order["source_signal_status"] = (
+                result["signal_v2"]["status"]
             )
-        
+
+            result["prepared_order_v2"] = prepared_order
+
+            if self.paper_execution_engine_v2 is not None:
+                result["paper_execution_v2"] = (
+                    self.paper_execution_engine_v2.execute(
+                        prepared_order=prepared_order,
+                    )
+                )
+
         self.analysis_store.save(
             result
         )
