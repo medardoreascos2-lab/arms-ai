@@ -104,3 +104,59 @@ def test_monitor_processes_price_without_positions():
     assert result["matched_positions"] == 0
     assert result["updated_positions"] == []
     assert result["closed_positions"] == 0
+
+
+def test_app_monitor_resolves_instrument_point_value_by_symbol():
+    app = create_app()
+
+    monitor = (
+        app.state
+        .live_position_monitor_v2
+    )
+
+    lifecycle = (
+        app.state
+        .trade_lifecycle_service_v2
+    )
+
+    position_manager = (
+        lifecycle.position_manager
+    )
+
+    assert (
+        position_manager.instrument_profile_engine
+        is not None
+    )
+
+    assert (
+        monitor.instrument_profile_engine
+        is not None
+    )
+
+    assert (
+        position_manager._resolve_point_value(
+            symbol="NQ",
+        )
+        == 20.0
+    )
+
+    assert (
+        position_manager._resolve_point_value(
+            symbol="MNQ",
+        )
+        == 2.0
+    )
+
+    assert (
+        monitor._resolve_point_value(
+            symbol="NQ",
+        )
+        == 20.0
+    )
+
+    assert (
+        monitor._resolve_point_value(
+            symbol="MNQ",
+        )
+        == 2.0
+    )
