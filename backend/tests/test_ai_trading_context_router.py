@@ -159,3 +159,35 @@ def test_ai_trading_context_rejects_invalid_risk():
     )
 
     assert response.status_code == 422
+
+
+def test_ai_trading_context_uses_nq_profile_for_public_risk_contracts():
+    client = TestClient(
+        create_app()
+    )
+
+    payload = build_payload()
+
+    payload["account_balance"] = 150000.0
+    payload["risk_percent"] = 0.5
+    payload["point_value"] = 2.0
+
+    response = client.post(
+        "/ai/trading-context",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["symbol"] == "NQ"
+
+    risk = body["risk"]
+
+    assert risk["risk_amount"] == 750.0
+    assert risk["stop_distance"] == 9.0
+
+    # NQ = $20 / point:
+    # 750 / (9 * 20) = 4.16 -> 4 contracts.
+    assert risk["contracts"] == 4

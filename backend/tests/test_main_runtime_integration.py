@@ -249,3 +249,37 @@ def test_main_does_not_shutdown_when_startup_fails(
 
     assert lifecycle_manager.start_calls == 1
     assert lifecycle_manager.shutdown_paths == []
+
+
+def test_main_risk_stage_propagates_settings_instrument():
+    import ast
+    from pathlib import Path
+
+    source = Path("backend/main.py").read_text(
+        encoding="utf-8"
+    )
+
+    tree = ast.parse(source)
+
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "RiskStage"
+        )
+    ]
+
+    assert len(calls) == 1
+
+    keywords = {
+        keyword.arg: ast.unparse(keyword.value)
+        for keyword in calls[0].keywords
+        if keyword.arg is not None
+    }
+
+    assert (
+        keywords.get("instrument")
+        == "settings.instrument"
+    )

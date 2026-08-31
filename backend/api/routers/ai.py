@@ -112,6 +112,7 @@ def analyze_trading_context(
                 point_value=(
                     request.point_value
                 ),
+                instrument=request.symbol,
             ),
             DecisionStage(
                 reward_risk_ratio=(

@@ -75,6 +75,7 @@ def main() -> None:
                         settings.reward_risk_ratio
                     ),
                     point_value=settings.point_value,
+                    instrument=settings.instrument,
                 ),
                 DecisionStage(
                     reward_risk_ratio=(
