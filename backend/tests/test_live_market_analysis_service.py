@@ -4994,3 +4994,38 @@ def test_v2_lifecycle_prevents_legacy_trade_execution_ownership():
     assert legacy_execution_engine.calls == []
 
     assert "trade_execution" not in result
+
+
+def test_live_analysis_uses_nq_profile_for_public_risk_contracts():
+    candle_store = LiveCandleStore(
+        max_candles=100
+    )
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=150000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    risk = result["risk"]
+
+    assert risk["risk_amount"] == 750.0
+    assert risk["stop_distance"] == 9.0
+
+    # NQ = $20 / point:
+    # 750 / (9 * 20) = 4.16 -> 4 contracts.
+    assert risk["contracts"] == 4

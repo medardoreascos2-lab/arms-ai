@@ -1803,6 +1803,7 @@ class LiveMarketAnalysisService:
                     risk_percent=risk_percent,
                     reward_risk_ratio=reward_risk_ratio,
                     point_value=point_value,
+                    instrument=symbol,
                 ),
                 DecisionStage(
                     reward_risk_ratio=reward_risk_ratio,

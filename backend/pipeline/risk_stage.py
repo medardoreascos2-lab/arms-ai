@@ -86,15 +86,20 @@ class RiskStage:
             risk_percent=self.risk_percent,
         )
 
-        instrument_profile = (
-            self.instrument_profile_engine.get_profile(
-                symbol=self.instrument,
+        try:
+            instrument_profile = (
+                self.instrument_profile_engine.get_profile(
+                    symbol=self.instrument,
+                )
             )
-        )
 
-        point_value = float(
-            instrument_profile["point_value"]
-        )
+            point_value = float(
+                instrument_profile["point_value"]
+            )
+        except ValueError:
+            point_value = float(
+                self.point_value
+            )
 
         dynamic_risk = DynamicRiskEngine(
             account_balance=self.account_balance,

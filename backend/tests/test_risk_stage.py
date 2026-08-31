@@ -93,3 +93,24 @@ def test_risk_stage_uses_technical_decision_contract():
     result = RiskStage().run(context)
 
     assert result["technical_decision"] is technical_decision
+
+
+def test_risk_stage_falls_back_to_manual_point_value_for_unsupported_instrument():
+    context = build_context()
+
+    stage = RiskStage(
+        account_balance=150000.0,
+        risk_percent=0.5,
+        stop_atr_multiplier=1.5,
+        reward_risk_ratio=2.0,
+        instrument="UNKNOWN",
+        point_value=2.0,
+    )
+
+    result = stage.run(context)
+
+    dynamic_risk = result["dynamic_risk"]
+
+    assert dynamic_risk.instrument == "UNKNOWN"
+    assert dynamic_risk.point_value == 2.0
+    assert dynamic_risk.risk_amount == 750.0
