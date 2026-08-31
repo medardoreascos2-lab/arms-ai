@@ -283,6 +283,7 @@ class PositionManager:
         exit_price: float,
         closed_at: datetime,
         reason: str,
+        point_value: float = 2.0,
     ) -> dict[str, Any]:
         key = (
             symbol.strip().upper(),
@@ -311,10 +312,15 @@ class PositionManager:
                 entry - exit_price
             )
 
+        if point_value <= 0:
+            raise ValueError(
+                "point_value debe ser mayor que cero."
+            )
+
         pnl = (
             pnl_points
             * position["contracts"]
-            * 2.0
+            * float(point_value)
         )
 
         closed = deepcopy(

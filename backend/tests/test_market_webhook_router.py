@@ -567,7 +567,7 @@ def test_webhook_executes_partial_take_profit():
         management["partial_take_profit"][
             "realized_pnl"
         ]
-        == 60.0
+        == 600.0
     )
 
     position = position_manager.get_open_position(
@@ -755,3 +755,108 @@ def test_webhook_returns_exit_recommendation_without_closing():
     )
 
     assert position is not None
+
+
+def test_market_webhook_nq_stop_close_uses_instrument_point_value():
+    from datetime import (
+        datetime,
+        timezone,
+    )
+
+    from fastapi.testclient import TestClient
+
+    from backend.api.app import create_app
+    from backend.execution.position_manager import (
+        PositionManager,
+    )
+    from backend.services.trade_history_store import (
+        TradeHistoryStore,
+    )
+
+    position_manager = PositionManager()
+    trade_history_store = TradeHistoryStore()
+
+    position_manager.open_position(
+        {
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "action": "BUY",
+            "entry_price": 20000.0,
+            "stop_loss": 19990.0,
+            "take_profit": 20020.0,
+            "contracts": 1,
+            "executed": True,
+            "status": "SIMULATED",
+            "mode": "SIMULATED",
+            "executed_at": datetime(
+                2026,
+                1,
+                1,
+                12,
+                0,
+                tzinfo=timezone.utc,
+            ),
+        }
+    )
+
+    client = TestClient(
+        create_app(
+            position_manager=position_manager,
+            trade_history_store=trade_history_store,
+        )
+    )
+
+    response = client.post(
+        "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
+        json={
+            "symbol": "NQ",
+            "timeframe": "5m",
+            "open": 19990.0,
+            "high": 19991.0,
+            "low": 19989.0,
+            "close": 19990.0,
+            "volume": 1000.0,
+            "timestamp": datetime(
+                2026,
+                1,
+                1,
+                12,
+                1,
+                tzinfo=timezone.utc,
+            ).isoformat(),
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert body["position_monitor"]["status"] == "CLOSED"
+    assert (
+        body["position_monitor"]["close_reason"]
+        == "STOP_LOSS"
+    )
+
+    history = trade_history_store.get_history(
+        symbol="NQ",
+        timeframe="5m",
+        limit=10,
+    )
+
+    assert len(history) == 1
+
+    closed_trade = history[0]
+
+    assert closed_trade["symbol"] == "NQ"
+    assert closed_trade["contracts"] == 1
+    assert closed_trade["entry_price"] == 20000.0
+    assert closed_trade["exit_price"] == 19990.0
+    assert closed_trade["pnl_points"] == -10.0
+
+    # Institutional NQ contract:
+    # $20 per point.
+    # -10 points * 1 contract * $20 = -$200.
+    assert closed_trade["pnl"] == -200.0

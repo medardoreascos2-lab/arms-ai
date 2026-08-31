@@ -304,6 +304,7 @@ class PositionMonitor:
                 exit_price=exit_price,
                 closed_at=closed_at,
                 reason=reason,
+                point_value=self.point_value,
             )
         )
 

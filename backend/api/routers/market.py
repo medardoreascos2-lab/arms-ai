@@ -35,6 +35,9 @@ from backend.execution.trade_execution_engine import (
     TradeExecutionEngine,
 )
 from backend.models.candle import Candle
+from backend.instruments.instrument_profile_engine import (
+    InstrumentProfileEngine,
+)
 from backend.services.account_performance_service import (
     AccountPerformanceService,
 )
@@ -160,7 +163,12 @@ def receive_market_webhook(
             trade_history_store=(
                 trade_history_store
             ),
-            point_value=2.0,
+            point_value=float(
+                InstrumentProfileEngine()
+                .get_profile(
+                    symbol=candle.symbol,
+                )["point_value"]
+            ),
             break_even_trigger_points=20.0,
             break_even_offset_points=0.0,
             trailing_activation_points=30.0,
