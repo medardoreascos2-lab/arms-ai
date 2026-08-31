@@ -860,3 +860,51 @@ def test_market_webhook_nq_stop_close_uses_instrument_point_value():
     # $20 per point.
     # -10 points * 1 contract * $20 = -$200.
     assert closed_trade["pnl"] == -200.0
+
+def test_market_webhook_unsupported_symbol_preserves_manual_point_value_fallback():
+    from datetime import (
+        datetime,
+        timezone,
+    )
+
+    from fastapi.testclient import TestClient
+
+    from backend.api.app import create_app
+
+    client = TestClient(
+        create_app(),
+        raise_server_exceptions=False,
+    )
+
+    response = client.post(
+        "/market/webhook",
+        headers={
+            "X-ARMS-TOKEN": "development-secret",
+        },
+        json={
+            "symbol": "UNKNOWN",
+            "timeframe": "5m",
+            "open": 100.0,
+            "high": 101.0,
+            "low": 99.0,
+            "close": 100.0,
+            "volume": 1000.0,
+            "timestamp": datetime(
+                2026,
+                1,
+                1,
+                12,
+                0,
+                tzinfo=timezone.utc,
+            ).isoformat(),
+        },
+    )
+
+    # Compatibility contract:
+    # before symbol-aware trade-management wiring,
+    # unsupported symbols were not rejected here.
+    #
+    # RiskStage / LiveMarketAnalysisService already
+    # preserve the manual point-value fallback contract
+    # for unsupported instruments.
+    assert response.status_code == 201

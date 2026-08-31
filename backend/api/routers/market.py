@@ -64,6 +64,21 @@ from backend.services.trade_history_store import (
 )
 
 
+
+def _resolve_trade_management_point_value(
+    symbol: str,
+    fallback_point_value: float = 2.0,
+) -> float:
+    try:
+        profile = InstrumentProfileEngine().get_profile(
+            symbol=symbol
+        )
+    except ValueError:
+        return float(fallback_point_value)
+
+    return float(profile["point_value"])
+
+
 router = APIRouter(
     prefix="/market",
     tags=["market"],
@@ -163,12 +178,7 @@ def receive_market_webhook(
             trade_history_store=(
                 trade_history_store
             ),
-            point_value=float(
-                InstrumentProfileEngine()
-                .get_profile(
-                    symbol=candle.symbol,
-                )["point_value"]
-            ),
+            point_value=_resolve_trade_management_point_value(candle.symbol),
             break_even_trigger_points=20.0,
             break_even_offset_points=0.0,
             trailing_activation_points=30.0,
