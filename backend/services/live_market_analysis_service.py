@@ -2183,6 +2183,8 @@ class LiveMarketAnalysisService:
                     if (
                         self.trade_execution_engine
                         is not None
+                        and self.trade_lifecycle_service_v2
+                        is None
                     ):
                         trade = (
                             self.trade_execution_engine.execute(

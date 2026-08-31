@@ -4806,3 +4806,191 @@ def test_live_analysis_omits_trade_lifecycle_when_not_configured():
     )
 
     assert "trade_lifecycle_v2" not in result
+
+
+def test_v2_lifecycle_prevents_legacy_trade_execution_ownership():
+    from backend.execution.execution_decision_engine_v2 import (
+        ExecutionDecisionEngineV2,
+    )
+    from backend.execution.signal_execution_manager import (
+        SignalExecutionManager,
+    )
+    from backend.execution.trade_execution_engine import (
+        TradeExecutionEngine,
+    )
+    from backend.execution.trade_planner_v2 import (
+        TradePlannerV2,
+    )
+    from backend.execution.trade_validator_v2 import (
+        TradeValidatorV2,
+    )
+    from backend.intelligence.confluence_engine_v2 import (
+        ConfluenceEngineV2,
+    )
+    from backend.intelligence.probability_engine_v2 import (
+        ProbabilityEngineV2,
+    )
+    from backend.services.trade_lifecycle_service_v2 import (
+        TradeLifecycleServiceV2,
+    )
+    from backend.signals.signal_generator_v2 import (
+        SignalGeneratorV2,
+    )
+
+    class RecordingAccountStateManagerV2:
+        def get_state(self):
+            return {
+                "daily_pnl": 125.0,
+                "drawdown": 250.0,
+            }
+
+    class RecordingPortfolioManagerV2:
+        def __init__(self) -> None:
+            self.account_state_manager_v2 = (
+                RecordingAccountStateManagerV2()
+            )
+
+    class RecordingTradeLifecycleServiceV2(
+        TradeLifecycleServiceV2
+    ):
+        def __init__(self) -> None:
+            self.calls = []
+            self.portfolio_manager_v2 = (
+                RecordingPortfolioManagerV2()
+            )
+
+        def submit_signal(
+            self,
+            *,
+            signal,
+            order_type,
+            risk_context=None,
+            order_context=None,
+        ):
+            self.calls.append(
+                {
+                    "signal": signal,
+                    "order_type": order_type,
+                    "risk_context": risk_context,
+                    "order_context": order_context,
+                }
+            )
+
+            return {
+                "accepted": bool(
+                    signal.get(
+                        "approved",
+                        False,
+                    )
+                ),
+                "reason": None,
+                "prepared_order": {
+                    "status": "TEST",
+                },
+                "execution": {
+                    "status": "TEST",
+                },
+                "position": None,
+                "active_position_id": None,
+            }
+
+    class RecordingLegacyTradeExecutionEngine(
+        TradeExecutionEngine
+    ):
+        def __init__(self) -> None:
+            super().__init__(
+                mode="SIMULATED"
+            )
+            self.calls = []
+
+        def execute(self, execution):
+            self.calls.append(execution)
+            return super().execute(execution)
+
+    candle_store = LiveCandleStore()
+    analysis_store = LiveAnalysisStore()
+
+    populate_store(
+        candle_store
+    )
+
+    lifecycle = RecordingTradeLifecycleServiceV2()
+
+    legacy_execution_engine = (
+        RecordingLegacyTradeExecutionEngine()
+    )
+
+    service = LiveMarketAnalysisService(
+        candle_store=candle_store,
+        analysis_store=analysis_store,
+        execution_manager=SignalExecutionManager(
+            cooldown_minutes=15
+        ),
+        trade_execution_engine=(
+            legacy_execution_engine
+        ),
+        confluence_engine_v2=(
+            ConfluenceEngineV2()
+        ),
+        probability_engine_v2=(
+            ProbabilityEngineV2(
+                minimum_approval_probability=0.80,
+                very_high_threshold=0.90,
+                high_threshold=0.80,
+                medium_threshold=0.65,
+            )
+        ),
+        execution_decision_engine_v2=(
+            ExecutionDecisionEngineV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+            )
+        ),
+        trade_planner_v2=(
+            TradePlannerV2(
+                minimum_reward_risk_ratio=2.0,
+            )
+        ),
+        trade_validator_v2=(
+            TradeValidatorV2(
+                minimum_reward_risk_ratio=2.0,
+                minimum_stop_points=2.0,
+                maximum_stop_points=50.0,
+                maximum_spread_points=1.0,
+                minimum_atr_points=3.0,
+                maximum_signal_age_seconds=30,
+            )
+        ),
+        signal_generator_v2=(
+            SignalGeneratorV2(
+                minimum_probability=0.80,
+                minimum_confluence_score=0.80,
+                allowed_grades={
+                    "A+",
+                    "A",
+                },
+            )
+        ),
+        trade_lifecycle_service_v2=(
+            lifecycle
+        ),
+    )
+
+    result = service.analyze(
+        symbol="NQ",
+        timeframe="5m",
+        candle_limit=60,
+        account_balance=17000.0,
+        risk_percent=0.5,
+        point_value=2.0,
+        reward_risk_ratio=2.0,
+    )
+
+    assert "signal_v2" in result
+    assert "trade_lifecycle_v2" in result
+
+    assert len(lifecycle.calls) == 1
+
+    assert legacy_execution_engine.calls == []
+
+    assert "trade_execution" not in result
