@@ -1,95 +1,47 @@
-from fastapi import APIRouter
+from dataclasses import dataclass
 
-
-from backend.storage.journal_database import (
-    JournalDatabase,
-)
-
-
-from backend.analytics.trade_history_adapter import (
-    TradeHistoryAdapter,
-)
-
+from fastapi import APIRouter, Request
 
 from backend.learning.ai_learning_engine import (
     AILearningEngine,
 )
 
 
-
 router = APIRouter(
-
     prefix="/api/v2/dashboard",
-
-    tags=[
-
-        "AI Learning Intelligence"
-
-    ],
-
+    tags=["AI Learning"],
 )
 
 
-
-adapter = TradeHistoryAdapter()
-
-engine = AILearningEngine()
-
+@dataclass
+class CanonicalLearningTrade:
+    profit: float
 
 
+@router.get("/ai-learning")
+def get_ai_learning(
+    request: Request,
+):
+    journal = request.app.state.trade_journal_v2
 
-@router.get(
-    "/ai-learning"
-)
-def ai_learning_dashboard():
+    canonical_trades = journal.get_closed_trades()
 
+    trades = [
+        CanonicalLearningTrade(
+            profit=float(trade.pnl),
+        )
+        for trade in canonical_trades
+    ]
 
-    database = JournalDatabase()
+    engine = AILearningEngine()
 
-    database_trades = database.get_trades()
-
-
-    trades = adapter.convert_database_trades(
-        database_trades
-    )
-
-
-    report = engine.analyze(
-        trades
-    )
-
+    report = engine.analyze(trades)
 
     return {
-
-
-        "trades_analyzed":
-
-            report.trades_analyzed,
-
-
-        "win_rate":
-
-            report.win_rate,
-
-
-        "total_profit":
-
-            report.total_profit,
-
-
-        "performance_level":
-
-            report.performance_level,
-
-
-        "insights":
-
-            report.insights,
-
-
-        "recommendations":
-
-            report.recommendations,
-
-
+        "trades_analyzed": report.trades_analyzed,
+        "win_rate": report.win_rate,
+        "total_profit": report.total_profit,
+        "performance_level": report.performance_level,
+        "insights": report.insights,
+        "recommendations": report.recommendations,
     }
