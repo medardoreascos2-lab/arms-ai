@@ -12,8 +12,8 @@ from backend.backtesting.backtest_risk_adapter_factory_v2 import (
     BacktestRiskAdapterFactoryV2,
 )
 
-from backend.risk.account_config_manager_v1 import (
-    AccountConfigManagerV1,
+from backend.accounts.account_config_manager_v2 import (
+    AccountConfigManagerV2,
 )
 
 from backend.backtesting.backtest_execution_adapter_v2 import (
@@ -185,7 +185,7 @@ class BacktestSessionV2:
         )
 
         self.account_config = (
-            AccountConfigManagerV1()
+            AccountConfigManagerV2()
         )
 
 
@@ -732,7 +732,7 @@ class BacktestSessionV2:
             )
 
         profile = (
-            self.account_config.get_profile()
+            self.account_config.get_active_account()
         )
 
         point_value = float(
@@ -745,7 +745,7 @@ class BacktestSessionV2:
         risk_result = (
             self.risk_pipeline.evaluate(
                 account_balance=float(
-                    profile.account_balance
+                    profile.account_size
                 ),
                 risk_percent=float(
                     profile.risk_percent

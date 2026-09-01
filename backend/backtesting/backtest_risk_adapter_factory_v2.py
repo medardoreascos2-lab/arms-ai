@@ -6,8 +6,8 @@ from backend.execution.position_sizing_engine_v2 import (
 from backend.execution.risk_manager_v2 import (
     RiskManagerV2,
 )
-from backend.risk.account_config_manager_v1 import (
-    AccountConfigManagerV1,
+from backend.accounts.account_config_manager_v2 import (
+    AccountConfigManagerV2,
 )
 from backend.risk.risk_compatibility_adapter_v2 import (
     RiskCompatibilityAdapterV2,
@@ -20,7 +20,7 @@ class BacktestRiskAdapterFactoryV2:
     BacktestSessionV2.
 
     La configuración de cuenta continúa siendo obtenida desde
-    AccountConfigManagerV1, pero la evaluación real de riesgo
+    AccountConfigManagerV2, y la evaluación real de riesgo
     utiliza:
 
         RiskManagerV2
@@ -35,17 +35,17 @@ class BacktestRiskAdapterFactoryV2:
     @staticmethod
     def create(
         *,
-        account_config: AccountConfigManagerV1 | None = None,
+        account_config: AccountConfigManagerV2 | None = None,
         maximum_contracts: int = 20,
         maximum_open_positions: int = 1,
     ) -> RiskCompatibilityAdapterV2:
         config = (
             account_config
             if account_config is not None
-            else AccountConfigManagerV1()
+            else AccountConfigManagerV2()
         )
 
-        profile = config.get_profile()
+        profile = config.get_active_account()
 
         if maximum_contracts <= 0:
             raise ValueError(
