@@ -773,11 +773,21 @@ class LivePositionMonitorV2:
 
                     self.trade_learning_service_v2.process_closed_trade(
 
-                        trade_id=str(
-                            getattr(
-                                matching_journal_trade,
-                                "trade_id",
-                                "",
+                        trade_id=(
+                            str(
+                                getattr(
+                                    matching_journal_trade,
+                                    "trade_id",
+                                    "",
+                                )
+                            )
+                            or (
+                                "journal-"
+                                + str(
+                                    result_position[
+                                        "position_id"
+                                    ]
+                                )
                             )
                         ),
 
