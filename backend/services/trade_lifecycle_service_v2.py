@@ -550,6 +550,15 @@ class TradeLifecycleServiceV2(
             )
             or str(
                 working_signal.get(
+                    "status",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+            != "READY"
+            or str(
+                working_signal.get(
                     "grade",
                     "",
                 )
