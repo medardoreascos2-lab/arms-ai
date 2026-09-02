@@ -12,6 +12,7 @@ class ArmsSettings:
 
     account_balance: float = 17000.0
     risk_percent: float = 0.5
+    internal_daily_loss_limit: float | None = None
     stop_atr_multiplier: float = 1.5
     reward_risk_ratio: float = 2.0
     instrument: str = "MNQ"
@@ -67,6 +68,15 @@ class ArmsSettings:
         if not 0 < self.risk_percent <= 100:
             raise ValueError(
                 "risk_percent debe estar entre 0 y 100."
+            )
+
+        if (
+            self.internal_daily_loss_limit is not None
+            and self.internal_daily_loss_limit <= 0
+        ):
+            raise ValueError(
+                "internal_daily_loss_limit debe ser "
+                "mayor que cero."
             )
 
         if self.stop_atr_multiplier <= 0:

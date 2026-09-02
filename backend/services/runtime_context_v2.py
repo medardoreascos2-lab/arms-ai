@@ -135,12 +135,36 @@ def build_runtime_context(
         else float(active_account.account_size)
     )
 
-    active_maximum_daily_loss = (
+    firm_daily_loss_limit = (
         None
         if active_account.daily_loss_limit is None
         else float(
             active_account.daily_loss_limit
         )
+    )
+
+    internal_daily_loss_limit = (
+        None
+        if resolved_settings.internal_daily_loss_limit
+        is None
+        else float(
+            resolved_settings.internal_daily_loss_limit
+        )
+    )
+
+    daily_loss_candidates = [
+        limit
+        for limit in (
+            firm_daily_loss_limit,
+            internal_daily_loss_limit,
+        )
+        if limit is not None
+    ]
+
+    active_maximum_daily_loss = (
+        min(daily_loss_candidates)
+        if daily_loss_candidates
+        else None
     )
 
     active_maximum_total_drawdown = float(
