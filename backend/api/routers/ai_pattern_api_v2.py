@@ -1,110 +1,58 @@
-from fastapi import APIRouter
+from dataclasses import dataclass
 
+from fastapi import APIRouter, Request
 
-from backend.storage.journal_database import (
-    JournalDatabase,
-)
-
-
-from backend.analytics.trade_history_adapter import (
-    TradeHistoryAdapter,
-)
-
-
-from backend.learning.ai_pattern_engine import (
-    AIPatternEngine,
-)
-
+from backend.learning.ai_pattern_engine import AIPatternEngine
 
 
 router = APIRouter(
-
     prefix="/api/v2/dashboard",
-
-    tags=[
-
-        "AI Pattern Intelligence"
-
-    ],
-
+    tags=["AI Pattern"],
 )
 
 
-
-adapter = TradeHistoryAdapter()
-
-engine = AIPatternEngine()
-
-
+@dataclass
+class CanonicalPatternTrade:
+    direction: str
+    profit: float
 
 
-@router.get(
-    "/ai-pattern"
-)
-def ai_pattern_dashboard():
+def _legacy_direction(direction: str) -> str:
+    normalized = str(direction).upper()
+
+    if normalized == "LONG":
+        return "BUY"
+
+    if normalized == "SHORT":
+        return "SELL"
+
+    return normalized
 
 
-    database = JournalDatabase()
+@router.get("/ai-pattern")
+def get_ai_pattern(request: Request):
+    journal = request.app.state.trade_journal_v2
+    canonical_trades = journal.get_closed_trades()
 
-    database_trades = database.get_trades()
+    trades = [
+        CanonicalPatternTrade(
+            direction=_legacy_direction(trade.direction),
+            profit=float(trade.pnl),
+        )
+        for trade in canonical_trades
+    ]
 
-
-    trades = adapter.convert_database_trades(
-        database_trades
-    )
-
-
-    report = engine.analyze(
-        trades
-    )
-
+    engine = AIPatternEngine()
+    report = engine.analyze(trades)
 
     return {
-
-
-        "trades_analyzed":
-
-            report.trades_analyzed,
-
-
-        "buy_trades":
-
-            report.buy_trades,
-
-
-        "sell_trades":
-
-            report.sell_trades,
-
-
-        "average_profit":
-
-            report.average_profit,
-
-
-        "average_loss":
-
-            report.average_loss,
-
-
-        "best_direction":
-
-            report.best_direction,
-
-
-        "pattern_quality":
-
-            report.pattern_quality,
-
-
-        "insights":
-
-            report.insights,
-
-
-        "recommendations":
-
-            report.recommendations,
-
-
+        "trades_analyzed": report.trades_analyzed,
+        "buy_trades": report.buy_trades,
+        "sell_trades": report.sell_trades,
+        "average_profit": report.average_profit,
+        "average_loss": report.average_loss,
+        "best_direction": report.best_direction,
+        "pattern_quality": report.pattern_quality,
+        "insights": report.insights,
+        "recommendations": report.recommendations,
     }
