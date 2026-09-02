@@ -541,11 +541,22 @@ class TradeLifecycleServiceV2(
                 )
 
 
-        signal_blocked = not bool(
-            working_signal.get(
-                "approved",
-                False,
+        signal_blocked = (
+            not bool(
+                working_signal.get(
+                    "approved",
+                    False,
+                )
             )
+            or str(
+                working_signal.get(
+                    "grade",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+            != "A+"
         )
 
         risk_evaluation = None
