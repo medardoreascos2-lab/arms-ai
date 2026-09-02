@@ -557,6 +557,20 @@ class TradeLifecycleServiceV2(
             .strip()
             .upper()
             != "A+"
+            or float(
+                working_signal.get(
+                    "probability",
+                    0.0,
+                )
+            )
+            < 0.80
+            or float(
+                working_signal.get(
+                    "confluence_score",
+                    0.0,
+                )
+            )
+            < 0.80
         )
 
         risk_evaluation = None
