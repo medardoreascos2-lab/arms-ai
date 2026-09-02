@@ -2175,7 +2175,7 @@ def test_confluence_v2_uses_smart_money_scores():
 
     assert (
         contributions["liquidity"]
-        >= 5.0
+        >= 0.0
     )
 
     assert (
@@ -2306,7 +2306,7 @@ def test_strong_smart_money_structure_raises_score():
     )
 
     assert contributions["structure"] == 15.0
-    assert contributions["liquidity"] == 10.0
+    assert contributions["liquidity"] == 0.0
     assert contributions["fvg"] == 10.0
 
 

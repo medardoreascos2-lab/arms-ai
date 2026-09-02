@@ -805,11 +805,23 @@ class LiveMarketAnalysisService:
                 )
             )
 
-            has_liquidity_confirmation = bool(
+            has_liquidity_sweep = bool(
                 smart_structure.get(
                     "liquidity_sweep",
                     False,
                 )
+            )
+
+            sweep_side = str(
+                smart_structure.get(
+                    "sweep_side",
+                    "",
+                )
+                or ""
+            ).strip().upper()
+
+            has_liquidity_confirmation = bool(
+                has_liquidity_sweep
                 or smart_equal_levels.get(
                     "equal_highs",
                     False,
@@ -891,11 +903,27 @@ class LiveMarketAnalysisService:
                 )
             )
 
-            liquidity_score = (
-                1.0
-                if has_liquidity_confirmation
-                else 0.50
-            )
+            if has_liquidity_sweep:
+                if trend_direction == "BULLISH":
+                    liquidity_score = (
+                        1.0
+                        if sweep_side == "SELL_SIDE"
+                        else 0.0
+                    )
+                elif trend_direction == "BEARISH":
+                    liquidity_score = (
+                        1.0
+                        if sweep_side == "BUY_SIDE"
+                        else 0.0
+                    )
+                else:
+                    liquidity_score = 0.0
+            else:
+                liquidity_score = (
+                    1.0
+                    if has_liquidity_confirmation
+                    else 0.50
+                )
 
             fvg_score = (
                 directional_confirmation_score(
