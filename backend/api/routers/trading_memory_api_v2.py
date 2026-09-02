@@ -1,110 +1,60 @@
-from fastapi import APIRouter
+from dataclasses import dataclass
+
+from fastapi import APIRouter, Request
+
+from backend.learning.trading_memory_engine import TradingMemoryEngine
 
 
-from backend.storage.journal_database import (
-    JournalDatabase,
-)
+router = APIRouter()
+
+memory_engine = TradingMemoryEngine()
 
 
-from backend.analytics.trade_history_adapter import (
-    TradeHistoryAdapter,
-)
+@dataclass
+class CanonicalMemoryTrade:
+    direction: str
+    profit: float
+    strategy: str
 
 
-from backend.learning.trading_memory_engine import (
-    TradingMemoryEngine,
-)
+def _legacy_direction(direction: str) -> str:
+    normalized = str(direction).upper()
+
+    if normalized == "LONG":
+        return "BUY"
+
+    if normalized == "SHORT":
+        return "SELL"
+
+    return normalized
 
 
+@router.get("/api/v2/dashboard/trading-memory")
+def get_trading_memory(request: Request):
 
-router = APIRouter(
+    journal = request.app.state.trade_journal_v2
 
-    prefix="/api/v2/dashboard",
+    canonical_trades = journal.get_closed_trades()
 
-    tags=[
+    trades = [
+        CanonicalMemoryTrade(
+            direction=_legacy_direction(trade.direction),
+            profit=float(trade.pnl),
+            strategy="UNKNOWN",
+        )
+        for trade in canonical_trades
+    ]
 
-        "AI Trading Memory Intelligence"
-
-    ],
-
-)
-
-
-
-adapter = TradeHistoryAdapter()
-
-engine = TradingMemoryEngine()
-
-
-
-@router.get(
-    "/trading-memory"
-)
-def trading_memory_dashboard():
-
-
-    database = JournalDatabase()
-
-
-    database_trades = database.get_trades()
-
-
-    trades = adapter.convert_database_trades(
-        database_trades
-    )
-
-
-    report = engine.analyze(
-        trades
-    )
-
+    report = memory_engine.analyze(trades)
 
     return {
-
-
-        "trades_analyzed":
-
-            report.trades_analyzed,
-
-
-        "buy_count":
-
-            report.buy_count,
-
-
-        "sell_count":
-
-            report.sell_count,
-
-
-        "dominant_strategy":
-
-            report.dominant_strategy,
-
-
-        "memory_quality":
-
-            report.memory_quality,
-
-
-        "winning_patterns":
-
-            report.winning_patterns,
-
-
-        "losing_patterns":
-
-            report.losing_patterns,
-
-
-        "insights":
-
-            report.insights,
-
-
-        "recommendations":
-
-            report.recommendations,
-
-
+        "trades_analyzed": report.trades_analyzed,
+        "buy_count": report.buy_count,
+        "sell_count": report.sell_count,
+        "dominant_strategy": report.dominant_strategy,
+        "memory_quality": report.memory_quality,
+        "winning_patterns": report.winning_patterns,
+        "losing_patterns": report.losing_patterns,
+        "insights": report.insights,
+        "recommendations": report.recommendations,
     }
