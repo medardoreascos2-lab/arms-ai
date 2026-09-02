@@ -827,10 +827,68 @@ class LiveMarketAnalysisService:
                 )
             )
 
+            trend_direction = {
+                "ALCISTA": "BULLISH",
+                "BULLISH": "BULLISH",
+                "BUY": "BULLISH",
+                "LONG": "BULLISH",
+                "BAJISTA": "BEARISH",
+                "BEARISH": "BEARISH",
+                "SELL": "BEARISH",
+                "SHORT": "BEARISH",
+            }.get(
+                str(
+                    result.get(
+                        "trend",
+                        "",
+                    )
+                ).upper(),
+                "NEUTRAL",
+            )
+
+            structure_direction = str(
+                smart_structure.get(
+                    "direction",
+                    "NEUTRAL",
+                )
+            ).upper()
+
+            fvg_direction = str(
+                smart_fvg.get(
+                    "direction",
+                    "NEUTRAL",
+                )
+            ).upper()
+
+            def directional_confirmation_score(
+                *,
+                detected: bool,
+                direction: str,
+            ) -> float:
+                if not detected:
+                    return 0.50
+
+                if trend_direction == "NEUTRAL":
+                    return 0.0
+
+                if direction == trend_direction:
+                    return 1.0
+
+                if direction in {
+                    "NEUTRAL",
+                    "NONE",
+                    "RANGE",
+                    "SIDEWAYS",
+                }:
+                    return 0.25
+
+                return 0.0
+
             structure_score = (
-                1.0
-                if has_structure_confirmation
-                else 0.50
+                directional_confirmation_score(
+                    detected=has_structure_confirmation,
+                    direction=structure_direction,
+                )
             )
 
             liquidity_score = (
@@ -840,9 +898,10 @@ class LiveMarketAnalysisService:
             )
 
             fvg_score = (
-                1.0
-                if has_fvg_confirmation
-                else 0.50
+                directional_confirmation_score(
+                    detected=has_fvg_confirmation,
+                    direction=fvg_direction,
+                )
             )
 
         else:
