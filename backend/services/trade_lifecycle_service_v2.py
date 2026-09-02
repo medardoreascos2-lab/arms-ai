@@ -548,6 +548,12 @@ class TradeLifecycleServiceV2(
                     False,
                 )
             )
+            or bool(
+                working_signal.get(
+                    "blocking_reasons",
+                    [],
+                )
+            )
             or str(
                 working_signal.get(
                     "status",
