@@ -865,6 +865,31 @@ class LiveMarketAnalysisService:
                 )
             ).upper()
 
+            has_directional_structure_event = bool(
+                smart_structure.get(
+                    "bos",
+                    False,
+                )
+                or smart_structure.get(
+                    "choch",
+                    False,
+                )
+            )
+
+            if (
+                not has_directional_structure_event
+                and smart_order_block.get(
+                    "order_block",
+                    False,
+                )
+            ):
+                structure_direction = str(
+                    smart_order_block.get(
+                        "direction",
+                        "NEUTRAL",
+                    )
+                ).upper()
+
             fvg_direction = str(
                 smart_fvg.get(
                     "direction",
