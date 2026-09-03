@@ -919,11 +919,10 @@ class LiveMarketAnalysisService:
                 else:
                     liquidity_score = 0.0
             else:
-                liquidity_score = (
-                    1.0
-                    if has_liquidity_confirmation
-                    else 0.50
-                )
+                # Equal highs/lows identify pending liquidity pools.
+                # They are context, not a completed liquidity reaction,
+                # so they preserve the neutral confluence baseline.
+                liquidity_score = 0.50
 
             fvg_score = (
                 directional_confirmation_score(

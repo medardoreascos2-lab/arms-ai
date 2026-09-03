@@ -160,7 +160,7 @@ def test_pending_equal_highs_are_not_part_of_sweep_contract():
     # Equal highs are a pending BUY_SIDE liquidity pool.
     # This test intentionally records current behavior.
     # Pool semantics will be handled separately from sweep semantics.
-    assert score == 1.0
+    assert score == 0.50
 
 
 def test_pending_equal_lows_are_not_part_of_sweep_contract():
@@ -172,4 +172,4 @@ def test_pending_equal_lows_are_not_part_of_sweep_contract():
     # Equal lows are a pending SELL_SIDE liquidity pool.
     # This test intentionally records current behavior.
     # Pool semantics will be handled separately from sweep semantics.
-    assert score == 1.0
+    assert score == 0.50
