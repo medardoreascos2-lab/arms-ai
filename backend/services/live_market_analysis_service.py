@@ -703,6 +703,63 @@ class LiveMarketAnalysisService:
         }
 
 
+    @staticmethod
+    def _calculate_volume_quality_score(
+        candles: list[object],
+    ) -> float:
+        volumes = [
+            float(
+                getattr(
+                    candle,
+                    "volume",
+                    0.0,
+                )
+            )
+            for candle in candles
+        ]
+
+        if len(volumes) < 2:
+            return 0.50
+
+        prior_volumes = volumes[:-1]
+
+        if (
+            not prior_volumes
+            or sum(prior_volumes) <= 0.0
+        ):
+            return 0.50
+
+        average_prior_volume = (
+            sum(prior_volumes)
+            / len(prior_volumes)
+        )
+
+        if average_prior_volume <= 0.0:
+            return 0.50
+
+        relative_volume = (
+            volumes[-1]
+            / average_prior_volume
+        )
+
+        if relative_volume <= 0.50:
+            return 0.0
+
+        if relative_volume < 1.0:
+            return (
+                relative_volume
+                - 0.50
+            )
+
+        return min(
+            1.0,
+            max(
+                0.0,
+                relative_volume
+                / 2.0,
+            ),
+        )
+
     def _evaluate_confluence_v2(
         self,
         *,
@@ -1126,35 +1183,11 @@ class LiveMarketAnalysisService:
                 )
             )
 
-        volumes = [
-            float(
-                getattr(
-                    candle,
-                    "volume",
-                    0.0,
-                )
+        volume_score = (
+            self._calculate_volume_quality_score(
+                candles
             )
-            for candle in candles
-        ]
-
-        if volumes and sum(
-            volumes
-        ) > 0:
-            average_volume = (
-                sum(volumes)
-                / len(volumes)
-            )
-
-            volume_score = min(
-                1.0,
-                max(
-                    0.0,
-                    volumes[-1]
-                    / average_volume,
-                ),
-            )
-        else:
-            volume_score = 0.50
+        )
 
         return (
             self.confluence_engine_v2
@@ -2493,11 +2526,9 @@ class LiveMarketAnalysisService:
             )
 
             volume_score = (
-                1.0
-                if result.get(
-                    "volume"
+                self._calculate_volume_quality_score(
+                    candles
                 )
-                else 0.50
             )
 
             result[
