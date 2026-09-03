@@ -720,12 +720,24 @@ class LiveMarketAnalysisService:
                 "no está configurado."
             )
 
-        trend_text = str(
-            result.get(
-                "trend",
-                "",
-            )
-        ).strip().upper()
+        trend_data = result.get(
+            "trend",
+            "",
+        )
+
+        if isinstance(trend_data, dict):
+            trend_text = str(
+                trend_data.get(
+                    "direction",
+                    "",
+                )
+                or ""
+            ).strip().upper()
+        else:
+            trend_text = str(
+                trend_data
+                or ""
+            ).strip().upper()
 
         trend_score = (
             1.0
@@ -996,18 +1008,49 @@ class LiveMarketAnalysisService:
                 else 0.50
             )
 
-        ema_alignment_score = (
-            1.0
-            if (
-                result.get(
-                    "ema"
-                )
-                or result.get(
-                    "ema_alignment"
-                )
-            )
-            else 0.50
+        ema_data = (
+            result.get("ema_alignment")
+            or result.get("ema")
         )
+
+        ema_alignment_score = 0.50
+
+        if isinstance(ema_data, dict):
+            ema_direction = str(
+                ema_data.get("direction", "")
+                or ""
+            ).strip().upper()
+
+            bullish_directions = {
+                "ALCISTA",
+                "BULLISH",
+            }
+            bearish_directions = {
+                "BAJISTA",
+                "BEARISH",
+            }
+
+            if (
+                trend_text in bullish_directions
+                and ema_direction
+                in bullish_directions
+            ) or (
+                trend_text in bearish_directions
+                and ema_direction
+                in bearish_directions
+            ):
+                ema_alignment_score = 1.0
+
+            elif (
+                trend_text in bullish_directions
+                and ema_direction
+                in bearish_directions
+            ) or (
+                trend_text in bearish_directions
+                and ema_direction
+                in bullish_directions
+            ):
+                ema_alignment_score = 0.0
 
         probability_data = (
             result.get(
