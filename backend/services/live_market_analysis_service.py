@@ -704,6 +704,62 @@ class LiveMarketAnalysisService:
 
 
     @staticmethod
+    def _calculate_market_regime_quality_score(
+        market_regime_result:
+        dict[str, object]
+        | None,
+    ) -> float:
+        if market_regime_result is None:
+            return 0.50
+
+        market_tradable = bool(
+            market_regime_result.get(
+                "tradable",
+                True,
+            )
+        )
+
+        if not market_tradable:
+            return 0.0
+
+        regime = str(
+            market_regime_result.get(
+                "regime",
+                "",
+            )
+            or ""
+        ).strip().upper()
+
+        try:
+            confidence = float(
+                market_regime_result.get(
+                    "confidence",
+                    0.50,
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            confidence = 0.50
+
+        confidence = min(
+            1.0,
+            max(
+                0.0,
+                confidence,
+            ),
+        )
+
+        if regime in {
+            "TREND_UP",
+            "TREND_DOWN",
+        }:
+            return confidence
+
+        return 0.50
+
+    @staticmethod
     def _calculate_volume_quality_score(
         candles: list[object],
     ) -> float:
@@ -1157,31 +1213,22 @@ class LiveMarketAnalysisService:
             ),
         )
 
-        if market_regime_result is None:
-            market_regime_score = 0.50
-            market_tradable = True
-        else:
-            market_regime_score = float(
-                market_regime_result.get(
-                    "confidence",
-                    0.50,
-                )
+        market_regime_score = (
+            self._calculate_market_regime_quality_score(
+                market_regime_result
             )
+        )
 
-            market_regime_score = min(
-                1.0,
-                max(
-                    0.0,
-                    market_regime_score,
-                ),
-            )
-
-            market_tradable = bool(
+        market_tradable = (
+            True
+            if market_regime_result is None
+            else bool(
                 market_regime_result.get(
                     "tradable",
                     True,
                 )
             )
+        )
 
         volume_score = (
             self._calculate_volume_quality_score(
@@ -2519,9 +2566,8 @@ class LiveMarketAnalysisService:
             )
 
             market_regime_score = (
-                market_regime.get(
-                    "confidence",
-                    0.50,
+                self._calculate_market_regime_quality_score(
+                    market_regime
                 )
             )
 
