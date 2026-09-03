@@ -2305,9 +2305,9 @@ def test_strong_smart_money_structure_raises_score():
         ]
     )
 
-    assert contributions["structure"] == 15.0
+    assert contributions["structure"] == 17.65
     assert contributions["liquidity"] == 0.0
-    assert contributions["fvg"] == 10.0
+    assert contributions["fvg"] == 11.76
 
 
 def test_weak_smart_money_structure_keeps_conservative_scores():
@@ -2431,9 +2431,9 @@ def test_weak_smart_money_structure_keeps_conservative_scores():
         ]
     )
 
-    assert contributions["structure"] <= 7.5
-    assert contributions["liquidity"] <= 5.0
-    assert contributions["fvg"] <= 5.0
+    assert contributions["structure"] <= 8.82
+    assert contributions["liquidity"] <= 5.88
+    assert contributions["fvg"] <= 5.88
 
 
 def test_includes_probability_v2_result():

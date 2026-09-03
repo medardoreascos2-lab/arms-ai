@@ -196,8 +196,8 @@ def test_reports_component_contributions():
         market_tradable=True,
     )
 
-    assert result["score"] == 15.0
-    assert result["contributions"]["trend"] == 15.0
+    assert result["score"] == 17.65
+    assert result["contributions"]["trend"] == 17.65
     assert result["contributions"]["structure"] == 0.0
 
 

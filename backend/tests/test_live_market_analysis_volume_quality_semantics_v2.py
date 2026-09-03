@@ -109,10 +109,11 @@ def _volume_score(
         sizing_approved=True,
     )
 
-    return float(
-        confluence["contributions"]["volume"]
-    ) / float(
-        confluence["weights"]["volume"]
+    return (
+        service
+        ._calculate_volume_quality_score(
+            candles
+        )
     )
 
 

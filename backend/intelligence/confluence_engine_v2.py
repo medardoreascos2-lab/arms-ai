@@ -13,15 +13,20 @@ class ConfluenceEngineV2:
     - mercado operable.
     """
 
+    # Canonical confluence uses only independent
+    # primary market evidence. probability_score
+    # remains accepted for call-site compatibility,
+    # but it has no scoring authority here.
+    _PRIMARY_WEIGHT_SCALE: float = 100.0 / 85.0
+
     WEIGHTS: dict[str, float] = {
-        "trend": 15.0,
-        "structure": 15.0,
-        "liquidity": 10.0,
-        "fvg": 10.0,
-        "ema_alignment": 10.0,
-        "market_regime": 15.0,
-        "probability": 15.0,
-        "volume": 10.0,
+        "trend": 15.0 * _PRIMARY_WEIGHT_SCALE,
+        "structure": 15.0 * _PRIMARY_WEIGHT_SCALE,
+        "liquidity": 10.0 * _PRIMARY_WEIGHT_SCALE,
+        "fvg": 10.0 * _PRIMARY_WEIGHT_SCALE,
+        "ema_alignment": 10.0 * _PRIMARY_WEIGHT_SCALE,
+        "market_regime": 15.0 * _PRIMARY_WEIGHT_SCALE,
+        "volume": 10.0 * _PRIMARY_WEIGHT_SCALE,
     }
 
     def evaluate(
@@ -41,29 +46,29 @@ class ConfluenceEngineV2:
     ) -> dict[str, object]:
         components = {
             "trend_score": float(
-                trend_score
-            ),
+                            trend_score
+                        ),
             "structure_score": float(
-                structure_score
-            ),
+                            structure_score
+                        ),
             "liquidity_score": float(
-                liquidity_score
-            ),
+                            liquidity_score
+                        ),
             "fvg_score": float(
-                fvg_score
-            ),
+                            fvg_score
+                        ),
             "ema_alignment_score": float(
-                ema_alignment_score
-            ),
+                            ema_alignment_score
+                        ),
             "market_regime_score": float(
-                market_regime_score
-            ),
+                            market_regime_score
+                        ),
             "probability_score": float(
-                probability_score
-            ),
+                            probability_score
+                        ),
             "volume_score": float(
-                volume_score
-            ),
+                            volume_score
+                        ),
         }
 
         for field_name, value in components.items():
@@ -78,38 +83,20 @@ class ConfluenceEngineV2:
                 )
 
         contributions = {
-            "trend": (
-                components["trend_score"]
-                * self.WEIGHTS["trend"]
-            ),
-            "structure": (
-                components["structure_score"]
-                * self.WEIGHTS["structure"]
-            ),
-            "liquidity": (
-                components["liquidity_score"]
-                * self.WEIGHTS["liquidity"]
-            ),
-            "fvg": (
-                components["fvg_score"]
-                * self.WEIGHTS["fvg"]
-            ),
-            "ema_alignment": (
-                components["ema_alignment_score"]
-                * self.WEIGHTS["ema_alignment"]
-            ),
-            "market_regime": (
-                components["market_regime_score"]
-                * self.WEIGHTS["market_regime"]
-            ),
-            "probability": (
-                components["probability_score"]
-                * self.WEIGHTS["probability"]
-            ),
-            "volume": (
-                components["volume_score"]
-                * self.WEIGHTS["volume"]
-            ),
+            "trend": components["trend_score"]
+                            * self.WEIGHTS["trend"],
+            "structure": components["structure_score"]
+                            * self.WEIGHTS["structure"],
+            "liquidity": components["liquidity_score"]
+                            * self.WEIGHTS["liquidity"],
+            "fvg": components["fvg_score"]
+                            * self.WEIGHTS["fvg"],
+            "ema_alignment": components["ema_alignment_score"]
+                            * self.WEIGHTS["ema_alignment"],
+            "market_regime": components["market_regime_score"]
+                            * self.WEIGHTS["market_regime"],
+            "volume": components["volume_score"]
+                            * self.WEIGHTS["volume"],
         }
 
         raw_contributions = dict(

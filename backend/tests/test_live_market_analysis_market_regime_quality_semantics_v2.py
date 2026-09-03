@@ -96,18 +96,11 @@ def _regime_contribution(
         )
     )
 
-    return float(
-        confluence[
-            "contributions"
-        ][
-            "market_regime"
-        ]
-    ) / float(
-        confluence[
-            "weights"
-        ][
-            "market_regime"
-        ]
+    return (
+        service
+        ._calculate_market_regime_quality_score(
+            regime
+        )
     )
 
 
