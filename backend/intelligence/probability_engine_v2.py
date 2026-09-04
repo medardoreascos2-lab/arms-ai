@@ -15,12 +15,14 @@ class ProbabilityEngineV2:
     position sizing y mercado no operable.
     """
 
+    # Canonical probability authority:
+    #
+    # Confluence V2 already aggregates the primary market-quality
+    # evidence. The legacy score arguments remain in evaluate()
+    # for API compatibility and validation, but they must not
+    # receive a second independent mathematical weight here.
     WEIGHTS: dict[str, float] = {
-        "smart_money": 0.40,
-        "trend": 0.20,
-        "market_regime": 0.15,
-        "confluence": 0.15,
-        "volume": 0.10,
+        "confluence": 1.0,
     }
 
     def __init__(
@@ -141,26 +143,6 @@ class ProbabilityEngineV2:
                 )
 
         raw_contributions = {
-            "smart_money": (
-                components[
-                    "smart_money_score"
-                ]
-                * self.WEIGHTS[
-                    "smart_money"
-                ]
-            ),
-            "trend": (
-                components["trend_score"]
-                * self.WEIGHTS["trend"]
-            ),
-            "market_regime": (
-                components[
-                    "market_regime_score"
-                ]
-                * self.WEIGHTS[
-                    "market_regime"
-                ]
-            ),
             "confluence": (
                 components[
                     "confluence_score"
@@ -168,10 +150,6 @@ class ProbabilityEngineV2:
                 * self.WEIGHTS[
                     "confluence"
                 ]
-            ),
-            "volume": (
-                components["volume_score"]
-                * self.WEIGHTS["volume"]
             ),
         }
 

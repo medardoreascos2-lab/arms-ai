@@ -103,23 +103,21 @@ def test_uses_expected_weights():
 
     result = engine.evaluate(
         smart_money_score=1.0,
-        trend_score=0.0,
-        market_regime_score=0.0,
-        confluence_score=0.0,
-        volume_score=0.0,
+        trend_score=1.0,
+        market_regime_score=1.0,
+        confluence_score=0.80,
+        volume_score=1.0,
         risk_approved=True,
         sizing_approved=True,
         market_tradable=True,
     )
 
-    assert result["probability"] == 0.40
-    assert result["contributions"]["smart_money"] == 0.40
+    assert result["probability"] == 0.80
+    assert result["contributions"] == {
+        "confluence": 0.80,
+    }
     assert result["weights"] == {
-        "smart_money": 0.40,
-        "trend": 0.20,
-        "market_regime": 0.15,
-        "confluence": 0.15,
-        "volume": 0.10,
+        "confluence": 1.0,
     }
 
 
