@@ -2946,7 +2946,17 @@ class LiveMarketAnalysisService:
                     session_allowed=market_is_open,
                     news_blocked=False,
                     has_open_position=open_positions > 0,
-                    daily_limit_reached=False,
+                    daily_limit_reached=(
+                        "daily_loss_limit"
+                        in (
+                            account_risk.get(
+                                "reasons",
+                                [],
+                            )
+                            if "account_risk" in locals()
+                            else []
+                        )
+                    ),
                     signal_age_seconds=(
                         self._calculate_signal_age_seconds(
                             result["analyzed_at"]
