@@ -2913,6 +2913,22 @@ class LiveMarketAnalysisService:
             ] = trade_plan
 
 
+        market_is_open = False
+
+        if (
+            self.market_hours_service_v2
+            is not None
+        ):
+            market_is_open = (
+                self.market_hours_service_v2
+                .is_market_open(
+                    symbol=symbol,
+                    timestamp=(
+                        candles[-1].timestamp
+                    ),
+                )
+            )
+
         if (
             self.trade_validator_v2
             is not None
@@ -2927,7 +2943,7 @@ class LiveMarketAnalysisService:
                     trade_plan=trade_plan,
                     spread_points=0.25,
                     atr_points=5.0,
-                    session_allowed=True,
+                    session_allowed=market_is_open,
                     news_blocked=False,
                     has_open_position=False,
                     daily_limit_reached=False,
@@ -3102,22 +3118,6 @@ class LiveMarketAnalysisService:
                         current_price
                     ),
                 }
-
-                market_is_open = False
-
-                if (
-                    self.market_hours_service_v2
-                    is not None
-                ):
-                    market_is_open = (
-                        self.market_hours_service_v2
-                        .is_market_open(
-                            symbol=symbol,
-                            timestamp=(
-                                candles[-1].timestamp
-                            ),
-                        )
-                    )
 
                 order_context = {
                     # FAIL-CLOSED:
