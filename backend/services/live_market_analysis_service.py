@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
@@ -114,6 +116,86 @@ from backend.services.trade_history_store import (
 
 class LiveMarketAnalysisService:
     MINIMUM_CANDLES = 50
+
+    @staticmethod
+    def _calculate_signal_age_seconds(
+        signal_timestamp: datetime,
+        *,
+        now: datetime | None = None,
+    ) -> int:
+        if not isinstance(
+            signal_timestamp,
+            datetime,
+        ):
+            raise TypeError(
+                "signal_timestamp debe ser datetime."
+            )
+
+        current_time = (
+            datetime.now(timezone.utc)
+            if now is None
+            else now
+        )
+
+        if not isinstance(
+            current_time,
+            datetime,
+        ):
+            raise TypeError(
+                "now debe ser datetime."
+            )
+
+        normalized_signal_timestamp = (
+            signal_timestamp
+        )
+        normalized_current_time = (
+            current_time
+        )
+
+        if (
+            normalized_signal_timestamp.tzinfo
+            is None
+        ):
+            normalized_signal_timestamp = (
+                normalized_signal_timestamp.replace(
+                    tzinfo=timezone.utc,
+                )
+            )
+        else:
+            normalized_signal_timestamp = (
+                normalized_signal_timestamp.astimezone(
+                    timezone.utc,
+                )
+            )
+
+        if (
+            normalized_current_time.tzinfo
+            is None
+        ):
+            normalized_current_time = (
+                normalized_current_time.replace(
+                    tzinfo=timezone.utc,
+                )
+            )
+        else:
+            normalized_current_time = (
+                normalized_current_time.astimezone(
+                    timezone.utc,
+                )
+            )
+
+        age_seconds = (
+            normalized_current_time
+            - normalized_signal_timestamp
+        ).total_seconds()
+
+        if age_seconds < 0:
+            raise ValueError(
+                "signal_timestamp no puede estar "
+                "en el futuro."
+            )
+
+        return int(age_seconds)
 
     def __init__(
         self,
@@ -2849,7 +2931,11 @@ class LiveMarketAnalysisService:
                     news_blocked=False,
                     has_open_position=False,
                     daily_limit_reached=False,
-                    signal_age_seconds=5,
+                    signal_age_seconds=(
+                        self._calculate_signal_age_seconds(
+                            result["analyzed_at"]
+                        )
+                    ),
                 )
             )
 
