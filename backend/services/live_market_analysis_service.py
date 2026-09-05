@@ -2189,6 +2189,19 @@ class LiveMarketAnalysisService:
                 confluence_v2_result
             )
 
+        open_positions = 0
+
+        if (
+            self.position_manager
+            is not None
+            and self.position_manager.get_open_position(
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+            is not None
+        ):
+            open_positions = 1
+
         if (
             self.execution_manager
             is not None
@@ -2295,19 +2308,6 @@ class LiveMarketAnalysisService:
                     self.account_risk_guard
                     is not None
                 ):
-                    open_positions = 0
-
-                    if (
-                        self.position_manager
-                        is not None
-                        and self.position_manager.get_open_position(
-                            symbol=symbol,
-                            timeframe=timeframe,
-                        )
-                        is not None
-                    ):
-                        open_positions = 1
-
                     proposed_risk = (
                         account_balance
                         * risk_percent
@@ -2945,7 +2945,7 @@ class LiveMarketAnalysisService:
                     atr_points=5.0,
                     session_allowed=market_is_open,
                     news_blocked=False,
-                    has_open_position=False,
+                    has_open_position=open_positions > 0,
                     daily_limit_reached=False,
                     signal_age_seconds=(
                         self._calculate_signal_age_seconds(
