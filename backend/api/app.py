@@ -691,6 +691,9 @@ from backend.services.live_candle_store import (
 from backend.services.certified_market_hours_data_lifecycle_v2 import (
     CertifiedMarketHoursDataLifecycleV2,
 )
+from backend.services.certified_economic_news_data_lifecycle_v2 import (
+    CertifiedEconomicNewsDataLifecycleV2,
+)
 from backend.services.certified_market_hours_runtime_provider_v2 import (
     CertifiedMarketHoursRuntimeProviderV2,
 )
@@ -1967,6 +1970,37 @@ def create_app(
         app.state
         .market_hours_runtime_provider_v2
         .get_market_hours_service()
+    )
+
+    app.state.economic_news_data_lifecycle_v2 = (
+        CertifiedEconomicNewsDataLifecycleV2()
+    )
+
+    if settings.certified_economic_news_path is not None:
+        (
+            app.state
+            .economic_news_data_lifecycle_v2
+            .activate_from_file(
+                file_path=(
+                    settings.certified_economic_news_path
+                )
+            )
+        )
+
+    economic_news_runtime_provider_v2 = (
+        app.state
+        .economic_news_data_lifecycle_v2
+        .get_active_provider()
+    )
+
+    app.state.economic_news_runtime_provider_v2 = (
+        economic_news_runtime_provider_v2
+    )
+
+    app.state.economic_news_authority_v2 = (
+        app.state
+        .economic_news_runtime_provider_v2
+        .get_economic_news_authority()
     )
 
     app.state.market_hours_runtime_refresh_service_v2 = (

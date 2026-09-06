@@ -45,6 +45,11 @@ class APISettings:
             "ARMS_CERTIFIED_MARKET_HOURS_PATH"
         )
     )
+    certified_economic_news_path: str | None = field(
+        default_factory=lambda: _optional_environment_value(
+            "ARMS_CERTIFIED_ECONOMIC_NEWS_PATH"
+        )
+    )
 
     def __post_init__(self) -> None:
         if not self.webhook_token.strip():
@@ -77,4 +82,31 @@ class APISettings:
                 self,
                 "certified_market_hours_path",
                 normalized_path,
+            )
+
+        if (
+            self.certified_economic_news_path
+            is not None
+            and not isinstance(
+                self.certified_economic_news_path,
+                str,
+            )
+        ):
+            raise TypeError(
+                "certified_economic_news_path debe ser "
+                "str o None."
+            )
+
+        if self.certified_economic_news_path is not None:
+            normalized_economic_news_path = (
+                self.certified_economic_news_path.strip()
+            )
+
+            if not normalized_economic_news_path:
+                normalized_economic_news_path = None
+
+            object.__setattr__(
+                self,
+                "certified_economic_news_path",
+                normalized_economic_news_path,
             )

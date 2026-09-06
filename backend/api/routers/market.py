@@ -376,6 +376,9 @@ def receive_market_webhook(
             "market_hours_service_v2",
             None,
         ),
+        economic_news_authority_v2=(
+            request.app.state.economic_news_authority_v2
+        ),
     )
 
     if service.can_analyze(
@@ -620,6 +623,9 @@ def analyze_live_market(
             request.app.state,
             "market_hours_service_v2",
             None,
+        ),
+        economic_news_authority_v2=(
+            request.app.state.economic_news_authority_v2
         ),
     )
 

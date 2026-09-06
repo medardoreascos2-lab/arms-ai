@@ -277,7 +277,11 @@ class LiveMarketAnalysisService:
         market_hours_service_v2:
         MarketHoursServiceV2
         | None = None,
+        economic_news_authority_v2=None,
 ) -> None:
+        self.economic_news_authority_v2 = (
+            economic_news_authority_v2
+        )
         self.candle_store = candle_store
         self.analysis_store = analysis_store
         self.signal_store = signal_store
@@ -2143,6 +2147,17 @@ class LiveMarketAnalysisService:
             candles[-1].timestamp
         )
 
+        news_blocked = False
+
+        if self.economic_news_authority_v2 is not None:
+            news_blocked = (
+                self.economic_news_authority_v2
+                .is_news_blocked(
+                    symbol=symbol,
+                    timestamp=result["analyzed_at"],
+                )
+            )
+
         signal = SignalEngine().generate(
             result
         )
@@ -2760,7 +2775,7 @@ class LiveMarketAnalysisService:
                     ),
                     has_open_position=False,
                     daily_limit_reached=False,
-                    news_blocked=False,
+                    news_blocked=news_blocked,
                 )
             )
 
@@ -2944,7 +2959,7 @@ class LiveMarketAnalysisService:
                     spread_points=0.25,
                     atr_points=float(context["atr"].atr),
                     session_allowed=market_is_open,
-                    news_blocked=False,
+                    news_blocked=news_blocked,
                     has_open_position=open_positions > 0,
                     daily_limit_reached=(
                         "daily_loss_limit"

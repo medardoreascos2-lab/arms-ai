@@ -137,7 +137,8 @@ def test_execution_decision_daily_limit_remains_out_of_scope():
         keyword_name="daily_limit_reached",
     )
 
-    assert values == [(2720, "False")]
+    assert len(values) == 1
+    assert values[0][1] == "False"
 
 
 def test_runtime_daily_loss_limit_reaches_trade_validator(
