@@ -2942,7 +2942,7 @@ class LiveMarketAnalysisService:
                 self.trade_validator_v2.validate(
                     trade_plan=trade_plan,
                     spread_points=0.25,
-                    atr_points=5.0,
+                    atr_points=float(context["atr"].atr),
                     session_allowed=market_is_open,
                     news_blocked=False,
                     has_open_position=open_positions > 0,
