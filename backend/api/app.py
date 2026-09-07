@@ -1429,9 +1429,15 @@ def create_app(
 
         order_validation_engine_v2 = (
             OrderValidationEngineV2(
-                minimum_reward_risk_ratio=2.0,
-                minimum_stop_points=2.0,
-                maximum_stop_points=50.0,
+                minimum_reward_risk_ratio=(
+                    settings.minimum_reward_risk_ratio
+                ),
+                minimum_stop_points=(
+                    settings.minimum_stop_points
+                ),
+                maximum_stop_points=(
+                    settings.maximum_stop_points
+                ),
                 allowed_symbols={
                     "NQ",
                     "MNQ",
