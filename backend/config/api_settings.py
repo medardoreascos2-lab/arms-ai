@@ -185,6 +185,11 @@ class APISettings:
             "ARMS_MAXIMUM_SIGNAL_AGE_SECONDS"
         )
     )
+    maximum_open_positions: int = field(
+        default_factory=lambda: _required_positive_int(
+            "ARMS_MAXIMUM_OPEN_POSITIONS"
+        )
+    )
 
     def __post_init__(self) -> None:
         if (

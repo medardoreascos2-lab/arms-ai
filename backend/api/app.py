@@ -1009,7 +1009,9 @@ def create_app(
                 daily_loss_limit=3000.0,
                 max_trades_per_day=4,
                 max_consecutive_losses=3,
-                max_open_positions=1,
+                max_open_positions=(
+                    settings.maximum_open_positions
+                ),
                 max_risk_per_trade=250.0,
             )
         )
@@ -1404,7 +1406,9 @@ def create_app(
             maximum_contracts=(
                 active_runtime_contract_limit
             ),
-            maximum_open_positions=1,
+            maximum_open_positions=(
+                settings.maximum_open_positions
+            ),
             contract_limit_resolver=(
                 resolve_active_contract_limit
             ),
