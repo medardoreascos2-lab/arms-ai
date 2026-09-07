@@ -2762,8 +2762,16 @@ class LiveMarketAnalysisService:
                             True,
                         )
                     ),
-                    risk_approved=True,
-                    sizing_approved=True,
+                    risk_approved=(
+                    account_risk_approved
+                    if "account_risk_approved" in locals()
+                    else True
+                ),
+                    sizing_approved=(
+                    position_sizing_approved
+                    if "position_sizing_approved" in locals()
+                    else True
+                ),
                     contracts=max(
                         1,
                         int(
@@ -2773,7 +2781,7 @@ class LiveMarketAnalysisService:
                             )
                         ),
                     ),
-                    has_open_position=False,
+                    has_open_position=open_positions > 0,
                     daily_limit_reached=False,
                     news_blocked=news_blocked,
                 )
