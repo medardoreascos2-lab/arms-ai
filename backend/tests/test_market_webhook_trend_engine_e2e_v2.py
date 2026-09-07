@@ -11,6 +11,21 @@ from backend.trend.trend_engine_v2 import (
 )
 
 
+def publish_test_l1_quote(
+    app,
+    *,
+    symbol: str = "NQ",
+    bid: float = 23097.75,
+    ask: float = 23098.00,
+) -> None:
+    app.state.runtime_quote_authority_v2.publish_quote(
+        symbol=symbol,
+        bid=bid,
+        ask=ask,
+        timestamp=datetime.now(timezone.utc),
+    )
+
+
 def seed_candles(
     *,
     app,
@@ -116,6 +131,8 @@ def test_webhook_returns_bullish_trend():
             for index in range(49)
         ],
     )
+
+    publish_test_l1_quote(app)
 
     response = client.post(
         "/market/webhook",

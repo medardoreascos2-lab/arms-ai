@@ -3,6 +3,25 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+class _TestRuntimeSpreadAuthorityV2:
+    """Explicit runtime spread authority for legacy unit tests."""
+
+    def __init__(self, spread_points: float = 0.25) -> None:
+        self._spread_points = float(spread_points)
+
+    def get_spread_points(
+        self,
+        *,
+        symbol: str,
+        now,
+    ) -> float:
+        if not symbol.strip():
+            raise ValueError("symbol must not be empty")
+
+        return self._spread_points
+
+
+
 
 LIVE = Path(
     "backend/services/live_market_analysis_service.py"
@@ -178,6 +197,9 @@ def test_runtime_open_market_reaches_validator_as_session_allowed_true():
             )
         ),
         market_hours_service_v2=market_hours,
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
+        ),
     )
 
     # Isolate this test from wall-clock freshness.
@@ -323,6 +345,9 @@ def test_runtime_closed_market_reaches_validator_as_session_allowed_false():
             )
         ),
         market_hours_service_v2=market_hours,
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
+        ),
     )
 
     # Isolate this test from wall-clock freshness.

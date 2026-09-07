@@ -31,6 +31,28 @@ from backend.services.live_candle_store import (
 from backend.services.live_market_analysis_service import (
     LiveMarketAnalysisService,
 )
+
+
+class _TestRuntimeSpreadAuthorityV2:
+    """Explicit runtime spread authority for legacy unit tests."""
+
+    def __init__(
+        self,
+        spread_points: float = 0.25,
+    ) -> None:
+        self._spread_points = float(spread_points)
+
+    def get_spread_points(
+        self,
+        *,
+        symbol: str,
+        now,
+    ) -> float:
+        if not symbol.strip():
+            raise ValueError("symbol must not be empty")
+
+        return self._spread_points
+
 from backend.services.market_hours_service_v2 import (
     MarketHoursServiceV2,
 )
@@ -198,6 +220,9 @@ def _build_service(
         trade_lifecycle_service_v2=lifecycle,
         market_hours_service_v2=(
             market_hours_service_v2
+        ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
         ),
     )
 

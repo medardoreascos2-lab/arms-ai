@@ -70,6 +70,13 @@ def test_live_market_analysis_endpoint():
         )
     )
 
+    client.app.state.runtime_quote_authority_v2.publish_quote(
+        symbol="NQ",
+        bid=21690.75,
+        ask=21691.00,
+        timestamp=datetime.now(timezone.utc),
+    )
+
     response = client.post(
         "/market/analyze",
         json=build_payload(),
@@ -107,6 +114,13 @@ def test_live_market_analysis_uses_latest_candles():
         create_app(
             live_candle_store=store
         )
+    )
+
+    client.app.state.runtime_quote_authority_v2.publish_quote(
+        symbol="NQ",
+        bid=21690.75,
+        ask=21691.00,
+        timestamp=datetime.now(timezone.utc),
     )
 
     payload = build_payload()

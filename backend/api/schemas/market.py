@@ -122,3 +122,16 @@ class LiveMarketAnalysisRequest(BaseModel):
     reward_risk_ratio: float = Field(
         gt=0,
     )
+
+
+class MarketQuoteRequest(BaseModel):
+    symbol: str = Field(
+        min_length=1,
+    )
+    bid: float = Field(
+        gt=0,
+    )
+    ask: float = Field(
+        gt=0,
+    )
+    timestamp: datetime

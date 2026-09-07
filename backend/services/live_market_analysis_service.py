@@ -277,8 +277,12 @@ class LiveMarketAnalysisService:
         market_hours_service_v2:
         MarketHoursServiceV2
         | None = None,
+        runtime_spread_authority_v2=None,
         economic_news_authority_v2=None,
 ) -> None:
+        self.runtime_spread_authority_v2 = (
+            runtime_spread_authority_v2
+        )
         self.economic_news_authority_v2 = (
             economic_news_authority_v2
         )
@@ -2955,10 +2959,23 @@ class LiveMarketAnalysisService:
                 "trade_plan_v2"
             ]
 
+            if self.runtime_spread_authority_v2 is None:
+                raise RuntimeError(
+                    "runtime spread authority is required"
+                )
+
+            runtime_spread_points = (
+                self.runtime_spread_authority_v2
+                .get_spread_points(
+                    symbol=symbol,
+                    now=datetime.now(timezone.utc),
+                )
+            )
+
             validation = (
                 self.trade_validator_v2.validate(
                     trade_plan=trade_plan,
-                    spread_points=0.25,
+                    spread_points=runtime_spread_points,
                     atr_points=float(context["atr"].atr),
                     session_allowed=market_is_open,
                     news_blocked=news_blocked,

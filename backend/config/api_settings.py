@@ -1,8 +1,37 @@
+import math
 import os
 from dataclasses import dataclass
 from dataclasses import field
 
 
+
+
+def _required_positive_finite_float(
+    name: str,
+) -> float:
+    raw_value = os.getenv(name)
+
+    if raw_value is None or not raw_value.strip():
+        raise ValueError(
+            f"{name} debe configurarse explícitamente "
+            "con un número finito mayor que cero."
+        )
+
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{name} debe ser un número finito "
+            "mayor que cero."
+        ) from exc
+
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError(
+            f"{name} debe ser un número finito "
+            "mayor que cero."
+        )
+
+    return value
 
 
 def _optional_environment_value(
@@ -50,8 +79,32 @@ class APISettings:
             "ARMS_CERTIFIED_ECONOMIC_NEWS_PATH"
         )
     )
+    maximum_quote_age_seconds: float = field(
+        default_factory=lambda: _required_positive_finite_float(
+            "ARMS_MAXIMUM_QUOTE_AGE_SECONDS"
+        )
+    )
 
     def __post_init__(self) -> None:
+        if (
+            not isinstance(
+                self.maximum_quote_age_seconds,
+                (int, float),
+            )
+            or isinstance(
+                self.maximum_quote_age_seconds,
+                bool,
+            )
+        ):
+            raise TypeError(
+                "maximum_quote_age_seconds debe ser numérico."
+            )
+
+        if self.maximum_quote_age_seconds <= 0.0:
+            raise ValueError(
+                "maximum_quote_age_seconds debe ser mayor que cero."
+            )
+
         if not self.webhook_token.strip():
             raise ValueError(
                 "webhook_token no puede estar vacío."

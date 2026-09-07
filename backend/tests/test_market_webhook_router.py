@@ -208,6 +208,13 @@ def test_market_webhook_auto_analyzes_at_minimum():
         )
     )
 
+    client.app.state.runtime_quote_authority_v2.publish_quote(
+        symbol="NQ",
+        bid=21690.75,
+        ask=21691.00,
+        timestamp=datetime.now(timezone.utc),
+    )
+
     last_response = None
 
     for index in range(50):

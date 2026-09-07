@@ -17,6 +17,25 @@ from backend.services.live_market_analysis_service import (
     LiveMarketAnalysisService,
 )
 
+class _TestRuntimeSpreadAuthorityV2:
+    """Explicit runtime spread authority for legacy unit tests."""
+
+    def __init__(self, spread_points: float = 0.25) -> None:
+        self._spread_points = float(spread_points)
+
+    def get_spread_points(
+        self,
+        *,
+        symbol: str,
+        now,
+    ) -> float:
+        if not symbol.strip():
+            raise ValueError("symbol must not be empty")
+
+        return self._spread_points
+
+
+
 
 def populate_store(
     store: LiveCandleStore,
@@ -3453,6 +3472,9 @@ def test_includes_trade_validation_v2_result():
                 maximum_signal_age_seconds=30,
             )
         ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
+        ),
     )
 
     result = service.analyze(
@@ -3552,6 +3574,9 @@ def test_trade_validation_v2_uses_trade_plan_v2():
                 maximum_signal_age_seconds=30,
             )
         ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
+        ),
     )
 
     result = service.analyze(
@@ -3642,6 +3667,9 @@ def test_trade_validation_v2_blocks_inactive_plan():
                 maximum_signal_age_seconds=30,
             )
         ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
+        ),
     )
 
     result = service.analyze(
@@ -3718,6 +3746,9 @@ def test_rejects_invalid_trade_validator_v2():
             candle_store=LiveCandleStore(),
             analysis_store=LiveAnalysisStore(),
             trade_validator_v2=object(),
+            runtime_spread_authority_v2=(
+                _TestRuntimeSpreadAuthorityV2()
+            ),
         )
 
 
@@ -3792,6 +3823,9 @@ def test_includes_signal_v2_result():
                     "A",
                 },
             )
+        ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
         ),
     )
 
@@ -3908,6 +3942,9 @@ def test_signal_v2_uses_trade_plan_and_validation():
                     "A",
                 },
             )
+        ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
         ),
     )
 
@@ -4035,6 +4072,9 @@ def test_signal_v2_blocks_when_validation_blocks():
                     "A",
                 },
             )
+        ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
         ),
     )
 
@@ -4198,6 +4238,9 @@ def test_includes_paper_execution_v2_result():
                 slippage_points=0.25,
             )
         ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
+        ),
     )
 
     result = service.analyze(
@@ -4320,6 +4363,9 @@ def test_paper_execution_v2_uses_prepared_order():
                 fill_market_orders_immediately=True,
                 slippage_points=0.25,
             )
+        ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
         ),
     )
 
@@ -4456,6 +4502,9 @@ def test_paper_execution_v2_rejects_blocked_order():
                 fill_market_orders_immediately=True,
                 slippage_points=0.25,
             )
+        ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
         ),
     )
 
@@ -4702,6 +4751,9 @@ def test_live_analysis_submits_signal_to_trade_lifecycle_v2():
         ),
         paper_execution_engine_v2=(
             paper_execution_engine_v2
+        ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
         ),
     )
 
@@ -4973,6 +5025,9 @@ def test_v2_lifecycle_prevents_legacy_trade_execution_ownership():
         ),
         trade_lifecycle_service_v2=(
             lifecycle
+        ),
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
         ),
     )
 

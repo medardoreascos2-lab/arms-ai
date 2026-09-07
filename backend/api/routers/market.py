@@ -15,6 +15,7 @@ from backend.account_risk.account_risk_guard import (
 from backend.api.schemas.market import (
     LiveMarketAnalysisRequest,
     MarketWebhookRequest,
+    MarketQuoteRequest,
 )
 from backend.execution.execution_decision_engine import (
     ExecutionDecisionEngine,
@@ -117,6 +118,63 @@ def get_live_store(
     return store
 
 
+
+
+@router.post(
+    "/quote",
+    status_code=status.HTTP_201_CREATED,
+)
+def receive_market_quote(
+    payload: MarketQuoteRequest,
+    request: Request,
+    x_arms_token: str | None = Header(
+        default=None,
+        alias="X-ARMS-TOKEN",
+    ),
+) -> dict[str, object]:
+    expected_token = str(
+        request.app.state.webhook_token
+    )
+
+    if (
+        x_arms_token is None
+        or not compare_digest(
+            x_arms_token,
+            expected_token,
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de webhook inválido.",
+        )
+
+    quote_authority = (
+        request.app.state.runtime_quote_authority_v2
+    )
+
+    quote_authority.publish_quote(
+        symbol=payload.symbol,
+        bid=payload.bid,
+        ask=payload.ask,
+        timestamp=payload.timestamp,
+    )
+
+    quote = quote_authority.get_quote(
+        symbol=payload.symbol,
+    )
+
+    if quote is None:
+        raise RuntimeError(
+            "runtime quote publication failed"
+        )
+
+    return {
+        "status": "stored",
+        "symbol": quote["symbol"],
+        "bid": quote["bid"],
+        "ask": quote["ask"],
+        "timestamp": quote["timestamp"].isoformat(),
+    }
 @router.post(
     "/webhook",
     status_code=status.HTTP_201_CREATED,
@@ -376,6 +434,9 @@ def receive_market_webhook(
             "market_hours_service_v2",
             None,
         ),
+        runtime_spread_authority_v2=(
+            request.app.state.runtime_spread_authority_v2
+        ),
         economic_news_authority_v2=(
             request.app.state.economic_news_authority_v2
         ),
@@ -623,6 +684,9 @@ def analyze_live_market(
             request.app.state,
             "market_hours_service_v2",
             None,
+        ),
+        runtime_spread_authority_v2=(
+            request.app.state.runtime_spread_authority_v2
         ),
         economic_news_authority_v2=(
             request.app.state.economic_news_authority_v2

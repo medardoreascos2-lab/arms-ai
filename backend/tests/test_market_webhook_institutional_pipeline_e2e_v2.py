@@ -31,6 +31,21 @@ def timeframe_delta(
     return values[timeframe]
 
 
+def publish_test_l1_quote(
+    app,
+    *,
+    symbol: str = "NQ",
+    bid: float = 23097.75,
+    ask: float = 23098.00,
+) -> None:
+    app.state.runtime_quote_authority_v2.publish_quote(
+        symbol=symbol,
+        bid=bid,
+        ask=ask,
+        timestamp=datetime.now(timezone.utc),
+    )
+
+
 def seed_timeframe(
     *,
     app,
@@ -137,6 +152,8 @@ def test_webhook_runs_complete_institutional_pipeline():
         base_price=23000.0,
         step=2.0,
     )
+
+    publish_test_l1_quote(app)
 
     response = client.post(
         "/market/webhook",
@@ -325,6 +342,8 @@ def test_latest_analysis_contains_context_and_council():
         base_price=23000.0,
         step=2.0,
     )
+
+    publish_test_l1_quote(app)
 
     response = client.post(
         "/market/webhook",

@@ -1,4 +1,13 @@
 from contextlib import asynccontextmanager
+from backend.services.runtime_quote_authority_v2 import (
+    RuntimeQuoteAuthorityV2,
+)
+from backend.services.runtime_spread_authority_v2 import (
+    RuntimeSpreadAuthorityV2,
+)
+from backend.services.spread_authority_v2 import (
+    SpreadAuthorityV2,
+)
 from backend.execution.execution_decision_engine_v2 import ExecutionDecisionEngineV2
 from backend.intelligence.probability_engine_v2 import ProbabilityEngineV2
 from backend.intelligence.confluence_engine_v2 import ConfluenceEngineV2
@@ -818,6 +827,14 @@ def create_app(
             "settings debe ser APISettings."
         )
 
+    runtime_quote_authority_v2 = RuntimeQuoteAuthorityV2()
+    spread_authority_v2 = SpreadAuthorityV2()
+    runtime_spread_authority_v2 = RuntimeSpreadAuthorityV2(
+        quote_authority=runtime_quote_authority_v2,
+        spread_authority=spread_authority_v2,
+        maximum_quote_age_seconds=settings.maximum_quote_age_seconds,
+    )
+
     if (
         runtime_context is not None
         and not isinstance(
@@ -1559,6 +1576,15 @@ def create_app(
 
     app.state.risk_event_store_v2 = (
         risk_event_store_v2
+    )
+    app.state.runtime_quote_authority_v2 = (
+        runtime_quote_authority_v2
+    )
+    app.state.spread_authority_v2 = (
+        spread_authority_v2
+    )
+    app.state.runtime_spread_authority_v2 = (
+        runtime_spread_authority_v2
     )
     app.state.risk_event_logger_v1 = (
         risk_event_logger_v1

@@ -4,6 +4,25 @@ import ast
 from pathlib import Path
 from backend.execution.signal_execution_manager import SignalExecutionManager
 
+class _TestRuntimeSpreadAuthorityV2:
+    """Explicit runtime spread authority for legacy unit tests."""
+
+    def __init__(self, spread_points: float = 0.25) -> None:
+        self._spread_points = float(spread_points)
+
+    def get_spread_points(
+        self,
+        *,
+        symbol: str,
+        now,
+    ) -> float:
+        if not symbol.strip():
+            raise ValueError("symbol must not be empty")
+
+        return self._spread_points
+
+
+
 
 class AlwaysAcceptExecutionManager(
     SignalExecutionManager
@@ -289,6 +308,9 @@ def test_runtime_daily_loss_limit_reaches_trade_validator(
             minimum_reward_risk_ratio=2.0,
         ),
         trade_validator_v2=validator,
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
+        ),
     )
 
     monkeypatch.setattr(
@@ -482,6 +504,9 @@ def test_runtime_other_account_risk_rejection_does_not_imply_daily_limit(
             minimum_reward_risk_ratio=2.0,
         ),
         trade_validator_v2=validator,
+        runtime_spread_authority_v2=(
+            _TestRuntimeSpreadAuthorityV2()
+        ),
     )
 
     monkeypatch.setattr(
