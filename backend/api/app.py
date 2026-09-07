@@ -1008,6 +1008,17 @@ def create_app(
         .get_active_account()
     )
 
+    active_risk_profile = (
+        MultiAccountRiskEngineV2(
+            account_manager=account_config_manager_v2
+        )
+        .get_active_risk_profile()
+    )
+
+    active_max_risk_per_trade = float(
+        active_risk_profile["risk_per_trade"]
+    )
+
     firm_daily_loss_limit = (
         None
         if active_account_profile.daily_loss_limit
@@ -1051,7 +1062,9 @@ def create_app(
                 max_open_positions=(
                     settings.maximum_open_positions
                 ),
-                max_risk_per_trade=250.0,
+                max_risk_per_trade=(
+                    active_max_risk_per_trade
+                ),
             )
         )
 
