@@ -1207,7 +1207,7 @@ def create_app(
     if trade_planner_v2 is None:
         trade_planner_v2 = (
             TradePlannerV2(
-                minimum_reward_risk_ratio=2.0,
+                minimum_reward_risk_ratio=settings.minimum_reward_risk_ratio,
             )
         )
 
