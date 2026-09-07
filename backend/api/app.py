@@ -1003,10 +1003,49 @@ def create_app(
             "TradeHistoryStore."
         )
 
+    active_account_profile = (
+        account_config_manager_v2
+        .get_active_account()
+    )
+
+    firm_daily_loss_limit = (
+        None
+        if active_account_profile.daily_loss_limit
+        is None
+        else float(
+            active_account_profile.daily_loss_limit
+        )
+    )
+
+    internal_daily_loss_limit = (
+        None
+        if runtime_context is None
+        or runtime_context.settings.internal_daily_loss_limit
+        is None
+        else float(
+            runtime_context.settings.internal_daily_loss_limit
+        )
+    )
+
+    daily_loss_candidates = [
+        limit
+        for limit in (
+            firm_daily_loss_limit,
+            internal_daily_loss_limit,
+        )
+        if limit is not None
+    ]
+
+    active_maximum_daily_loss = (
+        min(daily_loss_candidates)
+        if daily_loss_candidates
+        else None
+    )
+
     if account_risk_guard is None:
         account_risk_guard = (
             AccountRiskGuard(
-                daily_loss_limit=3000.0,
+                daily_loss_limit=active_maximum_daily_loss,
                 max_trades_per_day=4,
                 max_consecutive_losses=3,
                 max_open_positions=(
@@ -1278,22 +1317,8 @@ def create_app(
         )
 
     if trade_lifecycle_service_v2 is None:
-        active_account_profile = (
-            account_config_manager_v2
-            .get_active_account()
-        )
-
         active_starting_balance = float(
             active_account_profile.account_size
-        )
-
-        active_maximum_daily_loss = (
-            None
-            if active_account_profile.daily_loss_limit
-            is None
-            else float(
-                active_account_profile.daily_loss_limit
-            )
         )
 
         active_maximum_total_drawdown = float(

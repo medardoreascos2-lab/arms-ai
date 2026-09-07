@@ -12,13 +12,16 @@ class AccountRiskGuard:
     def __init__(
         self,
         *,
-        daily_loss_limit: float,
+        daily_loss_limit: float | None,
         max_trades_per_day: int,
         max_consecutive_losses: int,
         max_open_positions: int,
         max_risk_per_trade: float,
     ) -> None:
-        if daily_loss_limit <= 0:
+        if (
+            daily_loss_limit is not None
+            and daily_loss_limit <= 0
+        ):
             raise ValueError(
                 "daily_loss_limit debe ser mayor que cero."
             )
@@ -43,8 +46,10 @@ class AccountRiskGuard:
                 "max_risk_per_trade debe ser mayor que cero."
             )
 
-        self.daily_loss_limit = float(
-            daily_loss_limit
+        self.daily_loss_limit = (
+            None
+            if daily_loss_limit is None
+            else float(daily_loss_limit)
         )
 
         self.max_trades_per_day = int(
@@ -104,7 +109,8 @@ class AccountRiskGuard:
         reasons: list[str] = []
 
         if (
-            daily_pnl
+            self.daily_loss_limit is not None
+            and daily_pnl
             <= -self.daily_loss_limit
         ):
             reasons.append(
