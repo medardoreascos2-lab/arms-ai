@@ -2683,8 +2683,8 @@ class LiveMarketAnalysisService:
                     market_regime_score=market_regime_score,
                     confluence_score=confluence_score,
                     volume_score=volume_score,
-                    risk_approved=True,
-                    sizing_approved=True,
+                    risk_approved=account_risk_approved if "account_risk_approved" in locals() else True,
+                    sizing_approved=position_sizing_approved if "position_sizing_approved" in locals() else True,
                     market_tradable=market_regime.get(
                         "tradable",
                         True,
