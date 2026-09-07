@@ -1,3 +1,4 @@
+from backend.config.api_settings import APISettings
 from dataclasses import dataclass
 
 from backend.analytics.performance_analytics_v2 import (
@@ -116,6 +117,7 @@ def build_runtime_context(
     )
 
     resolved_settings = settings or ArmsSettings()
+    api_settings = APISettings()
 
     from backend.accounts.account_config_manager_v2 import (
         AccountConfigManagerV2,
@@ -273,7 +275,9 @@ def build_runtime_context(
         maximum_contracts=(
             resolved_maximum_contracts
         ),
-        maximum_open_positions=1,
+        maximum_open_positions=(
+            api_settings.maximum_open_positions
+        ),
         contract_limit_resolver=(
             contract_limit_resolver
         ),

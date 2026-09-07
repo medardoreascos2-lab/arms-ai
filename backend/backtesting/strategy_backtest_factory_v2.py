@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from backend.config.api_settings import APISettings
 from backend.analytics.performance_analytics_v2 import (
     PerformanceAnalyticsV2,
 )
@@ -90,7 +91,10 @@ from backend.strategies.parameterized_strategy_runner_v2 import (
 )
 
 
-def build_lifecycle() -> TradeLifecycleServiceV2:
+def build_lifecycle(
+    *,
+    settings=None,
+) -> TradeLifecycleServiceV2:
 
     from backend.accounts.account_config_manager_v2 import (
         AccountConfigManagerV2,
@@ -126,6 +130,8 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
         account.get_contract_limit("MICRO"),
     )
 
+    resolved_settings = settings or APISettings()
+
     risk_manager_v2 = RiskManagerV2(
         position_sizing_engine=(
             position_sizing_engine
@@ -139,7 +145,9 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
         maximum_contracts=(
             account.max_contracts
         ),
-        maximum_open_positions=1,
+        maximum_open_positions=(
+            resolved_settings.maximum_open_positions
+        ),
         contract_limit_resolver=(
             resolve_contract_limit
         ),
@@ -241,7 +249,9 @@ def build_strategy_backtest_pipeline(
     ),
     )
 
-    lifecycle = build_lifecycle()
+    lifecycle = build_lifecycle(
+        settings=settings
+    )
 
     active_account = (
         AccountConfigManagerV2()
