@@ -679,6 +679,7 @@ from backend.api.routers.portfolio import (
 from backend.config.api_settings import (
     APISettings,
 )
+from backend.config_settings import ArmsSettings
 from backend.execution.execution_decision_engine import (
     ExecutionDecisionEngine,
 )
@@ -1053,12 +1054,22 @@ def create_app(
         else None
     )
 
+    internal_policy_settings = (
+        runtime_context.settings
+        if runtime_context is not None
+        else ArmsSettings()
+    )
+
     if account_risk_guard is None:
         account_risk_guard = (
             AccountRiskGuard(
                 daily_loss_limit=active_maximum_daily_loss,
-                max_trades_per_day=4,
-                max_consecutive_losses=3,
+                max_trades_per_day=(
+                    internal_policy_settings.internal_max_trades_per_day
+                ),
+                max_consecutive_losses=(
+                    internal_policy_settings.internal_max_consecutive_losses
+                ),
                 max_open_positions=(
                     settings.maximum_open_positions
                 ),

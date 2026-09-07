@@ -13,6 +13,8 @@ class ArmsSettings:
     account_balance: float = 17000.0
     risk_percent: float = 0.5
     internal_daily_loss_limit: float | None = None
+    internal_max_trades_per_day: int = 4
+    internal_max_consecutive_losses: int = 3
     stop_atr_multiplier: float = 1.5
     reward_risk_ratio: float = 2.0
     instrument: str = "MNQ"
@@ -31,6 +33,16 @@ class ArmsSettings:
     runtime_snapshot_path: str = "data/runtime_state_v2.json"
 
     def __post_init__(self) -> None:
+        if self.internal_max_trades_per_day <= 0:
+            raise ValueError(
+                "internal_max_trades_per_day debe ser mayor que cero."
+            )
+
+        if self.internal_max_consecutive_losses <= 0:
+            raise ValueError(
+                "internal_max_consecutive_losses debe ser mayor que cero."
+            )
+
         self._validate()
 
     def _validate(self) -> None:
