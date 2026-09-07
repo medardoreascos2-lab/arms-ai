@@ -34,6 +34,36 @@ def _required_positive_finite_float(
     return value
 
 
+def _required_positive_int(
+    name: str,
+) -> int:
+    raw_value = os.getenv(name)
+
+    if raw_value is None or not raw_value.strip():
+        raise ValueError(
+            f"{name} debe configurarse explícitamente "
+            "con un entero mayor que cero."
+        )
+
+    normalized = raw_value.strip()
+
+    try:
+        value = int(normalized)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{name} debe ser un entero "
+            "mayor que cero."
+        ) from exc
+
+    if value <= 0:
+        raise ValueError(
+            f"{name} debe ser un entero "
+            "mayor que cero."
+        )
+
+    return value
+
+
 def _optional_environment_value(
     name: str,
 ) -> str | None:
@@ -84,6 +114,36 @@ class APISettings:
             "ARMS_MAXIMUM_QUOTE_AGE_SECONDS"
         )
     )
+    minimum_reward_risk_ratio: float = field(
+        default_factory=lambda: _required_positive_finite_float(
+            "ARMS_MINIMUM_REWARD_RISK_RATIO"
+        )
+    )
+    minimum_stop_points: float = field(
+        default_factory=lambda: _required_positive_finite_float(
+            "ARMS_MINIMUM_STOP_POINTS"
+        )
+    )
+    maximum_stop_points: float = field(
+        default_factory=lambda: _required_positive_finite_float(
+            "ARMS_MAXIMUM_STOP_POINTS"
+        )
+    )
+    maximum_spread_points: float = field(
+        default_factory=lambda: _required_positive_finite_float(
+            "ARMS_MAXIMUM_SPREAD_POINTS"
+        )
+    )
+    minimum_atr_points: float = field(
+        default_factory=lambda: _required_positive_finite_float(
+            "ARMS_MINIMUM_ATR_POINTS"
+        )
+    )
+    maximum_signal_age_seconds: int = field(
+        default_factory=lambda: _required_positive_int(
+            "ARMS_MAXIMUM_SIGNAL_AGE_SECONDS"
+        )
+    )
 
     def __post_init__(self) -> None:
         if (
@@ -103,6 +163,88 @@ class APISettings:
         if self.maximum_quote_age_seconds <= 0.0:
             raise ValueError(
                 "maximum_quote_age_seconds debe ser mayor que cero."
+            )
+
+        float_policy_fields = {
+            "minimum_reward_risk_ratio": (
+                self.minimum_reward_risk_ratio
+            ),
+            "minimum_stop_points": (
+                self.minimum_stop_points
+            ),
+            "maximum_stop_points": (
+                self.maximum_stop_points
+            ),
+            "maximum_spread_points": (
+                self.maximum_spread_points
+            ),
+            "minimum_atr_points": (
+                self.minimum_atr_points
+            ),
+        }
+
+        for field_name, raw_value in (
+            float_policy_fields.items()
+        ):
+            if (
+                not isinstance(
+                    raw_value,
+                    (int, float),
+                )
+                or isinstance(
+                    raw_value,
+                    bool,
+                )
+            ):
+                raise TypeError(
+                    f"{field_name} debe ser numérico."
+                )
+
+            normalized = float(raw_value)
+
+            if (
+                not math.isfinite(normalized)
+                or normalized <= 0.0
+            ):
+                raise ValueError(
+                    f"{field_name} debe ser un número "
+                    "finito mayor que cero."
+                )
+
+            object.__setattr__(
+                self,
+                field_name,
+                normalized,
+            )
+
+        if (
+            not isinstance(
+                self.maximum_signal_age_seconds,
+                int,
+            )
+            or isinstance(
+                self.maximum_signal_age_seconds,
+                bool,
+            )
+        ):
+            raise TypeError(
+                "maximum_signal_age_seconds "
+                "debe ser entero."
+            )
+
+        if self.maximum_signal_age_seconds <= 0:
+            raise ValueError(
+                "maximum_signal_age_seconds "
+                "debe ser mayor que cero."
+            )
+
+        if (
+            self.maximum_stop_points
+            < self.minimum_stop_points
+        ):
+            raise ValueError(
+                "maximum_stop_points no puede ser "
+                "menor que minimum_stop_points."
             )
 
         if not self.webhook_token.strip():

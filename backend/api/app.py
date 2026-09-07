@@ -1214,12 +1214,24 @@ def create_app(
     if trade_validator_v2 is None:
         trade_validator_v2 = (
             TradeValidatorV2(
-                minimum_reward_risk_ratio=2.0,
-                minimum_stop_points=2.0,
-                maximum_stop_points=50.0,
-                maximum_spread_points=1.0,
-                minimum_atr_points=3.0,
-                maximum_signal_age_seconds=30,
+                minimum_reward_risk_ratio=(
+                    settings.minimum_reward_risk_ratio
+                ),
+                minimum_stop_points=(
+                    settings.minimum_stop_points
+                ),
+                maximum_stop_points=(
+                    settings.maximum_stop_points
+                ),
+                maximum_spread_points=(
+                    settings.maximum_spread_points
+                ),
+                minimum_atr_points=(
+                    settings.minimum_atr_points
+                ),
+                maximum_signal_age_seconds=(
+                    settings.maximum_signal_age_seconds
+                ),
             )
         )
 
