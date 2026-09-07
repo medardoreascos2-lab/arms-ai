@@ -2188,20 +2188,14 @@ class LiveMarketAnalysisService:
             self.confluence_engine_v2
             is not None
         ):
-            confluence_v2_result = (
-                self._evaluate_confluence_v2(
-                    result=result,
-                    candles=candles,
-                    risk_approved=True,
-                    sizing_approved=True,
-                    market_regime_result=(
-                        market_regime_result
-                    ),
-                )
-            )
-
-            result["confluence_v2"] = (
-                confluence_v2_result
+            self._evaluate_confluence_v2(
+                result=result,
+                candles=candles,
+                risk_approved=True,
+                sizing_approved=True,
+                market_regime_result=(
+                    market_regime_result
+                ),
             )
 
         open_positions = 0
