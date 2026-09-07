@@ -80,6 +80,37 @@ def _optional_environment_value(
     return normalized
 
 
+
+def _required_unit_interval_float(
+    environment_name: str,
+) -> float:
+    raw_value = os.getenv(environment_name)
+
+    if raw_value is None or not raw_value.strip():
+        raise ValueError(
+            f"{environment_name} debe estar configurado."
+        )
+
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{environment_name} debe ser numérico."
+        ) from exc
+
+    if not math.isfinite(value):
+        raise ValueError(
+            f"{environment_name} debe ser finito."
+        )
+
+    if not 0.0 <= value <= 1.0:
+        raise ValueError(
+            f"{environment_name} debe estar entre 0.0 y 1.0."
+        )
+
+    return value
+
+
 @dataclass(frozen=True)
 class APISettings:
     """
@@ -137,6 +168,16 @@ class APISettings:
     minimum_atr_points: float = field(
         default_factory=lambda: _required_positive_finite_float(
             "ARMS_MINIMUM_ATR_POINTS"
+        )
+    )
+    minimum_a_plus_probability: float = field(
+        default_factory=lambda: _required_unit_interval_float(
+            "ARMS_MINIMUM_A_PLUS_PROBABILITY"
+        )
+    )
+    minimum_a_plus_confluence_score: float = field(
+        default_factory=lambda: _required_unit_interval_float(
+            "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE"
         )
     )
     maximum_signal_age_seconds: int = field(
@@ -304,4 +345,27 @@ class APISettings:
                 self,
                 "certified_economic_news_path",
                 normalized_economic_news_path,
+            )
+
+        for field_name in (
+            "minimum_a_plus_probability",
+            "minimum_a_plus_confluence_score",
+        ):
+            value = float(getattr(self, field_name))
+
+            if not math.isfinite(value):
+                raise ValueError(
+                    f"{field_name} debe ser finito."
+                )
+
+            if not 0.0 <= value <= 1.0:
+                raise ValueError(
+                    f"{field_name} debe estar entre "
+                    "0.0 y 1.0."
+                )
+
+            object.__setattr__(
+                self,
+                field_name,
+                value,
             )

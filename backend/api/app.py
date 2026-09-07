@@ -1238,8 +1238,8 @@ def create_app(
     if signal_generator_v2 is None:
         signal_generator_v2 = (
             SignalGeneratorV2(
-                minimum_probability=0.80,
-                minimum_confluence_score=0.80,
+                minimum_probability=settings.minimum_a_plus_probability,
+                minimum_confluence_score=settings.minimum_a_plus_confluence_score,
                 allowed_grades={
                     "A+",
                 },
@@ -1958,8 +1958,8 @@ def create_app(
     app.state.execution_decision_engine_v2 = (
         execution_decision_engine_v2
         or ExecutionDecisionEngineV2(
-            minimum_probability=0.80,
-            minimum_confluence_score=0.80,
+            minimum_probability=settings.minimum_a_plus_probability,
+            minimum_confluence_score=settings.minimum_a_plus_confluence_score,
         )
     )
 
