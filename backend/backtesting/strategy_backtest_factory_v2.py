@@ -196,11 +196,18 @@ def build_lifecycle() -> TradeLifecycleServiceV2:
     )
 
 
-def build_signal_generator() -> SignalGeneratorV2:
+def build_signal_generator(
+    *,
+    settings,
+) -> SignalGeneratorV2:
 
     return SignalGeneratorV2(
-        minimum_probability=0.80,
-        minimum_confluence_score=0.80,
+        minimum_probability=(
+            settings.minimum_a_plus_probability
+        ),
+        minimum_confluence_score=(
+            settings.minimum_a_plus_confluence_score
+        ),
         allowed_grades={
             "A+",
             "A",
@@ -212,6 +219,7 @@ def build_strategy_backtest_pipeline(
     parameters,
     *,
     csv_path,
+    settings,
 ) -> BacktestPipelineV2:
 
     loader = CsvCandleLoaderV2(
@@ -281,7 +289,9 @@ def build_strategy_backtest_pipeline(
             BacktestTradePlanAdapterV2()
         ),
         signal_generator_v2=(
-            build_signal_generator()
+            build_signal_generator(
+                settings=settings
+            )
         ),
         signal_submission_target_v2=(
             lifecycle

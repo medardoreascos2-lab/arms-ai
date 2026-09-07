@@ -22,9 +22,11 @@ class ParameterBacktestEngineFactoryV2:
         self,
         *,
         csv_path,
+        settings,
     ) -> None:
 
         self.csv_path = csv_path
+        self.settings = settings
 
     def __call__(
         self,
@@ -34,6 +36,7 @@ class ParameterBacktestEngineFactoryV2:
         pipeline = build_strategy_backtest_pipeline(
             parameters,
             csv_path=self.csv_path,
+            settings=self.settings,
         )
 
         adapted_pipeline = (

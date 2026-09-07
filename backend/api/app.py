@@ -1663,6 +1663,7 @@ def create_app(
                                         csv_path=Path(
                                             "data/backtest/nq_history.csv"
                                         ),
+                                        settings=settings,
                                     )
                                 )
                             )
@@ -1676,7 +1677,8 @@ def create_app(
                                 ParameterBacktestEngineFactoryV2(
                                     csv_path=Path(
                                         "data/backtest/nq_history.csv"
-                                    )
+                                    ),
+                                    settings=settings,
                                 )
                             )
                         )
