@@ -2025,7 +2025,7 @@ def create_app(
     app.state.market_regime_engine = (
         market_regime_engine
         or MarketRegimeEngine(
-            trend_threshold=0.60,
+            trend_threshold=settings.market_regime_trend_threshold,
             high_volatility_threshold=0.80,
             low_volatility_threshold=0.20,
             compression_threshold=0.15,

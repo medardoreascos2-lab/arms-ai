@@ -268,6 +268,18 @@ class APISettings:
         )
     )
 
+    market_regime_trend_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MARKET_REGIME_TREND_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_MARKET_REGIME_TREND_THRESHOLD"
+            ) is not None
+            else 0.60
+        )
+    )
+
     minimum_a_plus_confluence_score: float = field(
         default_factory=lambda: _required_unit_interval_float(
             "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE"
