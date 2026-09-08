@@ -1566,7 +1566,9 @@ def create_app(
                 paper_execution_engine=(
                     PaperExecutionEngineV2(
                         fill_market_orders_immediately=True,
-                        slippage_points=0.25,
+                        slippage_points=(
+                            settings.paper_execution_slippage_points
+                        ),
                     )
                 ),
                 position_manager=(

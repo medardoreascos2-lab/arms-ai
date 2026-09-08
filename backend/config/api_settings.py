@@ -33,6 +33,35 @@ def _required_positive_finite_float(
 
     return value
 
+def _required_non_negative_finite_float(
+    name: str,
+) -> float:
+    raw_value = os.getenv(name)
+
+    if raw_value is None or not raw_value.strip():
+        raise ValueError(
+            f"{name} debe configurarse explícitamente "
+            "con un número finito mayor o igual que cero."
+        )
+
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{name} debe ser un número finito "
+            "mayor o igual que cero."
+        ) from exc
+
+    if not math.isfinite(value) or value < 0.0:
+        raise ValueError(
+            f"{name} debe ser un número finito "
+            "mayor o igual que cero."
+        )
+
+    return value
+
+
+
 
 def _required_positive_int(
     name: str,
@@ -225,6 +254,20 @@ class APISettings:
             else 10.0
         )
     )
+
+    paper_execution_slippage_points: float = field(
+        default_factory=lambda: (
+            _required_non_negative_finite_float(
+                "ARMS_PAPER_EXECUTION_SLIPPAGE_POINTS"
+            )
+            if os.getenv(
+                "ARMS_PAPER_EXECUTION_SLIPPAGE_POINTS"
+            )
+            is not None
+            else 0.25
+        )
+    )
+
     minimum_a_plus_confluence_score: float = field(
         default_factory=lambda: _required_unit_interval_float(
             "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE"
