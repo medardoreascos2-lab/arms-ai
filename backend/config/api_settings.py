@@ -199,6 +199,32 @@ class APISettings:
             else 0.80
         )
     )
+
+    trailing_stop_activation_points: float = field(
+        default_factory=lambda: (
+            _required_positive_finite_float(
+                "ARMS_TRAILING_STOP_ACTIVATION_POINTS"
+            )
+            if os.getenv(
+                "ARMS_TRAILING_STOP_ACTIVATION_POINTS"
+            )
+            is not None
+            else 30.0
+        )
+    )
+
+    trailing_stop_distance_points: float = field(
+        default_factory=lambda: (
+            _required_positive_finite_float(
+                "ARMS_TRAILING_STOP_DISTANCE_POINTS"
+            )
+            if os.getenv(
+                "ARMS_TRAILING_STOP_DISTANCE_POINTS"
+            )
+            is not None
+            else 10.0
+        )
+    )
     minimum_a_plus_confluence_score: float = field(
         default_factory=lambda: _required_unit_interval_float(
             "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE"

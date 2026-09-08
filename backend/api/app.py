@@ -2448,8 +2448,12 @@ def create_app(
             ),
             trailing_stop_engine=(
                 TrailingStopEngineV2(
-                    activation_profit_points=30.0,
-                    trailing_distance_points=10.0,
+                    activation_profit_points=(
+                        settings.trailing_stop_activation_points
+                    ),
+                    trailing_distance_points=(
+                        settings.trailing_stop_distance_points
+                    ),
                 )
             ),
             portfolio_manager_v2=(
