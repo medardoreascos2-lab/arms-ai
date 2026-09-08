@@ -187,6 +187,18 @@ class APISettings:
             else 0.70
         )
     )
+    minimum_probability_approval: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MINIMUM_PROBABILITY_APPROVAL"
+            )
+            if os.getenv(
+                "ARMS_MINIMUM_PROBABILITY_APPROVAL"
+            )
+            is not None
+            else 0.80
+        )
+    )
     minimum_a_plus_confluence_score: float = field(
         default_factory=lambda: _required_unit_interval_float(
             "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE"
