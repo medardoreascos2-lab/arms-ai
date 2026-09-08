@@ -175,6 +175,18 @@ class APISettings:
             "ARMS_MINIMUM_A_PLUS_PROBABILITY"
         )
     )
+    minimum_execution_confidence: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MINIMUM_EXECUTION_CONFIDENCE"
+            )
+            if os.getenv(
+                "ARMS_MINIMUM_EXECUTION_CONFIDENCE"
+            )
+            is not None
+            else 0.70
+        )
+    )
     minimum_a_plus_confluence_score: float = field(
         default_factory=lambda: _required_unit_interval_float(
             "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE"

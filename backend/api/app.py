@@ -1108,7 +1108,7 @@ def create_app(
     if execution_decision_engine is None:
         execution_decision_engine = (
             ExecutionDecisionEngine(
-                minimum_confidence=0.70,
+                minimum_confidence=settings.minimum_execution_confidence,
             )
         )
 
