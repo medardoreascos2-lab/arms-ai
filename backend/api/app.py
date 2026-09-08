@@ -1438,6 +1438,10 @@ def create_app(
                 InstrumentProfileEngine()
             )
 
+        position_sizing_engine.maximum_contracts = (
+            active_runtime_contract_limit
+        )
+
         position_sizing_engine.contract_limit_resolver = (
             resolve_active_contract_limit
         )

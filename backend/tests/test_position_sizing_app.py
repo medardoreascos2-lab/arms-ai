@@ -17,7 +17,20 @@ def test_create_app_builds_default_position_sizing_engine():
     )
 
     assert engine.minimum_contracts == 1
-    assert engine.maximum_contracts == 20
+    active_account_profile = (
+        app.state.account_config_manager_v2
+        .get_active_account()
+    )
+
+    expected_contract_limit = min(
+        active_account_profile.get_contract_limit("MINI"),
+        active_account_profile.get_contract_limit("MICRO"),
+    )
+
+    assert (
+        engine.maximum_contracts
+        == expected_contract_limit
+    )
 
 
 def test_create_app_accepts_custom_position_sizing_engine():
