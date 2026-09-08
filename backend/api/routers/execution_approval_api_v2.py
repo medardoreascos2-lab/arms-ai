@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from backend.execution.execution_approval_engine import (
     ExecutionApprovalEngine,
@@ -20,7 +20,7 @@ execution_engine = ExecutionApprovalEngine()
 @router.get(
     "/execution-approval"
 )
-def execution_approval_dashboard():
+def execution_approval_dashboard(request: Request):
 
     result = execution_engine.validate_execution(
 
@@ -37,6 +37,11 @@ def execution_approval_dashboard():
         risk_amount=500,
 
         confidence=98,
+
+        daily_loss_limit=(
+            request.app.state
+            .active_maximum_daily_loss
+        ),
 
     )
 

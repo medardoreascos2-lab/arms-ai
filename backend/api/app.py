@@ -1986,6 +1986,10 @@ def create_app(
         runtime_context
     )
 
+    app.state.active_maximum_daily_loss = (
+        active_maximum_daily_loss
+    )
+
     app.state.smart_money_engine_v2 = (
         smart_money_engine_v2
         or SmartMoneyEngineV2()

@@ -53,7 +53,7 @@ class ExecutionApprovalEngine:
 
         daily_loss_used: float = 0,
 
-        daily_loss_limit: float = 3000,
+        daily_loss_limit: float | None = None,
 
     ) -> ExecutionApproval:
 
@@ -97,7 +97,10 @@ class ExecutionApprovalEngine:
 
 
 
-        if daily_loss_used < daily_loss_limit:
+        if (
+            daily_loss_limit is None
+            or daily_loss_used < daily_loss_limit
+        ):
 
             checks.append(
                 "Daily loss limit available"
