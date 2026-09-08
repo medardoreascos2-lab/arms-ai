@@ -1464,19 +1464,40 @@ def create_app(
         )
 
         exposure_manager_v2 = ExposureManagerV2(
-            maximum_total_open_risk=500.0,
-            maximum_symbol_open_risk=300.0,
+            maximum_total_open_risk=(
+                internal_policy_settings
+                .maximum_total_open_risk
+            ),
+            maximum_symbol_open_risk=(
+                internal_policy_settings
+                .maximum_symbol_open_risk
+            ),
             maximum_total_contracts=None,
             maximum_symbol_contracts=None,
         )
 
         portfolio_risk_engine_v2 = (
             PortfolioRiskEngineV2(
-                maximum_total_open_risk=1000.0,
-                maximum_floating_loss=600.0,
-                maximum_long_risk=700.0,
-                maximum_short_risk=700.0,
-                maximum_symbol_risk=500.0,
+                maximum_total_open_risk=(
+                    internal_policy_settings
+                    .maximum_portfolio_open_risk
+                ),
+                maximum_floating_loss=(
+                    internal_policy_settings
+                    .maximum_portfolio_floating_loss
+                ),
+                maximum_long_risk=(
+                    internal_policy_settings
+                    .maximum_portfolio_long_risk
+                ),
+                maximum_short_risk=(
+                    internal_policy_settings
+                    .maximum_portfolio_short_risk
+                ),
+                maximum_symbol_risk=(
+                    internal_policy_settings
+                    .maximum_portfolio_symbol_risk
+                ),
             )
         )
 

@@ -17,6 +17,13 @@ class ArmsSettings:
     internal_max_consecutive_losses: int = 3
     stop_atr_multiplier: float = 1.5
     reward_risk_ratio: float = 2.0
+    maximum_total_open_risk: float = 500.0
+    maximum_symbol_open_risk: float = 300.0
+    maximum_portfolio_open_risk: float = 1000.0
+    maximum_portfolio_floating_loss: float = 600.0
+    maximum_portfolio_long_risk: float = 700.0
+    maximum_portfolio_short_risk: float = 700.0
+    maximum_portfolio_symbol_risk: float = 500.0
     instrument: str = "MNQ"
     point_value: float = 2.0
 
@@ -99,6 +106,65 @@ class ArmsSettings:
         if self.reward_risk_ratio <= 0:
             raise ValueError(
                 "reward_risk_ratio debe ser mayor que cero."
+            )
+
+        exposure_values = {
+            "maximum_total_open_risk":
+                self.maximum_total_open_risk,
+            "maximum_symbol_open_risk":
+                self.maximum_symbol_open_risk,
+            "maximum_portfolio_open_risk":
+                self.maximum_portfolio_open_risk,
+            "maximum_portfolio_floating_loss":
+                self.maximum_portfolio_floating_loss,
+            "maximum_portfolio_long_risk":
+                self.maximum_portfolio_long_risk,
+            "maximum_portfolio_short_risk":
+                self.maximum_portfolio_short_risk,
+            "maximum_portfolio_symbol_risk":
+                self.maximum_portfolio_symbol_risk,
+        }
+
+        for name, value in exposure_values.items():
+            if value <= 0:
+                raise ValueError(
+                    f"{name} debe ser mayor que cero."
+                )
+
+        if (
+            self.maximum_symbol_open_risk
+            > self.maximum_total_open_risk
+        ):
+            raise ValueError(
+                "maximum_symbol_open_risk no puede ser "
+                "mayor que maximum_total_open_risk."
+            )
+
+        if (
+            self.maximum_portfolio_long_risk
+            > self.maximum_portfolio_open_risk
+        ):
+            raise ValueError(
+                "maximum_portfolio_long_risk no puede ser "
+                "mayor que maximum_portfolio_open_risk."
+            )
+
+        if (
+            self.maximum_portfolio_short_risk
+            > self.maximum_portfolio_open_risk
+        ):
+            raise ValueError(
+                "maximum_portfolio_short_risk no puede ser "
+                "mayor que maximum_portfolio_open_risk."
+            )
+
+        if (
+            self.maximum_portfolio_symbol_risk
+            > self.maximum_portfolio_open_risk
+        ):
+            raise ValueError(
+                "maximum_portfolio_symbol_risk no puede ser "
+                "mayor que maximum_portfolio_open_risk."
             )
 
         if not self.instrument.strip():
