@@ -729,6 +729,7 @@ from backend.risk_management.position_sizing_engine import (
 from backend.services.trade_history_store import (
     TradeHistoryStore,
 )
+from backend.instruments.instrument_profile_engine import InstrumentProfileEngine
 
 
 def create_app(
@@ -1340,6 +1341,10 @@ def create_app(
             "debe ser TradeLifecycleServiceV2."
         )
 
+    instrument_profile_engine = (
+        InstrumentProfileEngine()
+    )
+
     if trade_lifecycle_service_v2 is None:
         active_starting_balance = float(
             active_account_profile.account_size
@@ -1405,9 +1410,6 @@ def create_app(
         def resolve_active_contract_limit(
             symbol: str,
         ) -> int:
-            from backend.instruments.instrument_profile_engine import (
-                InstrumentProfileEngine,
-            )
 
             instrument_profile = (
                 InstrumentProfileEngine()
@@ -1421,13 +1423,7 @@ def create_app(
                 )
             )
 
-        from backend.instruments.instrument_profile_engine import (
-            InstrumentProfileEngine,
-        )
 
-        instrument_profile_engine = (
-            InstrumentProfileEngine()
-        )
 
         if (
             position_sizing_engine
@@ -1575,7 +1571,11 @@ def create_app(
                 ),
                 position_manager=(
                     PositionManagerV2(
-                        point_value=2.0,
+                        point_value=float(
+                            instrument_profile_engine.get_profile(
+                                symbol="MNQ",
+                            )["point_value"]
+                        ),
                         instrument_profile_engine=(
                             instrument_profile_engine
                         ),
@@ -2445,7 +2445,11 @@ def create_app(
             ),
             realized_pnl_engine=(
                 RealizedPnLEngineV2(
-                    point_value=2.0,
+                    point_value=float(
+                        instrument_profile_engine.get_profile(
+                            symbol="MNQ",
+                        )["point_value"]
+                    ),
                 )
             ),
             break_even_engine=(
