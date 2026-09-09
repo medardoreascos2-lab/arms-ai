@@ -2168,10 +2168,10 @@ def create_app(
                 "15M": 0.30,
                 "1H": 0.35,
             },
-            minimum_ready_weight=0.65,
-            neutral_threshold=0.15,
-            conflict_weight_threshold=0.25,
-            dominance_margin=0.35,
+            minimum_ready_weight=settings.multi_timeframe_minimum_ready_weight,
+            neutral_threshold=settings.multi_timeframe_neutral_threshold,
+            conflict_weight_threshold=settings.multi_timeframe_conflict_weight_threshold,
+            dominance_margin=settings.multi_timeframe_dominance_margin,
         )
     )
 

@@ -265,6 +265,51 @@ class APISettings:
         )
     )
 
+    multi_timeframe_minimum_ready_weight: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MULTI_TIMEFRAME_MINIMUM_READY_WEIGHT"
+            )
+            if os.getenv(
+                "ARMS_MULTI_TIMEFRAME_MINIMUM_READY_WEIGHT"
+            ) is not None
+            else 0.65
+        )
+    )
+    multi_timeframe_neutral_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MULTI_TIMEFRAME_NEUTRAL_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_MULTI_TIMEFRAME_NEUTRAL_THRESHOLD"
+            ) is not None
+            else 0.15
+        )
+    )
+    multi_timeframe_conflict_weight_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MULTI_TIMEFRAME_CONFLICT_WEIGHT_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_MULTI_TIMEFRAME_CONFLICT_WEIGHT_THRESHOLD"
+            ) is not None
+            else 0.25
+        )
+    )
+    multi_timeframe_dominance_margin: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MULTI_TIMEFRAME_DOMINANCE_MARGIN"
+            )
+            if os.getenv(
+                "ARMS_MULTI_TIMEFRAME_DOMINANCE_MARGIN"
+            ) is not None
+            else 0.35
+        )
+    )
+
     trend_fast_period: int = field(
         default_factory=lambda: (
             _required_positive_int(
@@ -605,6 +650,15 @@ class APISettings:
                 "market_regime_low_volatility_threshold "
                 "no puede ser mayor o igual que "
                 "market_regime_high_volatility_threshold."
+            )
+
+        if (
+            self.multi_timeframe_minimum_ready_weight
+            <= 0
+        ):
+            raise ValueError(
+                "multi_timeframe_minimum_ready_weight "
+                "debe ser mayor que cero."
             )
 
         if (
