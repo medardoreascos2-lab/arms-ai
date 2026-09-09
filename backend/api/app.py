@@ -2041,9 +2041,9 @@ def create_app(
         probability_engine_v2
         or ProbabilityEngineV2(
             minimum_approval_probability=settings.minimum_probability_approval,
-            very_high_threshold=0.90,
-            high_threshold=0.80,
-            medium_threshold=0.65,
+            very_high_threshold=settings.probability_very_high_threshold,
+            high_threshold=settings.probability_high_threshold,
+            medium_threshold=settings.probability_medium_threshold,
         )
     )
 

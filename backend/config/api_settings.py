@@ -229,6 +229,40 @@ class APISettings:
         )
     )
 
+    probability_very_high_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_PROBABILITY_VERY_HIGH_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_PROBABILITY_VERY_HIGH_THRESHOLD"
+            ) is not None
+            else 0.90
+        )
+    )
+    probability_high_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_PROBABILITY_HIGH_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_PROBABILITY_HIGH_THRESHOLD"
+            ) is not None
+            else 0.80
+        )
+    )
+    probability_medium_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_PROBABILITY_MEDIUM_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_PROBABILITY_MEDIUM_THRESHOLD"
+            ) is not None
+            else 0.65
+        )
+    )
+
     trailing_stop_activation_points: float = field(
         default_factory=lambda: (
             _required_positive_finite_float(
@@ -524,4 +558,34 @@ class APISettings:
                 "market_regime_low_volatility_threshold "
                 "no puede ser mayor o igual que "
                 "market_regime_high_volatility_threshold."
+            )
+
+        if (
+            self.probability_medium_threshold
+            > self.probability_high_threshold
+        ):
+            raise ValueError(
+                "probability_medium_threshold "
+                "no puede ser mayor que "
+                "probability_high_threshold."
+            )
+
+        if (
+            self.probability_high_threshold
+            > self.minimum_probability_approval
+        ):
+            raise ValueError(
+                "probability_high_threshold "
+                "no puede ser mayor que "
+                "minimum_probability_approval."
+            )
+
+        if (
+            self.minimum_probability_approval
+            > self.probability_very_high_threshold
+        ):
+            raise ValueError(
+                "minimum_probability_approval "
+                "no puede ser mayor que "
+                "probability_very_high_threshold."
             )
