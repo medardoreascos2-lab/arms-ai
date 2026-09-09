@@ -298,6 +298,62 @@ class APISettings:
             else 0.25
         )
     )
+    market_context_minimum_candles: int = field(
+        default_factory=lambda: (
+            _required_positive_int(
+                "ARMS_MARKET_CONTEXT_MINIMUM_CANDLES"
+            )
+            if os.getenv(
+                "ARMS_MARKET_CONTEXT_MINIMUM_CANDLES"
+            ) is not None
+            else 5
+        )
+    )
+    market_context_internal_range_lookback: int = field(
+        default_factory=lambda: (
+            _required_positive_int(
+                "ARMS_MARKET_CONTEXT_INTERNAL_RANGE_LOOKBACK"
+            )
+            if os.getenv(
+                "ARMS_MARKET_CONTEXT_INTERNAL_RANGE_LOOKBACK"
+            ) is not None
+            else 10
+        )
+    )
+    market_context_near_extreme_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MARKET_CONTEXT_NEAR_EXTREME_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_MARKET_CONTEXT_NEAR_EXTREME_THRESHOLD"
+            ) is not None
+            else 0.10
+        )
+    )
+    market_context_equilibrium_tolerance: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MARKET_CONTEXT_EQUILIBRIUM_TOLERANCE"
+            )
+            if os.getenv(
+                "ARMS_MARKET_CONTEXT_EQUILIBRIUM_TOLERANCE"
+            ) is not None
+            else 0.05
+        )
+    )
+    market_context_decision_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MARKET_CONTEXT_DECISION_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_MARKET_CONTEXT_DECISION_THRESHOLD"
+            ) is not None
+            else 0.25
+        )
+    )
+
     multi_timeframe_dominance_margin: float = field(
         default_factory=lambda: (
             _required_unit_interval_float(
@@ -658,6 +714,42 @@ class APISettings:
         ):
             raise ValueError(
                 "multi_timeframe_minimum_ready_weight "
+                "debe ser mayor que cero."
+            )
+
+        if (
+            self.market_context_minimum_candles
+            < 3
+        ):
+            raise ValueError(
+                "market_context_minimum_candles "
+                "debe ser mayor o igual que 3."
+            )
+
+        if (
+            self.market_context_internal_range_lookback
+            < 3
+        ):
+            raise ValueError(
+                "market_context_internal_range_lookback "
+                "debe ser mayor o igual que 3."
+            )
+
+        if (
+            self.market_context_near_extreme_threshold
+            <= 0
+        ):
+            raise ValueError(
+                "market_context_near_extreme_threshold "
+                "debe ser mayor que cero."
+            )
+
+        if (
+            self.market_context_decision_threshold
+            <= 0
+        ):
+            raise ValueError(
+                "market_context_decision_threshold "
                 "debe ser mayor que cero."
             )
 

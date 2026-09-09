@@ -2178,11 +2178,11 @@ def create_app(
     app.state.market_context_engine_v2 = (
         market_context_engine_v2
         or MarketContextEngineV2(
-            minimum_candles=5,
-            internal_range_lookback=10,
-            near_extreme_threshold=0.10,
-            equilibrium_tolerance=0.05,
-            decision_threshold=0.25,
+            minimum_candles=settings.market_context_minimum_candles,
+            internal_range_lookback=settings.market_context_internal_range_lookback,
+            near_extreme_threshold=settings.market_context_near_extreme_threshold,
+            equilibrium_tolerance=settings.market_context_equilibrium_tolerance,
+            decision_threshold=settings.market_context_decision_threshold,
         )
     )
 
