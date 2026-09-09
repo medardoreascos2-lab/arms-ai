@@ -947,7 +947,7 @@ def create_app(
     if signal_execution_manager is None:
         signal_execution_manager = (
             SignalExecutionManager(
-                cooldown_minutes=15
+                cooldown_minutes=settings.signal_execution_cooldown_minutes
             )
         )
 

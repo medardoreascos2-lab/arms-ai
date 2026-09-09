@@ -514,7 +514,32 @@ class APISettings:
         )
     )
 
+    signal_execution_cooldown_minutes: int = field(
+        default_factory=lambda: int(
+            os.getenv(
+                "ARMS_SIGNAL_EXECUTION_COOLDOWN_MINUTES",
+                "15",
+            )
+        )
+    )
+
     def __post_init__(self) -> None:
+        if (
+            isinstance(
+                self.signal_execution_cooldown_minutes,
+                bool,
+            )
+            or not isinstance(
+                self.signal_execution_cooldown_minutes,
+                int,
+            )
+            or self.signal_execution_cooldown_minutes < 0
+        ):
+            raise ValueError(
+                "signal_execution_cooldown_minutes "
+                "debe ser un entero mayor o igual que cero."
+            )
+
         if (
             not isinstance(
                 self.maximum_quote_age_seconds,
