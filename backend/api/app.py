@@ -2147,11 +2147,11 @@ def create_app(
             live_candle_store=(
                 app.state.live_candle_store
             ),
-            fast_period=10,
-            slow_period=50,
-            slope_lookback=5,
+            fast_period=settings.trend_fast_period,
+            slow_period=settings.trend_slow_period,
+            slope_lookback=settings.trend_slope_lookback,
             sideways_threshold_percent=(
-                0.0005
+                settings.trend_sideways_threshold_percent
             ),
         )
     )

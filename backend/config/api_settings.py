@@ -6,6 +6,8 @@ from dataclasses import field
 
 
 
+
+
 def _required_positive_finite_float(
     name: str,
 ) -> float:
@@ -260,6 +262,51 @@ class APISettings:
                 "ARMS_PROBABILITY_MEDIUM_THRESHOLD"
             ) is not None
             else 0.65
+        )
+    )
+
+    trend_fast_period: int = field(
+        default_factory=lambda: (
+            _required_positive_int(
+                "ARMS_TREND_FAST_PERIOD"
+            )
+            if os.getenv(
+                "ARMS_TREND_FAST_PERIOD"
+            ) is not None
+            else 10
+        )
+    )
+    trend_slow_period: int = field(
+        default_factory=lambda: (
+            _required_positive_int(
+                "ARMS_TREND_SLOW_PERIOD"
+            )
+            if os.getenv(
+                "ARMS_TREND_SLOW_PERIOD"
+            ) is not None
+            else 50
+        )
+    )
+    trend_slope_lookback: int = field(
+        default_factory=lambda: (
+            _required_positive_int(
+                "ARMS_TREND_SLOPE_LOOKBACK"
+            )
+            if os.getenv(
+                "ARMS_TREND_SLOPE_LOOKBACK"
+            ) is not None
+            else 5
+        )
+    )
+    trend_sideways_threshold_percent: float = field(
+        default_factory=lambda: (
+            _required_positive_finite_float(
+                "ARMS_TREND_SIDEWAYS_THRESHOLD_PERCENT"
+            )
+            if os.getenv(
+                "ARMS_TREND_SIDEWAYS_THRESHOLD_PERCENT"
+            ) is not None
+            else 0.0005
         )
     )
 
@@ -558,6 +605,43 @@ class APISettings:
                 "market_regime_low_volatility_threshold "
                 "no puede ser mayor o igual que "
                 "market_regime_high_volatility_threshold."
+            )
+
+        if (
+            not isinstance(
+                self.trend_fast_period,
+                int,
+            )
+            or self.trend_fast_period <= 1
+        ):
+            raise ValueError(
+                "trend_fast_period debe ser un entero "
+                "mayor que 1."
+            )
+
+        if (
+            not isinstance(
+                self.trend_slow_period,
+                int,
+            )
+            or self.trend_slow_period
+            <= self.trend_fast_period
+        ):
+            raise ValueError(
+                "trend_slow_period debe ser mayor que "
+                "trend_fast_period."
+            )
+
+        if (
+            not isinstance(
+                self.trend_slope_lookback,
+                int,
+            )
+            or self.trend_slope_lookback < 2
+        ):
+            raise ValueError(
+                "trend_slope_lookback debe ser un entero "
+                "mayor o igual que 2."
             )
 
         if (
