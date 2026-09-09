@@ -2026,9 +2026,9 @@ def create_app(
         market_regime_engine
         or MarketRegimeEngine(
             trend_threshold=settings.market_regime_trend_threshold,
-            high_volatility_threshold=0.80,
-            low_volatility_threshold=0.20,
-            compression_threshold=0.15,
+            high_volatility_threshold=settings.market_regime_high_volatility_threshold,
+            low_volatility_threshold=settings.market_regime_low_volatility_threshold,
+            compression_threshold=settings.market_regime_compression_threshold,
         )
     )
 

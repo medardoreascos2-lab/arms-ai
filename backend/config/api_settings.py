@@ -280,6 +280,42 @@ class APISettings:
         )
     )
 
+    market_regime_high_volatility_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MARKET_REGIME_HIGH_VOLATILITY_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_MARKET_REGIME_HIGH_VOLATILITY_THRESHOLD"
+            ) is not None
+            else 0.80
+        )
+    )
+
+    market_regime_low_volatility_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MARKET_REGIME_LOW_VOLATILITY_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_MARKET_REGIME_LOW_VOLATILITY_THRESHOLD"
+            ) is not None
+            else 0.20
+        )
+    )
+
+    market_regime_compression_threshold: float = field(
+        default_factory=lambda: (
+            _required_unit_interval_float(
+                "ARMS_MARKET_REGIME_COMPRESSION_THRESHOLD"
+            )
+            if os.getenv(
+                "ARMS_MARKET_REGIME_COMPRESSION_THRESHOLD"
+            ) is not None
+            else 0.15
+        )
+    )
+
     minimum_a_plus_confluence_score: float = field(
         default_factory=lambda: _required_unit_interval_float(
             "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE"
@@ -478,4 +514,14 @@ class APISettings:
                 self,
                 field_name,
                 value,
+            )
+
+        if (
+            self.market_regime_low_volatility_threshold
+            >= self.market_regime_high_volatility_threshold
+        ):
+            raise ValueError(
+                "market_regime_low_volatility_threshold "
+                "no puede ser mayor o igual que "
+                "market_regime_high_volatility_threshold."
             )
