@@ -2444,8 +2444,8 @@ def create_app(
             ),
             break_even_engine=(
                 BreakEvenEngineV2(
-                    trigger_profit_points=15.0,
-                    offset_points=1.0,
+                    trigger_profit_points=settings.break_even_trigger_profit_points,
+                    offset_points=settings.break_even_offset_points,
                 )
             ),
             trailing_stop_engine=(

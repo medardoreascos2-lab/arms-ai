@@ -523,7 +523,49 @@ class APISettings:
         )
     )
 
+
+    break_even_trigger_profit_points: float = field(
+        default_factory=lambda: float(
+            os.getenv(
+                "ARMS_BREAK_EVEN_TRIGGER_PROFIT_POINTS",
+                "15.0",
+            )
+        )
+    )
+
+    break_even_offset_points: float = field(
+        default_factory=lambda: float(
+            os.getenv(
+                "ARMS_BREAK_EVEN_OFFSET_POINTS",
+                "1.0",
+            )
+        )
+    )
+
     def __post_init__(self) -> None:
+
+        if (
+            not math.isfinite(
+                self.break_even_trigger_profit_points
+            )
+            or self.break_even_trigger_profit_points <= 0
+        ):
+            raise ValueError(
+                "break_even_trigger_profit_points "
+                "debe ser finito y mayor que cero."
+            )
+
+        if (
+            not math.isfinite(
+                self.break_even_offset_points
+            )
+            or self.break_even_offset_points < 0
+        ):
+            raise ValueError(
+                "break_even_offset_points "
+                "debe ser finito y mayor o igual que cero."
+            )
+
         if (
             isinstance(
                 self.signal_execution_cooldown_minutes,
