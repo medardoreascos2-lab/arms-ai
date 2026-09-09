@@ -2433,8 +2433,12 @@ def create_app(
             ),
             partial_take_profit_engine=(
                 PartialTakeProfitEngineV2(
-                    trigger_profit_points=20.0,
-                    close_fraction=0.50,
+                    trigger_profit_points=(
+                        settings.partial_take_profit_trigger_profit_points
+                    ),
+                    close_fraction=(
+                        settings.partial_take_profit_close_fraction
+                    ),
                 )
             ),
             realized_pnl_engine=(

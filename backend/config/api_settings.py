@@ -542,7 +542,51 @@ class APISettings:
         )
     )
 
+    partial_take_profit_trigger_profit_points: float = field(
+        default_factory=lambda: float(
+            os.getenv(
+                "ARMS_PARTIAL_TAKE_PROFIT_TRIGGER_PROFIT_POINTS",
+                "20.0",
+            )
+        )
+    )
+
+    partial_take_profit_close_fraction: float = field(
+        default_factory=lambda: float(
+            os.getenv(
+                "ARMS_PARTIAL_TAKE_PROFIT_CLOSE_FRACTION",
+                "0.5",
+            )
+        )
+    )
+
     def __post_init__(self) -> None:
+
+        if (
+            not math.isfinite(
+                self.partial_take_profit_trigger_profit_points
+            )
+            or self.partial_take_profit_trigger_profit_points <= 0
+        ):
+            raise ValueError(
+                "partial_take_profit_trigger_profit_points "
+                "debe ser finito y mayor que cero."
+            )
+
+        if (
+            not math.isfinite(
+                self.partial_take_profit_close_fraction
+            )
+            or not (
+                0.0
+                < self.partial_take_profit_close_fraction
+                < 1.0
+            )
+        ):
+            raise ValueError(
+                "partial_take_profit_close_fraction "
+                "debe ser finita y estar estrictamente entre 0 y 1."
+            )
 
         if (
             not math.isfinite(
