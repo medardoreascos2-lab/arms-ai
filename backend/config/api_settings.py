@@ -142,6 +142,43 @@ def _required_unit_interval_float(
     return value
 
 
+def _required_boolean(
+    env_name: str,
+) -> bool:
+    raw_value = os.getenv(env_name)
+
+    if raw_value is None:
+        raise ValueError(
+            f"{env_name} debe configurarse explícitamente "
+            "como true/false, 1/0 o yes/no."
+        )
+
+    normalized = raw_value.strip().lower()
+
+    truthy = {
+        "true",
+        "1",
+        "yes",
+    }
+
+    falsy = {
+        "false",
+        "0",
+        "no",
+    }
+
+    if normalized in truthy:
+        return True
+
+    if normalized in falsy:
+        return False
+
+    raise ValueError(
+        f"{env_name} debe ser true/false, "
+        "1/0 o yes/no."
+    )
+
+
 @dataclass(frozen=True)
 class APISettings:
     """
@@ -434,6 +471,19 @@ class APISettings:
             )
             is not None
             else 10.0
+        )
+    )
+
+    paper_execution_fill_market_orders_immediately: bool = field(
+        default_factory=lambda: (
+            _required_boolean(
+                "ARMS_PAPER_EXECUTION_FILL_MARKET_ORDERS_IMMEDIATELY"
+            )
+            if os.getenv(
+                "ARMS_PAPER_EXECUTION_FILL_MARKET_ORDERS_IMMEDIATELY"
+            )
+            is not None
+            else True
         )
     )
 
