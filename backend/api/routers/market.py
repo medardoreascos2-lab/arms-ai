@@ -468,7 +468,11 @@ def receive_market_webhook(
             candle_limit=50,
             account_balance=available_balance,
             risk_percent=active_risk_percent,
-            point_value=2.0,
+            point_value=(
+                _resolve_trade_management_point_value(
+                    candle.symbol
+                )
+            ),
             reward_risk_ratio=2.0,
         )
 
