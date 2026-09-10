@@ -174,7 +174,7 @@ def test_gap_3q_preserves_remaining_runtime_fields():
 
     assert _render(
         values["daily_pnl"]
-    ) == "0"
+    ) == 'request.app.state\n                    .account_state_manager_v2\n                    .get_state()["daily_pnl"]'
 
     assert _render(
         values["total_drawdown"]

@@ -339,7 +339,7 @@ def test_gap_3u_does_not_modify_other_pipeline_authorities():
         "risk_percent": (
             "active_risk_percent"
         ),
-        "daily_pnl": "0",
+        "daily_pnl": 'request.app.state\n                    .account_state_manager_v2\n                    .get_state()["daily_pnl"]',
         "total_drawdown": "0",
     }
 

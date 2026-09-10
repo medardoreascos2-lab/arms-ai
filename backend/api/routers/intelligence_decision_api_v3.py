@@ -480,7 +480,11 @@ def execution_pipeline_v3(request: Request):
                 "account_size": active_account_size,
                 "account_balance": available_balance,
                 "risk_percent": active_risk_percent,
-                "daily_pnl": 0,
+                "daily_pnl": (
+                    request.app.state
+                    .account_state_manager_v2
+                    .get_state()["daily_pnl"]
+                ),
                 "total_drawdown": 0,
             },
 
