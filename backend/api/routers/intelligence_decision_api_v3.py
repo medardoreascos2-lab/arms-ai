@@ -98,6 +98,10 @@ def intelligence_decision_v3(request: Request):
         active_risk_profile.risk_percent
     )
 
+    active_account_size = float(
+        active_risk_profile.account_size
+    )
+
 
 
     technical_report = technical_engine.analyze(
@@ -130,7 +134,7 @@ def intelligence_decision_v3(request: Request):
 
     risk_report = risk_engine.analyze(
 
-        account_size=150000,
+        account_size=active_account_size,
 
         risk_percent=risk_percent,
 
@@ -190,7 +194,7 @@ def intelligence_decision_v3(request: Request):
 
         take_profit=23650,
 
-        account_size=150000,
+        account_size=active_account_size,
 
         risk_percent=risk_percent,
 

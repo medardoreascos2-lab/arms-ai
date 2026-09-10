@@ -452,6 +452,12 @@ def receive_market_webhook(
         active_account_profile.risk_percent
     )
 
+    available_balance = float(
+        request.app.state
+        .portfolio_manager_v2
+        .get_available_balance()
+    )
+
     if service.can_analyze(
         symbol=candle.symbol,
         timeframe=candle.timeframe,
@@ -460,7 +466,7 @@ def receive_market_webhook(
             symbol=candle.symbol,
             timeframe=candle.timeframe,
             candle_limit=50,
-            account_balance=17000.0,
+            account_balance=available_balance,
             risk_percent=active_risk_percent,
             point_value=2.0,
             reward_risk_ratio=2.0,
