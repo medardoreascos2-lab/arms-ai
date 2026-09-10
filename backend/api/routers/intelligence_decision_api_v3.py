@@ -442,6 +442,9 @@ def execution_pipeline_v3(request: Request):
     active_risk_percent = float(
         active_account_profile.risk_percent
     )
+    active_account_size = float(
+        active_account_profile.account_size
+    )
 
 
 
@@ -470,7 +473,7 @@ def execution_pipeline_v3(request: Request):
             risk_context={
                 "point_value": 20,
                 "current_price": 23500,
-                "account_size": 150000,
+                "account_size": active_account_size,
                 "account_balance": 150000,
                 "risk_percent": active_risk_percent,
                 "daily_pnl": 0,
