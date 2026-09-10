@@ -202,7 +202,7 @@ def test_gap_3v_does_not_expand_to_other_signal_evidence():
 
     expected = {
         "current_price": "23500",
-        "total_drawdown": "0",
+        "total_drawdown": 'request.app.state\n                    .account_state_manager_v2\n                    .get_state()[\"drawdown\"]',
         "probability": "90",
         "confluence_score": "95",
     }

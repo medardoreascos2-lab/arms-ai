@@ -485,7 +485,11 @@ def execution_pipeline_v3(request: Request):
                     .account_state_manager_v2
                     .get_state()["daily_pnl"]
                 ),
-                "total_drawdown": 0,
+                "total_drawdown": (
+                    request.app.state
+                    .account_state_manager_v2
+                    .get_state()["drawdown"]
+                ),
             },
 
             order_context={
