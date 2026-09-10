@@ -86,7 +86,17 @@ def configure_execution_pipeline_v3(
 @router.get(
     "/intelligence-decision"
 )
-def intelligence_decision_v3():
+def intelligence_decision_v3(request: Request):
+
+    active_risk_profile = (
+        request.app.state
+        .account_config_manager_v2
+        .get_active_account()
+    )
+
+    risk_percent = float(
+        active_risk_profile.risk_percent
+    )
 
 
 
@@ -122,7 +132,7 @@ def intelligence_decision_v3():
 
         account_size=150000,
 
-        risk_percent=1,
+        risk_percent=risk_percent,
 
         entry=23500,
 
@@ -182,7 +192,7 @@ def intelligence_decision_v3():
 
         account_size=150000,
 
-        risk_percent=1,
+        risk_percent=risk_percent,
 
     )
 
@@ -419,6 +429,16 @@ def journal_debug_v3():
 )
 def execution_pipeline_v3(request: Request):
 
+    active_account_profile = (
+        request.app.state
+        .account_config_manager_v2
+        .get_active_account()
+    )
+
+    active_risk_percent = float(
+        active_account_profile.risk_percent
+    )
+
 
 
 
@@ -448,7 +468,7 @@ def execution_pipeline_v3(request: Request):
                 "current_price": 23500,
                 "account_size": 150000,
                 "account_balance": 150000,
-                "risk_percent": 1,
+                "risk_percent": active_risk_percent,
                 "daily_pnl": 0,
                 "total_drawdown": 0,
             },
