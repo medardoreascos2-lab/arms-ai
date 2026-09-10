@@ -2906,7 +2906,7 @@ class LiveMarketAnalysisService:
                     grade=probability[
                         "grade"
                     ],
-                    reward_risk_ratio=2.0,
+                    reward_risk_ratio=reward_risk_ratio,
                 )
             )
 
