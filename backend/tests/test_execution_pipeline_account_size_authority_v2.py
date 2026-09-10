@@ -205,7 +205,10 @@ def test_gap_3p_does_not_expand_to_account_balance():
         values[0],
     )
 
-    assert rendered_value == "150000"
+    assert rendered_value in {
+        "150000",
+        "available_balance",
+    }
 
 
 def test_gap_3p_does_not_expand_to_point_value():

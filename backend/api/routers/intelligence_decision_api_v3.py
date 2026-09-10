@@ -445,6 +445,11 @@ def execution_pipeline_v3(request: Request):
     active_account_size = float(
         active_account_profile.account_size
     )
+    available_balance = float(
+        request.app.state
+        .portfolio_manager_v2
+        .get_available_balance()
+    )
 
 
 
@@ -474,7 +479,7 @@ def execution_pipeline_v3(request: Request):
                 "point_value": 20,
                 "current_price": 23500,
                 "account_size": active_account_size,
-                "account_balance": 150000,
+                "account_balance": available_balance,
                 "risk_percent": active_risk_percent,
                 "daily_pnl": 0,
                 "total_drawdown": 0,
