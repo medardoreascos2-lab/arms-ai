@@ -342,8 +342,52 @@ def test_market_auto_reward_risk_ratio_remains_2_0():
     )
 
 
-def test_execution_pipeline_point_value_remains_20():
-    assert (
-        _pipeline_point_value()
-        == "20"
+def test_execution_pipeline_defers_point_value_to_lifecycle_authority():
+    source = _source(
+        PIPELINE_PATH
     )
+    tree = ast.parse(source)
+
+    fn = next(
+        node
+        for node in tree.body
+        if isinstance(
+            node,
+            (
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+            ),
+        )
+        and node.name
+        == "execution_pipeline_v3"
+    )
+
+    values = []
+
+    for node in ast.walk(fn):
+        if not isinstance(
+            node,
+            ast.Dict,
+        ):
+            continue
+
+        for key, value in zip(
+            node.keys,
+            node.values,
+        ):
+            if (
+                isinstance(
+                    key,
+                    ast.Constant,
+                )
+                and key.value
+                == "point_value"
+            ):
+                values.append(
+                    _render(
+                        source,
+                        value,
+                    )
+                )
+
+    assert values == []

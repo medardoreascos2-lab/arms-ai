@@ -48,7 +48,6 @@ def _risk_context_values() -> dict[str, ast.AST]:
     function = _pipeline_function(source)
 
     expected_keys = {
-        "point_value",
         "current_price",
         "account_size",
         "account_balance",
@@ -158,11 +157,12 @@ def test_gap_3q_preserves_account_size_authority():
 
 
 def test_gap_3q_does_not_expand_to_point_value():
-    node = _risk_context_values()[
-        "point_value"
-    ]
+    values = _risk_context_values()
 
-    assert _render(node) == "20"
+    # GAP #3U owns point-value authority at the lifecycle
+    # boundary. The execution-pipeline router must not
+    # provide point_value inside risk_context.
+    assert "point_value" not in values
 
 
 def test_gap_3q_preserves_remaining_runtime_fields():

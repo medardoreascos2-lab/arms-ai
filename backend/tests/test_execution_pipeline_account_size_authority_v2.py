@@ -219,11 +219,7 @@ def test_gap_3p_does_not_expand_to_point_value():
         "point_value",
     )
 
-    assert len(values) == 1
-
-    rendered_value = _render(
-        source,
-        values[0],
-    )
-
-    assert rendered_value == "20"
+    # GAP #3U owns point-value authority at the lifecycle
+    # boundary. execution_pipeline_v3 must not encode
+    # point_value authority in the router.
+    assert values == []

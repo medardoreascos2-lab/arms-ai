@@ -476,7 +476,6 @@ def execution_pipeline_v3(request: Request):
             order_type="MARKET",
 
             risk_context={
-                "point_value": 20,
                 "current_price": 23500,
                 "account_size": active_account_size,
                 "account_balance": available_balance,
