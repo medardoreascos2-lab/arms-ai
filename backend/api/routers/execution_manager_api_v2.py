@@ -1,69 +1,25 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query, Request
 
-from backend.execution.execution_manager_engine import (
-    ExecutionManagerEngine,
+from backend.dashboard.execution_manager_read_projection_v2 import (
+    project_execution_manager,
 )
 
 
 router = APIRouter(
     prefix="/api/v2/dashboard",
-    tags=[
-        "Execution Manager"
-    ],
+    tags=["Execution Manager"],
 )
 
 
-engine = ExecutionManagerEngine()
-
-
-
-@router.get(
-    "/execution-manager"
-)
-def execution_manager_dashboard():
-
-    result = engine.prepare_order(
-
-        symbol="NQ",
-
-        direction="BUY",
-
-        entry=23500,
-
-        stop_loss=23450,
-
-        take_profit=23650,
-
-        contracts=1,
-
-        risk_amount=500,
-
-        approved=True,
-
+@router.get("/execution-manager")
+def execution_manager_dashboard(
+    request: Request,
+    symbol: str | None = Query(default=None, min_length=1),
+    timeframe: str | None = Query(default=None, min_length=1),
+):
+    """Observe an existing prepared order; this route has no execution engine."""
+    return project_execution_manager(
+        store=getattr(request.app.state, "live_analysis_store", None),
+        symbol=symbol,
+        timeframe=timeframe,
     )
-
-
-    return {
-
-        "status": result.status,
-
-        "symbol": result.symbol,
-
-        "direction": result.direction,
-
-        "order_type": result.order_type,
-
-        "contracts": result.contracts,
-
-        "entry": result.entry,
-
-        "stop_loss": result.stop_loss,
-
-        "take_profit": result.take_profit,
-
-        "risk_amount": result.risk_amount,
-
-        "validation": result.validation,
-
-    }
-
