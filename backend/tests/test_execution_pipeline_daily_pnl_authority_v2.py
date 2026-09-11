@@ -167,61 +167,13 @@ def test_execution_pipeline_does_not_encode_daily_pnl_zero():
     assert "0" not in rendered
 
 
-def test_execution_pipeline_reads_runtime_daily_pnl_authority():
-    source, pipeline = (
-        _execution_pipeline_node()
-    )
-
-    rendered = _render(
-        source,
-        pipeline,
-    )
-
-    assert (
-        "account_state_manager_v2"
-        in rendered
-    )
-
-    assert (
-        "get_state()"
-        in rendered
-    )
-
-    assert (
-        '["daily_pnl"]'
-        in rendered
-        or "['daily_pnl']"
-        in rendered
-    )
+def test_execution_pipeline_does_not_require_account_state_to_read_activity():
+    source, pipeline = _execution_pipeline_node()
+    assert "account_state_manager_v2" not in _render(source, pipeline)
+    assert _dict_values_for_key(source, pipeline, "daily_pnl") == []
 
 
-def test_gap_3v_does_not_expand_to_other_signal_evidence():
-    source, pipeline = (
-        _execution_pipeline_node()
-    )
-
-    expected = {
-        "current_price": "23500",
-        "total_drawdown": 'request.app.state\n                    .account_state_manager_v2\n                    .get_state()[\"drawdown\"]',
-        "probability": "90",
-        "confluence_score": "95",
-    }
-
-    for key_name, expected_value in (
-        expected.items()
-    ):
-        values = _dict_values_for_key(
-            source,
-            pipeline,
-            key_name,
-        )
-
-        assert len(values) == 1
-
-        assert (
-            _render(
-                source,
-                values[0],
-            )
-            == expected_value
-        )
+def test_execution_pipeline_does_not_build_signal_evidence():
+    source, pipeline = _execution_pipeline_node()
+    for field in ("current_price", "total_drawdown", "probability", "confluence_score"):
+        assert _dict_values_for_key(source, pipeline, field) == []

@@ -1,3 +1,5 @@
+from dataclasses import asdict, is_dataclass
+
 from fastapi import APIRouter, Request
 
 
@@ -428,78 +430,121 @@ def journal_debug_v3():
 
 
 
+def _read_pipeline_records(reader):
+    """Copy an existing read model; unavailable data must never trigger execution."""
+    if not callable(reader):
+        return None
+    try:
+        records = reader()
+        if not isinstance(records, list):
+            return None
+        snapshot = []
+        for record in records:
+            if is_dataclass(record) and not isinstance(record, type):
+                record = asdict(record)
+            if not isinstance(record, dict):
+                return None
+            snapshot.append(dict(record))
+        return snapshot
+    except Exception:
+        # A failed read is unavailable, never an invitation to generate a trade.
+        return None
+
+
+def _pipeline_text(record, field):
+    value = record.get(field)
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
 @router.get(
     "/execution-pipeline"
 )
 def execution_pipeline_v3(request: Request):
-
-    active_account_profile = (
-        request.app.state
-        .account_config_manager_v2
-        .get_active_account()
-    )
-
-    active_risk_percent = float(
-        active_account_profile.risk_percent
-    )
-    active_account_size = float(
-        active_account_profile.account_size
-    )
-    available_balance = float(
-        request.app.state
-        .portfolio_manager_v2
-        .get_available_balance()
-    )
-
-
-
-
-    result = (
-        request.app.state
-        .trade_lifecycle_service_v2
-        .submit_signal(
-            signal={
-                "symbol": "NQ",
-                "direction": "LONG",
-                "entry_price": 23500,
-                "stop_loss": 23450,
-                "take_profit": 23650,
-                "contracts": 1,
-                "approved": True,
-                "decision": "SEND_SIGNAL",
-                "signal_decision": "SEND",
-                "probability": 90,
-                "confluence_score": 95,
-                "grade": "A+",
-            },
-
-            order_type="MARKET",
-
-            risk_context={
-                "current_price": 23500,
-                "account_size": active_account_size,
-                "account_balance": available_balance,
-                "risk_percent": active_risk_percent,
-                "daily_pnl": (
-                    request.app.state
-                    .account_state_manager_v2
-                    .get_state()["daily_pnl"]
-                ),
-                "total_drawdown": (
-                    request.app.state
-                    .account_state_manager_v2
-                    .get_state()["drawdown"]
-                ),
-            },
-
-            order_context={
-                "market_is_open": True,
-            },
+    """Observe existing activity only. No signals, risk evaluation or commands."""
+    positions = _read_pipeline_records(
+        getattr(
+            getattr(request.app.state, "trade_lifecycle_service_v2", None),
+            "get_active_positions",
+            None,
         )
     )
+    trades = _read_pipeline_records(
+        getattr(
+            getattr(request.app.state, "trade_journal_v2", None),
+            "get_trades",
+            None,
+        )
+    )
+    snapshot = {
+        "status": "UNAVAILABLE",
+        "source": None,
+        "position_id": None,
+        "trade_id": None,
+        "symbol": None,
+        "direction": None,
+        "execution_status": "UNAVAILABLE",
+        "journal_status": "UNAVAILABLE",
+        "message": "Datos del pipeline no disponibles o incompletos.",
+    }
+    if positions == [] and trades == []:
+        return {
+            **snapshot,
+            "status": "IDLE",
+            "execution_status": "IDLE",
+            "journal_status": "NOT_RECORDED",
+            "message": "Sin actividad existente en el pipeline.",
+        }
 
+    record = None
+    journal_record = None
+    if positions:
+        record = positions[-1]
+        snapshot["source"] = "position"
+        position_id = _pipeline_text(record, "position_id")
+        if trades is not None and position_id:
+            journal_record = next(
+                (trade for trade in reversed(trades)
+                 if _pipeline_text(trade, "position_id") == position_id),
+                None,
+            )
+            if journal_record is not None:
+                snapshot["journal_status"] = "RECORDED"
+            elif all(_pipeline_text(trade, "position_id") for trade in trades):
+                snapshot["journal_status"] = "NOT_RECORDED"
+    elif trades:
+        record = journal_record = trades[-1]
+        snapshot["source"] = "journal"
+        if (_pipeline_text(record, "trade_id")
+                or _pipeline_text(record, "position_id")):
+            snapshot["journal_status"] = "RECORDED"
 
-    return result
+    if record is not None:
+        snapshot.update({
+            "position_id": _pipeline_text(record, "position_id"),
+            "trade_id": (
+                _pipeline_text(journal_record, "trade_id")
+                if journal_record is not None else None
+            ),
+            "symbol": _pipeline_text(record, "symbol"),
+            "direction": _pipeline_text(record, "direction"),
+            "execution_status": _pipeline_text(record, "status") or "UNAVAILABLE",
+        })
+        if (
+            positions is not None
+            and trades is not None
+            and (snapshot["position_id"] or snapshot["trade_id"])
+            and snapshot["symbol"]
+            and snapshot["direction"]
+            and snapshot["execution_status"] != "UNAVAILABLE"
+            and snapshot["journal_status"] != "UNAVAILABLE"
+        ):
+            snapshot["status"] = "AVAILABLE"
+            snapshot["message"] = (
+                "Estado observado de la posición existente."
+                if snapshot["source"] == "position"
+                else "Último registro existente en el journal."
+            )
+    return snapshot
 
 
 @router.post(

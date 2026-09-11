@@ -2226,76 +2226,25 @@ export default function DashboardV2Page() {
 
               executionPipelineData
 
-                ? (() => {
-
-                    const pipelinePosition =
-                      isObject(
-                        executionPipelineData.position
-                      )
-                        ? executionPipelineData.position
-                        : null;
-
-                    const pipelineExecution =
-                      isObject(
-                        executionPipelineData.execution
-                      )
-                        ? executionPipelineData.execution
-                        : null;
-
-                    const accepted =
-                      executionPipelineData.accepted === true;
-
-                    const reason =
-                      String(
-                        executionPipelineData.reason ?? ""
-                      );
-
-                    return {
-
-                      trade_id:
-                        String(
-                          executionPipelineData.active_position_id
-                          ?? pipelinePosition?.position_id
-                          ?? "-"
-                        ),
-
-                      symbol:
-                        String(
-                          pipelinePosition?.symbol
-                          ?? "NQ"
-                        ),
-
-                      direction:
-                        String(
-                          pipelinePosition?.direction
-                          ?? "-"
-                        ),
-
-                      execution_status:
-                        accepted
-                          ? String(
-                              pipelineExecution?.status
-                              ?? "ACCEPTED"
-                            )
-                          : "BLOCKED",
-
-                      journal_status:
-                        accepted
-                          ? "RECORDED"
-                          : "NOT_RECORDED",
-
-                      message:
-                        accepted
-                          ? "Lifecycle execution accepted."
-                          : (
-                              reason
-                                ? `Blocked: ${reason}`
-                                : "Execution not accepted."
-                            ),
-
-                    };
-
-                  })()
+                ? {
+                    trade_id: String(
+                      executionPipelineData.trade_id
+                      ?? executionPipelineData.position_id
+                      ?? "-"
+                    ),
+                    symbol: String(executionPipelineData.symbol ?? "-"),
+                    direction: String(executionPipelineData.direction ?? "-"),
+                    execution_status: String(
+                      executionPipelineData.execution_status ?? "UNAVAILABLE"
+                    ),
+                    journal_status: String(
+                      executionPipelineData.journal_status ?? "UNAVAILABLE"
+                    ),
+                    message: String(
+                      executionPipelineData.message
+                      ?? "Datos del pipeline no disponibles."
+                    ),
+                  }
 
                 : null
 

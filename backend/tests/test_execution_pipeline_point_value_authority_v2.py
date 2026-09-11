@@ -80,114 +80,20 @@ def _render(
     return rendered
 
 
-def _pipeline_risk_context() -> tuple[
-    ast.Dict,
-    str,
-]:
-    function, source = (
-        _execution_pipeline()
-    )
-
-    submit_calls = []
-
-    for node in ast.walk(function):
-        if not isinstance(node, ast.Call):
-            continue
-
-        rendered_func = _render(
-            source,
-            node.func,
-        )
-
-        if not rendered_func.endswith(
-            ".submit_signal"
-        ):
-            continue
-
-        submit_calls.append(node)
-
-    assert len(submit_calls) == 1
-
-    call = submit_calls[0]
-
-    risk_context = next(
-        (
-            keyword.value
-            for keyword in call.keywords
-            if keyword.arg == "risk_context"
-        ),
-        None,
-    )
-
-    assert isinstance(
-        risk_context,
-        ast.Dict,
-    )
-
-    return risk_context, source
 
 
-def _risk_context_fields() -> dict[
-    str,
-    ast.AST,
-]:
-    risk_context, _ = (
-        _pipeline_risk_context()
-    )
 
-    fields: dict[str, ast.AST] = {}
 
-    for key, value in zip(
-        risk_context.keys,
-        risk_context.values,
-    ):
-        if not isinstance(
-            key,
-            ast.Constant,
-        ):
-            continue
-
-        if not isinstance(
-            key.value,
-            str,
-        ):
-            continue
-
-        fields[key.value] = value
-
-    return fields
 
 
 def test_execution_pipeline_does_not_supply_point_value():
-    fields = _risk_context_fields()
-
-    assert "point_value" not in fields, (
-        "execution_pipeline_v3 no debe "
-        "suministrar point_value; "
-        "TradeLifecycleServiceV2 debe "
-        "resolverlo por symbol."
-    )
+    function, source = _execution_pipeline()
+    assert "point_value" not in _render(source, function)
 
 
-def test_execution_pipeline_does_not_encode_point_value_20():
-    risk_context, source = (
-        _pipeline_risk_context()
-    )
-
-    rendered = _render(
-        source,
-        risk_context,
-    )
-
-    assert (
-        '"point_value": 20'
-        not in rendered
-    )
-
-    assert (
-        '"point_value": 20.0'
-        not in rendered
-    )
+def test_execution_pipeline_does_not_resolve_instruments_for_execution():
+    function, source = _execution_pipeline()
+    assert "get_profile" not in _render(source, function)
 
 
 def test_submit_signal_owns_instrument_profile_resolution():
@@ -325,37 +231,8 @@ def test_point_value_authority_is_symbol_derived():
     )
 
 
-def test_gap_3u_does_not_modify_other_pipeline_authorities():
-    fields = _risk_context_fields()
-
-    expected = {
-        "current_price": "23500",
-        "account_size": (
-            "active_account_size"
-        ),
-        "account_balance": (
-            "available_balance"
-        ),
-        "risk_percent": (
-            "active_risk_percent"
-        ),
-        "daily_pnl": 'request.app.state\n                    .account_state_manager_v2\n                    .get_state()["daily_pnl"]',
-        "total_drawdown": 'request.app.state\n                    .account_state_manager_v2\n                    .get_state()[\"drawdown\"]',
-    }
-
-    _, source = (
-        _pipeline_risk_context()
-    )
-
-    for field, expected_value in (
-        expected.items()
-    ):
-        assert field in fields
-
-        assert (
-            _render(
-                source,
-                fields[field],
-            )
-            == expected_value
-        )
+def test_execution_pipeline_does_not_submit_a_signal_or_execution_context():
+    function, source = _execution_pipeline()
+    rendered = _render(source, function)
+    for command in ("submit_signal", "risk_context", "order_context", "prepare_order"):
+        assert command not in rendered

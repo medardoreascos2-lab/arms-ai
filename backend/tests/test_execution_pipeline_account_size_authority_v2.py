@@ -124,91 +124,19 @@ def test_execution_pipeline_has_no_literal_account_size():
     )
 
 
-def test_execution_pipeline_uses_active_account_size():
-    source, pipeline = _execution_pipeline_node()
-
-    values = _dict_values_for_key(
-        pipeline,
-        "account_size",
-    )
-
-    assert len(values) == 1
-
-    rendered_value = _render(
-        source,
-        values[0],
-    )
-
-    pipeline_source = _render(
-        source,
-        pipeline,
-    )
-
-    assert (
-        "get_active_account()"
-        in pipeline_source
-    )
-
-    assert (
-        ".account_size"
-        in pipeline_source
-    )
-
-    assert (
-        "active_account_size"
-        in rendered_value
-        or "account_size"
-        in rendered_value
-    ), (
-        "execution_pipeline_v3 account_size "
-        "must resolve from active account "
-        "authority; found "
-        f"{rendered_value}"
-    )
+def test_execution_pipeline_no_longer_builds_account_size_context():
+    _, pipeline = _execution_pipeline_node()
+    assert _dict_values_for_key(pipeline, "account_size") == []
 
 
-def test_execution_pipeline_risk_percent_authority_is_preserved():
-    source, pipeline = _execution_pipeline_node()
-
-    values = _dict_values_for_key(
-        pipeline,
-        "risk_percent",
-    )
-
-    assert len(values) == 1
-
-    rendered_value = _render(
-        source,
-        values[0],
-    )
-
-    assert (
-        "active_risk_percent"
-        in rendered_value
-        or "risk_percent"
-        in rendered_value
-    )
+def test_execution_pipeline_no_longer_builds_risk_percent_context():
+    _, pipeline = _execution_pipeline_node()
+    assert _dict_values_for_key(pipeline, "risk_percent") == []
 
 
-def test_gap_3p_does_not_expand_to_account_balance():
-    source, pipeline = _execution_pipeline_node()
-
-    values = _dict_values_for_key(
-        pipeline,
-        "account_balance",
-    )
-
-    assert len(values) == 1
-
-    rendered_value = _render(
-        source,
-        values[0],
-    )
-
-    assert rendered_value in {
-        "150000",
-        "available_balance",
-    }
+def test_execution_pipeline_no_longer_builds_account_balance_context():
+    _, pipeline = _execution_pipeline_node()
+    assert _dict_values_for_key(pipeline, "account_balance") == []
 
 
 def test_gap_3p_does_not_expand_to_point_value():
