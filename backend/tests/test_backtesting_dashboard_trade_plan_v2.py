@@ -23,7 +23,7 @@ def build_strategy():
 
 
 
-def test_dashboard_exposes_trade_plan():
+def test_dashboard_trade_plan_is_unavailable():
 
 
     app = create_app()
@@ -56,31 +56,7 @@ def test_dashboard_exposes_trade_plan():
     payload = response.json()
 
 
-    assert (
-        payload["trade_plan"]
-        is not None
-    )
-
-
-    assert (
-        payload["trade_plan"]["status"]
-        ==
-        "READY"
-    )
-
-
-    assert (
-        payload["trade_plan"]["direction"]
-        ==
-        "BUY"
-    )
-
-
-    assert (
-        payload["trade_plan"]["entry"]
-        ==
-        23500
-    )
+    assert payload["trade_plan"] is None
 
 
 

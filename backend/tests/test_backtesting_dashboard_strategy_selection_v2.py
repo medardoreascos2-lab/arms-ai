@@ -5,7 +5,7 @@ from backend.api.app import create_app
 
 
 
-def test_dashboard_exposes_strategy_selection():
+def test_dashboard_strategy_selection_is_unavailable():
 
 
     app = create_app(load_default_strategies=True)
@@ -27,15 +27,4 @@ def test_dashboard_exposes_strategy_selection():
     payload = response.json()
 
 
-    assert (
-        payload["strategy_selection"]
-        is not None
-    )
-
-
-    assert (
-        payload["strategy_selection"]
-        ["strategy_id"]
-        ==
-        "STR-001"
-    )
+    assert payload["strategy_selection"] is None

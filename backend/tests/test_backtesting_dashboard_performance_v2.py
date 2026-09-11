@@ -5,7 +5,7 @@ from backend.api.app import create_app
 
 
 
-def test_dashboard_exposes_performance():
+def test_dashboard_performance_is_unavailable():
 
 
     app = create_app()
@@ -27,36 +27,7 @@ def test_dashboard_exposes_performance():
     payload = response.json()
 
 
-    assert (
-        payload["performance"]
-        is not None
-    )
-
-
-    assert (
-        payload["performance"]["total_trades"]
-        == 10
-    )
-
-
-    assert (
-        payload["performance"]["winning_trades"]
-        == 7
-    )
-
-
-    assert (
-        payload["performance"]["win_rate"]
-        ==
-        70.0
-    )
-
-
-    assert (
-        payload["performance"]["net_profit"]
-        ==
-        1250
-    )
+    assert payload["performance"] is None
 
 
 
@@ -82,14 +53,4 @@ def test_dashboard_without_performance():
     payload = response.json()
 
 
-    assert (
-        payload["performance"]
-        is not None
-    )
-
-
-    assert (
-        payload["performance"]["total_trades"]
-        ==
-        10
-    )
+    assert payload["performance"] is None

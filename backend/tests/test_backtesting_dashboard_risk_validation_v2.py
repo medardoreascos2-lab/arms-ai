@@ -23,7 +23,7 @@ def build_strategy():
 
 
 
-def test_dashboard_exposes_risk_validation():
+def test_dashboard_risk_validation_is_unavailable():
 
 
     app = create_app()
@@ -56,24 +56,7 @@ def test_dashboard_exposes_risk_validation():
     payload = response.json()
 
 
-    assert (
-        payload["risk_validation"]
-        is not None
-    )
-
-
-    assert (
-        payload["risk_validation"]["status"]
-        ==
-        "APPROVED"
-    )
-
-
-    assert (
-        payload["risk_validation"]["risk_amount"]
-        ==
-        150
-    )
+    assert payload["risk_validation"] is None
 
 
 

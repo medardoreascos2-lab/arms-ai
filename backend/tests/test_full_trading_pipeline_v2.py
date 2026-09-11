@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 
 
-def test_full_trading_pipeline_executes_trade():
+def test_dashboard_does_not_start_trading_pipeline():
 
 
     app = create_app(
@@ -32,69 +32,8 @@ def test_full_trading_pipeline_executes_trade():
 
     payload = response.json()
 
-
-
-    assert (
-        payload["strategy_selection"]
-        is not None
-    )
-
-
-    assert (
-        payload["strategy_decision"]
-        is not None
-    )
-
-
-    assert (
-        payload["trade_plan"]
-        is not None
-    )
-
-
-    assert (
-        payload["risk_validation"]
-        is not None
-    )
-
-
-    assert (
-        payload["execution"]
-        is not None
-    )
-
-
-
-    assert (
-        payload["strategy_decision"]["decision"]
-        ==
-        "EXECUTE"
-    )
-
-
-    assert (
-        payload["trade_plan"]["status"]
-        ==
-        "READY"
-    )
-
-
-    assert (
-        payload["risk_validation"]["status"]
-        ==
-        "APPROVED"
-    )
-
-
-    assert (
-        payload["execution"]["status"]
-        ==
-        "EXECUTED"
-    )
-
-
-    assert (
-        payload["execution"]["direction"]
-        ==
-        "BUY"
-    )
+    for field in (
+        "strategy_selection", "strategy_decision", "trade_plan",
+        "risk_validation", "execution",
+    ):
+        assert payload[field] is None

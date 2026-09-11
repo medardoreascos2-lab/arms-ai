@@ -23,7 +23,7 @@ def build_strategy():
 
 
 
-def test_dashboard_exposes_strategy_recommendation():
+def test_dashboard_strategy_recommendation_is_unavailable():
 
     app = create_app()
 
@@ -55,17 +55,7 @@ def test_dashboard_exposes_strategy_recommendation():
     payload = response.json()
 
 
-    assert (
-        payload["strategy_recommendation"]
-        is not None
-    )
-
-
-    assert (
-        payload["strategy_recommendation"]["strategy_id"]
-        ==
-        "STR-001"
-    )
+    assert payload["strategy_recommendation"] is None
 
 
 

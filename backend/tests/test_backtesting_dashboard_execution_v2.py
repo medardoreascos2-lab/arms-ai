@@ -23,7 +23,7 @@ def build_strategy():
 
 
 
-def test_dashboard_exposes_execution():
+def test_dashboard_execution_is_unavailable():
 
 
     app = create_app()
@@ -56,31 +56,7 @@ def test_dashboard_exposes_execution():
     payload = response.json()
 
 
-    assert (
-        payload["execution"]
-        is not None
-    )
-
-
-    assert (
-        payload["execution"]["status"]
-        ==
-        "EXECUTED"
-    )
-
-
-    assert (
-        payload["execution"]["direction"]
-        ==
-        "BUY"
-    )
-
-
-    assert (
-        payload["execution"]["entry"]
-        ==
-        23500
-    )
+    assert payload["execution"] is None
 
 
 

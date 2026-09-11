@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from math import isfinite
+
 from fastapi import APIRouter
+
+from backend.backtesting.backtesting_performance_report_v2 import (
+    BacktestingPerformanceReportV2,
+)
 
 from backend.backtesting.backtesting_job_manager_v2 import (
     BacktestingJobManagerV2,
@@ -32,6 +38,9 @@ def create_backtesting_dashboard_router_v2(
     """
     Router REST para exponer un resumen operativo
     del subsistema de backtesting.
+
+    Legacy generation-provider arguments remain accepted for wiring compatibility,
+    but a GET must never invoke them. Unavailable projections are explicit nulls.
     """
 
     if not callable(
@@ -181,9 +190,22 @@ def create_backtesting_dashboard_router_v2(
     def get_dashboard():
 
         payload = {
-            "controller": (
-                controller.status()
-            ),
+            "controller": controller.status(),
+            "jobs": None,
+            "queue": None,
+            "worker": None,
+            "metrics": None,
+            "performance_report": None,
+            "strategies": None,
+            "strategy_ranking": None,
+            "strategy_recommendation": None,
+            "strategy_selection": None,
+            "strategy_decision": None,
+            "trade_plan": None,
+            "risk_validation": None,
+            "execution": None,
+            "performance": None,
+            "strategy_performance": None,
         }
 
         if job_manager is not None:
@@ -238,79 +260,56 @@ def create_backtesting_dashboard_router_v2(
                 worker.status()
             )
 
+        # Metrics are derived only from trades already held by this provider.
+        # Empty/incomplete history is not a measured zero-performance result.
         if metrics_provider is not None:
-            payload["metrics"] = (
-                metrics_provider.get_metrics()
-            )
+            try:
+                metrics = metrics_provider.get_metrics()
+                fields = BacktestingPerformanceReportV2.REQUIRED_FIELDS
+                if (
+                    isinstance(metrics, dict)
+                    and fields <= metrics.keys()
+                    and all(
+                        isinstance(metrics[field], (int, float))
+                        and not isinstance(metrics[field], bool)
+                        and isfinite(metrics[field])
+                        for field in fields
+                    )
+                    and metrics["total_trades"] > 0
+                ):
+                    payload["metrics"] = metrics
+            except (KeyError, TypeError, ValueError, OverflowError):
+                # Malformed existing data is unavailable; never synthesize trades.
+                pass
 
-        if performance_report_provider is not None:
-            payload["performance_report"] = (
-                performance_report_provider.get_report()
-            )
+        if performance_report_provider is not None and payload["metrics"] is not None:
+            try:
+                report = performance_report_provider.get_report()
+                if isinstance(report, dict) and report.get("metrics") == payload["metrics"]:
+                    payload["performance_report"] = report
+            except (KeyError, TypeError, ValueError, OverflowError):
+                pass
 
         if strategy_registry_provider is not None:
-            payload["strategies"] = (
-                strategy_registry_provider.get_strategies()
-            )
+            payload["strategies"] = strategy_registry_provider.get_strategies()
 
-        if strategy_recommendation_provider is not None:
-            payload["strategy_recommendation"] = (
-                strategy_recommendation_provider.get_recommendation()
-            )
-
-        payload["trade_plan"] = None
-        payload["risk_validation"] = None
-        payload["execution"] = None
-
-
-        if trade_plan_provider is not None:
-            payload["trade_plan"] = (
-                trade_plan_provider.get_trade_plan()
-            )
-
-        if risk_validation_provider is not None:
-            payload["risk_validation"] = (
-                risk_validation_provider.get_risk_validation()
-            )
-
-        if execution_provider is not None:
-            payload["execution"] = (
-                execution_provider.get_execution()
-            )
-
-
-        if performance_provider is not None:
-            payload["performance"] = (
-                performance_provider.get_performance()
-            )
-
-        if strategy_performance_provider is not None:
-            payload["strategy_performance"] = (
-                strategy_performance_provider
-                .get_strategy_performance()
-            )
-
-
-        if strategy_ranking_provider is not None:
-            payload["strategy_ranking"] = (
-                strategy_ranking_provider
-                .get_ranking()
-            )
-
-
-        if strategy_selection_provider is not None:
-            payload["strategy_selection"] = (
-                strategy_selection_provider
-                .get_selection(
-                    market_context={}
+        # Ranking is a pure projection of existing registry scores. Require its
+        # inputs so the ranking engine cannot substitute default scores/grades.
+        strategies = payload["strategies"]
+        items = strategies.get("items") if isinstance(strategies, dict) else None
+        if strategy_ranking_provider is not None and isinstance(items, list):
+            if all(
+                isinstance(item, dict)
+                and item.get("grade") in {"A", "B", "C", "D", "F"}
+                and all(
+                    isinstance(item.get(field), (int, float))
+                    and not isinstance(item[field], bool)
+                    and isfinite(item[field])
+                    for field in ("validation_score", "performance_score")
                 )
-            )
-
-
-        if strategy_decision_provider is not None:
-            payload["strategy_decision"] = (
-                strategy_decision_provider.get_decision()
-            )
+                for item in items
+            ):
+                payload["strategy_ranking"] = strategy_ranking_provider.get_ranking()
 
         return payload
 

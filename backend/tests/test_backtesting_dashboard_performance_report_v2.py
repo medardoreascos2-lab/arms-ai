@@ -41,7 +41,7 @@ def test_dashboard_exposes_performance_report():
     }
 
 
-def test_dashboard_performance_report_exists_empty():
+def test_dashboard_performance_report_is_unavailable_without_trades():
 
     app = create_app()
 
@@ -58,6 +58,4 @@ def test_dashboard_performance_report_exists_empty():
         ["performance_report"]
     )
 
-    assert "score" in report
-    assert "rating" in report
-    assert "metrics" in report
+    assert report is None

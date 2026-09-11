@@ -5,7 +5,7 @@ from backend.api.app import create_app
 
 
 
-def test_dashboard_exposes_strategy_performance():
+def test_dashboard_strategy_performance_is_unavailable():
 
 
     app = create_app()
@@ -27,19 +27,7 @@ def test_dashboard_exposes_strategy_performance():
     payload = response.json()
 
 
-    assert (
-        payload["strategy_performance"]
-        is not None
-    )
-
-
-    assert (
-        payload["strategy_performance"]
-        ["best_strategy"]
-        ["strategy_id"]
-        ==
-        "STR-001"
-    )
+    assert payload["strategy_performance"] is None
 
 
 
@@ -62,8 +50,4 @@ def test_dashboard_strategy_performance_structure():
     payload = response.json()
 
 
-    assert (
-        "strategies"
-        in
-        payload["strategy_performance"]
-    )
+    assert payload["strategy_performance"] is None

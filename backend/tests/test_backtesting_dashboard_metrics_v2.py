@@ -51,12 +51,4 @@ def test_dashboard_metrics_empty():
 
     assert response.status_code == 200
 
-    assert response.json()["metrics"] == {
-        "total_trades": 0,
-        "winning_trades": 0,
-        "losing_trades": 0,
-        "win_rate": 0.0,
-        "profit_factor": 0.0,
-        "net_profit": 0.0,
-        "max_drawdown": 0.0,
-    }
+    assert response.json()["metrics"] is None
