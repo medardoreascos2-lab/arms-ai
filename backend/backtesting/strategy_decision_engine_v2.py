@@ -42,6 +42,18 @@ class StrategyDecisionEngineV2:
 
 
 
+        # A blocked selection is a result envelope, not an executable strategy.
+        if (
+            strategy.get("status") == "BLOCKED"
+            or strategy.get("reason") == "NO_STRATEGIES"
+        ):
+            return {
+                "decision": "BLOCK",
+                "status": "BLOCKED",
+                "reason": strategy.get("reason") or "SELECTION_BLOCKED",
+                "confidence": 0,
+            }
+
         if market_context.get(
             "risk_allowed"
         ) is False:
