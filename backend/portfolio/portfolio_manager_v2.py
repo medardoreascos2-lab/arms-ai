@@ -415,7 +415,12 @@ class PortfolioManagerV2:
                         0.0,
                     )
                 )
-                for p in self._closed_positions
+                # Partially closed positions already carry realized PnL.
+                # Moving them to the closed set must not book it again.
+                for p in (
+                    *self._closed_positions,
+                    *self._open_positions.values(),
+                )
             ),
             10,
         )

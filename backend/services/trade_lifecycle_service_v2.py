@@ -580,6 +580,37 @@ class TradeLifecycleServiceV2(
                 ),
             }
 
+        # The shared account state is authoritative even when callers send
+        # stale daily PnL or omit risk_context. Reject before order preparation.
+        account_state_manager = (
+            self.portfolio_manager_v2.account_state_manager_v2
+            if self.portfolio_manager_v2 is not None
+            else None
+        )
+        if (
+            account_state_manager is not None
+            and account_state_manager.get_state()["trading_blocked"]
+        ):
+            return {
+                "accepted": False,
+                "reason": "account_trading_blocked",
+                "risk_evaluation": None,
+                "exposure_evaluation": None,
+                "portfolio_risk_evaluation": None,
+                "order_validation": None,
+                "execution_risk_gate": None,
+                "prepared_order": None,
+                "execution": None,
+                "position": None,
+                "active_position_id": None,
+                "portfolio_summary": self.portfolio_manager_v2.get_summary(),
+                "trade_journal_summary": (
+                    self.trade_journal_v2.get_summary()
+                    if self.trade_journal_v2 is not None
+                    else None
+                ),
+            }
+
         normalized_symbol = (
             str(
                 working_signal.get(

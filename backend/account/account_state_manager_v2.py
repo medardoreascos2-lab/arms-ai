@@ -249,6 +249,15 @@ class AccountStateManagerV2:
             "peak_equity"
         ] = peak_equity
 
+        # Portfolio totals are cumulative. Only newly realized PnL belongs
+        # in this day's account state; replaying the same summary adds zero.
+        daily_pnl = round(
+            float(self._state["daily_pnl"])
+            + realized_pnl
+            - float(self._state["realized_pnl"]),
+            10,
+        )
+
         self._state[
             "realized_pnl"
         ] = realized_pnl
@@ -386,6 +395,8 @@ class AccountStateManagerV2:
             blocking_reasons
         )
 
+        self.record_daily_pnl(daily_pnl=daily_pnl)
+
         return {
             "updated": True,
             "status": "UPDATED",
@@ -488,6 +499,8 @@ class AccountStateManagerV2:
     def reset_daily_state(
         self,
     ) -> dict[str, object]:
+        # Keep realized_pnl as the synchronization baseline. The next
+        # portfolio update must not rebook realizations from previous days.
 
         self._state[
             "daily_pnl"
