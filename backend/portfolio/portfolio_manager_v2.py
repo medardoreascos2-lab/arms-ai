@@ -517,3 +517,66 @@ class PortfolioManagerV2:
                 else None
             ),
         }
+
+    def capture_risk_state(self) -> dict[str, object]:
+        """Keep the realized baseline and its portfolio in the same snapshot."""
+        return {
+            "account": self.account_state_manager_v2.capture_state(),
+            "open_positions": self.get_open_positions(),
+            "closed_positions": self.get_closed_positions(),
+        }
+
+    def validate_risk_state(self, *, snapshot: dict[str, object]) -> dict[str, object]:
+        if not isinstance(snapshot, dict):
+            raise ValueError("Missing dated account/portfolio snapshot; recovery denied.")
+        current = self.account_state_manager_v2
+        if current is None:
+            raise ValueError("Account snapshot requires an account state manager.")
+        account = AccountStateManagerV2(
+            starting_balance=self.starting_balance,
+            maximum_daily_loss=current.maximum_daily_loss,
+            maximum_total_drawdown=current.maximum_total_drawdown,
+            profit_target=current.profit_target,
+            account_stage=current.account_stage,
+        )
+        account.restore_state(snapshot=snapshot.get("account"))
+        candidate = PortfolioManagerV2(starting_balance=self.starting_balance)
+        seen = set()
+        for key, expected_status in (("open_positions", "OPEN"), ("closed_positions", "CLOSED")):
+            positions = snapshot.get(key)
+            if not isinstance(positions, list):
+                raise ValueError(f"Invalid portfolio snapshot: {key}")
+            for position in positions:
+                if not isinstance(position, dict):
+                    raise ValueError("Invalid portfolio position.")
+                position_id = position.get("position_id")
+                if not isinstance(position_id, str) or not position_id or position_id in seen:
+                    raise ValueError("Invalid or duplicate portfolio position_id.")
+                if position.get("status") != expected_status:
+                    raise ValueError("Invalid portfolio position status.")
+                seen.add(position_id)
+            if key == "open_positions":
+                candidate._open_positions = {p["position_id"]: deepcopy(p) for p in positions}
+            else:
+                candidate._closed_positions = deepcopy(positions)
+        saved = account.get_state()
+        summary = candidate.get_summary()
+        for account_key, portfolio_key in (
+            ("realized_pnl", "total_realized_pnl"),
+            ("unrealized_pnl", "total_unrealized_pnl"),
+            ("total_pnl", "total_pnl"),
+            ("equity", "account_equity"),
+            ("open_positions", "open_positions"),
+            ("closed_positions", "closed_positions"),
+        ):
+            if saved[account_key] != summary[portfolio_key]:
+                raise ValueError(f"Account/portfolio snapshot mismatch: {account_key}")
+        return deepcopy(snapshot)
+
+    def restore_risk_state(self, *, snapshot: dict[str, object]) -> None:
+        snapshot = self.validate_risk_state(snapshot=snapshot)
+        if self._open_positions or self._closed_positions:
+            raise ValueError("Cannot restore risk state over an existing portfolio.")
+        self.account_state_manager_v2.restore_state(snapshot=snapshot["account"])
+        self._open_positions = {p["position_id"]: p for p in snapshot["open_positions"]}
+        self._closed_positions = snapshot["closed_positions"]

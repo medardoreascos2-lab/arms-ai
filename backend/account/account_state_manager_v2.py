@@ -1,6 +1,21 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from collections.abc import Callable
+from datetime import date, datetime, timezone
+from functools import wraps
+from math import isfinite
+from threading import RLock
+
+from backend.services.market_hours_service_v2 import MarketHoursServiceV2
+
+
+def _locked(method):
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return call
 
 
 class AccountStateManagerV2:
@@ -13,6 +28,7 @@ class AccountStateManagerV2:
         maximum_total_drawdown: float,
         profit_target: float | None = None,
         account_stage: str | None = None,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
 
         starting_balance = float(
@@ -71,7 +87,10 @@ class AccountStateManagerV2:
                 "cuando está definido."
             )
 
+        self._lock = RLock()
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._state = {
+            "trading_day": MarketHoursServiceV2.trading_day_for(self._clock()).isoformat(),
             "starting_balance": starting_balance,
             "account_stage": account_stage,
             "evaluation_status": (
@@ -120,6 +139,7 @@ class AccountStateManagerV2:
         self.profit_target = profit_target
         self.account_stage = account_stage
 
+    @_locked
     def get_state(
         self,
     ) -> dict[str, object]:
@@ -127,6 +147,7 @@ class AccountStateManagerV2:
             self._state
         )
 
+    @_locked
     def update_from_portfolio(
         self,
         *,
@@ -197,6 +218,9 @@ class AccountStateManagerV2:
             raise ValueError(
                 "account_equity debe ser mayor que cero."
             )
+
+        self.ensure_trading_day()
+        self._preserve_unclassified_block()
 
         balance = round(
             float(
@@ -395,7 +419,7 @@ class AccountStateManagerV2:
             blocking_reasons
         )
 
-        self.record_daily_pnl(daily_pnl=daily_pnl)
+        self._record_daily_pnl(daily_pnl=daily_pnl)
 
         return {
             "updated": True,
@@ -403,6 +427,7 @@ class AccountStateManagerV2:
             "state": self.get_state(),
         }
 
+    @_locked
     def update_open_risk(
         self,
         *,
@@ -427,6 +452,7 @@ class AccountStateManagerV2:
             "state": self.get_state(),
         }
 
+    @_locked
     def record_daily_pnl(
         self,
         *,
@@ -437,6 +463,12 @@ class AccountStateManagerV2:
             daily_pnl
         )
 
+        self.ensure_trading_day()
+        self._preserve_unclassified_block()
+
+        return self._record_daily_pnl(daily_pnl=daily_pnl)
+
+    def _record_daily_pnl(self, *, daily_pnl: float) -> dict[str, object]:
         daily_loss_used = max(
             0.0,
             -daily_pnl,
@@ -496,9 +528,18 @@ class AccountStateManagerV2:
             "state": self.get_state(),
         }
 
+    @_locked
     def reset_daily_state(
         self,
     ) -> dict[str, object]:
+        day = MarketHoursServiceV2.trading_day_for(self._clock()).isoformat()
+        previous = self._state["trading_day"]
+        if day < previous:
+            raise ValueError("Trading day clock moved backwards; admission denied.")
+        if day == previous:
+            return {"reset": False, "state": self.get_state()}
+        self._preserve_unclassified_block()
+        self._state["trading_day"] = day
         # Keep realized_pnl as the synchronization baseline. The next
         # portfolio update must not rebook realizations from previous days.
 
@@ -539,3 +580,64 @@ class AccountStateManagerV2:
             "reset": True,
             "state": self.get_state(),
         }
+
+    def ensure_trading_day(self) -> dict[str, object]:
+        """Advance at first operational use; reads and snapshot capture stay pure."""
+        return self.reset_daily_state()
+
+    def _preserve_unclassified_block(self) -> None:
+        if self._state["trading_blocked"] and not self._state["blocking_reasons"]:
+            self._state["blocking_reasons"] = ["unclassified_trading_block"]
+
+    @_locked
+    def capture_state(self) -> dict[str, object]:
+        return {
+            "state": self.get_state(),
+            "maximum_daily_loss": self.maximum_daily_loss,
+            "maximum_total_drawdown": self.maximum_total_drawdown,
+        }
+
+    @_locked
+    def restore_state(self, *, snapshot: dict[str, object]) -> None:
+        """Restore the dated state without resetting or replaying portfolio PnL."""
+        if not isinstance(snapshot, dict):
+            raise ValueError("Missing account risk snapshot.")
+        if (snapshot.get("maximum_daily_loss") != self.maximum_daily_loss
+                or snapshot.get("maximum_total_drawdown") != self.maximum_total_drawdown):
+            raise ValueError("Account risk snapshot limits do not match.")
+        state = deepcopy(snapshot.get("state"))
+        if not isinstance(state, dict) or set(state) != set(self._state):
+            raise ValueError("Incomplete account risk snapshot.")
+        day = state["trading_day"]
+        if not isinstance(day, str) or date.fromisoformat(day).isoformat() != day:
+            raise ValueError("Invalid trading_day.")
+        for key, value in self._state.items():
+            saved = state[key]
+            if isinstance(value, bool):
+                if not isinstance(saved, bool):
+                    raise ValueError(f"Invalid account field: {key}")
+            elif isinstance(value, (int, float)):
+                if isinstance(saved, bool) or not isinstance(saved, (int, float)) or not isfinite(saved):
+                    raise ValueError(f"Invalid account field: {key}")
+        for key in ("starting_balance", "account_stage", "profit_target"):
+            if state[key] != self._state[key]:
+                raise ValueError(f"Account snapshot mismatch: {key}")
+        reasons = state["blocking_reasons"]
+        if not isinstance(reasons, list) or any(not isinstance(r, str) or not r for r in reasons):
+            raise ValueError("Invalid account blocking reasons.")
+        loss = max(0.0, -state["daily_pnl"])
+        remaining = None if self.maximum_daily_loss is None else max(0.0, self.maximum_daily_loss - loss)
+        if state["daily_loss_used"] != loss or state["remaining_daily_loss_capacity"] != remaining:
+            raise ValueError("Inconsistent daily risk snapshot.")
+        required = []
+        if self.maximum_daily_loss is not None and loss >= self.maximum_daily_loss:
+            required.append("daily_loss_limit_reached")
+        if state["drawdown"] >= self.maximum_total_drawdown:
+            required.append("maximum_total_drawdown_reached")
+        if any(r not in reasons for r in required) or (reasons and not state["trading_blocked"]):
+            raise ValueError("Inconsistent account risk blocks.")
+        if (state["balance"] != round(state["starting_balance"] + state["realized_pnl"], 10)
+                or state["equity"] != round(state["balance"] + state["unrealized_pnl"], 10)
+                or state["drawdown"] != round(max(0.0, state["peak_equity"] - state["equity"]), 10)):
+            raise ValueError("Inconsistent account financial snapshot.")
+        self._state = state

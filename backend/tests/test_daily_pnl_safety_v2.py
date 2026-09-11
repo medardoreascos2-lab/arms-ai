@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from copy import deepcopy
 from unittest.mock import Mock
 
@@ -114,6 +115,7 @@ def test_reset_keeps_lifetime_pnl_and_counts_only_new_realizations():
     portfolio.reduce_position(position_id="overnight", remaining_quantity=1.0,
                               current_price=1900.0, realized_pnl=-100.0)
     before = account.get_state()
+    account._clock = lambda: datetime.now(timezone.utc) + timedelta(days=7)
     account.reset_daily_state()
     assert_state(account, portfolio, realized=-1100.0, daily=0.0, unrealized=-100.0)
     for field in ("realized_pnl", "balance", "equity", "drawdown", "peak_equity"):
@@ -133,6 +135,7 @@ def test_reset_does_not_clear_drawdown_block():
     assert set(account.get_state()["blocking_reasons"]) == {
         "daily_loss_limit_reached", "maximum_total_drawdown_reached",
     }
+    account._clock = lambda: datetime.now(timezone.utc) + timedelta(days=7)
     account.reset_daily_state()
     account.update_from_portfolio(portfolio_summary=portfolio.get_summary())
     assert account.get_state()["daily_pnl"] == 0.0

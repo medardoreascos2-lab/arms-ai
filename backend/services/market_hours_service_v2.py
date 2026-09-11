@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, time
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 
@@ -56,6 +56,24 @@ class MarketHoursServiceV2:
 
     WEEKLY_OPEN = time(17, 0)
     WEEKLY_CLOSE = time(16, 0)
+
+    @classmethod
+    def trading_day_for(cls, timestamp: datetime) -> date:
+        """Session closing date, using the existing 17:00 Chicago reopen.
+
+        The Friday session remains authoritative until Sunday 17:00.
+        Holidays do not authorize execution; the certified calendar still gates it.
+        """
+        local = cls._to_chicago_time(timestamp)
+        day = local.date()
+        weekday = day.weekday()
+        if weekday == 5 or (weekday == 6 and local.time() < cls.WEEKLY_OPEN):
+            return day - timedelta(days=weekday - 4)
+        if weekday < 4 and local.time() >= cls.DAILY_BREAK_END:
+            return day + timedelta(days=1)
+        if weekday == 6:
+            return day + timedelta(days=1)
+        return day
 
     def __init__(
         self,

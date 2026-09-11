@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend.account.account_state_manager_v2 import (
@@ -191,6 +192,7 @@ def test_resets_daily_state():
         daily_pnl=-500.0,
     )
 
+    manager._clock = lambda: datetime.now(timezone.utc) + timedelta(days=7)
     result = manager.reset_daily_state()
 
     assert result["reset"] is True

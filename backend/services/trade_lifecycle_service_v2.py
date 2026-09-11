@@ -587,6 +587,11 @@ class TradeLifecycleServiceV2(
             if self.portfolio_manager_v2 is not None
             else None
         )
+        if account_state_manager is not None:
+            account_state_manager.ensure_trading_day()
+            if isinstance(risk_context, dict):
+                risk_context = dict(risk_context)
+                risk_context["daily_pnl"] = account_state_manager.get_state()["daily_pnl"]
         if (
             account_state_manager is not None
             and account_state_manager.get_state()["trading_blocked"]

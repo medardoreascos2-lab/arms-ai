@@ -39,6 +39,12 @@ class ExecutionStateStoreV2:
         )
         self.oco_manager = oco_manager
 
+    def _risk_portfolio(self):
+        portfolio = self.trade_lifecycle_service.portfolio_manager_v2
+        if portfolio is not None and portfolio.account_state_manager_v2 is not None:
+            return portfolio
+        return None
+
     @staticmethod
     def _utc_now() -> str:
         return datetime.now(
@@ -111,8 +117,10 @@ class ExecutionStateStoreV2:
             )
         )
 
+        portfolio = self._risk_portfolio()
         return {
             "schema_version": self.SCHEMA_VERSION,
+            "account_portfolio": portfolio.capture_risk_state() if portfolio is not None else None,
             "captured_at": self._utc_now(),
             "active_positions": [
                 dict(position)
@@ -472,8 +480,24 @@ class ExecutionStateStoreV2:
                         f"{position_id}."
                     )
 
+        portfolio = self._risk_portfolio()
+        risk_snapshot = normalized_state.get("account_portfolio")
+        if portfolio is not None:
+            risk_snapshot = portfolio.validate_risk_state(snapshot=risk_snapshot)
+            saved_open = {p["position_id"]: p for p in risk_snapshot["open_positions"]}
+            if set(saved_open) != position_ids:
+                raise ValueError("Active positions and risk portfolio do not match.")
+            for position in positions:
+                saved = saved_open[position["position_id"]]
+                for key in ("symbol", "direction", "quantity", "entry_price", "current_price", "realized_pnl"):
+                    if saved.get(key, 0.0) != position.get(key, 0.0):
+                        raise ValueError(f"Active risk portfolio mismatch: {key}")
+        elif risk_snapshot is not None:
+            raise ValueError("Cannot discard an account risk snapshot.")
+
         return {
             "schema_version": self.SCHEMA_VERSION,
+            "account_portfolio": risk_snapshot,
             "captured_at": (
                 normalized_state.get(
                     "captured_at"
@@ -536,6 +560,9 @@ class ExecutionStateStoreV2:
         )
 
         self._ensure_empty_targets()
+        portfolio = self._risk_portfolio()
+        if portfolio is not None:
+            portfolio.restore_risk_state(snapshot=normalized["account_portfolio"])
 
         positions = list(
             normalized["active_positions"]
