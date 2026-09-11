@@ -48,3 +48,14 @@ def test_lifecycle_rejects_signal_with_explicit_blocking_reasons_even_if_other_a
     )
 
     assert result.get("accepted") is False
+    assert lifecycle.broker_connector_v2.get_orders() == []
+    assert lifecycle.broker_connector_v2.get_fills() == []
+    assert lifecycle.broker_connector_v2.get_positions() == []
+    assert lifecycle.get_active_positions() == []
+    assert lifecycle.protective_order_registry_v2.list_protections() == []
+    assert lifecycle.oco_manager_v2.list_groups() == []
+    assert lifecycle.portfolio_manager_v2.get_open_positions() == []
+    assert lifecycle.trade_journal_v2.get_trades() == []
+    assert result["prepared_order"] is None
+    assert result["execution"] is None
+    assert result["position"] is None

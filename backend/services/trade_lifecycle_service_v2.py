@@ -507,40 +507,6 @@ class TradeLifecycleServiceV2(
             signal
         )
 
-        normalized_symbol = (
-            str(
-                working_signal.get(
-                    "symbol",
-                    "",
-                )
-            )
-            .strip()
-            .upper()
-        )
-
-        if (
-            self.instrument_profile_engine
-            is not None
-        ):
-            instrument_profile = (
-                self.instrument_profile_engine.get_profile(
-                    symbol=normalized_symbol,
-                )
-            )
-
-            resolved_point_value = float(
-                instrument_profile["point_value"]
-            )
-
-            if isinstance(risk_context, dict):
-                risk_context = dict(
-                    risk_context
-                )
-                risk_context["point_value"] = (
-                    resolved_point_value
-                )
-
-
         signal_blocked = (
             not bool(
                 working_signal.get(
@@ -587,6 +553,65 @@ class TradeLifecycleServiceV2(
             )
             < 0.80
         )
+
+        # A blocked signal must never reach order preparation or execution.
+        if signal_blocked:
+            return {
+                "accepted": False,
+                "reason": "signal_not_approved",
+                "risk_evaluation": None,
+                "exposure_evaluation": None,
+                "portfolio_risk_evaluation": None,
+                "order_validation": None,
+                "execution_risk_gate": None,
+                "prepared_order": None,
+                "execution": None,
+                "position": None,
+                "active_position_id": None,
+                "portfolio_summary": (
+                    self.portfolio_manager_v2.get_summary()
+                    if self.portfolio_manager_v2 is not None
+                    else None
+                ),
+                "trade_journal_summary": (
+                    self.trade_journal_v2.get_summary()
+                    if self.trade_journal_v2 is not None
+                    else None
+                ),
+            }
+
+        normalized_symbol = (
+            str(
+                working_signal.get(
+                    "symbol",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+        )
+
+        if (
+            self.instrument_profile_engine
+            is not None
+        ):
+            instrument_profile = (
+                self.instrument_profile_engine.get_profile(
+                    symbol=normalized_symbol,
+                )
+            )
+
+            resolved_point_value = float(
+                instrument_profile["point_value"]
+            )
+
+            if isinstance(risk_context, dict):
+                risk_context = dict(
+                    risk_context
+                )
+                risk_context["point_value"] = (
+                    resolved_point_value
+                )
 
         risk_evaluation = None
         exposure_evaluation = None

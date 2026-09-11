@@ -1,4 +1,17 @@
+from copy import deepcopy
+from unittest.mock import Mock
+
 import pytest
+
+from backend.account.account_state_manager_v2 import AccountStateManagerV2
+from backend.dashboard.risk_dashboard_event_publisher_v2 import RiskDashboardEventPublisherV2
+from backend.dashboard.trade_lifecycle_dashboard_event_publisher_v2 import TradeLifecycleDashboardEventPublisherV2
+from backend.execution.exposure_manager_v2 import ExposureManagerV2
+from backend.execution.order_validation_engine_v2 import OrderValidationEngineV2
+from backend.execution.portfolio_risk_engine_v2 import PortfolioRiskEngineV2
+from backend.instruments.instrument_profile_engine import InstrumentProfileEngine
+from backend.journal.trade_journal_v2 import TradeJournalV2
+from backend.portfolio.portfolio_manager_v2 import PortfolioManagerV2
 
 from backend.analytics.performance_analytics_v2 import (
     PerformanceAnalyticsV2,
@@ -48,7 +61,7 @@ class FakeApprovedValidator:
         }
 
 
-def build_service() -> TradeLifecycleServiceV2:
+def build_service(**dependencies) -> TradeLifecycleServiceV2:
     return TradeLifecycleServiceV2(
         execution_manager=(
             ExecutionManagerV2(
@@ -90,6 +103,7 @@ def build_service() -> TradeLifecycleServiceV2:
                 logger=RiskEventLoggerV1(),
             )
         ),
+        **dependencies,
     )
 
 
@@ -115,6 +129,182 @@ def build_valid_signal() -> dict[str, object]:
             "SL 95.0 TP 110.0"
         ),
     }
+
+
+@pytest.fixture
+def observed_service(monkeypatch):
+    account = AccountStateManagerV2(
+        starting_balance=17000.0,
+        maximum_daily_loss=3000.0,
+        maximum_total_drawdown=4500.0,
+    )
+    event_bus = Mock()
+    event_bus.publish.return_value = {"published": True}
+    service = build_service(
+        instrument_profile_engine=InstrumentProfileEngine(),
+        exposure_manager_v2=ExposureManagerV2(
+            maximum_total_open_risk=1000.0,
+            maximum_symbol_open_risk=1000.0,
+            maximum_total_contracts=20,
+            maximum_symbol_contracts=20,
+        ),
+        portfolio_risk_engine_v2=PortfolioRiskEngineV2(
+            maximum_total_open_risk=1000.0,
+            maximum_floating_loss=1000.0,
+            maximum_long_risk=1000.0,
+            maximum_short_risk=1000.0,
+            maximum_symbol_risk=1000.0,
+        ),
+        order_validation_engine_v2=OrderValidationEngineV2(
+            minimum_reward_risk_ratio=1.0,
+            minimum_stop_points=1.0,
+            maximum_stop_points=100.0,
+            allowed_symbols={"MNQ"},
+        ),
+        portfolio_manager_v2=PortfolioManagerV2(
+            starting_balance=17000.0,
+            account_state_manager_v2=account,
+        ),
+        trade_journal_v2=TradeJournalV2(),
+        dashboard_event_publisher_v2=TradeLifecycleDashboardEventPublisherV2(
+            event_bus_v2=event_bus,
+        ),
+        risk_dashboard_event_publisher_v2=RiskDashboardEventPublisherV2(
+            event_bus_v2=event_bus,
+        ),
+    )
+    calls = {}
+    for dependency, method in (
+        (service.instrument_profile_engine, "get_profile"),
+        (service.risk_manager_v2, "evaluate"),
+        (service.exposure_manager_v2, "evaluate"),
+        (service.portfolio_risk_engine_v2, "evaluate"),
+        (service.order_validation_engine_v2, "validate"),
+        (service.execution_risk_gate_v1, "evaluate_trade"),
+        (service.execution_manager, "prepare_order"),
+        (service.broker_connector_v2, "submit_order"),
+        (service.paper_execution_engine, "execute"),
+        (service.position_manager, "open_position"),
+        (service.protective_order_registry_v2, "create_protection"),
+        (service.oco_manager_v2, "create_group"),
+        (service.portfolio_manager_v2, "add_position"),
+        (account, "update_from_portfolio"),
+        (service.trade_journal_v2, "record_open_trade"),
+        (service.trade_journal_v2, "record"),
+        (service.trade_history_manager, "record"),
+        (service.dashboard_event_publisher_v2, "publish_trade_opened"),
+        (service.dashboard_event_publisher_v2, "publish_portfolio_updated"),
+        (service.risk_dashboard_event_publisher_v2, "publish_risk_updated"),
+        (service.risk_dashboard_event_publisher_v2, "publish_open_risk_updated"),
+    ):
+        spy = Mock(wraps=getattr(dependency, method))
+        monkeypatch.setattr(dependency, method, spy)
+        calls[f"{type(dependency).__name__}.{method}"] = spy
+    calls["event_bus.publish"] = event_bus.publish
+    return service, calls
+
+
+def execution_state(service):
+    broker = service.broker_connector_v2
+    portfolio = service.portfolio_manager_v2
+    return deepcopy({
+        "orders": broker.get_orders(),
+        "fills": broker.get_fills(),
+        "broker_positions": broker.get_positions(),
+        "broker_account": broker.get_account(),
+        "positions": service.get_active_positions(),
+        "protections": service.protective_order_registry_v2.list_protections(),
+        "oco": service.oco_manager_v2.list_groups(),
+        "portfolio": portfolio.get_summary(),
+        "portfolio_positions": portfolio.get_open_positions(),
+        "portfolio_closed_positions": portfolio.get_closed_positions(),
+        "journal": service.trade_journal_v2.get_trades(),
+        "history": service.get_trade_history(),
+        "risk_events": service.execution_risk_gate_v1.get_risk_events(),
+    })
+
+
+@pytest.mark.parametrize("order_type", ["MARKET", "LIMIT"])
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        pytest.param("blocking_reasons", ["high_impact_news"], id="news"),
+        pytest.param("status", "BLOCKED", id="non_ready"),
+        pytest.param("status", None, id="missing_status"),
+        pytest.param("probability", 0.79, id="low_probability"),
+        pytest.param("approved", False, id="not_approved"),
+        pytest.param("grade", "A", id="non_a_plus"),
+        pytest.param("confluence_score", 0.79, id="low_confluence"),
+    ],
+)
+def test_blocked_signal_stops_before_execution(
+    observed_service, order_type, field, value,
+):
+    service, calls = observed_service
+    signal = build_valid_signal()
+    signal["symbol"] = "MNQ"
+    if value is None:
+        signal.pop(field)
+    else:
+        signal[field] = value
+    original_signal = deepcopy(signal)
+    before = execution_state(service)
+
+    # Missing downstream contexts must not prevent rejection of a blocked signal.
+    result = service.submit_signal(signal=signal, order_type=order_type)
+
+    assert result["accepted"] is False
+    assert {name: spy.call_count for name, spy in calls.items()} == dict.fromkeys(calls, 0)
+    assert execution_state(service) == before
+    assert signal == original_signal
+    assert result["reason"] == "signal_not_approved"
+    for field in (
+        "risk_evaluation", "exposure_evaluation", "portfolio_risk_evaluation",
+        "order_validation", "execution_risk_gate", "prepared_order",
+        "execution", "position", "active_position_id",
+    ):
+        assert result[field] is None, field
+    assert result["portfolio_summary"] == before["portfolio"]
+    assert result["trade_journal_summary"] == service.trade_journal_v2.get_summary()
+
+
+def test_valid_signal_executes_with_observed_dependencies(observed_service):
+    service, calls = observed_service
+    signal = build_valid_signal()
+    signal.update(symbol="MNQ", probability=0.80, confluence_score=0.80)
+
+    result = service.submit_signal(
+        signal=signal,
+        order_type="MARKET",
+        risk_context={
+            "account_balance": 17000.0,
+            "risk_percent": 0.5,
+            "point_value": 2.0,
+            "daily_pnl": 0.0,
+            "total_drawdown": 0.0,
+            "current_price": 100.0,
+        },
+        order_context={"market_is_open": True},
+    )
+
+    assert result["accepted"] is True
+    assert result["execution"]["status"] == "FILLED"
+    for name in (
+        "ExecutionManagerV2.prepare_order", "PaperBrokerConnectorV2.submit_order",
+        "PaperExecutionEngineV2.execute", "PositionManagerV2.open_position",
+        "ProtectiveOrderRegistryV2.create_protection", "OCOManagerV2.create_group",
+        "PortfolioManagerV2.add_position", "TradeJournalV2.record_open_trade",
+        "AccountStateManagerV2.update_from_portfolio",
+        "TradeLifecycleDashboardEventPublisherV2.publish_trade_opened",
+    ):
+        assert calls[name].call_count == 1, name
+    after = execution_state(service)
+    for field in (
+        "orders", "fills", "broker_positions", "positions", "protections",
+        "oco", "portfolio_positions", "journal",
+    ):
+        assert len(after[field]) == 1, field
+    assert calls["event_bus.publish"].call_count > 0
 
 
 def test_submits_signal_and_opens_position():
@@ -203,19 +393,12 @@ def test_rejects_blocked_signal_without_position():
 
     assert result["accepted"] is False
 
-    assert (
-        result["prepared_order"][
-            "status"
-        ]
-        == "BLOCKED"
-    )
-
-    assert (
-        result["execution"][
-            "status"
-        ]
-        == "REJECTED"
-    )
+    assert result["prepared_order"] is None
+    assert result["execution"] is None
+    assert service.broker_connector_v2.get_orders() == []
+    assert service.broker_connector_v2.get_fills() == []
+    assert service.broker_connector_v2.get_positions() == []
+    assert service.get_active_positions() == []
 
     assert result["position"] is None
     assert result["active_position_id"] is None
