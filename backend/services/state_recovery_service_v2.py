@@ -7,6 +7,7 @@ from typing import Any
 from backend.services.execution_state_store_v2 import (
     ExecutionStateStoreV2,
 )
+from backend.services.durable_execution_state_v2 import evidence_path
 
 
 class StateRecoveryServiceV2:
@@ -24,6 +25,8 @@ class StateRecoveryServiceV2:
         execution_state_store: ExecutionStateStoreV2,
     ) -> None:
         self.execution_state_store = execution_state_store
+        from backend.services.pending_operation_reconciliation_v2 import PendingOperationReconciliationV2
+        self._pending_reconciliation = PendingOperationReconciliationV2(execution_state_store)
         self._last_recovery_report: (
             dict[str, object] | None
         ) = None
@@ -122,7 +125,9 @@ class StateRecoveryServiceV2:
         )
 
         # Empty files and interrupted temporary files are evidence, not a clean start.
-        return path.exists() or path.with_suffix(path.suffix + ".tmp").exists()
+        evidence = evidence_path(path)
+        return (path.exists() or path.with_suffix(path.suffix + ".tmp").exists()
+                or evidence.exists() or evidence.with_suffix(evidence.suffix + ".tmp").exists())
 
     def validate_saved_state(
         self,
@@ -320,6 +325,10 @@ class StateRecoveryServiceV2:
 
             self._last_recovery_report = report
             raise
+
+    def reconcile_pending_from(self, *, file_path: str | Path) -> dict[str, object]:
+        """Explicit PAPER-only procedure; ordinary reads/startup never reconcile."""
+        return self._pending_reconciliation.reconcile_from(file_path=file_path)
 
     def get_last_recovery_report(
         self,

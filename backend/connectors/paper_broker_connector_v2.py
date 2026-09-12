@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import datetime
 from datetime import timezone
 from uuid import uuid4
+from backend.services.durable_execution_state_v2 import durable_mutation
 
 from backend.connectors.broker_connector_v2 import (
     BrokerConnectorV2,
@@ -206,6 +207,7 @@ class PaperBrokerConnectorV2(
             "timestamp": self._utc_now(),
         }
 
+    @durable_mutation
     def submit_order(
         self,
         *,
@@ -426,6 +428,7 @@ class PaperBrokerConnectorV2(
             order_record
         )
 
+    @durable_mutation
     def modify_order(
         self,
         *,
@@ -572,6 +575,7 @@ class PaperBrokerConnectorV2(
             ),
         }
 
+    @durable_mutation
     def cancel_order(
         self,
         *,
@@ -654,6 +658,7 @@ class PaperBrokerConnectorV2(
             ),
         }
 
+    @durable_mutation
     def close_partial(
         self,
         *,
@@ -917,6 +922,7 @@ class PaperBrokerConnectorV2(
             ),
         }
 
+    @durable_mutation
     def close_position(
         self,
         *,

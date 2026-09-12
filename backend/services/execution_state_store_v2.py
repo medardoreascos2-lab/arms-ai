@@ -11,7 +11,7 @@ from typing import Any
 from backend.connectors.paper_broker_connector_v2 import PaperBrokerConnectorV2
 from backend.journal.trade_journal_v2 import TradeJournalEntry
 from backend.services.durable_execution_state_v2 import (
-    DurableExecutionStateV2, canonical, verify, state_locked,
+    DurableExecutionStateV2, canonical, verify, state_locked, evidence_path,
 )
 
 from backend.execution.oco_manager_v2 import (
@@ -54,6 +54,7 @@ class ExecutionStateStoreV2:
         lifecycle = self.trade_lifecycle_service
         portfolio = self._risk_portfolio()
         for participant in (lifecycle, protective_order_registry, oco_manager,
+                            lifecycle.broker_connector_v2 if isinstance(lifecycle.broker_connector_v2, PaperBrokerConnectorV2) else None,
                             lifecycle.trade_journal_v2, lifecycle.portfolio_manager_v2,
                             portfolio.account_state_manager_v2 if portfolio else None):
             if participant is not None:
@@ -917,6 +918,9 @@ class ExecutionStateStoreV2:
                 was_stopped = self._durability.stopped
                 self._durability.acquire(path)
                 try:
+                    evidence = evidence_path(path)
+                    if not path.exists() and (evidence.exists() or evidence.with_suffix(evidence.suffix + ".tmp").exists()):
+                        raise ValueError("Cannot overwrite orphaned operation evidence.")
                     if path.with_suffix(path.suffix + ".tmp").exists():
                         raise ValueError("Cannot overwrite an incomplete checkpoint.")
                     if path.exists():

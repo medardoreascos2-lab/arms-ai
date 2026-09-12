@@ -1,8 +1,4 @@
-"""Synchronous PAPER checkpoints with a durable in-flight fence.
-
-A pending record is intentionally not replayed: an interrupted operation may
-have changed only some participants. Recovery must require reconciliation.
-"""
+"""Synchronous PAPER checkpoints and operation-bound reconciliation evidence."""
 from contextlib import contextmanager
 from copy import deepcopy
 from functools import wraps
@@ -11,6 +7,8 @@ import json
 import os
 from pathlib import Path
 from threading import RLock
+from uuid import uuid4
+from datetime import datetime, timezone
 
 
 def durable_mutation(method):
@@ -62,6 +60,22 @@ def seal(state, generation, phase):
     return state
 
 
+def evidence_path(path):
+    path = Path(path)
+    return path.with_suffix(path.suffix + ".evidence.json")
+
+
+def checked_payload(value):
+    """Verify integrity without granting any phase/replay authority."""
+    if not isinstance(value, dict):
+        raise ValueError("Invalid evidence envelope.")
+    candidate = deepcopy(value)
+    checksum = candidate.pop("checksum", None)
+    if checksum != hashlib.sha256(canonical(candidate)).hexdigest():
+        raise ValueError("Evidence checksum mismatch.")
+    return candidate
+
+
 def verify(state):
     if not isinstance(state, dict):
         raise ValueError("Invalid persisted state.")
@@ -92,6 +106,7 @@ class DurableExecutionStateV2:
         self._lease = None
         self.enabled = False
         self.stopped = False
+        self.operation = None
 
     def fail_closed(self):
         self.failed = True
@@ -164,6 +179,22 @@ class DurableExecutionStateV2:
             self.fail_closed()
             raise
 
+    def record_evidence(self, stage, state):
+        """Persist observations, including inconsistent intermediate participants.
+
+        An observation never authorizes replay by itself. Only reconciliation
+        validates the entire participant set and its link to the PENDING fence.
+        """
+        if self.operation is None:
+            return
+        evidence = {
+            **self.operation, "version": 1, "stage": stage,
+            "recorded_at": datetime.now(timezone.utc).isoformat(),
+            "state": state,
+        }
+        evidence["checksum"] = hashlib.sha256(canonical(evidence)).hexdigest()
+        atomic_write(evidence_path(self.path), evidence)
+
     @contextmanager
     def mutation(self):
         with self.lock:
@@ -176,14 +207,35 @@ class DurableExecutionStateV2:
             try:
                 if outer:
                     baseline = self.store.validate_state(state=self.store.capture_state())
-                    atomic_write(self.path, seal(baseline, self.generation + 1, "PENDING"))
+                    operation_id = str(uuid4())
+                    pending = seal({**baseline, "pending_operation": operation_id},
+                                   self.generation + 1, "PENDING")
+                    self.operation = {"operation_id": operation_id,
+                                      "generation": self.generation + 1,
+                                      "pending_checksum": pending["checksum"]}
+                    # PREPARED proves the operation has not entered its body.
+                    # STARTED is durable before yielding, so absence of fills in
+                    # STARTED can never be mistaken for proof of non-execution.
+                    self.record_evidence("PREPARED", baseline)
+                    atomic_write(self.path, pending)
+                    self.record_evidence("STARTED", baseline)
+                else:
+                    # Invalidate an earlier observation before the next step can
+                    # change it (especially before a broker close). Never restore
+                    # an older open position across an unobserved later mutation.
+                    self.record_evidence("STARTED", self.store.capture_state())
                 self.depth += 1
                 try:
                     yield
                 finally:
                     self.depth -= 1
                 if outer:
+                    complete = self.store.validate_state(state=self.store.capture_state())
+                    self.record_evidence("COMPLETED", complete)
                     self.checkpoint()
+                    self.operation = None
+                else:
+                    self.record_evidence("OBSERVED", self.store.capture_state())
             except BaseException:
                 self.fail_closed()
                 raise

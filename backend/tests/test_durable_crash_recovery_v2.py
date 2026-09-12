@@ -63,7 +63,7 @@ def crash_worker(path, action):
         from backend.services import durable_execution_state_v2 as durable
         original_write = durable.atomic_write
         def crash_at_write(path, state):
-            phase = state["durability"]["phase"]
+            phase = state.get("durability", {}).get("phase")
             if action == "window_before_pending" and phase == "PENDING":
                 os._exit(23)
             if action == "window_before_committed" and phase == "COMMITTED":
@@ -215,7 +215,7 @@ def test_write_failure_blocks_execution_and_preserves_pending_fence(tmp_path, mo
     from backend.services import durable_execution_state_v2 as durable
     real_write = durable.atomic_write
     def fail_commit(path, state):
-        if state["durability"]["phase"] == "COMMITTED":
+        if state.get("durability", {}).get("phase") == "COMMITTED":
             raise OSError("injected disk failure")
         real_write(path, state)
     monkeypatch.setattr(durable, "atomic_write", fail_commit)
@@ -273,7 +273,13 @@ def test_pending_write_failure_has_zero_execution_side_effects(tmp_path, monkeyp
     before = path.read_bytes()
     def fail_fsync(_):
         raise OSError("injected fsync failure")
-    monkeypatch.setattr(os, "fsync", fail_fsync)
+    from backend.services import durable_execution_state_v2 as durable
+    write = durable.atomic_write
+    def fail_pending_write(path, state):
+        if state.get("durability", {}).get("phase") == "PENDING":
+            monkeypatch.setattr(os, "fsync", fail_fsync)
+        write(path, state)
+    monkeypatch.setattr(durable, "atomic_write", fail_pending_write)
     try:
         with pytest.raises(OSError):
             open_position(lifecycle)
