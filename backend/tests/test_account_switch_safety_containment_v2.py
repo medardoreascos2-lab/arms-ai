@@ -14,14 +14,17 @@ from fastapi.testclient import TestClient
 from backend.accounts.account_config_manager_v2 import AccountConfigManagerV2
 from backend.accounts.account_registry_v1 import AccountRegistryV1
 from backend.accounts.funding_firm_profile_v1 import FundingFirmProfile
+from backend.api.admin_authorization_dependency_v2 import ADMIN_TOKEN_HEADER
 from backend.api.routers.account_manager_api_v2 import router as manager_router
 from backend.api.routers.account_switch_api_v2 import router as legacy_router
+from backend.security.admin_authorization_v2 import AdminAuthorizationV2
 from backend.services.account_switch_safety_v2 import AccountSwitchRejected
 from backend.services.durable_execution_state_v2 import AccountAdmissionRejected, seal, evidence_path
 from backend.services.runtime_context_v2 import build_runtime_context
 
 
 URLS = ["/api/v2/dashboard/account-manager/switch", "/api/v2/dashboard/account/switch"]
+ADMIN_TOKEN = "test-admin-token"
 POLICY = {
     "ARMS_MAXIMUM_QUOTE_AGE_SECONDS": "30", "ARMS_MINIMUM_REWARD_RISK_RATIO": "2",
     "ARMS_MINIMUM_STOP_POINTS": "1", "ARMS_MAXIMUM_STOP_POINTS": "100",
@@ -35,6 +38,7 @@ POLICY = {
 def runtime(tmp_path, monkeypatch):
     for key, value in POLICY.items():
         monkeypatch.setenv(key, value)
+    monkeypatch.setenv("ARMS_ADMIN_TOKEN", ADMIN_TOKEN)
     a = FundingFirmProfile("AUDIT-A", 150000, 9000., 3000., 4500., 15, .5,
                            "PAPER", "TRAILING", True, "TRADING_COMBINE", 15, 150, 4500.)
     profiles = {
@@ -56,9 +60,13 @@ def runtime(tmp_path, monkeypatch):
     app.include_router(legacy_router)
     app.state.account_config_manager_v2 = safety._managers[0]
     app.state.account_switch_safety_v2 = safety
+    app.state.admin_authorization_v2 = AdminAuthorizationV2(token=ADMIN_TOKEN)
     app.state.trade_lifecycle_service_v2 = context.trade_lifecycle_service
     result = SimpleNamespace(context=context, safety=safety, config=config,
-                             app=app, client=TestClient(app), path=tmp_path / "state.json")
+                             app=app, client=TestClient(
+                                 app,
+                                 headers={ADMIN_TOKEN_HEADER: ADMIN_TOKEN},
+                             ), path=tmp_path / "state.json")
     yield result
     context.execution_state_store._durability.release()
 
@@ -390,7 +398,10 @@ def test_real_application_wiring_uses_same_coordinator(runtime, with_context, tm
         risk_event_store_path_v2=tmp_path / "risk.json",
         start_backtesting_background_worker=False,
     )
-    client = TestClient(app)
+    client = TestClient(
+        app,
+        headers={ADMIN_TOKEN_HEADER: ADMIN_TOKEN},
+    )
     safety = app.state.account_switch_safety_v2
     assert safety.durability is app.state.trade_lifecycle_service_v2._durability
     assert app.state.execution_manager_v2._durability is safety.durability

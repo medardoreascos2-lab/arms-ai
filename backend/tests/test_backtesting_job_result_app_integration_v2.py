@@ -1,8 +1,14 @@
+from dataclasses import replace
 from time import monotonic, sleep
 
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
+from backend.config.api_settings import APISettings
+
+
+TEST_ADMIN_TOKEN = "test-admin-token"
+ADMIN_TOKEN_HEADER = "X-ARMS-ADMIN-TOKEN"
 
 
 class FakeResult:
@@ -86,9 +92,29 @@ def wait_until(
     return False
 
 
+def settings_with_test_admin_authority():
+
+    return replace(
+        APISettings(),
+        admin_token=TEST_ADMIN_TOKEN,
+    )
+
+
+def client_with_test_admin_authority(app):
+
+    return TestClient(
+        app,
+        headers={
+            ADMIN_TOKEN_HEADER: TEST_ADMIN_TOKEN,
+        },
+    )
+
+
 def test_app_exposes_result_provider():
 
-    app = create_app()
+    app = create_app(
+        settings=settings_with_test_admin_authority(),
+    )
 
     assert hasattr(
         app.state,
@@ -99,12 +125,13 @@ def test_app_exposes_result_provider():
 def test_result_endpoint_uses_shared_executor():
 
     app = create_app(
+        settings=settings_with_test_admin_authority(),
         backtesting_orchestrator_v2=(
             FakeOrchestrator()
         ),
     )
 
-    client = TestClient(app)
+    client = client_with_test_admin_authority(app)
 
     create_response = client.post(
         "/api/v2/backtesting/jobs",
@@ -156,9 +183,11 @@ def test_result_endpoint_uses_shared_executor():
 
 def test_unknown_result_from_app_returns_404():
 
-    app = create_app()
+    app = create_app(
+        settings=settings_with_test_admin_authority(),
+    )
 
-    client = TestClient(app)
+    client = client_with_test_admin_authority(app)
 
     response = client.get(
         "/api/v2/backtesting/jobs/"

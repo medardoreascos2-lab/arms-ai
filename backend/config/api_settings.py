@@ -198,6 +198,12 @@ class APISettings:
         )
     )
 
+    admin_token: str | None = field(
+        default_factory=lambda: _optional_environment_value(
+            "ARMS_ADMIN_TOKEN"
+        )
+    )
+
     certified_market_hours_path: str | None = field(
         default_factory=lambda: _optional_environment_value(
             "ARMS_CERTIFIED_MARKET_HOURS_PATH"

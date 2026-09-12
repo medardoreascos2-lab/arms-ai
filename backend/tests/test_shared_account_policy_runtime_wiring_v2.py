@@ -3,6 +3,9 @@ import json
 from backend.accounts.account_config_manager_v2 import (
     AccountConfigManagerV2,
 )
+from backend.config.api_settings import (
+    APISettings,
+)
 from backend.execution.execution_risk_gate_v1 import (
     ExecutionRiskGateV1,
 )
@@ -12,6 +15,9 @@ from backend.risk.multi_account_risk_engine_v2 import (
 from backend.risk.trade_risk_validator_v2 import (
     TradeRiskValidatorV2,
 )
+
+
+TEST_ADMIN_TOKEN = "test-admin-token-for-account-policy"
 
 
 def _build_shared_execution_chain(
@@ -39,6 +45,19 @@ def _build_shared_execution_chain(
         risk_engine,
         validator,
         gate,
+    )
+
+
+def _build_authorized_api_settings(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "ARMS_ADMIN_TOKEN",
+        TEST_ADMIN_TOKEN,
+    )
+
+    return APISettings(
+        admin_token=TEST_ADMIN_TOKEN,
     )
 
 
@@ -159,10 +178,18 @@ def test_account_switch_is_visible_to_execution_validator(
     )
 
 
-def test_default_app_wires_final_gate_to_shared_account_manager():
+def test_default_app_wires_final_gate_to_shared_account_manager(
+    monkeypatch,
+):
     from backend.api.app import create_app
 
-    app = create_app()
+    settings = _build_authorized_api_settings(
+        monkeypatch,
+    )
+
+    app = create_app(
+        settings=settings,
+    )
 
     lifecycle = (
         app.state
@@ -192,6 +219,7 @@ def test_default_app_wires_final_gate_to_shared_account_manager():
 
 def test_account_manager_api_switch_preserves_final_gate_policy(
     tmp_path,
+    monkeypatch,
 ):
     from fastapi.testclient import TestClient
 
@@ -244,10 +272,15 @@ def test_account_manager_api_switch_preserves_final_gate_policy(
         )
     )
 
+    settings = _build_authorized_api_settings(
+        monkeypatch,
+    )
+
     app = create_app(
+        settings=settings,
         account_config_manager_v2=(
             runtime_manager
-        )
+        ),
     )
 
     lifecycle = (
@@ -276,6 +309,9 @@ def test_account_manager_api_switch_preserves_final_gate_policy(
         json={
             "account_id": lifecycle.broker_connector_v2.account_id,
             "profile_name": target_name,
+        },
+        headers={
+            "X-ARMS-ADMIN-TOKEN": TEST_ADMIN_TOKEN,
         },
     )
 

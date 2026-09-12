@@ -6,6 +6,30 @@ from backend.api.app import create_app
 from backend.config.api_settings import APISettings
 
 
+TEST_ADMIN_TOKEN = "test-admin-token"
+
+
+def _settings():
+    return APISettings(
+        certified_market_hours_path=None,
+        admin_token=TEST_ADMIN_TOKEN,
+    )
+
+
+def _client(
+    app,
+    *,
+    raise_server_exceptions=True,
+):
+    return TestClient(
+        app,
+        headers={
+            "X-ARMS-ADMIN-TOKEN": TEST_ADMIN_TOKEN,
+        },
+        raise_server_exceptions=raise_server_exceptions,
+    )
+
+
 def _write_snapshot(
     tmp_path,
     *,
@@ -29,12 +53,10 @@ def _write_snapshot(
 
 def test_create_app_exposes_refresh_endpoint():
     app = create_app(
-        settings=APISettings(
-            certified_market_hours_path=None,
-        )
+        settings=_settings()
     )
 
-    client = TestClient(app)
+    client = _client(app)
 
     response = client.post(
         "/api/v2/market-hours/refresh",
@@ -48,9 +70,7 @@ def test_refresh_endpoint_updates_app_runtime_state(
     tmp_path,
 ):
     app = create_app(
-        settings=APISettings(
-            certified_market_hours_path=None,
-        )
+        settings=_settings()
     )
 
     old_provider = (
@@ -65,7 +85,7 @@ def test_refresh_endpoint_updates_app_runtime_state(
         covered_dates=["2026-08-18"],
     )
 
-    client = TestClient(app)
+    client = _client(app)
 
     response = client.post(
         "/api/v2/market-hours/refresh",
@@ -108,9 +128,7 @@ def test_refresh_endpoint_missing_file_preserves_runtime(
     tmp_path,
 ):
     app = create_app(
-        settings=APISettings(
-            certified_market_hours_path=None,
-        )
+        settings=_settings()
     )
 
     old_provider = (
@@ -122,7 +140,7 @@ def test_refresh_endpoint_missing_file_preserves_runtime(
 
     missing = tmp_path / "missing-certified-hours.json"
 
-    client = TestClient(
+    client = _client(
         app,
         raise_server_exceptions=False,
     )
@@ -148,12 +166,10 @@ def test_refresh_endpoint_missing_file_preserves_runtime(
 
 def test_create_app_exposes_market_hours_status():
     app = create_app(
-        settings=APISettings(
-            certified_market_hours_path=None,
-        )
+        settings=_settings()
     )
 
-    client = TestClient(app)
+    client = _client(app)
 
     response = client.get(
         "/api/v2/market-hours/status"
@@ -173,9 +189,7 @@ def test_market_hours_status_reflects_successful_refresh(
     tmp_path,
 ):
     app = create_app(
-        settings=APISettings(
-            certified_market_hours_path=None,
-        )
+        settings=_settings()
     )
 
     path = _write_snapshot(
@@ -183,7 +197,7 @@ def test_market_hours_status_reflects_successful_refresh(
         covered_dates=["2026-08-18"],
     )
 
-    client = TestClient(app)
+    client = _client(app)
 
     refresh_response = client.post(
         "/api/v2/market-hours/refresh",

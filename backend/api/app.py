@@ -333,6 +333,9 @@ from backend.api.routers.backtesting_api_v2 import (
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.dependencies.utils import (
+    get_parameterless_sub_dependant,
+)
 
 
 from backend.backtesting.strategy_registry_v2 import (
@@ -678,6 +681,12 @@ from backend.api.routers.portfolio import (
 from backend.config.api_settings import (
     APISettings,
 )
+from backend.security.admin_authorization_v2 import (
+    AdminAuthorizationV2,
+)
+from backend.api.admin_authorization_dependency_v2 import (
+    require_admin_authorization_v2,
+)
 from backend.config_settings import ArmsSettings
 from backend.execution.execution_decision_engine import (
     ExecutionDecisionEngine,
@@ -729,6 +738,72 @@ from backend.services.trade_history_store import (
     TradeHistoryStore,
 )
 from backend.instruments.instrument_profile_engine import InstrumentProfileEngine
+
+
+def _protect_admin_routes_v2(
+    router,
+    *,
+    paths: set[str],
+) -> None:
+    """Attach admin authorization to selected router operations."""
+    from fastapi.params import Depends as DependsParam
+
+    matched: set[str] = set()
+
+    for route in router.routes:
+        path = getattr(
+            route,
+            "path",
+            None,
+        )
+
+        if path not in paths:
+            continue
+
+        methods = set(
+            getattr(
+                route,
+                "methods",
+                set(),
+            )
+            or set()
+        )
+
+        allowed_methods = {
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+        }
+
+        if not methods.intersection(
+            allowed_methods
+        ):
+            continue
+
+        dependency = DependsParam(
+            dependency=require_admin_authorization_v2
+        )
+
+        route.dependencies.append(
+            dependency
+        )
+
+        route.dependant.dependencies.append(
+            get_parameterless_sub_dependant(
+                depends=dependency,
+                path=path,
+            )
+        )
+
+        matched.add(path)
+
+    if matched != paths:
+        raise RuntimeError(
+            "admin route protection mismatch: "
+            f"expected={sorted(paths)!r} "
+            f"matched={sorted(matched)!r}"
+        )
 
 
 def create_app(
@@ -2685,6 +2760,14 @@ def create_app(
         settings.webhook_token
     )
 
+    app.state.admin_authorization_v2 = (
+        AdminAuthorizationV2(
+            token=settings.admin_token,
+        )
+        if settings.admin_token is not None
+        else None
+    )
+
     if backtesting_job_manager_v2 is None:
         backtesting_job_manager_v2 = (
             BacktestingJobManagerV2()
@@ -3002,7 +3085,7 @@ def create_app(
         ),
     )
 
-    app.include_router(
+    market_hours_router_v2 = (
         create_certified_market_hours_refresh_router_v2(
             refresh_service=(
                 app.state
@@ -3019,24 +3102,52 @@ def create_app(
         )
     )
 
-    app.include_router(
-        portfolio_router
+    _protect_admin_routes_v2(
+        market_hours_router_v2,
+        paths={
+            "/api/v2/market-hours/refresh",
+        },
     )
 
-    app.include_router(
-        ai_router
+    register_router_v2(
+        app,
+        market_hours_router_v2,
     )
 
-    app.include_router(
-        market_router
+    register_router_v2(
+        app,
+        portfolio_router,
     )
 
-    app.include_router(
+    register_router_v2(
+        app,
+        ai_router,
+    )
+
+    register_router_v2(
+        app,
+        market_router,
+    )
+
+    trade_lifecycle_router_v2 = (
         create_trade_lifecycle_router_v2(
             service=(
                 app.state.trade_lifecycle_service_v2
             ),
         )
+    )
+
+    _protect_admin_routes_v2(
+        trade_lifecycle_router_v2,
+        paths={
+            "/v2/trades/submit",
+            "/v2/positions/{position_id}/update",
+        },
+    )
+
+    register_router_v2(
+        app,
+        trade_lifecycle_router_v2,
     )
 
     app.include_router(
@@ -3131,8 +3242,16 @@ def create_app(
     )
 
 
-    app.include_router(
-        intelligence_decision_v3_router
+    _protect_admin_routes_v2(
+        intelligence_decision_v3_router,
+        paths={
+            "/api/v3/dashboard/market-price",
+        },
+    )
+
+    register_router_v2(
+        app,
+        intelligence_decision_v3_router,
     )
 
 
@@ -3157,6 +3276,13 @@ def create_app(
     )
 
 
+    _protect_admin_routes_v2(
+        account_switch_router,
+        paths={
+            "/api/v2/dashboard/account/switch",
+        },
+    )
+
     register_router_v2(
         app,
         account_switch_router,
@@ -3168,6 +3294,13 @@ def create_app(
         account_profile_router,
     )
 
+
+    _protect_admin_routes_v2(
+        account_manager_router,
+        paths={
+            "/api/v2/dashboard/account-manager/switch",
+        },
+    )
 
     register_router_v2(
         app,
@@ -3302,7 +3435,7 @@ def create_app(
         )
     )
 
-    app.include_router(
+    backtesting_controller_router_v2 = (
         create_backtesting_controller_router_v2(
             controller=(
                 app.state
@@ -3311,7 +3444,20 @@ def create_app(
         )
     )
 
-    app.include_router(
+    _protect_admin_routes_v2(
+        backtesting_controller_router_v2,
+        paths={
+            "/api/v2/backtesting/controller/start",
+            "/api/v2/backtesting/controller/stop",
+        },
+    )
+
+    register_router_v2(
+        app,
+        backtesting_controller_router_v2,
+    )
+
+    backtesting_jobs_router_v2 = (
         create_backtesting_jobs_router_v2(
             job_manager=(
                 app.state
@@ -3326,6 +3472,20 @@ def create_app(
                 .backtesting_job_executor_v2
             ),
         )
+    )
+
+    _protect_admin_routes_v2(
+        backtesting_jobs_router_v2,
+        paths={
+            "/api/v2/backtesting/jobs",
+            "/api/v2/backtesting/jobs/process-next",
+            "/api/v2/backtesting/jobs/{job_id}",
+        },
+    )
+
+    register_router_v2(
+        app,
+        backtesting_jobs_router_v2,
     )
 
     app.include_router(

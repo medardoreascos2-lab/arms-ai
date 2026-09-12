@@ -1,11 +1,24 @@
 from time import monotonic, sleep
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
 from backend.backtesting.backtesting_job_v2 import (
     BacktestingJobStatusV2,
 )
+
+
+TEST_ADMIN_TOKEN = "test-admin-token"
+ADMIN_TOKEN_HEADER = "X-ARMS-ADMIN-TOKEN"
+
+
+@pytest.fixture(autouse=True)
+def configure_test_admin_authority(monkeypatch):
+    monkeypatch.setenv(
+        "ARMS_ADMIN_TOKEN",
+        TEST_ADMIN_TOKEN,
+    )
 
 
 class FakeResult:
@@ -46,6 +59,16 @@ class FakeOrchestrator:
                 output_directory
             ),
         )
+
+
+def authenticated_client(app):
+
+    return TestClient(
+        app,
+        headers={
+            ADMIN_TOKEN_HEADER: TEST_ADMIN_TOKEN,
+        },
+    )
 
 
 def valid_payload():
@@ -102,7 +125,7 @@ def test_controller_processes_job_end_to_end():
         ),
     )
 
-    client = TestClient(app)
+    client = authenticated_client(app)
 
     create_response = client.post(
         "/api/v2/backtesting/jobs",
@@ -189,7 +212,7 @@ def test_controller_status_updates_after_execution():
         ),
     )
 
-    client = TestClient(app)
+    client = authenticated_client(app)
 
     response = client.post(
         "/api/v2/backtesting/jobs",

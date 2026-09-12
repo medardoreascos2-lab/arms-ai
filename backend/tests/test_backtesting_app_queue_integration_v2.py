@@ -1,9 +1,16 @@
+from dataclasses import replace
+
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
 from backend.backtesting.backtesting_job_task_v2 import (
     BacktestingJobTaskV2,
 )
+from backend.config.api_settings import APISettings
+
+
+TEST_ADMIN_TOKEN = "test-backtesting-admin-token"
+ADMIN_TOKEN_HEADER = "X-ARMS-ADMIN-TOKEN"
 
 
 def valid_payload():
@@ -27,9 +34,31 @@ def valid_payload():
     }
 
 
+def create_authorized_app():
+
+    settings = replace(
+        APISettings(),
+        admin_token=TEST_ADMIN_TOKEN,
+    )
+
+    return create_app(
+        settings=settings,
+    )
+
+
+def authorized_client(app):
+
+    return TestClient(
+        app,
+        headers={
+            ADMIN_TOKEN_HEADER: TEST_ADMIN_TOKEN,
+        },
+    )
+
+
 def test_app_exposes_shared_job_queue():
 
-    app = create_app()
+    app = create_authorized_app()
 
     assert (
         app.state.backtesting_job_queue_v2.job_manager
@@ -39,9 +68,9 @@ def test_app_exposes_shared_job_queue():
 
 def test_created_job_is_enqueued_in_app():
 
-    app = create_app()
+    app = create_authorized_app()
 
-    client = TestClient(app)
+    client = authorized_client(app)
 
     response = client.post(
         "/api/v2/backtesting/jobs",
