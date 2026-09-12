@@ -15,6 +15,7 @@ class FakeJournal:
 
         self.trade = SimpleNamespace(
             trade_id="trade-pos-1",
+            position_id="pos-1",
             symbol="NQ",
             direction="LONG",
             entry=100.0,
@@ -171,3 +172,13 @@ def test_mnq_resolves_2_dollars_per_point():
         .trade.pnl
         == 20.0
     )
+
+
+def test_fallback_does_not_close_an_unrelated_journal_trade():
+    lifecycle = FakeLifecycle(symbol="MNQ")
+    lifecycle.trade_journal_v2.trade.position_id = "another-position"
+    monitor = LivePositionMonitorV2(trade_lifecycle_service=lifecycle)
+    result = monitor.process_price(symbol="MNQ", current_price=110.0)
+    assert result["closed_positions"] == 1
+    assert lifecycle.trade_journal_v2.point_value is None
+    assert lifecycle.trade_journal_v2.trade.pnl == 0.0

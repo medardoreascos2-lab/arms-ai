@@ -1,9 +1,18 @@
 from __future__ import annotations
 
 import json
+import hashlib
+from copy import deepcopy
+from dataclasses import asdict, fields
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from backend.connectors.paper_broker_connector_v2 import PaperBrokerConnectorV2
+from backend.journal.trade_journal_v2 import TradeJournalEntry
+from backend.services.durable_execution_state_v2 import (
+    DurableExecutionStateV2, canonical, verify, state_locked,
+)
 
 from backend.execution.oco_manager_v2 import (
     OCOManagerV2,
@@ -38,6 +47,174 @@ class ExecutionStateStoreV2:
             protective_order_registry
         )
         self.oco_manager = oco_manager
+        self._durability = DurableExecutionStateV2(self)
+        self._restored_state = None
+        self._loaded_checkpoint = None
+        self._checkpoint_versions = {}
+        lifecycle = self.trade_lifecycle_service
+        portfolio = self._risk_portfolio()
+        for participant in (lifecycle, protective_order_registry, oco_manager,
+                            lifecycle.trade_journal_v2, lifecycle.portfolio_manager_v2,
+                            portfolio.account_state_manager_v2 if portfolio else None):
+            if participant is not None:
+                participant._durability = self._durability
+
+    @staticmethod
+    def _checkpoint_fingerprint(state):
+        return hashlib.sha256(canonical(state)).hexdigest()
+
+    def _remember_checkpoint(self, path, state, generation):
+        self._checkpoint_versions[Path(path).resolve()] = (
+            generation, self._checkpoint_fingerprint(state))
+
+    def _accept_restored_checkpoint(self, normalized):
+        # Reading a file must never grant authority to replace its operational state.
+        # Adopt its version only after reconstructing that exact checkpoint.
+        if self._loaded_checkpoint is not None:
+            path, generation, fingerprint, state = self._loaded_checkpoint
+            if state == normalized:
+                self._checkpoint_versions[path] = (generation, fingerprint)
+                self._durability.generation = max(self._durability.generation, generation)
+
+    def _capture_records(self):
+        lifecycle = self.trade_lifecycle_service
+        broker = lifecycle.broker_connector_v2
+        journal = lifecycle.trade_journal_v2
+        trades = None
+        if journal is not None:
+            trades = [asdict(trade) for trade in journal.trades]
+            for trade in trades:
+                for key in ("created_at", "closed_at"):
+                    if isinstance(trade[key], datetime):
+                        trade[key] = trade[key].isoformat()
+        return deepcopy({
+            "journal": trades,
+            "history": lifecycle.trade_history_manager.get_history(),
+            "protections": self.protective_order_registry.list_protections(),
+            "oco_groups": self.oco_manager.list_groups(),
+            "paper": {
+                "account_id": broker.account_id,
+                "orders": broker._orders, "fills": broker._fills,
+                "positions": broker._positions,
+                "client_order_index": broker._client_order_index,
+            } if isinstance(broker, PaperBrokerConnectorV2) else None,
+        })
+
+    def _validate_records(self, records, positions, risk_snapshot):
+        lifecycle = self.trade_lifecycle_service
+        if records is None:
+            if lifecycle.trade_journal_v2 is not None and (
+                    positions or (risk_snapshot and risk_snapshot["closed_positions"])):
+                raise ValueError("Legacy snapshot lacks journal/execution records; reconciliation required.")
+            return None
+        if not isinstance(records, dict) or set(records) != {
+                "journal", "history", "protections", "oco_groups", "paper"}:
+            raise ValueError("Incomplete execution records.")
+        for key, identity in (("history", "position_id"),
+                              ("protections", "protection_group_id"),
+                              ("oco_groups", "oco_group_id")):
+            rows = records[key]
+            if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+                raise ValueError("Invalid execution records.")
+            ids = [row.get(identity) for row in rows]
+            if any(not value for value in ids) or len(ids) != len(set(ids)):
+                raise ValueError("Duplicate or incomplete execution records.")
+        trades = records["journal"]
+        if (trades is None) != (lifecycle.trade_journal_v2 is None):
+            raise ValueError("Journal configuration mismatch.")
+        if trades is not None:
+            if not isinstance(trades, list):
+                raise ValueError("Invalid journal records.")
+            for row in trades:
+                self._journal_entry(row)  # Validate the complete dataclass before mutation.
+            ids = [row["trade_id"] for row in trades]
+            position_ids = [row["position_id"] for row in trades]
+            if len(ids) != len(set(ids)) or len(position_ids) != len(set(position_ids)):
+                raise ValueError("Duplicate journal records.")
+            if risk_snapshot is not None:
+                portfolio = risk_snapshot["open_positions"] + risk_snapshot["closed_positions"]
+                by_position = {row["position_id"]: row for row in trades}
+                if set(by_position) != {row["position_id"] for row in portfolio}:
+                    raise ValueError("Journal/portfolio positions mismatch.")
+                for position in portfolio:
+                    row = by_position[position["position_id"]]
+                    if row["status"] != position["status"] or row["pnl"] != position.get("realized_pnl", 0.0):
+                        raise ValueError("Journal/portfolio accounting mismatch.")
+                    if row["status"] == "OPEN" and row.get("remaining_quantity", row["contracts"]) not in (None, position["quantity"]):
+                        raise ValueError("Journal remaining quantity mismatch.")
+                history = {row["position_id"]: row for row in records["history"]}
+                closed = {row["position_id"]: row for row in risk_snapshot["closed_positions"]}
+                if set(history) != set(closed) or any(
+                        history[key]["realized_pnl"] != closed[key]["realized_pnl"] for key in closed):
+                    raise ValueError("Execution history/portfolio mismatch.")
+        paper = records["paper"]
+        broker = lifecycle.broker_connector_v2
+        if paper is not None:
+            if not isinstance(broker, PaperBrokerConnectorV2):
+                raise ValueError("Cannot recover PAPER records into LIVE.")
+            if not isinstance(paper, dict) or set(paper) != {
+                    "account_id", "orders", "fills", "positions", "client_order_index"}:
+                raise ValueError("Incomplete PAPER records.")
+            if paper["account_id"] != broker.account_id:
+                raise ValueError("PAPER account mismatch.")
+            if any(not isinstance(paper[key], dict) for key in ("orders", "positions", "client_order_index")) or not isinstance(paper["fills"], list):
+                raise ValueError("Invalid PAPER records.")
+            if risk_snapshot is not None and trades is not None:
+                active_broker_ids = {key for key, row in paper["positions"].items() if row["status"] == "OPEN"}
+                if active_broker_ids != {row.get("broker_position_id") for row in positions}:
+                    raise ValueError("PAPER exposure mismatch.")
+                fill_ids = [fill["fill_id"] for fill in paper["fills"]]
+                if len(fill_ids) != len(set(fill_ids)):
+                    raise ValueError("Duplicate PAPER fills.")
+                for fill in paper["fills"]:
+                    if fill["order_id"] not in paper["orders"] or fill["execution_mode"] != "PAPER":
+                        raise ValueError("Invalid PAPER fill reference.")
+                for order in paper["orders"].values():
+                    if order["execution_mode"] != "PAPER":
+                        raise ValueError("PAPER/LIVE record mismatch.")
+                    if order["status"] == "FILLED" and sum(
+                            fill["order_id"] == order["order_id"] and fill.get("fill_type") != "PARTIAL_CLOSE"
+                            for fill in paper["fills"]) != 1:
+                        raise ValueError("Missing or duplicate PAPER entry fill.")
+                for order_id in paper["client_order_index"].values():
+                    if order_id not in paper["orders"]:
+                        raise ValueError("PAPER idempotency index mismatch.")
+                for position in positions:
+                    saved = paper["positions"].get(position.get("broker_position_id"))
+                    if (saved is None or saved["status"] != "OPEN"
+                            or saved["quantity"] != position["quantity"]
+                            or position.get("execution_mode") != "PAPER"):
+                        raise ValueError("PAPER active position mismatch.")
+        elif isinstance(broker, PaperBrokerConnectorV2):
+            raise ValueError("Missing PAPER execution records.")
+        return deepcopy(records)
+
+    @staticmethod
+    def _journal_entry(row):
+        if not isinstance(row, dict) or set(row) != {field.name for field in fields(TradeJournalEntry)}:
+            raise ValueError("Incomplete journal entry.")
+        row = deepcopy(row)
+        for key in ("created_at", "closed_at"):
+            if row.get(key) is not None:
+                row[key] = datetime.fromisoformat(row[key])
+        return TradeJournalEntry(**row)
+
+    def _restore_records(self, records):
+        if records is None:
+            return
+        lifecycle = self.trade_lifecycle_service
+        if lifecycle.trade_journal_v2 is not None:
+            lifecycle.trade_journal_v2.trades = [self._journal_entry(row) for row in records["journal"]]
+        history = lifecycle.trade_history_manager
+        history._history = deepcopy(records["history"])
+        history._position_ids = {row["position_id"] for row in history._history}
+        self.protective_order_registry._protections = {
+            row["protection_group_id"]: deepcopy(row) for row in records["protections"]}
+        self.oco_manager._groups = {row["oco_group_id"]: deepcopy(row) for row in records["oco_groups"]}
+        if records["paper"] is not None:
+            broker = lifecycle.broker_connector_v2
+            for key in ("orders", "fills", "positions", "client_order_index"):
+                setattr(broker, "_" + key, deepcopy(records["paper"][key]))
 
     def _risk_portfolio(self):
         portfolio = self.trade_lifecycle_service.portfolio_manager_v2
@@ -96,6 +273,7 @@ class ExecutionStateStoreV2:
 
         return value
 
+    @state_locked
     def capture_state(
         self,
     ) -> dict[str, object]:
@@ -122,6 +300,7 @@ class ExecutionStateStoreV2:
             "schema_version": self.SCHEMA_VERSION,
             "account_portfolio": portfolio.capture_risk_state() if portfolio is not None else None,
             "captured_at": self._utc_now(),
+            "execution_records": self._capture_records(),
             "active_positions": [
                 dict(position)
                 for position in active_positions
@@ -162,6 +341,10 @@ class ExecutionStateStoreV2:
             state,
             field_name="state",
         )
+        # Memory recovery can also receive a persisted envelope. Never discard its fence.
+        if "durability" in normalized_state or "checksum" in normalized_state:
+            verify(normalized_state)
+
 
         schema_version = str(
             normalized_state.get(
@@ -373,6 +556,8 @@ class ExecutionStateStoreV2:
             oco_group_ids.add(oco_group_id)
             groups.append(group)
 
+        if len(protections) != len(positions) or len(groups) != len(positions):
+            raise ValueError("Each active position requires exactly one protection and OCO group.")
         protections_by_position = {
             str(protection["position_id"]): (
                 protection
@@ -444,6 +629,13 @@ class ExecutionStateStoreV2:
                     f"{position_id}."
                 )
 
+            for position_key, protection_key in (
+                    ("symbol", "symbol"), ("direction", "direction"),
+                    ("quantity", "quantity"), ("entry_price", "entry_price"),
+                    ("stop_loss", "stop_price"), ("take_profit", "take_profit_price")):
+                if position.get(position_key) != protection.get(protection_key):
+                    raise ValueError(f"Protection mismatch: {position_key}")
+
             for field_name in (
                 "stop_order_id",
                 "take_profit_order_id",
@@ -495,8 +687,15 @@ class ExecutionStateStoreV2:
         elif risk_snapshot is not None:
             raise ValueError("Cannot discard an account risk snapshot.")
 
+        records = self._validate_records(normalized_state.get("execution_records"), positions, risk_snapshot)
+        if records is not None:
+            if [r for r in records["protections"] if r["status"] == "ACTIVE"] != protections:
+                raise ValueError("Active protection records mismatch.")
+            if [r for r in records["oco_groups"] if r["status"] == "ACTIVE"] != groups:
+                raise ValueError("Active OCO records mismatch.")
         return {
             "schema_version": self.SCHEMA_VERSION,
+            "execution_records": records,
             "account_portfolio": risk_snapshot,
             "captured_at": (
                 normalized_state.get(
@@ -550,6 +749,7 @@ class ExecutionStateStoreV2:
                 "administrador OCO no vacío."
             )
 
+    @state_locked
     def restore_state(
         self,
         *,
@@ -559,9 +759,25 @@ class ExecutionStateStoreV2:
             state=state,
         )
 
+        if self._restored_state is not None:
+            current = self.capture_state()
+            current["captured_at"] = normalized["captured_at"]
+            if current == normalized:
+                self._accept_restored_checkpoint(normalized)
+                return {"restored": True, "idempotent": True, **normalized["summary"]}
+            raise ValueError("Cannot replay recovery over changed operational state.")
         self._ensure_empty_targets()
+        records = self._capture_records()
+        if (records["history"] or records["journal"]
+                or (records["paper"] and (records["paper"]["orders"] or records["paper"]["positions"]))):
+            raise ValueError("Cannot restore over existing execution records.")
         portfolio = self._risk_portfolio()
         if portfolio is not None:
+            current_risk = portfolio.account_state_manager_v2.get_state()
+            saved_risk = normalized["account_portfolio"]["account"]["state"]
+            if (current_risk["trading_blocked"] and not saved_risk["trading_blocked"]
+                    or set(current_risk["blocking_reasons"]) - set(saved_risk["blocking_reasons"])):
+                raise ValueError("Recovery cannot remove an existing risk block.")
             portfolio.restore_risk_state(snapshot=normalized["account_portfolio"])
 
         positions = list(
@@ -670,6 +886,9 @@ class ExecutionStateStoreV2:
                 ),
             )
 
+        self._restore_records(normalized.get("execution_records"))
+        self._restored_state = deepcopy(normalized)
+        self._accept_restored_checkpoint(normalized)
         return {
             "restored": True,
             "schema_version": self.SCHEMA_VERSION,
@@ -686,47 +905,35 @@ class ExecutionStateStoreV2:
         *,
         file_path: str | Path,
     ) -> dict[str, object]:
-        path = Path(file_path)
+        path = Path(file_path).resolve()
+        with self._durability.lock:
+            if self._durability.path is not None:
+                if path != self._durability.path:
+                    raise ValueError("Cannot redirect the active durable checkpoint.")
+                state = self._durability.checkpoint()
+            else:
+                if self._durability.failed:
+                    raise RuntimeError("Cannot overwrite failed recovery state.")
+                was_stopped = self._durability.stopped
+                self._durability.acquire(path)
+                try:
+                    if path.with_suffix(path.suffix + ".tmp").exists():
+                        raise ValueError("Cannot overwrite an incomplete checkpoint.")
+                    if path.exists():
+                        disk_state = json.loads(path.read_text(encoding="utf-8"))
+                        disk_version = (verify(disk_state), self._checkpoint_fingerprint(disk_state))
+                        if disk_version != self._checkpoint_versions.get(path):
+                            raise ValueError("Cannot overwrite a changed checkpoint without recovery.")
+                    state = self._durability.checkpoint()
+                finally:
+                    self._durability.release()
+                    # A manual snapshot does not stop a standalone service.
+                    self._durability.stopped = was_stopped
+        return {"saved": True, "file_path": str(path),
+                "schema_version": self.SCHEMA_VERSION,
+                "bytes_written": path.stat().st_size, "summary": dict(state["summary"])}
 
-        path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        state = self.capture_state()
-
-        temporary_path = path.with_suffix(
-            path.suffix + ".tmp"
-        )
-
-        serialized = json.dumps(
-            state,
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-
-        temporary_path.write_text(
-            serialized + "\n",
-            encoding="utf-8",
-        )
-
-        temporary_path.replace(path)
-
-        return {
-            "saved": True,
-            "file_path": str(path),
-            "schema_version": (
-                self.SCHEMA_VERSION
-            ),
-            "bytes_written": (
-                path.stat().st_size
-            ),
-            "summary": dict(
-                state["summary"]
-            ),
-        }
-
+    @state_locked
     def load_from_file(
         self,
         *,
@@ -734,6 +941,8 @@ class ExecutionStateStoreV2:
     ) -> dict[str, object]:
         path = Path(file_path)
 
+        if path.with_suffix(path.suffix + ".tmp").exists():
+            raise ValueError("Incomplete checkpoint file; reconciliation required.")
         if not path.is_file():
             raise FileNotFoundError(
                 f"No existe el archivo: {path}"
@@ -751,9 +960,11 @@ class ExecutionStateStoreV2:
                 "JSON válido."
             ) from exc
 
-        return self.validate_state(
-            state=raw_state,
-        )
+        generation = verify(raw_state)
+        state = self.validate_state(state=raw_state)
+        self._loaded_checkpoint = (
+            path.resolve(), generation, self._checkpoint_fingerprint(raw_state), deepcopy(state))
+        return state
 
     def restore_from_file(
         self,

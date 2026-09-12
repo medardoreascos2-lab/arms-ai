@@ -1,4 +1,5 @@
 from __future__ import annotations
+from unittest.mock import Mock
 
 import json
 from pathlib import Path
@@ -71,6 +72,7 @@ class FakeExecutionStateStore:
             }
         )
 
+        self._durability = Mock()
         self.load_calls: list[Path] = []
         self.validate_calls: list[dict[str, object]] = []
         self.restore_calls: list[dict[str, object]] = []
@@ -172,7 +174,7 @@ def test_has_saved_state_returns_false_for_missing_file(
     ) is False
 
 
-def test_has_saved_state_returns_false_for_empty_file(
+def test_empty_file_is_detected_for_fail_closed_recovery(
     tmp_path: Path,
 ):
     service, _ = build_service()
@@ -181,17 +183,17 @@ def test_has_saved_state_returns_false_for_empty_file(
 
     assert service.has_saved_state(
         file_path=snapshot,
-    ) is False
+    ) is True
 
 
-def test_has_saved_state_returns_false_for_directory(
+def test_directory_is_detected_for_fail_closed_recovery(
     tmp_path: Path,
 ):
     service, _ = build_service()
 
     assert service.has_saved_state(
         file_path=tmp_path,
-    ) is False
+    ) is True
 
 
 def test_validate_saved_state_loads_and_validates_file(

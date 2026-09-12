@@ -112,7 +112,9 @@ class StartupCoordinatorV2:
 
         self._status = self.STATUS_STARTING
 
+        durability = self.state_recovery_service.execution_state_store._durability
         try:
+            durability.acquire(path)
             snapshot_found = (
                 self.state_recovery_service
                 .has_saved_state(
@@ -120,10 +122,9 @@ class StartupCoordinatorV2:
                 )
             )
 
-            if (
-                not snapshot_found
-                or not recover_if_available
-            ):
+            if snapshot_found and not recover_if_available:
+                raise ValueError("Cannot bypass persisted operational state.")
+            if not snapshot_found:
                 report: dict[str, object] = {
                     "success": True,
                     "mode": "CLEAN",
@@ -137,6 +138,7 @@ class StartupCoordinatorV2:
                     "error": None,
                 }
 
+                durability.enable()
                 self._status = self.STATUS_READY
                 self._last_startup_report = report
 
@@ -164,12 +166,15 @@ class StartupCoordinatorV2:
                 "error": None,
             }
 
+            durability.enable()
             self._status = self.STATUS_RECOVERED
             self._last_startup_report = report
 
             return dict(report)
 
         except Exception as exc:
+            durability.fail_closed()
+            durability.release()
             report = {
                 "success": False,
                 "mode": "FAILED",

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from backend.services.durable_execution_state_v2 import durable_mutation
+
 from backend.account.account_state_manager_v2 import (
     AccountStateManagerV2,
 )
@@ -100,6 +102,7 @@ class PortfolioManagerV2:
 
         return result["state"]
 
+    @durable_mutation
     def add_position(
         self,
         *,
@@ -143,6 +146,7 @@ class PortfolioManagerV2:
             "account_state": account_state,
         }
 
+    @durable_mutation
     def update_position(
         self,
         *,
@@ -173,6 +177,7 @@ class PortfolioManagerV2:
             "account_state": account_state,
         }
 
+    @durable_mutation
     def reduce_position(
         self,
         *,
@@ -277,6 +282,7 @@ class PortfolioManagerV2:
             "account_state": account_state,
         }
 
+    @durable_mutation
     def close_position(
         self,
         *,

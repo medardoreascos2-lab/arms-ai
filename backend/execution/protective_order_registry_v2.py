@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from backend.services.durable_execution_state_v2 import durable_mutation
+
 from copy import deepcopy
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -85,6 +87,7 @@ class ProtectiveOrderRegistryV2:
     ) -> dict[str, object]:
         return deepcopy(protection)
 
+    @durable_mutation
     def create_protection(
         self,
         *,
@@ -431,6 +434,7 @@ class ProtectiveOrderRegistryV2:
 
         return protections
 
+    @durable_mutation
     def complete_protection(
         self,
         *,
@@ -542,6 +546,7 @@ class ProtectiveOrderRegistryV2:
             protection
         )
 
+    @durable_mutation
     def cancel_protection(
         self,
         *,
@@ -602,6 +607,7 @@ class ProtectiveOrderRegistryV2:
             protection
         )
 
+    @durable_mutation
     def remove_protection(
         self,
         *,

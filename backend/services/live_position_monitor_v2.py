@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from backend.services.durable_execution_state_v2 import durable_mutation
+
 from datetime import datetime
 from datetime import timezone
 
@@ -214,6 +216,7 @@ class LivePositionMonitorV2:
         )
         return float(profile["point_value"])
 
+    @durable_mutation
     def process_price(
         self,
         *,
@@ -611,20 +614,16 @@ class LivePositionMonitorV2:
                                     ]
                                 )
                             )
-                            or str(
-                                getattr(
-                                    journal_trade,
-                                    "trade_id",
-                                    "",
-                                )
-                            )
+                            or str(getattr(journal_trade, "position_id", ""))
+                            == str(result_position["position_id"])
                         ):
                             matching_journal_trade = (
                                 journal_trade
                             )
                             break
 
-                    if matching_journal_trade is not None:
+                    if (matching_journal_trade is not None
+                            and str(result_position.get("status", "")).upper() == "CLOSED"):
                         fallback_point_value = (
                             result_position.get(
                                 "point_value"

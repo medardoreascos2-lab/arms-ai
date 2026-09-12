@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -15,6 +16,7 @@ class FakeStateRecoveryService:
         *,
         snapshot_available: bool = False,
     ) -> None:
+        self.execution_state_store = Mock()
         self.snapshot_available = snapshot_available
         self.has_saved_state_calls: list[Path] = []
         self.recover_from_calls: list[Path] = []
@@ -234,34 +236,11 @@ def test_startup_from_recovers_available_snapshot(
     ]
 
 
-def test_startup_from_can_disable_recovery(
-    tmp_path: Path,
-):
-    recovery_service = FakeStateRecoveryService(
-        snapshot_available=True,
-    )
-    coordinator, service = build_coordinator(
-        recovery_service
-    )
-    snapshot = tmp_path / "snapshot.json"
-
-    report = coordinator.startup_from(
-        file_path=snapshot,
-        recover_if_available=False,
-    )
-
-    assert report["success"] is True
-    assert report["mode"] == "CLEAN"
-    assert report["status"] == (
-        StartupCoordinatorV2.STATUS_READY
-    )
-    assert report["snapshot_found"] is True
-    assert report["recovery_attempted"] is False
-    assert report["recovery_report"] is None
-
-    assert service.has_saved_state_calls == [
-        snapshot
-    ]
+def test_startup_cannot_discard_available_state(tmp_path):
+    coordinator, service = build_coordinator(FakeStateRecoveryService(snapshot_available=True))
+    with pytest.raises(ValueError, match="Cannot bypass"):
+        coordinator.startup_from(file_path=tmp_path / "snapshot.json", recover_if_available=False)
+    assert coordinator.get_status() == StartupCoordinatorV2.STATUS_FAILED
     assert service.recover_from_calls == []
 
 

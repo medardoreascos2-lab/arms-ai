@@ -121,11 +121,8 @@ class StateRecoveryServiceV2:
             file_path
         )
 
-        return (
-            path.exists()
-            and path.is_file()
-            and path.stat().st_size > 0
-        )
+        # Empty files and interrupted temporary files are evidence, not a clean start.
+        return path.exists() or path.with_suffix(path.suffix + ".tmp").exists()
 
     def validate_saved_state(
         self,
@@ -205,6 +202,7 @@ class StateRecoveryServiceV2:
             return dict(report)
 
         except Exception as exc:
+            self.execution_state_store._durability.fail_closed()
             report = {
                 "success": False,
                 "source": "memory",
@@ -300,6 +298,7 @@ class StateRecoveryServiceV2:
             return dict(report)
 
         except Exception as exc:
+            self.execution_state_store._durability.fail_closed()
             report = {
                 "success": False,
                 "source": str(path),
@@ -341,6 +340,9 @@ class StateRecoveryServiceV2:
         path = self._normalize_path(
             file_path
         )
+
+        if self.execution_state_store._durability.path == path.resolve():
+            raise RuntimeError("Cannot clear active durable state.")
 
         if not path.exists():
             if missing_ok:

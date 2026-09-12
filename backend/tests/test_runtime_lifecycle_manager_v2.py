@@ -1,3 +1,4 @@
+from unittest.mock import Mock
 from pathlib import Path
 
 import pytest
@@ -76,6 +77,7 @@ class FakeStartupCoordinator:
 
 class FakeGracefulShutdownService:
     def __init__(self) -> None:
+        self.execution_state_store = Mock()
         self.calls: list[object] = []
         self.error: Exception | None = None
         self.last_report: dict[str, object] | None = None

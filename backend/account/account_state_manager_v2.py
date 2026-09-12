@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from backend.services.durable_execution_state_v2 import durable_mutation
+
 from copy import deepcopy
 from collections.abc import Callable
 from datetime import date, datetime, timezone
@@ -147,6 +149,7 @@ class AccountStateManagerV2:
             self._state
         )
 
+    @durable_mutation
     @_locked
     def update_from_portfolio(
         self,
@@ -427,6 +430,7 @@ class AccountStateManagerV2:
             "state": self.get_state(),
         }
 
+    @durable_mutation
     @_locked
     def update_open_risk(
         self,
@@ -452,6 +456,7 @@ class AccountStateManagerV2:
             "state": self.get_state(),
         }
 
+    @durable_mutation
     @_locked
     def record_daily_pnl(
         self,
@@ -528,6 +533,7 @@ class AccountStateManagerV2:
             "state": self.get_state(),
         }
 
+    @durable_mutation
     @_locked
     def reset_daily_state(
         self,
@@ -581,6 +587,7 @@ class AccountStateManagerV2:
             "state": self.get_state(),
         }
 
+    @durable_mutation
     def ensure_trading_day(self) -> dict[str, object]:
         """Advance at first operational use; reads and snapshot capture stay pure."""
         return self.reset_daily_state()

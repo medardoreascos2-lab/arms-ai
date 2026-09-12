@@ -268,6 +268,7 @@ class RuntimeLifecycleManagerV2:
                 "error": None,
             }
 
+            self.graceful_shutdown_service.execution_state_store._durability.release()
             self._status = self.STATUS_STOPPED
             self._last_shutdown_report = report
 

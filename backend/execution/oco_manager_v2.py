@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from backend.services.durable_execution_state_v2 import durable_mutation
+
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -60,6 +62,7 @@ class OCOManagerV2:
     ) -> dict[str, object]:
         return dict(group)
 
+    @durable_mutation
     def create_group(
         self,
         *,
@@ -259,6 +262,7 @@ class OCOManagerV2:
 
         return groups
 
+    @durable_mutation
     def cancel_remaining(
         self,
         *,
@@ -452,6 +456,7 @@ class OCOManagerV2:
             ),
         }
 
+    @durable_mutation
     def cancel_group(
         self,
         *,
@@ -529,6 +534,7 @@ class OCOManagerV2:
             ),
         }
 
+    @durable_mutation
     def remove_group(
         self,
         *,

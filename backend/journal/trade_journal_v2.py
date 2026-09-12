@@ -1,3 +1,5 @@
+from backend.services.durable_execution_state_v2 import durable_mutation
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List
@@ -33,6 +35,8 @@ class TradeJournalEntry:
 
     
 
+
+    remaining_quantity: float | None = None
 
     position_id: str = ""
 
@@ -158,6 +162,7 @@ class TradeJournalV2:
 
 
 
+    @durable_mutation
     def record(
 
         self,
@@ -230,6 +235,7 @@ class TradeJournalV2:
 
 
 
+    @durable_mutation
     def record_open_trade(
         self,
         trade: dict,
@@ -380,11 +386,12 @@ class TradeJournalV2:
 
 
 
+    @durable_mutation
     def close_trade(
         self,
         trade_id: str,
         result: str = "CLOSED",
-        pnl: float = 0.0,
+        pnl: float | None = None,
         exit_price: float | None = None,
         exit_time=None,
         exit_reason: str | None = None,
@@ -401,11 +408,9 @@ class TradeJournalV2:
                     result
                 )
 
-                supplied_pnl = float(
-                    pnl
-                )
+                supplied_pnl = float(pnl) if pnl is not None else 0.0
 
-                if supplied_pnl != 0.0:
+                if pnl is not None:
                     trade.pnl = round(
                         supplied_pnl,
                         2,

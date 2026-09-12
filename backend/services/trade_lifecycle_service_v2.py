@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from backend.services.durable_execution_state_v2 import durable_mutation
+
 from datetime import datetime, timezone
 
 from backend.services.signal_submission_target_v2 import (
@@ -461,6 +463,7 @@ class TradeLifecycleServiceV2(
             dict[str, object],
         ] = {}
 
+    @durable_mutation
     def submit_signal(
         self,
         *,
@@ -1824,6 +1827,25 @@ class TradeLifecycleServiceV2(
             "oco": oco_result,
         }
 
+    def _sync_open_position_state(self, position):
+        """Synchronize the cumulative values before the enclosing checkpoint."""
+        position_id = position["position_id"]
+        if self.portfolio_manager_v2 is not None:
+            self.portfolio_manager_v2.update_position(
+                position_id=position_id, updates=dict(position))
+        if self.trade_journal_v2 is not None:
+            for trade in self.trade_journal_v2.trades:
+                if trade.position_id == position_id:
+                    trade.pnl = float(position.get("realized_pnl", 0.0))
+                    trade.remaining_quantity = float(position["quantity"])
+                    break
+        registry = self.protective_order_registry_v2
+        protection = registry._protections.get(position.get("protection_group_id"))
+        if protection is not None:
+            protection.update(quantity=position["quantity"], stop_price=position["stop_loss"],
+                              take_profit_price=position["take_profit"])
+
+    @durable_mutation
     def update_position(
         self,
         *,
@@ -1877,6 +1899,15 @@ class TradeLifecycleServiceV2(
         )
 
         if updated_status == "CLOSED":
+            # Only reconcile the in-memory PAPER adapter; LIVE is unchanged.
+            if isinstance(self.broker_connector_v2, PaperBrokerConnectorV2):
+                broker_id = updated_position.get("broker_position_id")
+                if broker_id:
+                    closed = self.broker_connector_v2.close_position(
+                        position_id=broker_id, current_price=float(updated_position["exit_price"]),
+                        reason=str(updated_position["close_reason"]))
+                    if not closed.get("closed") and closed.get("status") != "ALREADY_CLOSED":
+                        raise RuntimeError("PAPER close synchronization failed.")
             self._sync_protection_and_oco_after_close(
                 position=dict(
                     updated_position
@@ -1991,6 +2022,10 @@ class TradeLifecycleServiceV2(
                     point_value=float(point_value),
                 )
 
+            if self.trade_journal_v2 is not None:
+                for trade in self.trade_journal_v2.trades:
+                    if trade.position_id == normalized_position_id:
+                        trade.remaining_quantity = 0.0
             self._active_positions.pop(
                 normalized_position_id,
                 None,
@@ -2046,6 +2081,8 @@ class TradeLifecycleServiceV2(
                     ),
                 )
 
+        if updated_status != "CLOSED":
+            self._sync_open_position_state(updated_position)
         return {
             "updated": True,
             "position": updated_position,
@@ -2058,6 +2095,7 @@ class TradeLifecycleServiceV2(
             ),
         }
 
+    @durable_mutation
     def replace_active_position(
         self,
         *,
@@ -2395,6 +2433,7 @@ class TradeLifecycleServiceV2(
                 ),
             )
 
+        self._sync_open_position_state(normalized_position)
         return dict(
             normalized_position
         )
