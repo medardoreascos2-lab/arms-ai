@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from backend.services.durable_execution_state_v2 import account_operation
+
 
 class ExecutionManagerV2:
     """
@@ -111,6 +113,7 @@ class ExecutionManagerV2:
             value
         )
 
+    @account_operation
     def prepare_order(
         self,
         *,

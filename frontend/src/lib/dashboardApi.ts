@@ -158,18 +158,22 @@ Promise<JsonObject> {
 
 
 
-export function switchAccount(
-  account_name: string
-):
-Promise<JsonObject> {
-
+export async function switchAccount(
+  profile_name: string
+): Promise<JsonObject> {
+  const context = await getJson(
+    "/api/v2/dashboard/account-manager/switch-context"
+  );
+  if (typeof context.account_id !== "string" || !context.account_id) {
+    throw new Error("No se pudo verificar la cuenta activa.");
+  }
   return postJson(
-    "/api/v2/dashboard/account/switch",
+    "/api/v2/dashboard/account-manager/switch",
     {
-      account_name,
+      account_id: context.account_id,
+      profile_name,
     }
   );
-
 }
 
 

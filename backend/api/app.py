@@ -1345,6 +1345,7 @@ def create_app(
         InstrumentProfileEngine()
     )
 
+    builds_account_runtime = trade_lifecycle_service_v2 is None
     if trade_lifecycle_service_v2 is None:
         active_starting_balance = float(
             active_account_profile.account_size
@@ -2235,6 +2236,25 @@ def create_app(
     app.state.account_config_manager_v2 = (
         account_config_manager_v2
     )
+
+    from backend.services.account_switch_safety_v2 import AccountSwitchSafetyV2
+    from backend.services.execution_state_store_v2 import ExecutionStateStoreV2
+    switch_safety = (
+        runtime_context.account_switch_safety_v2
+        if runtime_context is not None else None
+    )
+    if builds_account_runtime:
+        switch_store = ExecutionStateStoreV2(
+            trade_lifecycle_service=trade_lifecycle_service_v2,
+            protective_order_registry=trade_lifecycle_service_v2.protective_order_registry_v2,
+            oco_manager=trade_lifecycle_service_v2.oco_manager_v2,
+        )
+        switch_safety = AccountSwitchSafetyV2(
+            store=switch_store, account_manager=account_config_manager_v2,
+        )
+    if switch_safety is not None:
+        switch_safety.register_manager(account_config_manager_v2)
+    app.state.account_switch_safety_v2 = switch_safety
 
     app.state.trade_planner_v2 = (
         trade_planner_v2

@@ -67,7 +67,8 @@ class ExecutionStateStoreV2:
         self._checkpoint_versions = {}
         lifecycle = self.trade_lifecycle_service
         portfolio = self._risk_portfolio()
-        for participant in (lifecycle, protective_order_registry, oco_manager,
+        for participant in (lifecycle, lifecycle.execution_manager, lifecycle.paper_execution_engine,
+                            protective_order_registry, oco_manager,
                             lifecycle.broker_connector_v2 if isinstance(lifecycle.broker_connector_v2, PaperBrokerConnectorV2) else None,
                             lifecycle.trade_journal_v2, lifecycle.portfolio_manager_v2,
                             portfolio.account_state_manager_v2 if portfolio else None):

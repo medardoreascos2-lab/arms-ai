@@ -11,6 +11,22 @@ from uuid import uuid4
 from datetime import datetime, timezone
 
 
+class AccountAdmissionRejected(RuntimeError):
+    """No execution side effects are permitted for this admission rejection."""
+
+
+def account_operation(method):
+    """Share the admission barrier without checkpointing order preparation."""
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        durability = self if isinstance(self, DurableExecutionStateV2) else getattr(self, "_durability", None)
+        if durability is None:
+            return method(self, *args, **kwargs)
+        with durability.admission_barrier():
+            return method(self, *args, **kwargs)
+    return call
+
+
 def durable_mutation(method):
     @wraps(method)
     def call(self, *args, **kwargs):
@@ -18,8 +34,19 @@ def durable_mutation(method):
         durability = getattr(owner, "_durability", None)
         if durability is None:
             return method(self, *args, **kwargs)
-        with durability.mutation():
-            return method(self, *args, **kwargs)
+        try:
+            with durability.admission_barrier():
+                safety = durability.account_switch_safety
+                if method.__name__ == "submit_signal" and safety is not None:
+                    safety.validate_signal(signal=kwargs.get("signal"),
+                                           risk_context=kwargs.get("risk_context"))
+                with durability.mutation():
+                    return method(self, *args, **kwargs)
+        except AccountAdmissionRejected as exc:
+            if method.__name__ != "submit_signal":
+                raise
+            return {"accepted": False, "reason": str(exc), "prepared_order": None,
+                    "execution": None, "position": None}
     return call
 
 
@@ -107,6 +134,24 @@ class DurableExecutionStateV2:
         self.enabled = False
         self.stopped = False
         self.operation = None
+        self.account_switch_in_progress = False
+        self.account_switch_epoch = 0
+        self.account_switch_safety = None
+        self.active_operations = 0
+
+    @contextmanager
+    def admission_barrier(self):
+        epoch = self.account_switch_epoch
+        if self.account_switch_in_progress:
+            raise AccountAdmissionRejected("account_switch_in_progress")
+        with self.lock:
+            if self.account_switch_in_progress or epoch != self.account_switch_epoch:
+                raise AccountAdmissionRejected("account_switch_in_progress")
+            self.active_operations += 1
+            try:
+                yield
+            finally:
+                self.active_operations -= 1
 
     def fail_closed(self):
         self.failed = True
@@ -163,6 +208,7 @@ class DurableExecutionStateV2:
             self.checkpoint()
             self.enabled = True
 
+    @account_operation
     def checkpoint(self):
         if self.failed:
             raise RuntimeError("Durability failed closed; checkpoint denied.")
@@ -197,7 +243,7 @@ class DurableExecutionStateV2:
 
     @contextmanager
     def mutation(self):
-        with self.lock:
+        with self.admission_barrier():
             if self.failed or self.stopped:
                 raise RuntimeError("Durability failed closed; execution denied.")
             if not self.enabled:

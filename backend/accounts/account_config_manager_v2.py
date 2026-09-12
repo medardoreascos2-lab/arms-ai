@@ -122,6 +122,11 @@ class AccountConfigManagerV2:
                 account_name
             )
         )
+        safety = getattr(self, "_runtime_switch_safety", None)
+        if safety is not None:
+            safety.switch(account_id=safety.identity.account_id,
+                          profile_name=str(account_name).strip().upper())
+            return account
 
         self._save_active_account(
             account_name

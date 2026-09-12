@@ -1,3 +1,4 @@
+from backend.services.account_switch_safety_v2 import AccountSwitchSafetyV2
 from backend.config.api_settings import APISettings
 from dataclasses import dataclass
 
@@ -100,6 +101,7 @@ class RuntimeContextV2:
     runtime_lifecycle_manager: (
         RuntimeLifecycleManagerV2
     )
+    account_switch_safety_v2: AccountSwitchSafetyV2 | None = None
 
 
 def build_runtime_context(
@@ -126,10 +128,8 @@ def build_runtime_context(
         InstrumentProfileEngine,
     )
 
-    active_account = (
-        AccountConfigManagerV2()
-        .get_active_account()
-    )
+    account_manager = AccountConfigManagerV2()
+    active_account = account_manager.get_active_account()
 
     active_starting_balance = (
         float(resolved_settings.account_balance)
@@ -389,7 +389,12 @@ def build_runtime_context(
         )
     )
 
+    account_switch_safety = AccountSwitchSafetyV2(
+        store=execution_state_store, account_manager=account_manager,
+    )
+
     return RuntimeContextV2(
+        account_switch_safety_v2=account_switch_safety,
         settings=resolved_settings,
         execution_manager=execution_manager,
         paper_execution_engine=(

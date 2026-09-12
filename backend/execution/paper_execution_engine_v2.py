@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from backend.services.durable_execution_state_v2 import account_operation
+
 from uuid import uuid4
 
 
@@ -56,6 +58,7 @@ class PaperExecutionEngineV2:
             value
         )
 
+    @account_operation
     def execute(
         self,
         *,

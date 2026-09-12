@@ -190,7 +190,7 @@ def test_default_app_wires_final_gate_to_shared_account_manager():
     )
 
 
-def test_account_manager_api_switch_updates_final_gate_policy(
+def test_account_manager_api_switch_preserves_final_gate_policy(
     tmp_path,
 ):
     from fastapi.testclient import TestClient
@@ -273,25 +273,23 @@ def test_account_manager_api_switch_updates_final_gate_policy(
     response = client.post(
         "/api/v2/dashboard/"
         "account-manager/switch",
-        params={
-            "account_name":
-                target_name,
+        json={
+            "account_id": lifecycle.broker_connector_v2.account_id,
+            "profile_name": target_name,
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 409
 
     assert (
-        response.json()[
-            "active_account"
-        ]
-        == target_name
+        response.json()["status"]
+        == "ACCOUNT_SWITCH_REJECTED"
     )
 
     assert (
         runtime_manager
         .get_active_account_name()
-        == target_name
+        == initial_name
     )
 
     assert (
@@ -300,7 +298,7 @@ def test_account_manager_api_switch_updates_final_gate_policy(
         .risk_engine
         .account_manager
         .get_active_account_name()
-        == target_name
+        == initial_name
     )
 
     persisted = json.loads(
@@ -311,5 +309,5 @@ def test_account_manager_api_switch_updates_final_gate_policy(
 
     assert (
         persisted["active_account"]
-        == target_name
+        == initial_name
     )
