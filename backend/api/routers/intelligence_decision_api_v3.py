@@ -408,16 +408,17 @@ def position_debug_v3(request: Request):
 @router.get(
     "/journal-debug"
 )
-def journal_debug_v3():
+def journal_debug_v3(request: Request):
 
-    if execution_pipeline is None:
+    pipeline = getattr(request.app.state, "execution_pipeline_v3", None)
+    if pipeline is None:
         return {
             "error": "pipeline_not_configured"
         }
 
 
     trades = (
-        execution_pipeline
+        pipeline
         .journal
         .get_trades()
     )

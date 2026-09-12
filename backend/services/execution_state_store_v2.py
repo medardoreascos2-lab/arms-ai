@@ -62,6 +62,8 @@ class ExecutionStateStoreV2:
         )
         self.oco_manager = oco_manager
         self._durability = DurableExecutionStateV2(self)
+        self.account_identity = None
+        self.account_namespace = None
         self._restored_state = None
         self._loaded_checkpoint = None
         self._checkpoint_versions = {}
@@ -74,6 +76,23 @@ class ExecutionStateStoreV2:
                             portfolio.account_state_manager_v2 if portfolio else None):
             if participant is not None:
                 participant._durability = self._durability
+
+    def require_namespace_path(self, path):
+        if self.account_namespace is not None and Path(path).resolve() != self.account_namespace:
+            raise ValueError("Cross-account durable namespace rejected.")
+
+    def validate_account_identity(self, state):
+        if self.account_identity is None:
+            return
+        identity = state.get("account_identity")
+        if not isinstance(identity, dict) or set(identity) != set(self.account_identity):
+            raise ValueError("Snapshot lacks canonical account identity.")
+        for field in ("account_id", "profile_name"):
+            if identity[field] != self.account_identity[field]:
+                raise ValueError("Cross-account recovery rejected: " + field)
+        generation = identity["runtime_generation"]
+        if type(generation) is not int or not 1 <= generation <= self.account_identity["runtime_generation"]:
+            raise ValueError("Invalid account runtime generation.")
 
     @staticmethod
     def _checkpoint_fingerprint(state):
@@ -119,6 +138,8 @@ class ExecutionStateStoreV2:
     def _validate_records(self, records, positions, risk_snapshot):
         lifecycle = self.trade_lifecycle_service
         if records is None:
+            if self.account_identity is not None:
+                raise ValueError("Coordinated recovery requires complete execution records.")
             if positions or (risk_snapshot and risk_snapshot["closed_positions"]):
                 raise ValueError("Legacy snapshot lacks journal/execution records; reconciliation required.")
             records = {"journal": [], "history": [], "protections": [], "oco_groups": [],
@@ -314,6 +335,7 @@ class ExecutionStateStoreV2:
 
         portfolio = self._risk_portfolio()
         return {
+            **({"account_identity": deepcopy(self.account_identity)} if self.account_identity else {}),
             "schema_version": self.SCHEMA_VERSION,
             "account_portfolio": portfolio.capture_risk_state() if portfolio is not None else None,
             "captured_at": self._utc_now(),
@@ -358,6 +380,7 @@ class ExecutionStateStoreV2:
             state,
             field_name="state",
         )
+        self.validate_account_identity(normalized_state)
         lifecycle = self.trade_lifecycle_service
         if (self._risk_portfolio() is None or lifecycle.trade_journal_v2 is None
                 or not isinstance(lifecycle.broker_connector_v2, PaperBrokerConnectorV2)
@@ -717,6 +740,7 @@ class ExecutionStateStoreV2:
             if [r for r in records["oco_groups"] if r["status"] == "ACTIVE"] != groups:
                 raise ValueError("Active OCO records mismatch.")
         validated = {
+            **({"account_identity": deepcopy(normalized_state["account_identity"])} if self.account_identity else {}),
             "schema_version": self.SCHEMA_VERSION,
             "execution_records": records,
             "account_portfolio": risk_snapshot,
@@ -753,6 +777,11 @@ class ExecutionStateStoreV2:
         actual = self.capture_state()
         self.validate_state(state=actual)
         actual["captured_at"] = expected["captured_at"]
+        if self.account_identity is not None:
+            # A newly published runtime can restore an older generation of the
+            # same identity. Both identities were validated above; all financial
+            # and execution participants must still match the checkpoint exactly.
+            actual["account_identity"] = expected["account_identity"]
         if actual != expected:
             raise ValueError("Post-restore participants do not exactly match expected evidence.")
         return True
@@ -988,6 +1017,7 @@ class ExecutionStateStoreV2:
         file_path: str | Path,
     ) -> dict[str, object]:
         path = Path(file_path)
+        self.require_namespace_path(path)
 
         if path.with_suffix(path.suffix + ".tmp").exists():
             raise ValueError("Incomplete checkpoint file; reconciliation required.")
@@ -1009,6 +1039,8 @@ class ExecutionStateStoreV2:
             ) from exc
 
         generation = verify(raw_state)
+        if self.account_identity is not None and generation < 1:
+            raise ValueError("Coordinated recovery requires a durable generation.")
         state = self.validate_state(state=raw_state)
         self._loaded_checkpoint = (
             path.resolve(), generation, self._checkpoint_fingerprint(raw_state), deepcopy(state))

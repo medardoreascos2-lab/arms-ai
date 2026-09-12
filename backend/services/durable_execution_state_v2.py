@@ -138,13 +138,18 @@ class DurableExecutionStateV2:
         self.account_switch_epoch = 0
         self.account_switch_safety = None
         self.active_operations = 0
+        self.retired = False
 
     @contextmanager
     def admission_barrier(self):
+        if self.retired:
+            raise AccountAdmissionRejected("account_runtime_retired")
         epoch = self.account_switch_epoch
         if self.account_switch_in_progress:
             raise AccountAdmissionRejected("account_switch_in_progress")
         with self.lock:
+            if self.retired:
+                raise AccountAdmissionRejected("account_runtime_retired")
             if self.account_switch_in_progress or epoch != self.account_switch_epoch:
                 raise AccountAdmissionRejected("account_switch_in_progress")
             self.active_operations += 1
@@ -167,6 +172,7 @@ class DurableExecutionStateV2:
     def acquire(self, path):
         if self.failed:
             raise RuntimeError("Durability failed closed; restart and reconcile.")
+        self.store.require_namespace_path(path)
         path = Path(path).resolve()
         if self._lease is not None:
             if self.path != path:
@@ -210,6 +216,9 @@ class DurableExecutionStateV2:
 
     @account_operation
     def checkpoint(self):
+        return self._checkpoint()
+
+    def _checkpoint(self):
         if self.failed:
             raise RuntimeError("Durability failed closed; checkpoint denied.")
         if self.depth:

@@ -118,6 +118,11 @@ def switch_account(payload: AccountSwitchRequestV2, request: Request):
     try:
         return safety.switch(account_id=payload.account_id, profile_name=payload.profile_name)
     except AccountSwitchRejected as exc:
+        if str(exc) == "account_transition_failed_closed":
+            return JSONResponse(status_code=503, content={
+                "status": "ACCOUNT_TRANSITION_UNCERTAIN", "changed": None,
+                "reason": str(exc), "detail": "Runtime bloqueado; reinicia y recupera la cuenta confirmada.",
+            })
         return JSONResponse(status_code=409, content={
             "status": "ACCOUNT_SWITCH_REJECTED",
             "changed": False,

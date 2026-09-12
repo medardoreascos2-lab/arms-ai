@@ -159,7 +159,8 @@ Promise<JsonObject> {
 
 
 export async function switchAccount(
-  profile_name: string
+  profile_name: string,
+  target_account_id?: string
 ): Promise<JsonObject> {
   const context = await getJson(
     "/api/v2/dashboard/account-manager/switch-context"
@@ -167,10 +168,24 @@ export async function switchAccount(
   if (typeof context.account_id !== "string" || !context.account_id) {
     throw new Error("No se pudo verificar la cuenta activa.");
   }
+  let account_id = target_account_id;
+  if (!account_id && Array.isArray(context.accounts)) {
+    const matches = context.accounts.filter(
+      (row): row is JsonObject =>
+        row !== null && typeof row === "object" && !Array.isArray(row) &&
+        row.profile_name === profile_name
+    );
+    if (matches.length !== 1 || typeof matches[0].account_id !== "string") {
+      throw new Error("Selecciona una identidad de cuenta inequívoca.");
+    }
+    account_id = matches[0].account_id as string;
+  }
+  // Containment-only servers can still acknowledge the current account.
+  account_id ??= context.account_id;
   return postJson(
     "/api/v2/dashboard/account-manager/switch",
     {
-      account_id: context.account_id,
+      account_id,
       profile_name,
     }
   );

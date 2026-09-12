@@ -68,6 +68,9 @@ class AccountSwitchSafetyV2:
 
     def _assert_identity(self):
         identity = self.identity
+        coordinator = getattr(self, "coordinator", None)
+        if coordinator is not None:
+            coordinator.assert_published(self)
         if self.lifecycle is not self.store.trade_lifecycle_service:
             raise AccountSwitchRejected("runtime_identity_unproven")
         broker = self.lifecycle.broker_connector_v2
@@ -111,6 +114,10 @@ class AccountSwitchSafetyV2:
         try:
             self._assert_identity()
             context = risk_context if isinstance(risk_context, dict) else {}
+            if self.store.account_identity is not None:
+                required = {"account_id", "profile_name", "account_balance", "risk_percent"}
+                if not required <= context.keys():
+                    raise AccountSwitchRejected("signal_account_context_required")
             for source in (signal if isinstance(signal, dict) else {}, context):
                 if ("account_id" in source and source["account_id"] != self.identity.account_id
                         or "profile_name" in source and source["profile_name"] != self.identity.profile_name):
@@ -147,7 +154,11 @@ class AccountSwitchSafetyV2:
             if not path.is_file():
                 raise AccountSwitchRejected("durable_state_unproven")
             try:
-                verify(json.loads(path.read_text(encoding="utf-8")))
+                saved = json.loads(path.read_text(encoding="utf-8"))
+                generation = verify(saved)
+                self.store.validate_account_identity(saved)
+                if self.store.account_identity is not None and generation != durability.generation:
+                    raise ValueError("Unexpected durable generation.")
             except (ValueError, OSError):
                 raise AccountSwitchRejected("reconciliation_pending") from None
         lifecycle = self.lifecycle
@@ -178,6 +189,10 @@ class AccountSwitchSafetyV2:
         self.store.validate_state(state=self.store.capture_state())
 
     def switch(self, *, account_id, profile_name):
+        coordinator = getattr(self, "coordinator", None)
+        if coordinator is not None:
+            self._assert_identity()
+            return coordinator.switch(account_id=account_id, profile_name=profile_name)
         if not self._switch_lock.acquire(blocking=False):
             raise AccountSwitchRejected("account_switch_in_progress")
         acquired = False

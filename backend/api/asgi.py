@@ -1,15 +1,7 @@
-"""Punto de entrada ASGI de ARMS AI.
+"""ASGI entry point: recover and publish the committed PAPER account at startup.
 
-Este módulo construye un único RuntimeContextV2 y lo comparte
-con FastAPI durante toda la vida del proceso.
-
-El lifespan de FastAPI:
-
-1. Recupera el estado anterior cuando existe un snapshot.
-2. Inicia el runtime.
-3. Mantiene disponible el mismo contexto para REST, WebSocket
-   y dashboard.
-4. Guarda el estado y apaga ordenadamente el runtime.
+Production requests resolve one complete account application per generation.
+Explicitly injected standalone contexts retain containment-only switching.
 """
 
 from __future__ import annotations
@@ -119,8 +111,21 @@ def create_asgi_app(
     *,
     runtime_context: RuntimeContextV2 | None = None,
     state_path: str | Path | None = None,
+    account_config_path=None,
+    account_registry=None,
 ) -> FastAPI:
     """Construye la aplicación ASGI con un runtime compartido."""
+
+    if runtime_context is None:
+        from backend.accounts.account_config_manager_v2 import AccountConfigManagerV2
+        from backend.api.account_runtime_application_v2 import AccountRuntimeApplicationV2
+        from backend.services.account_runtime_coordinator_v2 import AccountRuntimeCoordinatorV2
+        legacy_path = Path(state_path) if state_path is not None else resolve_runtime_state_path()
+        coordinator = AccountRuntimeCoordinatorV2(
+            config_path=account_config_path or AccountConfigManagerV2.DEFAULT_CONFIG_PATH,
+            namespace_root=legacy_path.parent / (legacy_path.stem + "-accounts"),
+            legacy_state_path=legacy_path, registry=account_registry)
+        return AccountRuntimeApplicationV2(coordinator)
 
     resolved_runtime_context = (
         runtime_context
@@ -163,13 +168,5 @@ def create_asgi_app(
     return application
 
 
-runtime_context: RuntimeContextV2 = (
-    build_runtime_context()
-)
-
-runtime_state_path = resolve_runtime_state_path()
-
-app = create_asgi_app(
-    runtime_context=runtime_context,
-    state_path=runtime_state_path,
-)
+# Startup resolves the committed account; no module-global runtime captures A.
+app = create_asgi_app()

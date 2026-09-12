@@ -45,10 +45,24 @@ class AccountConfigManagerV2:
         )
 
 
+    @classmethod
+    def for_runtime(cls, *, config_path, registry, profile_name):
+        """A private profile binding; selection belongs to the runtime coordinator."""
+        from copy import deepcopy
+        manager = cls.__new__(cls)
+        manager.config_path = Path(config_path)
+        manager.registry = deepcopy(registry)
+        manager.active_account = profile_name
+        manager._runtime_profile_binding = profile_name
+        manager.registry.get_account(profile_name)
+        return manager
+
     def _load_active_account(
         self,
     ):
 
+        if hasattr(self, "_runtime_profile_binding"):
+            return self._runtime_profile_binding
         if not self.config_path.exists():
 
             raise FileNotFoundError(
@@ -89,6 +103,8 @@ class AccountConfigManagerV2:
         account_name: str,
     ):
 
+        if hasattr(self, "_runtime_profile_binding"):
+            raise ValueError("Only the runtime coordinator may publish account selection.")
         self.config_path.parent.mkdir(
             parents=True,
             exist_ok=True,

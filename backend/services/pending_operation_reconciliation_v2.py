@@ -142,6 +142,7 @@ class PendingOperationReconciliationV2:
         a fresh process from the same evidence, never over a partially restored
         runtime. A resolved checkpoint is installed only after exact restoration.
         """
+        self.store.require_namespace_path(file_path)
         path = Path(file_path).resolve()
         durability = self.store._durability
         with durability.lock:

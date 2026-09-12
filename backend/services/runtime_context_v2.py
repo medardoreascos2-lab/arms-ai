@@ -107,6 +107,10 @@ class RuntimeContextV2:
 def build_runtime_context(
     *,
     settings: ArmsSettings | None = None,
+    account_manager=None,
+    account_id: str | None = None,
+    runtime_generation: int = 1,
+    account_namespace=None,
     execution_mode: str = "PAPER",
     maximum_contracts: int | None = None,
     fill_market_orders_immediately: bool = True,
@@ -128,8 +132,21 @@ def build_runtime_context(
         InstrumentProfileEngine,
     )
 
-    account_manager = AccountConfigManagerV2()
+    account_manager = account_manager or AccountConfigManagerV2()
     active_account = account_manager.get_active_account()
+
+    if account_id is not None:
+        from dataclasses import replace
+        import re
+        if (not isinstance(account_id, str)
+                or not re.fullmatch(r"[A-Z0-9][A-Z0-9_-]{0,127}", account_id)
+                or type(runtime_generation) is not int or runtime_generation < 1):
+            raise ValueError("Invalid canonical PAPER account identity.")
+        if execution_mode != "PAPER" or account_namespace is None:
+            raise ValueError("Account runtime requires a PAPER namespace.")
+        resolved_settings = replace(resolved_settings,
+                                    account_balance=float(active_account.account_size),
+                                    risk_percent=float(active_account.risk_percent))
 
     active_starting_balance = (
         float(resolved_settings.account_balance)
@@ -314,9 +331,15 @@ def build_runtime_context(
 
     trade_journal_v2 = TradeJournalV2()
 
-    execution_risk_gate_v1 = ExecutionRiskGateV1()
+    from backend.risk.trade_risk_validator_v2 import TradeRiskValidatorV2
+    from backend.risk.multi_account_risk_engine_v2 import MultiAccountRiskEngineV2
+    execution_risk_gate_v1 = ExecutionRiskGateV1(validator=TradeRiskValidatorV2(
+        risk_engine=MultiAccountRiskEngineV2(account_manager=account_manager)))
 
+    from backend.connectors.paper_broker_connector_v2 import PaperBrokerConnectorV2
     trade_lifecycle_service = TradeLifecycleServiceV2(
+        broker_connector_v2=(PaperBrokerConnectorV2(execution_engine=paper_execution_engine,
+            account_id=account_id, starting_balance=active_starting_balance) if account_id else None),
         execution_manager=execution_manager,
         paper_execution_engine=(
             paper_execution_engine
@@ -359,6 +382,14 @@ def build_runtime_context(
         ),
         oco_manager=oco_manager,
     )
+
+    if account_id is not None:
+        from pathlib import Path
+        execution_state_store.account_identity = {
+            "account_id": account_id, "profile_name": account_manager.get_active_account_name(),
+            "runtime_generation": runtime_generation,
+        }
+        execution_state_store.account_namespace = Path(account_namespace).resolve()
 
     state_recovery_service = StateRecoveryServiceV2(
         execution_state_store=execution_state_store,

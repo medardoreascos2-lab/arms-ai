@@ -23,48 +23,11 @@ def test_asgi_exposes_fastapi_application():
     )
 
 
-def test_asgi_exposes_runtime_context():
-    assert isinstance(
-        asgi.runtime_context,
-        RuntimeContextV2,
-    )
-
-
-def test_asgi_app_uses_shared_runtime_context():
-    assert (
-        asgi.app.state.runtime_context_v2
-        is asgi.runtime_context
-    )
-
-
-def test_asgi_app_uses_shared_trade_lifecycle():
-    assert (
-        asgi.app.state.trade_lifecycle_service_v2
-        is asgi.runtime_context.trade_lifecycle_service
-    )
-
-
-def test_asgi_app_uses_shared_execution_manager():
-    assert (
-        asgi.app.state.execution_manager_v2
-        is asgi.runtime_context.execution_manager
-    )
-
-
-def test_asgi_app_uses_shared_paper_execution_engine():
-    assert (
-        asgi.app.state.paper_execution_engine_v2
-        is asgi.runtime_context.paper_execution_engine
-    )
-
-
-def test_asgi_app_uses_shared_position_manager():
-    assert (
-        asgi.app.state
-        .trade_lifecycle_service_v2
-        .position_manager
-        is asgi.runtime_context.position_manager
-    )
+def test_asgi_defers_account_runtime_until_durable_startup():
+    from backend.api.account_runtime_application_v2 import AccountRuntimeApplicationV2
+    assert isinstance(asgi.app, AccountRuntimeApplicationV2)
+    assert asgi.app.coordinator._published is None
+    assert not hasattr(asgi, "runtime_context")
 
 
 def test_create_asgi_app_uses_supplied_context(

@@ -650,7 +650,6 @@ from backend.api.routers.learning_intelligence_api_v2 import (
 
 from backend.api.routers.intelligence_decision_api_v3 import (
     router as intelligence_decision_v3_router,
-    configure_execution_pipeline_v3,
 )
 
 
@@ -2350,11 +2349,9 @@ def create_app(
     )
 
 
-    configure_execution_pipeline_v3(
-        journal=(
-            app.state.trade_journal_v2
-        )
-    )
+    # Account-bound consumers are built on this application, never a module global.
+    from backend.execution.execution_pipeline_v2 import ExecutionPipelineV2
+    app.state.execution_pipeline_v3 = ExecutionPipelineV2(journal=app.state.trade_journal_v2)
 
 
     app.state.performance_service_v2 = (

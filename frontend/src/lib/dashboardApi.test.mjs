@@ -58,3 +58,36 @@ test("missing operational identity never sends a switch", async () => {
   await assert.rejects(c.api.switchAccount("B"), /No se pudo verificar/);
   assert.equal(c.calls.length, 1);
 });
+
+
+test("coordinated switch sends target B identity, never current A identity", async () => {
+  const c = client([
+    { body: { account_id: "PAPER-A", profile_name: "A", accounts: [
+      { account_id: "PAPER-A", profile_name: "A" }, { account_id: "PAPER-B", profile_name: "B" },
+    ] } },
+    { body: { status: "ACCOUNT_CHANGED", changed: true } },
+  ]);
+  assert.equal((await c.api.switchAccount("B")).changed, true);
+  assert.deepEqual(JSON.parse(c.calls[1].options.body),
+    { account_id: "PAPER-B", profile_name: "B" });
+});
+
+test("ambiguous profile requires explicit account identity before POST", async () => {
+  const c = client([{ body: { account_id: "PAPER-ONE", accounts: [
+    { account_id: "PAPER-ONE", profile_name: "A" }, { account_id: "PAPER-TWO", profile_name: "A" },
+  ] } }]);
+  await assert.rejects(c.api.switchAccount("A"), /identidad/);
+  assert.equal(c.calls.length, 1);
+});
+
+test("two accounts sharing a profile can be selected by explicit identity", async () => {
+  const c = client([
+    { body: { account_id: "PAPER-ONE", accounts: [
+      { account_id: "PAPER-ONE", profile_name: "A" }, { account_id: "PAPER-TWO", profile_name: "A" },
+    ] } },
+    { body: { status: "ACCOUNT_CHANGED", changed: true } },
+  ]);
+  await c.api.switchAccount("A", "PAPER-TWO");
+  assert.deepEqual(JSON.parse(c.calls[1].options.body),
+    { account_id: "PAPER-TWO", profile_name: "A" });
+});
