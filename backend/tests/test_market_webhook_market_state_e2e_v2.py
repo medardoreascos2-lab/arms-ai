@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timezone
+from datetime import timedelta
 
 from fastapi.testclient import TestClient
 
@@ -56,13 +57,9 @@ def test_webhook_updates_market_state():
     app = create_app()
     client = TestClient(app)
 
-    timestamp = datetime(
-        2026,
-        7,
-        27,
-        20,
-        30,
-        tzinfo=timezone.utc,
+    timestamp = (
+        datetime.now(timezone.utc)
+        - timedelta(seconds=3)
     )
 
     response = client.post(
@@ -130,22 +127,14 @@ def test_duplicate_webhook_does_not_replace_market_state():
     app = create_app()
     client = TestClient(app)
 
-    first_timestamp = datetime(
-        2026,
-        7,
-        27,
-        20,
-        30,
-        tzinfo=timezone.utc,
+    first_timestamp = (
+        datetime.now(timezone.utc)
+        - timedelta(seconds=3)
     )
 
-    duplicate_timestamp = datetime(
-        2026,
-        7,
-        27,
-        20,
-        31,
-        tzinfo=timezone.utc,
+    duplicate_timestamp = (
+        first_timestamp
+        + timedelta(seconds=1)
     )
 
     headers = {

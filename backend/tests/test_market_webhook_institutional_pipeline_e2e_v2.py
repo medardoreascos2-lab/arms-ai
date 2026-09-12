@@ -202,8 +202,6 @@ def test_webhook_runs_complete_institutional_pipeline():
         "trade_validation_v2",
         "signal_v2",
         "trade_lifecycle_v2",
-        "prepared_order_v2",
-        "paper_execution_v2",
     }
 
     missing_blocks = sorted(
@@ -216,6 +214,21 @@ def test_webhook_runs_complete_institutional_pipeline():
         "Faltan bloques del pipeline: "
         f"{missing_blocks}"
     )
+
+    lifecycle = analysis[
+        "trade_lifecycle_v2"
+    ]
+
+    assert lifecycle["accepted"] is False
+    assert (
+        lifecycle["reason"]
+        == "signal_not_approved"
+    )
+    assert lifecycle["prepared_order"] is None
+    assert lifecycle["execution"] is None
+
+    assert "prepared_order_v2" not in analysis
+    assert "paper_execution_v2" not in analysis
 
     for key in required_blocks:
         assert analysis[key] is not None
@@ -307,13 +320,7 @@ def test_webhook_runs_complete_institutional_pipeline():
         "signal_v2"
     ]
 
-    assert "status" in analysis[
-        "prepared_order_v2"
-    ]
 
-    assert "status" in analysis[
-        "paper_execution_v2"
-    ]
 
 
 def test_latest_analysis_contains_context_and_council():
@@ -376,4 +383,17 @@ def test_latest_analysis_contains_context_and_council():
     assert "decision_council_v2" in analysis
     assert "trade_plan_v2" in analysis
     assert "signal_v2" in analysis
-    assert "paper_execution_v2" in analysis
+    lifecycle = analysis[
+        "trade_lifecycle_v2"
+    ]
+
+    assert lifecycle["accepted"] is False
+    assert (
+        lifecycle["reason"]
+        == "signal_not_approved"
+    )
+    assert lifecycle["prepared_order"] is None
+    assert lifecycle["execution"] is None
+
+    assert "prepared_order_v2" not in analysis
+    assert "paper_execution_v2" not in analysis

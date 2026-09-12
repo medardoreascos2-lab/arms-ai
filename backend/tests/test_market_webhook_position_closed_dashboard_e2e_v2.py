@@ -15,7 +15,7 @@ def build_trade_signal() -> dict[str, object]:
         "timeframe": "5M",
         "direction": "LONG",
         "entry_price": 100.0,
-        "stop_loss": 98.0,
+        "stop_loss": 97.0,
         "take_profit": 110.0,
         "contracts": 2,
         "probability": 0.92,
@@ -68,7 +68,12 @@ def test_position_closed_reaches_dashboard_websocket():
         signal=build_trade_signal(),
         order_type="MARKET",
         risk_context={
-            "account_balance": 17000.0,
+            "account_balance": (
+                service.portfolio_manager_v2
+                .get_summary()[
+                    "account_equity"
+                ]
+            ),
             "risk_percent": 0.5,
             "point_value": 20.0,
             "daily_pnl": 0.0,

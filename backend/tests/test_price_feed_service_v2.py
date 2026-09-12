@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 
 from backend.services.price_feed_service_v2 import (
@@ -40,6 +42,7 @@ def build_service(
         live_position_monitor_v2=(
             live_position_monitor
         ),
+        maximum_age_seconds=30.0,
     )
 
 
@@ -83,6 +86,7 @@ def test_processes_price():
         symbol="NQ",
         current_price=22000.25,
         source="TRADINGVIEW",
+        timestamp=datetime.now(timezone.utc),
     )
 
     assert result["processed"] is True
@@ -101,6 +105,7 @@ def test_normalizes_symbol_and_source():
         symbol=" nq ",
         current_price=22000.0,
         source=" tradingview ",
+        timestamp=datetime.now(timezone.utc),
     )
 
     assert result["symbol"] == "NQ"
@@ -118,6 +123,7 @@ def test_forwards_price_to_monitor():
         symbol="NQ",
         current_price=22010.0,
         source="TRADINGVIEW",
+        timestamp=datetime.now(timezone.utc),
     )
 
     assert result["monitor_processed"] is True
@@ -148,12 +154,14 @@ def test_tracks_multiple_prices():
         symbol="NQ",
         current_price=22000.0,
         source="TRADINGVIEW",
+        timestamp=datetime.now(timezone.utc),
     )
 
     service.process_price(
         symbol="NQ",
         current_price=22005.0,
         source="TRADINGVIEW",
+        timestamp=datetime.now(timezone.utc),
     )
 
     state = service.get_state()
@@ -176,6 +184,7 @@ def test_rejects_empty_symbol():
             symbol="",
             current_price=22000.0,
             source="TRADINGVIEW",
+        timestamp=datetime.now(timezone.utc),
         )
 
 
@@ -190,6 +199,7 @@ def test_rejects_invalid_price():
             symbol="NQ",
             current_price=0,
             source="TRADINGVIEW",
+        timestamp=datetime.now(timezone.utc),
         )
 
 
@@ -230,6 +240,7 @@ def test_monitor_failure_is_recorded():
         symbol="NQ",
         current_price=22000.0,
         source="TRADINGVIEW",
+        timestamp=datetime.now(timezone.utc),
     )
 
     assert result["processed"] is True

@@ -248,6 +248,7 @@ class MarketDataHubV2:
                         normalized_price
                     ),
                     source=normalized_source,
+                    timestamp=received_datetime,
                 )
             )
 

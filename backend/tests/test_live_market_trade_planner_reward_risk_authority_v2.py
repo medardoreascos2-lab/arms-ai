@@ -457,34 +457,32 @@ def test_execution_confidence_remains_deferred():
     )
 
 
-def test_live_position_current_price_remains_deferred():
-    source = _source(
-        PIPELINE_PATH
+def test_live_position_current_price_uses_authoritative_price_path():
+    market_source = _source(
+        MARKET_PATH
     )
-    tree = ast.parse(
-        source
+    market_tree = ast.parse(
+        market_source
     )
 
-    matches = []
+    hub_calls = []
 
-    for node in ast.walk(tree):
+    for call in ast.walk(
+        market_tree
+    ):
         if not isinstance(
-            node,
+            call,
             ast.Call,
         ):
             continue
 
         func = _render(
-            source,
-            node.func,
+            market_source,
+            call.func,
         )
 
-        if (
-            "live_position_monitor_v2"
-            not in func
-            or not func.endswith(
-                ".process_price"
-            )
+        if not func.endswith(
+            ".process_market_price"
         ):
             continue
 
@@ -492,24 +490,109 @@ def test_live_position_current_price_remains_deferred():
             keyword.arg:
                 keyword.value
             for keyword
-            in node.keywords
+            in call.keywords
             if keyword.arg
             is not None
         }
 
-        if "current_price" in keywords:
-            matches.append(
-                keywords[
-                    "current_price"
-                ]
+        if (
+            "current_price" in keywords
+            and "timestamp" in keywords
+        ):
+            hub_calls.append(
+                keywords
             )
 
-    assert len(matches) == 1
+    assert len(hub_calls) == 1
 
     assert (
         _render(
-            source,
-            matches[0],
+            market_source,
+            hub_calls[0][
+                "current_price"
+            ],
         )
-        == "23650"
+        == "candle.close"
+    )
+
+    assert (
+        _render(
+            market_source,
+            hub_calls[0][
+                "timestamp"
+            ],
+        )
+        == "candle.timestamp"
+    )
+
+    hub_path = Path(
+        "backend/market_data/"
+        "market_data_hub_v2.py"
+    )
+
+    hub_source = _source(
+        hub_path
+    )
+    hub_tree = ast.parse(
+        hub_source
+    )
+
+    feed_calls = []
+
+    for call in ast.walk(
+        hub_tree
+    ):
+        if not isinstance(
+            call,
+            ast.Call,
+        ):
+            continue
+
+        func = _render(
+            hub_source,
+            call.func,
+        )
+
+        if not func.endswith(
+            ".process_price"
+        ):
+            continue
+
+        keywords = {
+            keyword.arg:
+                keyword.value
+            for keyword
+            in call.keywords
+            if keyword.arg
+            is not None
+        }
+
+        if (
+            "current_price" in keywords
+            and "timestamp" in keywords
+        ):
+            feed_calls.append(
+                keywords
+            )
+
+    assert len(feed_calls) == 1
+
+    assert (
+        _render(
+            hub_source,
+            feed_calls[0][
+                "current_price"
+            ],
+        )
+        == "normalized_price"
+    )
+
+    assert (
+        _render(
+            hub_source,
+            feed_calls[0][
+                "timestamp"
+            ],
+        )
+        == "received_datetime"
     )

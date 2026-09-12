@@ -21,6 +21,7 @@ class FakePriceFeedService:
         symbol,
         current_price,
         source,
+        timestamp=None,
     ):
         if self.fail:
             raise RuntimeError(

@@ -212,8 +212,9 @@ def test_webhook_processes_new_price_after_duplicate():
         ),
     }
 
-    start_time = datetime.now(
-        timezone.utc
+    start_time = (
+        datetime.now(timezone.utc)
+        - timedelta(seconds=3)
     )
 
     prices = (
@@ -232,7 +233,7 @@ def test_webhook_processes_new_price_after_duplicate():
                 timestamp=(
                     start_time
                     + timedelta(
-                        minutes=index
+                        seconds=index
                     )
                 ),
                 close=price,

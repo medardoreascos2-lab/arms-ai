@@ -2502,6 +2502,9 @@ def create_app(
             live_position_monitor_v2=(
                 app.state.live_position_monitor_v2
             ),
+            maximum_age_seconds=(
+                settings.maximum_quote_age_seconds
+            ),
         )
     )
 
