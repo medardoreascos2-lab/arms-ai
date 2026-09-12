@@ -3,7 +3,7 @@ from copy import deepcopy
 from enum import Enum
 import json
 from pathlib import Path
-from math import isfinite
+from backend.services.recovery_semantic_validation_v2 import validate_semantic_state
 
 from backend.connectors.paper_broker_connector_v2 import PaperBrokerConnectorV2
 from backend.services.durable_execution_state_v2 import (
@@ -78,16 +78,6 @@ class PendingOperationReconciliationV2:
         if (set(old_account["blocking_reasons"]) - set(new_account["blocking_reasons"])
                 or old_account["trading_blocked"] and not new_account["trading_blocked"]):
             raise ValueError("Reconciliation cannot remove baseline risk blocks.")
-        journal = {row["position_id"]: row for row in after["journal"]}
-        portfolio = risk_after["open_positions"] + risk_after["closed_positions"]
-        if (len(portfolio) != len(paper["positions"])
-                or {row.get("broker_position_id") for row in portfolio} != set(paper["positions"])):
-            raise ValueError("PAPER/portfolio identity mismatch.")
-        for key, order in paper["orders"].items():
-            if key != order["order_id"]:
-                raise ValueError("Order identity mismatch.")
-            if order["status"] == "FILLED" and order.get("position_id") not in paper["positions"]:
-                raise ValueError("Filled order lacks position evidence.")
         for key, order in before["paper"]["orders"].items():
             saved = paper["orders"].get(key)
             if saved is None or any(saved.get(field) != order.get(field) for field in (
@@ -96,60 +86,12 @@ class PendingOperationReconciliationV2:
         if any(paper["client_order_index"].get(key) != value
                for key, value in before["paper"]["client_order_index"].items()):
             raise ValueError("Historical client order identity changed.")
-        position_orders = {row["order_id"] for row in paper["positions"].values()}
-        if len(position_orders) != len(paper["positions"]):
-            raise ValueError("Multiple positions claim the same entry order.")
-        for fill in paper["fills"]:
-            if fill["order_id"] not in position_orders:
-                raise ValueError("Fill lacks corresponding position/accounting evidence.")
-            if any(isinstance(fill.get(key), bool) or not isinstance(fill.get(key), (int, float))
-                   or not isfinite(fill[key]) or fill[key] <= 0 for key in ("quantity", "filled_price")):
-                raise ValueError("Invalid fill quantity or price.")
-            if fill.get("fill_type") not in {None, "PARTIAL_CLOSE"}:
-                raise ValueError("Unsupported fill evidence.")
-        for position in portfolio:
-            broker = paper["positions"][position["broker_position_id"]]
-            trade = journal[position["position_id"]]
-            order = paper["orders"][broker["order_id"]]
-            entries = [row for row in paper["fills"] if row["order_id"] == broker["order_id"]
-                       and row.get("fill_type") != "PARTIAL_CLOSE"]
-            partials = [row for row in paper["fills"] if row["order_id"] == broker["order_id"]
-                        and row.get("fill_type") == "PARTIAL_CLOSE"]
-            if len(entries) != 1:
-                raise ValueError("Entry fill is not uniquely demonstrated.")
-            entry = entries[0]
-            if (broker["position_id"] != position["broker_position_id"]
-                    or broker["status"] != position["status"]
-                    or position["order_id"] != broker["order_id"]
-                    or order.get("position_id") != broker["position_id"]
-                    or entry["quantity"] != trade["contracts"]
-                    or entry["filled_price"] != order["filled_price"]
-                    or entry["filled_price"] != position["entry_price"]
-                    or trade["entry"] != position["entry_price"]
-                    or broker["entry_price"] != position["entry_price"]
-                    or entry["side"] != order["side"] or entry["side"] != broker["side"]
-                    or trade["direction"] != position["direction"]
-                    or entry["side"] != ("BUY" if position["direction"] == "LONG" else "SELL")
-                    or len({entry["symbol"], order["symbol"], broker["symbol"],
-                            trade["symbol"], position["symbol"]}) != 1):
-                raise ValueError("Broker, fill and journal evidence contradict each other.")
-            if not ((order["status"] == "FILLED" and entry["quantity"] == order["quantity"])
-                    or (order["status"] == "PARTIALLY_FILLED" and 0 < entry["quantity"] < order["quantity"])):
-                raise ValueError("Order fill status contradicts demonstrated quantity.")
-            remaining = round(entry["quantity"] - sum(row["quantity"] for row in partials), 10)
-            # PAPER full closes retain the last open quantity in both terminal
-            # records. Closed status must not exempt contradictory partial fills.
-            if (remaining <= 0 or remaining != position["quantity"]
-                    or remaining != broker["quantity"]):
-                raise ValueError("Remaining fill quantity contradicts exposure.")
-            if any(row["quantity"] <= 0 or row.get("position_id") != broker["position_id"] for row in partials):
-                raise ValueError("Invalid partial fill evidence.")
-            if any(row["symbol"] != broker["symbol"] or row["side"] == broker["side"] for row in partials):
-                raise ValueError("Partial fill direction or symbol mismatch.")
-            if position["status"] == "CLOSED" and (
-                    broker.get("exit_price") != position.get("exit_price")
-                    or trade.get("exit_price") != position.get("exit_price")):
-                raise ValueError("Closed position exit evidence contradicts accounting.")
+        if old_account["trading_day"] == new_account["trading_day"]:
+            previous = risk_before["account"].get("daily_pnl_adjustments", [])
+            current = risk_after["account"].get("daily_pnl_adjustments", [])
+            if current[:len(previous)] != previous:
+                raise ValueError("Historical daily risk adjustment changed or disappeared.")
+        validate_semantic_state(candidate, point_value_for=self.store.trade_lifecycle_service.position_manager._resolve_point_value)
 
     def _classify(self, path, raw):
         pending = checked_payload(raw)

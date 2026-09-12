@@ -7,6 +7,9 @@ from dataclasses import asdict, fields
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from functools import wraps
+
+from backend.services.recovery_semantic_validation_v2 import validate_semantic_state
 
 from backend.connectors.paper_broker_connector_v2 import PaperBrokerConnectorV2
 from backend.journal.trade_journal_v2 import TradeJournalEntry
@@ -23,6 +26,17 @@ from backend.execution.protective_order_registry_v2 import (
 from backend.services.trade_lifecycle_service_v2 import (
     TradeLifecycleServiceV2,
 )
+
+
+def _fail_closed_restore(method):
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except BaseException:
+            self._durability.fail_closed()
+            raise
+    return call
 
 
 class ExecutionStateStoreV2:
@@ -104,10 +118,11 @@ class ExecutionStateStoreV2:
     def _validate_records(self, records, positions, risk_snapshot):
         lifecycle = self.trade_lifecycle_service
         if records is None:
-            if lifecycle.trade_journal_v2 is not None and (
-                    positions or (risk_snapshot and risk_snapshot["closed_positions"])):
+            if positions or (risk_snapshot and risk_snapshot["closed_positions"]):
                 raise ValueError("Legacy snapshot lacks journal/execution records; reconciliation required.")
-            return None
+            records = {"journal": [], "history": [], "protections": [], "oco_groups": [],
+                       "paper": {"account_id": lifecycle.broker_connector_v2.account_id,
+                                 "orders": {}, "fills": [], "positions": {}, "client_order_index": {}}}
         if not isinstance(records, dict) or set(records) != {
                 "journal", "history", "protections", "oco_groups", "paper"}:
             raise ValueError("Incomplete execution records.")
@@ -342,6 +357,12 @@ class ExecutionStateStoreV2:
             state,
             field_name="state",
         )
+        lifecycle = self.trade_lifecycle_service
+        if (self._risk_portfolio() is None or lifecycle.trade_journal_v2 is None
+                or not isinstance(lifecycle.broker_connector_v2, PaperBrokerConnectorV2)
+                or lifecycle.protective_order_registry_v2 is not self.protective_order_registry
+                or lifecycle.oco_manager_v2 is not self.oco_manager):
+            raise ValueError("Recovery requires shared canonical PAPER/account/portfolio/journal/protection authorities.")
         # Memory recovery can also receive a persisted envelope. Never discard its fence.
         if "durability" in normalized_state or "checksum" in normalized_state:
             verify(normalized_state)
@@ -694,7 +715,7 @@ class ExecutionStateStoreV2:
                 raise ValueError("Active protection records mismatch.")
             if [r for r in records["oco_groups"] if r["status"] == "ACTIVE"] != groups:
                 raise ValueError("Active OCO records mismatch.")
-        return {
+        validated = {
             "schema_version": self.SCHEMA_VERSION,
             "execution_records": records,
             "account_portfolio": risk_snapshot,
@@ -722,6 +743,18 @@ class ExecutionStateStoreV2:
                 ),
             },
         }
+
+        validate_semantic_state(validated, point_value_for=lifecycle.position_manager._resolve_point_value)
+        return validated
+
+    def verify_restored_state(self, *, state):
+        expected = self.validate_state(state=state)
+        actual = self.capture_state()
+        self.validate_state(state=actual)
+        actual["captured_at"] = expected["captured_at"]
+        if actual != expected:
+            raise ValueError("Post-restore participants do not exactly match expected evidence.")
+        return True
 
     def _ensure_empty_targets(
         self,
@@ -751,6 +784,7 @@ class ExecutionStateStoreV2:
             )
 
     @state_locked
+    @_fail_closed_restore
     def restore_state(
         self,
         *,
@@ -770,11 +804,19 @@ class ExecutionStateStoreV2:
         self._ensure_empty_targets()
         records = self._capture_records()
         if (records["history"] or records["journal"]
-                or (records["paper"] and (records["paper"]["orders"] or records["paper"]["positions"]))):
+                or (records["paper"] and any(records["paper"][key] for key in
+                    ("orders", "fills", "positions", "client_order_index")))):
             raise ValueError("Cannot restore over existing execution records.")
         portfolio = self._risk_portfolio()
         if portfolio is not None:
+            if portfolio.get_open_positions() or portfolio.get_closed_positions():
+                raise ValueError("Cannot restore over existing portfolio evidence.")
             current_risk = portfolio.account_state_manager_v2.get_state()
+            if any(current_risk[key] for key in ("realized_pnl", "unrealized_pnl", "open_positions", "closed_positions")):
+                raise ValueError("Cannot restore over existing account execution evidence.")
+            current_adjustments = portfolio.account_state_manager_v2.capture_state().get("daily_pnl_adjustments", [])
+            if current_adjustments and current_adjustments != normalized["account_portfolio"]["account"].get("daily_pnl_adjustments", []):
+                raise ValueError("Cannot overwrite existing risk block or daily adjustment evidence.")
             saved_risk = normalized["account_portfolio"]["account"]["state"]
             if (current_risk["trading_blocked"] and not saved_risk["trading_blocked"]
                     or set(current_risk["blocking_reasons"]) - set(saved_risk["blocking_reasons"])):
@@ -888,6 +930,7 @@ class ExecutionStateStoreV2:
             )
 
         self._restore_records(normalized.get("execution_records"))
+        self.verify_restored_state(state=normalized)
         self._restored_state = deepcopy(normalized)
         self._accept_restored_checkpoint(normalized)
         return {

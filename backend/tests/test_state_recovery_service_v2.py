@@ -66,6 +66,7 @@ class FakeExecutionStateStore:
             restore_result
             if restore_result is not None
             else {
+                "restored": True,
                 "restored_positions": 2,
                 "restored_protections": 1,
                 "restored_oco_groups": 1,
@@ -108,6 +109,10 @@ class FakeExecutionStateStore:
             raise self.validate_error
 
         return dict(state)
+
+    def verify_restored_state(self, *, state):
+        assert state == self.restore_calls[-1]
+        return True
 
     def restore_state(
         self,
@@ -250,6 +255,7 @@ def test_recover_restores_state_from_memory():
         "active_oco_groups": 1,
     }
     assert report["restore_result"] == {
+        "restored": True,
         "restored_positions": 2,
         "restored_protections": 1,
         "restored_oco_groups": 1,

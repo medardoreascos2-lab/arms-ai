@@ -18,17 +18,11 @@ from backend.analytics.trade_history_manager_v2 import (
 from backend.execution.execution_manager_v2 import (
     ExecutionManagerV2,
 )
-from backend.execution.oco_manager_v2 import (
-    OCOManagerV2,
-)
 from backend.execution.paper_execution_engine_v2 import (
     PaperExecutionEngineV2,
 )
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
-)
-from backend.execution.protective_order_registry_v2 import (
-    ProtectiveOrderRegistryV2,
 )
 from backend.services.execution_state_store_v2 import (
     ExecutionStateStoreV2,
@@ -73,124 +67,14 @@ def build_lifecycle_service() -> (
 
 
 def build_store() -> ExecutionStateStoreV2:
-    return ExecutionStateStoreV2(
-        trade_lifecycle_service=(
-            build_lifecycle_service()
-        ),
-        protective_order_registry=(
-            ProtectiveOrderRegistryV2()
-        ),
-        oco_manager=OCOManagerV2(),
-    )
+    # Recovery fixtures must carry broker execution, journal and account proof.
+    from backend.tests.test_durable_crash_recovery_v2 import build_runtime
+    return build_runtime()[2]
 
 
-def build_position() -> dict[str, object]:
-    return {
-        "opened": True,
-        "position_id": "position-state-001",
-        "broker_position_id": (
-            "broker-position-state-001"
-        ),
-        "order_id": "entry-order-001",
-        "symbol": "NQ",
-        "direction": "LONG",
-        "quantity": 2.0,
-        "entry_price": 23000.0,
-        "current_price": 23010.0,
-        "stop_loss": 22980.0,
-        "take_profit": 23040.0,
-        "point_value": 2.0,
-        "unrealized_points": 10.0,
-        "unrealized_pnl": 40.0,
-        "realized_pnl": 0.0,
-        "status": "OPEN",
-        "exit_price": None,
-        "close_reason": None,
-        "execution_mode": "PAPER",
-        "protection_group_id": (
-            "protection-state-001"
-        ),
-        "oco_group_id": "oco-state-001",
-        "stop_order_id": "stop-state-001",
-        "take_profit_order_id": (
-            "take-profit-state-001"
-        ),
-    }
-
-
-def populate_store(
-    store: ExecutionStateStoreV2,
-) -> None:
-    position = build_position()
-
-    store.trade_lifecycle_service\
-        .restore_active_position(
-            position=position,
-        )
-
-    store.protective_order_registry\
-        .create_protection(
-            position_id=str(
-                position["position_id"]
-            ),
-            broker_position_id=str(
-                position[
-                    "broker_position_id"
-                ]
-            ),
-            symbol=str(position["symbol"]),
-            direction=str(
-                position["direction"]
-            ),
-            quantity=float(
-                position["quantity"]
-            ),
-            entry_price=float(
-                position["entry_price"]
-            ),
-            stop_price=float(
-                position["stop_loss"]
-            ),
-            take_profit_price=float(
-                position["take_profit"]
-            ),
-            protection_group_id=str(
-                position[
-                    "protection_group_id"
-                ]
-            ),
-            stop_order_id=str(
-                position["stop_order_id"]
-            ),
-            take_profit_order_id=str(
-                position[
-                    "take_profit_order_id"
-                ]
-            ),
-            metadata={
-                "source": "state-store-test",
-            },
-        )
-
-    store.oco_manager.create_group(
-        position_id=str(
-            position["position_id"]
-        ),
-        stop_order_id=str(
-            position["stop_order_id"]
-        ),
-        take_profit_order_id=str(
-            position[
-                "take_profit_order_id"
-            ]
-        ),
-        oco_group_id=str(
-            position["oco_group_id"]
-        ),
-        metadata={
-            "source": "state-store-test",
-        },
-    )
+def populate_store(store: ExecutionStateStoreV2) -> None:
+    from backend.tests.test_durable_crash_recovery_v2 import open_position
+    open_position(store.trade_lifecycle_service)
 
 
 def test_captures_active_execution_state() -> None:

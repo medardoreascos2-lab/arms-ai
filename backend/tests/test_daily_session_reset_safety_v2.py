@@ -11,7 +11,7 @@ from backend.services.market_hours_service_v2 import MarketHoursServiceV2
 from backend.services.state_recovery_service_v2 import StateRecoveryServiceV2
 from backend.services.startup_coordinator_v2 import StartupCoordinatorV2
 from backend.tests.test_daily_pnl_safety_v2 import add_position, close_trade
-from backend.tests.test_execution_state_store_v2 import build_store, populate_store, build_position
+from backend.tests.test_execution_state_store_v2 import build_store, populate_store
 from backend.tests.test_trade_lifecycle_service_v2 import (
     build_valid_signal, execution_state, observed_service,
 )
@@ -172,21 +172,49 @@ def test_clock_rollback_never_reopens_risk_capacity():
 def dated_store(clock):
     store = build_store()
     account, portfolio = build_portfolio(clock)
-    store.trade_lifecycle_service.portfolio_manager_v2 = portfolio
+    lifecycle = store.trade_lifecycle_service
+    lifecycle.portfolio_manager_v2 = portfolio
+    lifecycle.broker_connector_v2._utc_now = lambda: clock().isoformat()
+    account._durability = portfolio._durability = store._durability
     return store, account, portfolio
+
+
+def open_recovery_trade(store):
+    """Persist actual PAPER fills/terminal evidence for the dated recovery tests."""
+    from backend.tests.test_durable_crash_recovery_v2 import signal
+    lifecycle = store.trade_lifecycle_service
+    order = signal()
+    order.update(entry_price=1000., stop_loss=990., take_profit=1040.)
+    result = lifecycle.submit_signal(signal=order, order_type="MARKET", risk_context={
+        "account_balance": 17000., "risk_percent": .25, "point_value": 2.,
+        "daily_pnl": 0., "total_drawdown": 0.})
+    assert result["accepted"], result
+    return result["position"]
+
+
+def close_recovery_trade(store, pnl):
+    position = open_recovery_trade(store)
+    store.trade_lifecycle_service.update_position(
+        position_id=position["position_id"], current_price=1000. + pnl / 4.)
 
 
 @pytest.mark.parametrize("after_rollover", [False, True])
 def test_h_disk_restart_same_day_keeps_daily_state_and_baseline(tmp_path, after_rollover):
     clock = Clock()
     source, account, portfolio = dated_store(clock)
-    close_trade(portfolio, "yesterday", -600.0)
+    # A real partial loss leaves one managed position while the daily block is
+    # active. No new position is fabricated after admission has been blocked.
+    position = open_recovery_trade(source)
+    position.update(quantity=1., current_price=700., partial_exit_price=700.,
+                    partial_taken=True, partial_pnl_recorded=True,
+                    partial_closed_quantity=1., realized_pnl=-600.)
+    source.trade_lifecycle_service.replace_active_position(position=position)
     if after_rollover:
         advance(clock)
         account.ensure_trading_day()
-        close_trade(portfolio, "today", -100.0)
-    populate_store(source)
-    portfolio.add_position(position=build_position())
+        source.trade_lifecycle_service.update_position(
+            position_id=position["position_id"], current_price=950.)
+        populate_store(source)
     before = portfolio.capture_risk_state()
     path = tmp_path / "state.json"
     source.save_to_file(file_path=path)
@@ -213,7 +241,7 @@ def test_h_disk_restart_same_day_keeps_daily_state_and_baseline(tmp_path, after_
 def test_restart_from_previous_day_resets_once_on_first_use(tmp_path):
     clock = Clock()
     source, account, portfolio = dated_store(clock)
-    close_trade(portfolio, "yesterday", -600.0)
+    close_recovery_trade(source, -600.0)
     path = tmp_path / "state.json"
     source.save_to_file(file_path=path)
     advance(clock)
@@ -231,7 +259,7 @@ def test_restart_from_previous_day_resets_once_on_first_use(tmp_path):
 def test_incomplete_or_inconsistent_recovery_fails_before_mutation(damage):
     clock = Clock()
     source, _, portfolio = dated_store(clock)
-    close_trade(portfolio, "loss", -600.0)
+    close_recovery_trade(source, -600.0)
     snapshot = source.capture_state()
     state = snapshot["account_portfolio"]["account"]["state"]
     if damage == "missing_snapshot":
@@ -250,7 +278,9 @@ def test_incomplete_or_inconsistent_recovery_fails_before_mutation(damage):
     before = restored.get_state()
     with pytest.raises(ValueError):
         target.restore_state(state=snapshot)
+    before.update(trading_blocked=True, blocking_reasons=["durability_consistency_unproven"])
     assert restored.get_state() == before
+    assert target._durability.failed
     assert target_portfolio.get_open_positions() == []
     assert target_portfolio.get_closed_positions() == []
     assert target.trade_lifecycle_service.get_active_positions() == []

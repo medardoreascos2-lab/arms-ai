@@ -174,6 +174,9 @@ class StateRecoveryServiceV2:
                 )
             )
 
+            if not isinstance(restore_result, dict) or restore_result.get("restored") is not True:
+                raise ValueError("Recovery store did not confirm restoration.")
+            self.execution_state_store.verify_restored_state(state=validated_state)
             report: dict[str, object] = {
                 "success": True,
                 "source": "memory",
@@ -270,6 +273,9 @@ class StateRecoveryServiceV2:
                 )
             )
 
+            if not isinstance(restore_result, dict) or restore_result.get("restored") is not True:
+                raise ValueError("Recovery store did not confirm restoration.")
+            self.execution_state_store.verify_restored_state(state=validated_state)
             report: dict[str, object] = {
                 "success": True,
                 "source": str(path),

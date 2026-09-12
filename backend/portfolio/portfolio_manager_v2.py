@@ -349,21 +349,10 @@ class PortfolioManagerV2:
             ) * quantity * point_value
 
 
-        if "total_pnl" in position:
-
-            pnl = float(
-                position.get(
-                    "total_pnl",
-                    0.0,
-                )
-                or 0.0
-            )
-
-        elif realized_pnl is not None:
-
-            pnl = float(
-                realized_pnl
-            )
+        # Lifecycle supplies cumulative partial + remaining-close PnL. An open
+        # position's total_pnl can be a stale mark and has no closing authority.
+        if realized_pnl is not None:
+            pnl = float(realized_pnl)
 
         else:
 
@@ -382,6 +371,8 @@ class PortfolioManagerV2:
             10,
         )
 
+        position["total_pnl"] = position["realized_pnl"]
+        position["unrealized_pnl"] = 0.0
         self._closed_positions.append(
             position
         )

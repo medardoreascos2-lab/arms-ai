@@ -89,6 +89,7 @@ class AccountStateManagerV2:
                 "cuando está definido."
             )
 
+        self._daily_pnl_adjustments = []
         self._lock = RLock()
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._state = {
@@ -471,6 +472,11 @@ class AccountStateManagerV2:
         self.ensure_trading_day()
         self._preserve_unclassified_block()
 
+        self._daily_pnl_adjustments.append({
+            "trading_day": self._state["trading_day"],
+            "recorded_at": self._clock().isoformat(),
+            "amount": round(daily_pnl - self._state["daily_pnl"], 10),
+        })
         return self._record_daily_pnl(daily_pnl=daily_pnl)
 
     def _record_daily_pnl(self, *, daily_pnl: float) -> dict[str, object]:
@@ -546,6 +552,7 @@ class AccountStateManagerV2:
             return {"reset": False, "state": self.get_state()}
         self._preserve_unclassified_block()
         self._state["trading_day"] = day
+        self._daily_pnl_adjustments = []
         # Keep realized_pnl as the synchronization baseline. The next
         # portfolio update must not rebook realizations from previous days.
 
@@ -600,6 +607,7 @@ class AccountStateManagerV2:
     def capture_state(self) -> dict[str, object]:
         return {
             "state": self.get_state(),
+            **({"daily_pnl_adjustments": deepcopy(self._daily_pnl_adjustments)} if self._daily_pnl_adjustments else {}),
             "maximum_daily_loss": self.maximum_daily_loss,
             "maximum_total_drawdown": self.maximum_total_drawdown,
         }
@@ -647,4 +655,16 @@ class AccountStateManagerV2:
                 or state["equity"] != round(state["balance"] + state["unrealized_pnl"], 10)
                 or state["drawdown"] != round(max(0.0, state["peak_equity"] - state["equity"]), 10)):
             raise ValueError("Inconsistent account financial snapshot.")
+        adjustments = deepcopy(snapshot.get("daily_pnl_adjustments", []))
+        if not isinstance(adjustments, list):
+            raise ValueError("Invalid daily PnL adjustment evidence.")
+        for row in adjustments:
+            if (not isinstance(row, dict) or set(row) != {"trading_day", "recorded_at", "amount"}
+                    or row["trading_day"] != day or isinstance(row["amount"], bool)
+                    or not isinstance(row["amount"], (int, float)) or not isfinite(row["amount"])):
+                raise ValueError("Invalid daily PnL adjustment evidence.")
+            recorded = datetime.fromisoformat(row["recorded_at"])
+            if recorded.tzinfo is None or MarketHoursServiceV2.trading_day_for(recorded).isoformat() != day:
+                raise ValueError("Invalid daily PnL adjustment timestamp.")
+        self._daily_pnl_adjustments = adjustments
         self._state = state
