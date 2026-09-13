@@ -42,6 +42,7 @@ Ninguna idea histórica debe desaparecer únicamente porque no figure en un road
 Cada elemento deberá clasificarse con uno de estos estados:
 
 - `VERIFIED_IMPLEMENTED`
+- `VERIFIED_CLOSED`
 - `PARTIALLY_IMPLEMENTED`
 - `PLANNED_NOT_IMPLEMENTED`
 - `HISTORICAL_IDEA`
@@ -115,7 +116,9 @@ Pendiente.
 Pendiente.
 
 ### 7.5 Execution Safety
-Pendiente.
+La estabilización crítica de Phase 0 fue formalmente certificada como cerrada. La certificación incluye la prevención de ejecución para señales bloqueadas y la eliminación de efectos de ejecución en operaciones de lectura del dashboard.
+
+Los detalles trazables de los ocho requisitos certificados están registrados en la Requirements Matrix.
 
 ---
 
@@ -139,7 +142,9 @@ Pendiente.
 
 ## 11. DASHBOARD & FRONTEND
 
-Pendiente.
+La estabilización crítica de Phase 0 certificó el cierre del requisito relativo a impedir efectos de ejecución en operaciones de lectura del dashboard.
+
+La consolidación histórica y la auditoría completa de capacidades del dashboard continúan pendientes.
 
 ---
 
@@ -179,7 +184,9 @@ Pendiente.
 
 ## 16. ACCOUNTS & PORTFOLIO
 
-Pendiente.
+La estabilización crítica de Phase 0 certificó el cierre de los requisitos relativos a la consistencia del cambio de cuenta, la sincronización del PnL diario y la sincronización de la pérdida diaria y el bloqueo de trading.
+
+La consolidación histórica y la auditoría de capacidades adicionales de cuentas y portfolio continúan pendientes.
 
 ---
 
@@ -191,19 +198,25 @@ Pendiente.
 
 ## 18. SECURITY
 
-Pendiente.
+La revisión y aplicación de los límites de seguridad de la API formó parte de los ocho requisitos de Phase 0 y fue formalmente certificada como cerrada.
+
+La auditoría histórica y técnica de seguridad más allá del alcance de Phase 0 continúa pendiente.
 
 ---
 
 ## 19. DEPLOYMENT & INFRASTRUCTURE
 
-Pendiente.
+La resolución de las inconsistencias de rutas de inicio y runtime formó parte de los ocho requisitos de Phase 0 y fue formalmente certificada como cerrada.
+
+La consolidación histórica y la revisión de infraestructura más amplia continúan pendientes.
 
 ---
 
 ## 20. APIs & EXTERNAL PROVIDERS
 
-Pendiente.
+La estabilización de Phase 0 incluyó el cierre certificado de los límites de seguridad de la API.
+
+La consolidación histórica de proveedores externos y capacidades adicionales de API continúa pendiente.
 
 ---
 
@@ -257,22 +270,47 @@ Pendiente de análisis histórico.
 
 ## 29. CURRENT VERIFIED STATE
 
-Pendiente de cruzar:
+### 29.1 Phase 0 — Critical Stabilization
 
-1. Auditoría técnica actual.
-2. Historial completo.
-3. Código actual.
-4. Tests actuales.
-5. Documentación actual.
+Phase 0 está formalmente cerrada y certificada.
+
+Estado certificado:
+
+- `PHASE0_REQUIREMENTS=8`
+- `PHASE0_VERIFIED_CLOSED=8`
+- `PHASE0_PARTIAL_COUNT=0`
+- `PHASE0_OPEN_COUNT=0`
+- `PHASE0_NEEDS_VERIFICATION_COUNT=0`
+- `PHASE0_AUDIT_COMPLETE=YES`
+- `PHASE0_CLOSE_RECOMMENDATION=CLOSE`
+
+Evidencia de certificación:
+
+- Regresión completa de backend: `5082 tests passed`
+- Commit de cierre: `c13cd54d7ec0453c86e934ce117ce11764de5a4e`
+- Mensaje del commit: `test: close Phase 0 critical stabilization gaps`
+
+Los ocho requisitos cerrados están identificados individualmente en la Requirements Matrix con estado `VERIFIED_CLOSED`.
+
+### 29.2 Boundaries of the Certified State
+
+La certificación de Phase 0 confirma el cierre del alcance de estabilización crítica definido para esa fase. No certifica todavía:
+
+- la consolidación histórica completa,
+- la definición final del producto,
+- la definición de MVP, beta o producción,
+- el alcance final de Phase 1,
+- las fases posteriores,
+- funcionalidades históricas que aún requieren verificación.
 
 ---
 
 ## 30. OPEN QUESTIONS
 
-Pendiente.
+Pendiente de consolidar el historial completo y reconciliarlo con el código, los tests y la documentación actuales.
 
 ---
 
 ## 31. LAST CONSOLIDATION
 
-Status: NOT YET CONSOLIDATED
+Status: `PHASE 0 CERTIFIED CLOSED; HISTORICAL CONSOLIDATION NOT YET COMPLETE`

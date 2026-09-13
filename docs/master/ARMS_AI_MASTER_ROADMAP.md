@@ -9,7 +9,13 @@
 
 Current status:
 
-`DRAFT — WAITING FOR HISTORICAL CONSOLIDATION`
+`DRAFT — HISTORICAL CONSOLIDATION STILL PENDING`
+
+Phase 0 status:
+
+`CLOSED — FORMALLY CERTIFIED`
+
+The formal closure of Phase 0 does not constitute completion of the historical consolidation or approval of Phase 1 scope.
 
 ---
 
@@ -49,26 +55,44 @@ Orden general de prioridad:
 
 ## 4. PHASE 0 — CRITICAL STABILIZATION
 
-Status: IN PREPARATION
+Status: `CLOSED — FORMALLY CERTIFIED`
 
-Candidate items from current audit:
+Phase 0 was formally recertified with all eight stabilization requirements closed:
 
-- Prevent blocked signals from executing.
-- Remove execution side effects from dashboard read operations.
-- Correct daily PnL synchronization.
-- Correct daily loss / trading block synchronization.
-- Correct account switching consistency.
-- Complete execution state recovery.
-- Resolve startup/runtime path inconsistencies.
-- Review API security boundaries.
+- `PHASE0_REQUIREMENTS=8`
+- `PHASE0_VERIFIED_CLOSED=8`
+- `PHASE0_PARTIAL_COUNT=0`
+- `PHASE0_OPEN_COUNT=0`
+- `PHASE0_NEEDS_VERIFICATION_COUNT=0`
+- `PHASE0_AUDIT_COMPLETE=YES`
+- `PHASE0_CLOSE_RECOMMENDATION=CLOSE`
 
-Final contents pending verification.
+The certified Phase 0 closure is supported by:
+
+- Full backend regression: `5082 tests passed`
+- Closure commit: `c13cd54d7ec0453c86e934ce117ce11764de5a4e`
+- Closure commit message: `test: close Phase 0 critical stabilization gaps`
+
+The eight certified requirements are recorded individually in the Requirements Matrix:
+
+1. Prevent blocked signals from executing.
+2. Remove execution side effects from dashboard read operations.
+3. Correct daily PnL synchronization.
+4. Correct daily loss and trading-block synchronization.
+5. Correct account switching consistency.
+6. Complete execution state recovery.
+7. Resolve startup/runtime path inconsistencies.
+8. Review and enforce API security boundaries.
+
+Phase 0 closure means that the defined critical stabilization scope has been audited and certified closed. It does not erase historical information, replace the pending historical consolidation, or define the contents of Phase 1.
 
 ---
 
 ## 5. PHASE 1 — CORE RELIABILITY
 
-Pending historical consolidation.
+Pending historical consolidation and explicit Phase 1 definition.
+
+No final Phase 1 scope is established by the closure of Phase 0.
 
 ---
 
@@ -154,17 +178,19 @@ Release gates should include:
 - documentation,
 - operational verification.
 
+Phase 0 satisfied its certified closure gate through the documented eight-of-eight recertification and the full backend regression result of 5082 passed tests.
+
 ---
 
 ## 18. CURRENT NEXT ACTION
 
-Complete critical stabilization while waiting for the complete ChatGPT export.
+Complete the documentation closeout for the certified Phase 0 state while preserving the distinction between verified implementation and pending historical consolidation.
 
-Then:
+Then execute the following sequence:
 
 Historical consolidation
-→ Requirements matrix
-→ Master Memory
-→ Decision Log
+→ Requirements Matrix reconciliation
+→ Master Memory reconciliation
+→ Decision Log reconciliation
 → Final Master Roadmap
-→ Development phases
+→ Phase 1 definition and execution
