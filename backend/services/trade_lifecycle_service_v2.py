@@ -2081,7 +2081,9 @@ class TradeLifecycleServiceV2(
                     ),
                 )
 
-        if updated_status != "CLOSED":
+        if updated_status == "CLOSED":
+            updated_position["unrealized_pnl"] = 0.0
+        else:
             self._sync_open_position_state(updated_position)
         return {
             "updated": True,

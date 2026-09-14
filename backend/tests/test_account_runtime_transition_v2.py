@@ -20,15 +20,17 @@ ADMIN_TOKEN = "admin-secret"
 ADMIN_HEADERS = {"X-ARMS-ADMIN-TOKEN": ADMIN_TOKEN}
 
 
+
+
 @pytest.fixture
-def hosted(legacy_runtime, tmp_path, monkeypatch):
+def hosted(runtime, tmp_path, monkeypatch):
     monkeypatch.setenv("ARMS_ADMIN_TOKEN", ADMIN_TOKEN)
 
-    manager = legacy_runtime.safety._managers[0]
+    manager = runtime.safety._managers[0]
 
     def make():
         return AccountRuntimeCoordinatorV2(
-            config_path=legacy_runtime.config,
+            config_path=runtime.config,
             namespace_root=tmp_path / "accounts",
             registry=manager.registry,
         )
@@ -41,7 +43,7 @@ def hosted(legacy_runtime, tmp_path, monkeypatch):
             app=app,
             client=client,
             make=make,
-            config=legacy_runtime.config,
+            config=runtime.config,
         )
 
 

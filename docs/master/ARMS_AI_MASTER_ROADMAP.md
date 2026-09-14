@@ -1,7 +1,8 @@
 # ARMS AI — MASTER ROADMAP
 
 > Evidence-based roadmap for ARMS AI.
-> Current repository code and tests are authoritative for implementation status.
+> Current repository code, current tests, runtime characterization, closure-wave
+> evidence, and operational evidence are authoritative for implementation status.
 > Historical evidence preserves intent and prior demonstrations but does not
 > prove current implementation.
 
@@ -11,7 +12,7 @@
 
 Current status:
 
-`PHASE 1 CERTIFIED FOR ENTRY-GATE VERIFICATION`
+`PHASE 1 CHARACTERIZED — CLOSURE WAVE REVIEWED — NOT CERTIFIED COMPLETE`
 
 Historical consolidation status:
 
@@ -23,20 +24,36 @@ Phase 0 status:
 
 Phase 1 status:
 
-`DEFINED — CORE RELIABILITY`
+`CORE RELIABILITY — CHARACTERIZATION AND CLOSURE-WAVE REVIEW COMPLETE; EXIT GATES OPEN`
 
-The roadmap is now reconciled against:
+The roadmap is reconciled against:
 
-- `AGENTS.md`
-- `HISTORICAL_EVIDENCE_2026.md`
-- `CONSOLIDATED_AUDIT_CONTEXT.md`
-- current repository implementation and tests
-- Phase 0 certified closure
-- completed GREEN audits 210 through 290
+- `AGENTS.md`;
+- `HISTORICAL_EVIDENCE_2026.md`;
+- `CONSOLIDATED_AUDIT_CONTEXT.md`;
+- current repository implementation and tests;
+- Phase 0 certification;
+- GREEN audits 210 through 290;
+- Phase 1 runtime, risk, recovery, account-isolation, API/dashboard, financial-
+  synchronization, compatibility, and closure-wave evidence.
 
-Phase 1 scope is formally defined, but Phase 1 implementation is not complete.
-Certification of Phase 1 scope does not certify that its requirements have been
-implemented.
+The closure wave reviewed supplied evidence showing:
+
+```text
+PHASE1_VERIFIED_COUNT=2
+PHASE1_PARTIAL_COUNT=10
+PHASE1_OPEN_COUNT=0
+PHASE1_NEEDS_VERIFICATION_COUNT=0
+BACKEND_TEST_COUNT=630
+BACKEND_TESTS_PASSED=5041
+BACKEND_TEST_EXIT=0
+```
+
+The full regression is green based on supplied repository evidence. It was not
+executed by this documentation update.
+
+Phase 1 has not been closed because the accumulated evidence does not satisfy
+every Phase 1 exit gate.
 
 Autonomous LIVE trading remains blocked.
 
@@ -44,18 +61,20 @@ Autonomous LIVE trading remains blocked.
 
 ## 2. EVIDENCE AND STATUS POLICY
 
-The following evidence hierarchy applies:
+Evidence is interpreted in this order:
 
 1. Current repository implementation and current tests.
 2. Current runtime composition and operational evidence.
-3. Formal Phase 0 certification.
-4. Completed GREEN audit evidence.
-5. Historical documentation and historical demonstrations.
+3. Current characterization and integration evidence.
+4. Phase 1 closure-wave evidence.
+5. Formal Phase 0 certification.
+6. Completed GREEN audit evidence.
+7. Historical documentation and historical demonstrations.
 
 A component filename, class name, roadmap statement, historical API response,
 or prior test report does not prove current implementation by itself.
 
-Capabilities must be classified using the following statuses:
+Capabilities use these statuses:
 
 - `VERIFIED_IMPLEMENTED`
 - `VERIFIED_CLOSED`
@@ -69,8 +88,12 @@ Capabilities must be classified using the following statuses:
 - `BLOCKED`
 - `DEFERRED`
 
-`VERIFIED_CLOSED` is reserved for the formally certified Phase 0 scope unless a
-future certification explicitly establishes another closed scope.
+`VERIFIED_CLOSED` is reserved for formally certified closure. Phase 0 is the
+currently certified closed scope.
+
+A characterization or closure-wave result may be stronger than an unverified
+component classification without constituting approval or closure. Partial
+evidence must remain partial where application-wide behavior is not proven.
 
 ---
 
@@ -110,7 +133,7 @@ Status:
 
 `VERIFIED_CLOSED — FORMALLY CERTIFIED`
 
-Phase 0 consisted of eight critical stabilization requirements:
+Phase 0 contained eight critical stabilization requirements:
 
 1. Prevent blocked signals from executing.
 2. Remove execution side effects from dashboard read operations.
@@ -144,7 +167,7 @@ Phase 0 closure is limited to its certified scope. It does not certify:
 - production readiness;
 - autonomous LIVE trading;
 - physical broker execution;
-- complete cross-subsystem state synchronization;
+- complete cross-subsystem synchronization;
 - complete route or authorization coverage beyond the certified scope.
 
 ---
@@ -155,302 +178,157 @@ Status:
 
 `COMPLETE`
 
-GREEN audits 210 through 290 established the following:
+GREEN audits 210 through 290 established that:
 
-- historical requirements were reconciled against current repository evidence;
-- current implementation status was separated from historical intent;
-- architecture duplication and supersession risks were documented;
-- MVP gaps were identified;
-- the Requirements Matrix was reconciled;
-- Master Memory and Decision Log reconciliation requirements were defined;
-- the final roadmap design was completed;
-- Phase 1 scope was formally certified;
+- historical requirements must be separated from current implementation;
+- current repository code and tests are authoritative;
+- architecture duplication and supersession risks must be documented;
+- MVP gaps must remain explicit;
+- the Requirements Matrix, Master Memory, Decision Log, and roadmap must
+  preserve evidence boundaries;
+- Phase 1 must be characterized before implementation expansion or
+  consolidation;
 - no production code or tests were modified by the audit chain;
 - autonomous LIVE trading remained disabled;
-- no destructive consolidation was authorized.
+- destructive consolidation was not authorized.
 
-The audit chain does not itself mark unresolved capabilities as implemented.
-Phase 1 requirements remain open until repository-derived characterization,
-integration, and operational evidence is produced.
+The audit chain does not mark unresolved capabilities as implemented.
 
 ---
 
 ## 6. PHASE 1 — CORE RELIABILITY
 
-Status:
+Current status:
 
-`DEFINED — CERTIFIED FOR ENTRY-GATE VERIFICATION`
+`CHARACTERIZED — CLOSURE WAVE REVIEWED — NOT CERTIFIED COMPLETE`
 
-### 6.1 Objective
+Phase 1 objective:
 
-Establish a repository-derived authoritative runtime architecture for the
-controlled PAPER trading system.
+> Establish a repository-derived authoritative runtime architecture for the
+> controlled PAPER trading system.
 
 Phase 1 is an architecture, ownership, characterization, and reliability
 phase. It does not expand product scope and does not enable LIVE execution.
 
-### 6.2 Scope
+### 6.1 Closure-wave evidence result
 
-Phase 1 covers:
+The closure wave reviewed evidence for:
 
-- the repository-derived runtime call graph;
-- canonical market-data-to-decision-to-PAPER execution composition;
-- execution ownership boundaries;
-- risk-authority ownership;
-- account and financial-state ownership;
-- fill synchronization;
-- account-switch containment;
-- startup, shutdown, recovery, and pending-operation ownership;
-- API and dashboard route ownership;
-- compatibility and supersession classification;
-- characterization tests;
-- the canonical documentation baseline.
+- ASGI and direct FastAPI application paths;
+- the separate CLI/process path;
+- runtime context construction;
+- startup, shutdown, recovery, and durability layers;
+- the strongest observed PAPER lifecycle;
+- risk-authority ownership and unresolved overlaps;
+- financial-state and fill-synchronization behavior;
+- coordinated account-switch containment;
+- API/dashboard route ownership and authorization attachment;
+- compatibility and supersession classifications;
+- current focused tests;
+- supplied current full backend regression evidence.
 
-### 6.3 Phase 1 requirements
-
-The following requirements are in scope and remain open until verified.
-
-#### PH1-REQ-001 — Repository-derived runtime call graph
-
-Document the active runtime path from the actual process entry point through:
-
-- application factory;
-- router composition;
-- startup and shutdown;
-- runtime context publication;
-- market-data intake and validation;
-- signal generation;
-- decision and admission;
-- trade-plan validation;
-- risk evaluation;
-- PAPER execution;
-- position and protection management;
-- account and portfolio updates;
-- journal and history updates;
-- dashboard events;
-- persistence;
-- recovery;
-- pending-operation reconciliation.
-
-The call graph must distinguish active, parallel, compatibility, legacy, and
-unverified paths.
-
-#### PH1-REQ-002 — Canonical PAPER execution path
-
-Select and document one canonical path:
+The recorded totals are:
 
 ```text
-validated market data
+PHASE1_VERIFIED_COUNT=2
+PHASE1_PARTIAL_COUNT=10
+PHASE1_OPEN_COUNT=0
+PHASE1_NEEDS_VERIFICATION_COUNT=0
+BACKEND_TEST_COUNT=630
+BACKEND_TESTS_PASSED=5041
+BACKEND_TEST_EXIT=0
+```
+
+The full regression is green based on supplied repository evidence. It was not
+executed by this documentation update.
+
+The two verified Phase 1 requirements are:
+
+- `PH1-REQ-010` — compatibility and supersession register;
+- `PH1-REQ-012` — canonical documentation baseline.
+
+The remaining ten requirements are partially verified because the evidence
+characterizes substantial behavior but does not prove complete application-wide
+composition, ownership, synchronization, authorization, isolation, or
+equivalence across every path.
+
+### 6.2 Characterized canonical PAPER candidate
+
+The strongest observed controlled PAPER path is:
+
+```text
+validated supplied market data
 → market context and intelligence
 → signal or decision
-→ admission and risk validation
-→ validated trade plan
-→ explicit PAPER authorization
-→ PAPER execution
-→ simulated fill
-→ position and protection updates
-→ account, portfolio, journal, and history updates
-→ dashboard event publication
+→ lifecycle admission
+→ account and risk checks
+→ trade-plan and order validation
+→ execution risk gate
+→ PAPER connector and simulated fill
+→ position and logical protection state
+→ portfolio and account synchronization
+→ journal and trade history
+→ dashboard events
 → durable persistence
 → recovery and semantic validation
 ```
 
-No canonical stage may bypass freshness, account, authorization, risk, or state
-controls.
+The strongest observed orchestration owner is
+`TradeLifecycleServiceV2`. This is a canonical candidate, not proof that all
+API, CLI, legacy, or parallel execution paths use it exclusively.
 
-#### PH1-REQ-003 — Execution ownership boundaries
+### 6.3 Phase 1 requirement disposition
 
-Identify responsibility and call direction for:
+The following remain `PARTIALLY_IMPLEMENTED`:
 
-- signal admission;
-- trade-plan validation;
-- order preparation;
-- execution orchestration;
-- PAPER connector or simulator invocation;
-- fill handling;
-- position lifecycle;
-- logical OCO and protective-order state;
-- break-even;
-- trailing stops;
-- partial take profit;
-- execution persistence;
-- execution recovery.
+- `PH1-REQ-001` — repository-derived runtime call graph;
+- `PH1-REQ-002` — canonical PAPER execution path;
+- `PH1-REQ-003` — execution ownership boundaries;
+- `PH1-REQ-004` — risk-authority map;
+- `PH1-REQ-005` — account and financial-state ownership;
+- `PH1-REQ-006` — fill synchronization contract;
+- `PH1-REQ-007` — account-switch containment;
+- `PH1-REQ-008` — runtime lifecycle ownership;
+- `PH1-REQ-009` — API and dashboard ownership inventory;
+- `PH1-REQ-011` — characterization coverage.
 
-No retained component may provide an unclassified alternative execution path
-that bypasses canonical admission or risk controls.
+No Phase 1 requirement is certified closed by the closure wave.
 
-#### PH1-REQ-004 — Risk-authority map
+### 6.4 Phase 1 closure-wave findings
 
-Identify one authoritative source, or explicitly record unresolved ownership,
-for:
+The closure wave does not prove:
 
-- daily loss;
-- maximum drawdown;
-- trading-block state;
-- contract limits;
-- position sizing;
-- exposure limits;
-- account restrictions;
-- market freshness;
-- economic-news restrictions;
-- stop-loss and trade-plan requirements;
-- execution authorization.
+- one process-wide canonical runtime owner;
+- exclusive use of one canonical PAPER path;
+- one risk authority and precedence model for every limit;
+- complete cross-subsystem financial synchronization;
+- global duplicate-fill and retry idempotency;
+- interrupted-fill recovery across all state domains;
+- complete account isolation across every caller and projection;
+- complete route and authorization inventory;
+- WebSocket authorization and account isolation;
+- ASGI/CLI runtime equivalence;
+- complete compatibility-path safety characterization;
+- operational startup-to-PAPER smoke testing.
 
-Consumers must not silently replace, weaken, or default these authorities.
+Phase 1 is not closed and the broader PAPER MVP is not approved.
 
-#### PH1-REQ-005 — Account and financial-state ownership
+### 6.5 Phase 1 exit-gate disposition
 
-Define ownership and update direction for:
+The closure wave did not satisfy these required gates:
 
-- balance and equity;
-- daily PnL;
-- realized and unrealized PnL;
-- drawdown;
-- open positions;
-- portfolio exposure;
-- journal records;
-- trade history;
-- signal history;
-- protection state;
-- dashboard projections.
+1. One canonical runtime path used by all relevant entry points.
+2. Accepted PAPER end-to-end integration evidence across the application boundary.
+3. Rejected-signal zero-side-effect evidence across all execution-capable paths.
+4. Complete PAPER/LIVE mechanical isolation evidence.
+5. One canonical risk-authority and precedence model.
+6. Complete cross-subsystem fill synchronization and identity linkage.
+7. Global duplicate and restart idempotency evidence.
+8. Complete route, account-scope, and authorization inventory.
+9. Complete WebSocket authorization and account-isolation evidence.
+10. Operational startup-to-PAPER smoke-test evidence.
 
-Reporting and analytics components must derive data from canonical state rather
-than maintain competing financial authorities.
-
-#### PH1-REQ-006 — Fill synchronization contract
-
-Define the event and update contract for a PAPER fill, including:
-
-- signal identity;
-- trade-plan identity;
-- execution-request identity;
-- fill identity;
-- account scope;
-- idempotent application;
-- position linkage;
-- portfolio linkage;
-- account-state linkage;
-- journal and history linkage;
-- protection and OCO linkage;
-- dashboard-event linkage;
-- persistence linkage;
-- failure and recovery behavior.
-
-The contract must define duplicate, rejected, partial, interrupted, and retried
-operation semantics.
-
-#### PH1-REQ-007 — Account-switch containment
-
-Verify and document that account switching cannot leak:
-
-- positions;
-- risk state;
-- pending operations;
-- runtime services;
-- dashboard events;
-- journal or history state;
-- credentials;
-- account-scoped configuration.
-
-The active account boundary must be preserved across every account-bound service.
-
-#### PH1-REQ-008 — Runtime lifecycle ownership
-
-Identify authoritative ownership for:
-
-- clean startup;
-- snapshot loading;
-- recovery;
-- semantic validation;
-- pending-operation reconciliation;
-- runtime readiness;
-- graceful shutdown;
-- failure transitions;
-- blocked-state transitions.
-
-Layered lifecycle services may remain, but their ownership and call direction
-must be explicit.
-
-Recovery success must mean that required operational state was reconstructed
-and validated.
-
-#### PH1-REQ-009 — API and dashboard ownership inventory
-
-Create an inventory of:
-
-- application routes;
-- router loaders;
-- mutating endpoints;
-- read-only endpoints;
-- dashboard routes;
-- widget and refresh routes;
-- WebSocket connections and subscriptions;
-- account-scoped operations;
-- authorization dependencies.
-
-For every operation, document:
-
-- protocol and method;
-- mutating or read-only classification;
-- required authorization;
-- account scope;
-- service owner;
-- execution reachability;
-- relevant tests.
-
-#### PH1-REQ-010 — Compatibility and supersession register
-
-Classify duplicate-looking components as appropriate:
-
-- active;
-- compatibility-required;
-- legacy;
-- likely superseded;
-- parallel with distinct responsibilities;
-- needs verification;
-- blocked;
-- duplicate;
-- conflicting.
-
-Do not delete, merge, or declare modules superseded solely from filenames or
-version numbers.
-
-#### PH1-REQ-011 — Characterization coverage
-
-Add or identify characterization tests for retained paths that may affect:
-
-- admission;
-- risk evaluation;
-- position sizing;
-- PAPER/LIVE selection;
-- position creation;
-- portfolio mutation;
-- account mutation;
-- journal and history writes;
-- protection and OCO state;
-- dashboard event publication;
-- persistence;
-- recovery;
-- account switching;
-- read-only API behavior.
-
-#### PH1-REQ-012 — Canonical documentation baseline
-
-Produce and maintain:
-
-- runtime call-graph inventory;
-- canonical PAPER execution-path document;
-- execution ownership map;
-- risk-authority map;
-- financial-state ownership map;
-- recovery ownership map;
-- API and dashboard route inventory;
-- compatibility and supersession register;
-- characterization-test inventory;
-- open-risk and unresolved-authority register.
-
-Documentation must preserve evidence boundaries and must not claim capabilities
-are implemented solely because files or historical reports exist.
+A green full regression alone does not satisfy these gates.
 
 ---
 
@@ -467,17 +345,14 @@ Phase 1 does not include:
 - TradingView implementation;
 - adding new external market-data providers;
 - external economic-news ingestion;
-- new intelligence functionality;
-- new technical-indicator functionality;
-- machine learning;
-- adaptive learning;
+- new intelligence or technical-indicator functionality;
+- machine learning or adaptive learning;
 - general assistant or Jarvis expansion;
 - voice, mobile, Telegram, WhatsApp, or email product expansion;
 - product, membership, billing, or commercialization work;
 - complete dashboard product expansion;
 - production deployment;
 - production monitoring and alerting;
-- strategy certification beyond characterization of existing paths;
 - changes to credentials, secrets, or deployment security configuration.
 
 Phase 1 may inspect these areas where needed to establish ownership and
@@ -487,190 +362,141 @@ boundaries, but implementation remains outside scope.
 
 ## 8. PHASE 1 ENTRY GATE
 
-Phase 1 may begin only when:
+Phase 1 entry is satisfied by the supplied evidence:
 
-1. Phase 0 remains formally certified closed.
-2. All eight Phase 0 requirements retain `VERIFIED_CLOSED`.
-3. Current repository code and current tests are available.
-4. The actual application entry point is identified or explicitly recorded as
-   unresolved.
-5. Autonomous LIVE trading remains disabled.
-6. Physical real-money broker submission remains unavailable.
-7. No known critical safety defect is knowingly bypassed.
-8. Existing user changes and unrelated work are preserved.
-9. Relevant implementation and test files have been inspected.
-10. Ambiguity affecting execution, risk, account state, or recovery is recorded
-    rather than guessed.
-11. Work remains limited to reliability, ownership, call-graph,
-    characterization, and documentation outcomes.
-12. No destructive consolidation is authorized.
+- Phase 0 remains certified;
+- current repository and tests were available;
+- application entry points were characterized;
+- LIVE and physical broker execution remain disabled;
+- no critical safety defect was knowingly bypassed;
+- relevant implementation and test files were inspected;
+- ambiguity was recorded rather than guessed;
+- work remained within reliability, ownership, characterization, and
+  documentation scope;
+- destructive consolidation was not performed.
+
+Entry certification does not imply Phase 1 completion.
 
 ---
 
-## 9. PHASE 1 EXIT GATE
+## 9. PHASE 1 TEST AND SAFETY GATES
 
-Phase 1 is complete only when:
+The supplied evidence reports:
 
-1. The application entry point and startup path are documented.
-2. The active runtime call graph is documented through PAPER execution and
-   recovery.
-3. One canonical PAPER runtime path is selected and documented.
-4. Every canonical stage has an identified owner and input/output boundary.
-5. Admission, preparation, execution, and state mutation responsibilities are
-   separated.
-6. Each risk and financial-state authority is identified, or unresolved
-   conflicts are explicitly recorded as `NEEDS_VERIFICATION`.
-7. Account-switch containment is documented and characterized.
-8. Startup, shutdown, recovery, and pending-operation ownership is documented.
-9. Recovery success and blocked-state semantics are explicit.
-10. The current API and dashboard route inventory is complete for the reviewed
-    repository scope.
-11. Read-only behavior is mapped and covered by tests.
-12. Mutating operations have documented authorization and account scope.
-13. PAPER execution is shown to be isolated from LIVE broker paths.
-14. Duplicate-looking components are classified without unsupported deletion or
-    supersession claims.
-15. Characterization tests cover retained paths affecting execution or
-    financial state.
-16. Open risks and evidence limitations are recorded.
-17. No deliverable claims that the broader PAPER MVP is approved.
-18. Autonomous LIVE trading remains blocked.
-19. No critical safety regression is introduced.
-20. The evidence package is reviewed against the Requirements Matrix, Decision
-    Log, Master Memory, and `AGENTS.md`.
+```text
+BACKEND_TEST_COUNT=630
+BACKEND_TESTS_PASSED=5041
+BACKEND_TEST_EXIT=0
+```
 
----
+This is supplied current regression evidence, not a test execution performed
+during this documentation update. The historical Phase 0 result of
+`5082 tests passed` remains limited to Phase 0 certification.
 
-## 10. PHASE 1 TEST GATE
+Current characterization supports the following safety boundaries on the
+reviewed paths:
 
-Current repository-derived test evidence is required. Historical test results do
-not satisfy this gate.
+- rejected or blocked signals stop before execution side effects;
+- risk failures fail closed on characterized paths;
+- stale and invalid market data is rejected on characterized paths;
+- explicitly supplied quotes are required;
+- synthetic spread generation is prohibited;
+- PAPER is the only approved execution scope;
+- logical protections are not physical broker orders;
+- read-side dashboard behavior is observational in characterized routes;
+- account switching freezes and retires unsafe source runtimes;
+- invalid or incomplete recovery blocks execution;
+- autonomous LIVE trading remains blocked.
 
-Required tests must cover:
+The following remain Phase 1 test gaps:
 
-1. Rejected or blocked signals produce zero execution side effects.
-2. Stale or invalid market input cannot reach execution.
-3. Unauthorized execution cannot reach PAPER execution.
-4. PAPER mode cannot select or invoke a LIVE connector.
-5. Valid admitted PAPER requests follow the canonical path.
-6. Duplicate requests follow the defined idempotency contract.
-7. Fill updates preserve signal, plan, fill, position, account, portfolio,
-   journal, history, protection, event, and persistence linkage.
-8. Interrupted or failed operations recover or enter a blocked state.
-9. Repeated recovery does not duplicate fills or state mutations.
-10. Account switching does not leak account-scoped state or events.
-11. Dashboard reads, reports, widgets, refreshes, health checks, and WebSocket
-    subscriptions do not execute trades.
-12. Privileged and mutating routes enforce authorization and account scope.
-13. Missing, stale, inconsistent, or invalid risk data fails closed.
-14. Conflicting ownership dependencies are surfaced rather than silently
-    defaulted.
-15. Compatibility paths preserve tested public and persisted-state behavior.
-
-The current full backend regression must be run for release-quality claims. The
-historical `5082 tests passed` result remains Phase 0 certification evidence and
-must not be presented as the current full-suite result without rerunning it.
+- route-to-lifecycle delegation;
+- application-wide rejected-signal zero-side-effect coverage;
+- parallel-path fail-closed equivalence;
+- complete PAPER/LIVE mechanical isolation;
+- global duplicate-submission idempotency;
+- cross-subsystem fill atomicity;
+- ASGI/CLI equivalence;
+- complete WebSocket account isolation;
+- complete route authorization and account-scope matrix;
+- operational startup-to-PAPER smoke testing.
 
 ---
 
-## 11. PHASE 1 SAFETY GATE
+## 10. PHASE 1 DELIVERABLES AND EVIDENCE PACKAGE
 
-Phase 1 cannot pass unless all of the following remain true:
+The closure-wave package contains or identifies:
 
-- `accepted: false` is an absolute execution boundary;
-- rejected, blocked, stale, invalid, incomplete, unsafe, and unauthorized
-  signals produce zero execution side effects;
-- fail-closed risk behavior is preserved;
-- market freshness and quote authority remain enforced;
-- bid/ask quotes and spreads are never manufactured;
-- PAPER execution cannot reach a LIVE or real-money broker;
-- read-only operations cannot create execution effects;
-- account switching cannot leak execution or risk state;
-- recovery cannot report success before required state is reconstructed and
-  validated;
-- failed recovery enters a blocked, non-executing state;
-- physical broker OCO and protective-order submission remain unavailable;
-- historical evidence is not used as current implementation proof;
-- no activity weakens authorization, account isolation, risk controls, or
-  persistence guarantees;
-- no autonomous LIVE capability is introduced or enabled.
-
-Any violation is a critical Phase 1 blocker.
-
----
-
-## 12. PHASE 1 DELIVERABLES
-
-The Phase 1 evidence package must contain:
-
-- runtime call-graph inventory;
-- canonical PAPER execution path;
-- execution ownership map;
-- risk-authority map;
-- financial-state ownership map;
-- recovery ownership map;
-- API and dashboard route inventory;
+- runtime call-graph characterization;
+- canonical PAPER execution candidate;
+- execution ownership characterization;
+- risk-authority characterization;
+- financial-fill synchronization characterization;
+- account-isolation characterization;
+- lifecycle and recovery characterization;
+- API/dashboard ownership characterization;
 - compatibility and supersession register;
-- characterization-test inventory;
-- open-risk register;
-- unresolved-authority register;
-- current test results;
-- safety-gate results;
-- limitations and evidence boundaries.
+- characterization-test gap audit;
+- open-risk and unresolved-authority register;
+- supplied current regression evidence;
+- explicit safety boundaries and limitations;
+- explicit closure decision that Phase 1 is not closed.
+
+The package is evidence-complete for characterization and closure-wave review,
+but not sufficient for Phase 1 closure or PAPER MVP approval.
 
 ---
 
-## 13. FUTURE PHASES
+## 11. FUTURE PHASES
 
-The following phase structure remains approved as planning structure only.
-Each phase requires its own entry and exit approval.
+The following phase structure remains planning structure only. Each phase
+requires its own entry and exit approval.
 
 ### Phase 2 — Data and Market Intelligence
 
-Focus on validated, traceable, freshness-aware market data and intelligence.
-Do not add providers or intelligence functionality during Phase 1.
+Validated, traceable, freshness-aware market data and intelligence. Do not add
+providers or new intelligence functionality during Phase 1.
 
 ### Phase 3 — Strategy Validation and Decision Integrity
 
-Focus on canonical signal and trade-plan contracts, decision traceability,
-reproducible validation, and strategy-data provenance.
+Canonical signal and trade-plan contracts, decision traceability, reproducible
+validation, and strategy-data provenance.
 
 ### Phase 4 — Controlled PAPER Execution System
 
-Focus on complete isolated PAPER execution, authorization, idempotency,
-synchronization, and recovery.
+Complete isolated PAPER execution, authorization, idempotency, synchronization,
+and recovery.
 
 ### Phase 5 — AI, Learning, and Trading Memory
 
-Focus on auditable advisory intelligence, learning provenance, and safe
-separation from execution authorization.
+Auditable advisory intelligence, learning provenance, and safe separation from
+execution authorization.
 
 ### Phase 6 — User Product and Dashboard
 
-Focus on a coherent authorized PAPER product surface and route-level
-read-side safety.
+A coherent authorized PAPER product surface and route-level read-side safety.
 
 ### Phase 7 — Integrations and Operations
 
-Focus on providers, health, observability, backup, deployment, runbooks, and
-operational smoke testing.
+Providers, health, observability, backup, deployment, runbooks, and operational
+smoke testing.
 
 ### Phase 8 — Commercialization
 
-Focus on approved user management, packages, entitlements, and commercial
-boundaries.
+Approved user management, packages, entitlements, and commercial boundaries.
 
 ### Phase 9 — Advanced Autonomy
 
-Focus only on separately approved autonomy initiatives. LIVE execution remains
-blocked unless a separate authorization and independent safety-validation phase
-changes that status.
+Separately approved autonomy initiatives only. LIVE execution remains blocked
+unless a separate authorization and independent safety-validation phase changes
+that status.
 
 ---
 
-## 14. MVP, BETA, AND PRODUCTION BOUNDARIES
+## 12. MVP, BETA, AND PRODUCTION BOUNDARIES
 
-The controlled PAPER MVP is not approved merely because Phase 1 is defined.
+The controlled PAPER MVP is not approved merely because Phase 1 has been
+characterized or the closure wave has been reviewed.
 
 MVP approval requires evidence for:
 
@@ -692,33 +518,39 @@ backup and restore validation, and controlled user scope.
 Production Ready means a supportable monitored PAPER product. It does not mean
 LIVE trading, autonomous trading, or physical broker submission.
 
-MVP, Beta, and Production Ready remain separate approval boundaries.
-
 ---
 
-## 15. CURRENT NEXT ACTION
+## 13. CURRENT NEXT ACTION
 
-Proceed with:
+Continue Phase 1 Core Reliability work in this order:
 
 ```text
-Phase 1 entry-gate verification
-→ repository/runtime characterization
-→ runtime call-graph inventory
-→ canonical ownership maps
-→ characterization-test inventory
-→ Phase 1 evidence-package review
+route-to-TradeLifecycleServiceV2 characterization
+→ parallel execution-path fail-closed tests
+→ PAPER connector isolation and duplicate-submission tests
+→ cross-subsystem fill synchronization and failure-injection tests
+→ ASGI/CLI equivalence and CLI snapshot handling
+→ account-bound auxiliary-store and WebSocket isolation
+→ executable route and authorization inventory
+→ compatibility-path safety characterization
+→ operational startup-to-PAPER smoke testing
 ```
 
-The next action is not product expansion and does not authorize destructive
-consolidation or LIVE execution.
+This action does not authorize:
+
+- production-code expansion outside the approved scope;
+- destructive consolidation;
+- LIVE execution;
+- physical broker submission;
+- product expansion.
 
 ---
 
-## 16. SAFETY BOUNDARY
+## 14. PERMANENT SAFETY BOUNDARY
 
 ARMS AI must become safer as autonomy increases.
 
-The following remain permanently applicable:
+The following remain binding:
 
 - rejected signals cannot execute;
 - read-only operations cannot trade;
@@ -729,6 +561,6 @@ The following remain permanently applicable:
 - synthetic spreads are prohibited;
 - runtime account configuration is authoritative;
 - historical evidence is not current implementation proof;
-- no destructive consolidation occurs without call-graph and compatibility
-  evidence;
-- autonomous LIVE trading remains blocked.
+- destructive consolidation requires call-graph and compatibility evidence;
+- autonomous LIVE trading remains blocked;
+- physical broker OCO and protective-order submission remain unavailable.

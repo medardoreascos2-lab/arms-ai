@@ -135,6 +135,16 @@ class PendingOperationReconciliationV2:
         status = ReconciliationStatus.CONFIRMED_NOT_EXECUTED if unchanged else ReconciliationStatus.CONFIRMED_EXECUTED
         return status, candidate, "Complete, consistent operation result is durably linked to PENDING."
 
+    def reconcile(
+        self,
+        *,
+        file_path,
+    ):
+        """Explicitly reconcile a persisted pending operation."""
+        return self.reconcile_from(
+            file_path=file_path,
+        )
+
     def reconcile_from(self, *, file_path):
         """Use a fresh, offline runtime; call normal startup only after resolution.
 

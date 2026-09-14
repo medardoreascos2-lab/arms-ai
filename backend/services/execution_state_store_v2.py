@@ -254,6 +254,94 @@ class ExecutionStateStoreV2:
             for key in ("orders", "fills", "positions", "client_order_index"):
                 setattr(broker, "_" + key, deepcopy(records["paper"][key]))
 
+    @state_locked
+    def rollback_state(
+        self,
+        *,
+        state: dict[str, object],
+    ) -> dict[str, object]:
+        """
+        Restore an already-running PAPER runtime to the exact
+        validated baseline captured before an atomic mutation.
+
+        This is intentionally separate from restore_state():
+        recovery requires empty targets, while transactional
+        rollback replaces the participants of the same runtime.
+        """
+        normalized = self.validate_state(
+            state=state,
+        )
+
+        lifecycle = self.trade_lifecycle_service
+        portfolio = self._risk_portfolio()
+
+        if portfolio is None:
+            raise ValueError(
+                "Transactional rollback requires canonical "
+                "account/portfolio authority."
+            )
+
+        if not isinstance(
+            lifecycle.broker_connector_v2,
+            PaperBrokerConnectorV2,
+        ):
+            raise ValueError(
+                "Transactional rollback is authorized "
+                "only for PAPER."
+            )
+
+        risk_snapshot = normalized[
+            "account_portfolio"
+        ]
+
+        # Validate the complete financial snapshot before
+        # replacing any live participant.
+        validated_risk = (
+            portfolio.validate_risk_state(
+                snapshot=risk_snapshot,
+            )
+        )
+
+        # Restore account + portfolio atomically in memory.
+        portfolio.account_state_manager_v2.restore_state(
+            snapshot=validated_risk["account"],
+        )
+
+        portfolio._open_positions = {
+            position["position_id"]: deepcopy(position)
+            for position
+            in validated_risk["open_positions"]
+        }
+
+        portfolio._closed_positions = deepcopy(
+            validated_risk["closed_positions"]
+        )
+
+        # Lifecycle positions are another canonical participant
+        # and must return to the same baseline.
+        lifecycle._active_positions = {
+            position["position_id"]: deepcopy(position)
+            for position
+            in normalized["active_positions"]
+        }
+
+        # Journal, history, protection/OCO and PAPER broker
+        # records already have one coordinated replacement path.
+        self._restore_records(
+            normalized["execution_records"]
+        )
+
+        # Prove that every participant now represents exactly
+        # the original transaction baseline.
+        self.verify_restored_state(
+            state=normalized,
+        )
+
+        return {
+            "rolled_back": True,
+            **normalized["summary"],
+        }
+
     def _risk_portfolio(self):
         portfolio = self.trade_lifecycle_service.portfolio_manager_v2
         if portfolio is not None and portfolio.account_state_manager_v2 is not None:
@@ -973,6 +1061,36 @@ class ExecutionStateStoreV2:
             ),
             "active_oco_groups": len(groups),
         }
+
+    def load(
+        self,
+        *,
+        file_path: str | Path,
+    ) -> dict[str, object]:
+        """Load and validate a persisted execution checkpoint."""
+        return self.load_from_file(
+            file_path=file_path,
+        )
+
+    def validate(
+        self,
+        *,
+        state: dict[str, object],
+    ) -> dict[str, object]:
+        """Validate an execution-state snapshot."""
+        return self.validate_state(
+            state=state,
+        )
+
+    def restore(
+        self,
+        *,
+        state: dict[str, object],
+    ) -> dict[str, object]:
+        """Restore an already loaded and validated snapshot."""
+        return self.restore_state(
+            state=state,
+        )
 
     def save_to_file(
         self,

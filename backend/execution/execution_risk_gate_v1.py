@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import math
 from typing import Any
-
 
 from backend.risk.trade_risk_validator_v2 import (
     TradeRiskValidatorV2,
@@ -25,13 +25,11 @@ class ExecutionRiskGateV1:
     - exponer el historial de eventos de riesgo.
     """
 
-
     def __init__(
         self,
         validator: Any | None = None,
         logger: Any | None = None,
     ) -> None:
-
         self.validator = (
             validator
             if validator is not None
@@ -44,7 +42,6 @@ class ExecutionRiskGateV1:
             else RiskEventLoggerV1()
         )
 
-
     def evaluate_trade(
         self,
         symbol: str,
@@ -52,7 +49,6 @@ class ExecutionRiskGateV1:
         contracts: int,
         risk_amount: float,
     ) -> dict[str, Any]:
-
         normalized_symbol = (
             str(symbol)
             .strip()
@@ -66,7 +62,6 @@ class ExecutionRiskGateV1:
         )
 
         if not normalized_symbol:
-
             raise ValueError(
                 "symbol no puede estar vacío."
             )
@@ -75,43 +70,43 @@ class ExecutionRiskGateV1:
             "BUY",
             "SELL",
         }:
-
             raise ValueError(
                 "side debe ser BUY o SELL."
             )
 
         if contracts <= 0:
-
             raise ValueError(
                 "contracts debe ser mayor que cero."
             )
 
-        if risk_amount < 0:
+        normalized_risk_amount = float(risk_amount)
 
+        if not math.isfinite(normalized_risk_amount):
+            raise ValueError(
+                "risk_amount debe ser un número finito."
+            )
+
+        if normalized_risk_amount < 0:
             raise ValueError(
                 "risk_amount no puede ser negativo."
             )
-
 
         validation = (
             self.validator
             .validate_trade(
                 contracts=contracts,
-                risk_amount=risk_amount,
+                risk_amount=normalized_risk_amount,
                 symbol=normalized_symbol,
             )
         )
-
 
         if not isinstance(
             validation,
             dict,
         ):
-
             raise TypeError(
                 "TradeRiskValidatorV2 debe devolver dict."
             )
-
 
         status = (
             str(
@@ -124,9 +119,7 @@ class ExecutionRiskGateV1:
             .upper()
         )
 
-
         if status != "APPROVED":
-
             reason = (
                 validation.get(
                     "reason",
@@ -135,64 +128,28 @@ class ExecutionRiskGateV1:
             )
 
             event = {
-                "symbol":
-                    normalized_symbol,
-
-                "side":
-                    normalized_side,
-
-                "contracts":
-                    contracts,
-
-                "risk":
-                    float(
-                        risk_amount
-                    ),
-
-                "status":
-                    "BLOCKED",
-
-                "reason":
-                    reason,
+                "symbol": normalized_symbol,
+                "side": normalized_side,
+                "contracts": contracts,
+                "risk": normalized_risk_amount,
+                "status": "BLOCKED",
+                "reason": reason,
             }
-
 
             logged_event = (
-                self.logger
-                .log_event(
-                    event
-                )
+                self.logger.log_event(event)
             )
 
-
             return {
-                "execution":
-                    "BLOCKED",
-
-                "symbol":
-                    normalized_symbol,
-
-                "side":
-                    normalized_side,
-
-                "contracts":
-                    contracts,
-
-                "risk":
-                    float(
-                        risk_amount
-                    ),
-
-                "reason":
-                    reason,
-
-                "validation":
-                    validation,
-
-                "risk_event":
-                    logged_event,
+                "execution": "BLOCKED",
+                "symbol": normalized_symbol,
+                "side": normalized_side,
+                "contracts": contracts,
+                "risk": normalized_risk_amount,
+                "reason": reason,
+                "validation": validation,
+                "risk_event": logged_event,
             }
-
 
         account = (
             validation.get(
@@ -200,72 +157,33 @@ class ExecutionRiskGateV1:
             )
         )
 
-
         event = {
-            "symbol":
-                normalized_symbol,
-
-            "side":
-                normalized_side,
-
-            "contracts":
-                contracts,
-
-            "risk":
-                float(
-                    risk_amount
-                ),
-
-            "status":
-                "APPROVED",
-
-            "account":
-                account,
+            "symbol": normalized_symbol,
+            "side": normalized_side,
+            "contracts": contracts,
+            "risk": normalized_risk_amount,
+            "status": "APPROVED",
+            "account": account,
         }
-
 
         logged_event = (
-            self.logger
-            .log_event(
-                event
-            )
+            self.logger.log_event(event)
         )
 
-
         return {
-            "execution":
-                "APPROVED",
-
-            "symbol":
-                normalized_symbol,
-
-            "side":
-                normalized_side,
-
-            "contracts":
-                contracts,
-
-            "risk":
-                float(
-                    risk_amount
-                ),
-
-            "account":
-                account,
-
-            "validation":
-                validation,
-
-            "risk_event":
-                logged_event,
+            "execution": "APPROVED",
+            "symbol": normalized_symbol,
+            "side": normalized_side,
+            "contracts": contracts,
+            "risk": normalized_risk_amount,
+            "account": account,
+            "validation": validation,
+            "risk_event": logged_event,
         }
-
 
     def get_risk_events(
         self,
     ) -> list[dict[str, Any]]:
-
         return list(
-            self.logger
-            .get_events()
+            self.logger.get_events()
         )

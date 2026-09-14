@@ -75,6 +75,29 @@ class StartupCoordinatorV2:
             self._last_startup_report
         )
 
+    def start_clean(
+        self,
+    ) -> dict[str, object]:
+        """Start from a clean runtime through the canonical startup boundary."""
+        return self.startup_clean()
+
+    def start_from(
+        self,
+        *,
+        file_path: str | Path,
+        recover_if_available: bool = True,
+    ) -> dict[str, object]:
+        """
+        Start from persisted state when present.
+
+        Existing or unsafe persisted state is never silently treated
+        as a clean startup; startup_from preserves the fail-closed path.
+        """
+        return self.startup_from(
+            file_path=file_path,
+            recover_if_available=recover_if_available,
+        )
+
     def startup_clean(
         self,
     ) -> dict[str, object]:

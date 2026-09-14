@@ -40,6 +40,40 @@ def durable_mutation(method):
                 if method.__name__ == "submit_signal" and safety is not None:
                     safety.validate_signal(signal=kwargs.get("signal"),
                                            risk_context=kwargs.get("risk_context"))
+
+                # A replay against a position that is already known CLOSED is
+                # a rejected precondition, not an uncertain durable mutation.
+                # Reject it before opening durability.mutation() so the
+                # rejection cannot advance generation or fail-close the
+                # account. Truly unknown position ids still enter the normal
+                # durable path and retain the existing fail-closed contract.
+                if method.__name__ == "update_position":
+                    position_id = kwargs.get("position_id")
+                    if position_id is None and args:
+                        position_id = args[0]
+
+                    normalized_position_id = (
+                        str(position_id).strip()
+                        if position_id is not None
+                        else ""
+                    )
+
+                    portfolio = getattr(
+                        owner,
+                        "portfolio_manager_v2",
+                        None,
+                    )
+
+                    if portfolio is not None and normalized_position_id:
+                        closed_positions = portfolio.get_closed_positions()
+
+                        if any(
+                            str(position.get("position_id", "")).strip()
+                            == normalized_position_id
+                            for position in closed_positions
+                        ):
+                            raise ValueError("position_id no existe.")
+
                 with durability.mutation():
                     return method(self, *args, **kwargs)
         except AccountAdmissionRejected as exc:
@@ -259,6 +293,7 @@ class DurableExecutionStateV2:
                 yield
                 return
             outer = self.depth == 0
+            baseline = None
             try:
                 if outer:
                     baseline = self.store.validate_state(state=self.store.capture_state())
@@ -292,5 +327,19 @@ class DurableExecutionStateV2:
                 else:
                     self.record_evidence("OBSERVED", self.store.capture_state())
             except BaseException:
-                self.fail_closed()
+                if outer and baseline is not None:
+                    try:
+                        self.store.rollback_state(
+                            state=baseline,
+                        )
+                        self.record_evidence(
+                            "ROLLED_BACK",
+                            baseline,
+                        )
+                        self.operation = None
+                    except BaseException:
+                        self.fail_closed()
+                        raise
+                else:
+                    self.fail_closed()
                 raise

@@ -187,3 +187,21 @@ def _validate(state, point_value_for):
         adjustment_total += number(adjustment["amount"])
     if number(account["daily_pnl"]) != round(economic_daily + adjustment_total, 10):
         raise ValueError("Daily PnL lacks dated execution/adjustment evidence.")
+
+class RecoverySemanticValidationV2:
+    """Explicit recovery boundary for semantic operational consistency."""
+
+    @staticmethod
+    def validate(
+        state,
+        *,
+        point_value_for,
+    ):
+        """
+        Validate account, portfolio, journal, position, fill,
+        execution_mode and economic recovery consistency.
+        """
+        return validate_semantic_state(
+            state,
+            point_value_for=point_value_for,
+        )

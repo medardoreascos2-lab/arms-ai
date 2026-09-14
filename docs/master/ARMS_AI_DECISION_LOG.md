@@ -67,11 +67,8 @@ Each new decision should use:
 
 **Context**
 
-Phase 0 — Critical Stabilization contained eight critical stabilization
-requirements. Formal recertification was required before historical
-consolidation and Phase 1 definition.
-
-The recertification reported:
+Phase 0 contained eight critical stabilization requirements. Formal
+recertification reported:
 
 - `8/8 VERIFIED_CLOSED`;
 - `PHASE0_PARTIAL_COUNT=0`;
@@ -86,24 +83,6 @@ The recertification reported:
 Formally close Phase 0 — Critical Stabilization and retain its eight
 requirements as `VERIFIED_CLOSED`.
 
-The eight requirements are:
-
-1. Prevent blocked signals from executing.
-2. Remove execution side effects from dashboard read operations.
-3. Correct daily PnL synchronization.
-4. Correct daily loss and trading-block synchronization.
-5. Correct account-switching consistency.
-6. Complete execution state recovery within the certified scope.
-7. Resolve startup/runtime path inconsistencies within the certified scope.
-8. Review and enforce API security boundaries within the certified scope.
-
-Closure evidence:
-
-- commit:
-  `c13cd54d7ec0453c86e934ce117ce11764de5a4e`;
-- message:
-  `test: close Phase 0 critical stabilization gaps`.
-
 **Reason**
 
 The defined Phase 0 scope was certified with no partial, open, or
@@ -112,11 +91,9 @@ needs-verification requirements remaining.
 **Consequences**
 
 - Phase 0 is a certified baseline.
-- The Requirements Matrix preserves individual traceability.
-- Phase 0 closure does not certify the broader product.
-- Phase 0 closure does not approve Phase 1 implementation.
-- Historical consolidation remains a separate evidence activity.
+- Phase 0 closure does not certify the broader product or Phase 1.
 - LIVE execution remains disabled.
+- Historical consolidation remains separate from Phase 0 closure.
 
 **Supersedes**
 
@@ -243,8 +220,8 @@ blocked.
 
 **Reason**
 
-`AGENTS.md`, the Agent Policy, the reconciliation audits, and the Phase 1
-scope certification prohibit automatic PAPER-to-LIVE conversion and require
+`AGENTS.md`, the Agent Policy, the reconciliation audits, and Phase 1
+characterization prohibit automatic PAPER-to-LIVE conversion and require
 separate authorization and validation for any future LIVE capability.
 
 **Consequences**
@@ -286,7 +263,7 @@ Internal protection state must not be represented as broker-confirmed state.
 
 **Reason**
 
-Real-money execution is not approved, and the repository evidence separates
+Real-money execution is not approved, and repository evidence separates
 logical protection from physical broker submission.
 
 **Consequences**
@@ -321,25 +298,14 @@ unauthorized. Permissive fallback would create an unsafe execution path.
 Missing, stale, inconsistent, invalid, or unauthorized risk information must
 block execution.
 
-This applies to:
-
-- daily loss;
-- maximum drawdown;
-- contract limits;
-- position sizing;
-- exposure;
-- account restrictions;
-- trading-block state;
-- market freshness;
-- economic-news restrictions;
-- market-state requirements;
-- stop-loss requirements;
-- authorization state.
+This applies to daily loss, drawdown, contract limits, position sizing,
+exposure, account restrictions, trading blocks, market freshness, economic
+news, market state, stop-loss requirements, and authorization.
 
 **Reason**
 
-Fail-closed risk behavior is required by `AGENTS.md`, the Agent Policy, and
-the reconciled architecture.
+Fail-closed behavior is required by `AGENTS.md`, the Agent Policy, and the
+reconciled architecture.
 
 **Consequences**
 
@@ -350,8 +316,8 @@ the reconciled architecture.
 
 **Supersedes**
 
-Any permissive fallback that allows execution when required risk information
-is unavailable.
+Any permissive fallback that allows execution when required risk information is
+unavailable.
 
 **Superseded by**
 
@@ -373,18 +339,13 @@ missing market data.
 **Decision**
 
 Runtime quote authority may use only explicitly supplied bid/ask data.
-Bid/ask quotes and spreads must not be inferred or manufactured from:
-
-- OHLC candles;
-- ATR;
-- last price;
-- assumed spread values;
-- other derived data.
+Bid/ask quotes and spreads must not be inferred or manufactured from OHLC
+candles, ATR, last price, assumed spreads, or other derived data.
 
 **Reason**
 
-The current quote-authority boundary and Requirements Matrix classify synthetic
-spread generation as superseded.
+The current quote-authority boundary and Requirements Matrix classify
+synthetic spread generation as superseded.
 
 **Consequences**
 
@@ -458,10 +419,8 @@ state.
 
 **Decision**
 
-After startup or restart, the system must either:
-
-1. reconstruct and semantically validate required operational state; or
-2. enter a blocked, non-executing state.
+After startup or restart, the system must either reconstruct and semantically
+validate required operational state or enter a blocked, non-executing state.
 
 Recovery must not report success when state is incomplete, inconsistent,
 corrupt, or unresolved.
@@ -507,12 +466,8 @@ Historical documents, prior API demonstrations, historical test reports,
 filenames, class names, and roadmap statements establish historical intent or
 reported prior behavior only.
 
-Current status must be determined from:
-
-- current repository code;
-- current tests;
-- current runtime composition;
-- current operational evidence.
+Current status must be determined from current repository code, current tests,
+current runtime composition, and current operational evidence.
 
 **Reason**
 
@@ -520,10 +475,8 @@ The GREEN audit chain repeatedly established this evidence boundary.
 
 **Consequences**
 
-- Historical demonstrations remain labeled historical.
-- A file or claim alone cannot establish implementation.
-- Requirements retain explicit uncertainty and limitations.
-- Current evidence must support implementation classifications.
+Historical demonstrations remain labeled historical, and requirements retain
+explicit uncertainty and limitations.
 
 **Supersedes**
 
@@ -553,16 +506,9 @@ supersession.
 No duplicate-looking, versioned, legacy, or parallel module may be deleted,
 merged, or declared superseded solely from its filename or version number.
 
-Before consolidation, establish:
-
-- active imports and callers;
-- signal-to-execution call paths;
-- admission and preparation ownership;
-- risk authority;
-- state mutation ownership;
-- compatibility requirements;
-- recovery ownership;
-- route ownership.
+Before consolidation, establish active callers, execution paths, authority,
+state mutation ownership, compatibility requirements, recovery ownership, and
+route ownership.
 
 **Reason**
 
@@ -573,8 +519,8 @@ risk, runtime, market data, intelligence, dashboard, and recovery paths.
 
 - Characterization tests precede consolidation.
 - Compatibility-sensitive modules remain available until verified otherwise.
+- Phase 1 excludes destructive consolidation.
 - Safety behavior must be preserved.
-- Phase 1 explicitly excludes destructive consolidation.
 
 **Supersedes**
 
@@ -600,26 +546,16 @@ components, but complete ownership and synchronization remain unresolved.
 **Decision**
 
 The controlled PAPER MVP should establish one authoritative source of
-financial state and consistently link:
-
-- positions;
-- account state;
-- portfolio state;
-- realized and unrealized PnL;
-- risk state;
-- journal;
-- trade history;
-- protections;
-- dashboard events;
-- persistence.
+financial state and consistently link positions, account state, portfolio
+state, PnL, risk state, journal, trade history, protections, dashboard events,
+and persistence.
 
 Fill application should be atomic or transactionally recoverable and
 idempotent.
 
 **Reason**
 
-This is an identified MVP requirement, but current evidence does not yet
-prove complete implementation.
+This remains an identified MVP requirement, not a proven implementation.
 
 **Consequences**
 
@@ -649,14 +585,10 @@ composition, synchronization, and operational readiness are not yet proven.
 
 **Decision**
 
-The near-term target is a controlled PAPER-only trading assistant with:
-
-- explicit simulated execution;
-- fail-closed risk controls;
-- no autonomous LIVE capability;
-- no physical real-money broker submission;
-- transparent simulated fills and slippage;
-- dashboard and recovery support.
+The near-term target is a controlled PAPER-only trading assistant with
+explicit simulated execution, fail-closed risk controls, no autonomous LIVE
+capability, no physical real-money broker submission, transparent simulated
+fills and slippage, dashboard support, and recovery support.
 
 **Reason**
 
@@ -665,9 +597,8 @@ The GREEN MVP analysis identified this as the safe bounded target.
 **Consequences**
 
 Historical mobile, communication, commercialization, general-assistant, and
-home-automation ideas remain outside this target.
-
-MVP approval requires the documented end-to-end gates.
+home-automation ideas remain outside this target. MVP approval requires the
+documented end-to-end gates.
 
 **Supersedes**
 
@@ -687,48 +618,28 @@ N/A
 
 **Context**
 
-Phase 0 is closed, and GREEN audits 210 through 290 completed the historical
-and architectural reconciliation required to define the next controlled
-scope.
+Phase 0 is closed, and the GREEN audit chain completed the reconciliation
+needed to define the next controlled scope.
 
 **Decision**
 
 Phase 1 is formally defined as `CORE RELIABILITY`.
 
-Its objective is:
-
-> Establish a repository-derived authoritative runtime architecture for the
-> controlled PAPER trading system.
-
-Phase 1 covers:
-
-- runtime call-graph characterization;
-- canonical PAPER path documentation;
-- execution ownership;
-- risk authority;
-- account and financial-state ownership;
-- fill synchronization;
-- account-switch containment;
-- lifecycle ownership;
-- API/dashboard ownership;
-- compatibility classification;
-- characterization coverage;
-- canonical documentation.
+Its objective is to establish a repository-derived authoritative runtime
+architecture for the controlled PAPER trading system.
 
 **Reason**
 
-The audit chain established that architecture ownership and runtime
-composition must be characterized before implementation expansion or
-consolidation.
+Architecture ownership and runtime composition must be characterized before
+implementation expansion or consolidation.
 
 **Consequences**
 
-- Phase 1 is authorized for entry-gate verification and characterization.
+- Phase 1 is authorized for verification and characterization.
 - Phase 1 does not certify implementation of its requirements.
 - Phase 1 does not approve the broader PAPER MVP.
 - Phase 1 excludes LIVE execution, product expansion, and destructive
   consolidation.
-- Phase 1 exit requires current repository-derived evidence.
 
 **Supersedes**
 
@@ -754,22 +665,17 @@ autonomous or unvalidated real-money execution.
 
 **Decision**
 
-Any future LIVE initiative requires separate approval covering:
-
-- explicit configuration;
-- explicit human authorization;
-- independent safety validation;
-- broker-path isolation;
-- risk and account verification;
-- recovery and audit validation;
-- proof that no unauthorized or autonomous path exists.
+Any future LIVE initiative requires separate approval covering explicit
+configuration, explicit human authorization, independent safety validation,
+broker-path isolation, risk and account verification, recovery and audit
+validation, and proof that no unauthorized or autonomous path exists.
 
 Until then, LIVE execution remains blocked.
 
 **Reason**
 
-This requirement is consistently established by `AGENTS.md`, the Agent Policy,
-the reconciliation audits, and the Phase 1 certification.
+This requirement is established by `AGENTS.md`, the Agent Policy, the
+reconciliation audits, and Phase 1 evidence.
 
 **Consequences**
 
@@ -806,34 +712,106 @@ Matrix, Master Memory, Decision Log, roadmap design, and Phase 1 scope.
 Record the historical consolidation and audit chain 210 through 290 as
 complete.
 
-The resulting documentation must:
-
-- preserve historical ideas;
-- distinguish historical evidence from current proof;
-- preserve Phase 0 certification;
-- retain unresolved classifications;
-- preserve blocked and deferred scope;
-- define Phase 1 Core Reliability;
-- avoid marking Phase 1 requirements implemented merely because their scope is
-  certified.
+The resulting documentation must preserve historical ideas, distinguish
+historical evidence from current proof, preserve Phase 0 certification, retain
+unresolved classifications, preserve blocked and deferred scope, define Phase
+1 Core Reliability, and avoid marking Phase 1 requirements implemented merely
+because its scope is certified.
 
 **Reason**
 
-The audit chain reached its certified documentation outcome without changing
-production code or tests.
+The audit chain reached its documentation outcome without changing production
+code or tests.
 
 **Consequences**
 
-- The master documentation is now the baseline for Phase 1 entry verification.
-- Phase 1 work must use repository-derived characterization.
-- The roadmap's next action is Phase 1 entry-gate verification followed by
-  runtime characterization.
+- The master documentation is the baseline for Phase 1 verification.
 - No LIVE capability is enabled.
 - No destructive consolidation is authorized.
 
 **Supersedes**
 
 The prior documentation state that historical consolidation remained pending.
+
+**Superseded by**
+
+N/A
+
+---
+
+### DEC-0017 — PHASE 1 IS CHARACTERIZED BUT NOT CLOSED
+
+**Date:** 2026-09-13
+**Status:** Approved
+**Area:** Planning / Architecture / Reliability / Safety
+
+**Context**
+
+The completed Phase 1 evidence package characterized runtime composition,
+canonical PAPER execution, risk authority, financial fill synchronization,
+account isolation, recovery lifecycle, API/dashboard ownership, compatibility,
+and characterization coverage.
+
+The closure-wave review reports:
+
+```text
+PHASE1_VERIFIED_COUNT=2
+PHASE1_PARTIAL_COUNT=10
+PHASE1_OPEN_COUNT=0
+PHASE1_NEEDS_VERIFICATION_COUNT=0
+PHASE1_EVIDENCE_AUDIT_COMPLETE=YES
+BACKEND_TEST_COUNT=630
+BACKEND_TESTS_PASSED=5041
+BACKEND_TEST_EXIT=0
+```
+
+The verified requirements are the compatibility/supersession register and the
+canonical documentation baseline. The other ten requirements have meaningful
+characterization evidence but unresolved application-wide boundaries.
+
+**Decision**
+
+Record Phase 1 Core Reliability as:
+
+`CHARACTERIZED — CLOSURE WAVE REVIEWED — NOT CERTIFIED COMPLETE`
+
+Do not mark Phase 1 closed and do not approve the broader PAPER MVP.
+
+Retain the following as open reliability gaps:
+
+- one process-wide canonical runtime owner;
+- exclusive canonical PAPER-path use;
+- one authority and precedence model for every risk limit;
+- complete cross-subsystem financial synchronization;
+- global duplicate-fill and interrupted-fill safety;
+- complete account isolation across all callers and projections;
+- complete route and authorization inventory;
+- WebSocket authorization and account isolation;
+- ASGI/CLI equivalence;
+- compatibility-path safety characterization;
+- operational startup-to-PAPER smoke testing.
+
+**Reason**
+
+The Phase 1 exit gates require application-wide evidence, not only component
+tests, characterization documents, or a green full regression. The closure-wave
+evidence does not support closure of every exit gate.
+
+**Consequences**
+
+- Phase 1 remains the active scope.
+- Further work must remain limited to Core Reliability.
+- No production-code expansion outside approved scope is authorized.
+- No destructive consolidation is authorized.
+- The PAPER MVP remains not approved.
+- Autonomous LIVE trading and physical real-money execution remain blocked.
+- The next work must target the documented characterization and integration
+  gaps.
+
+**Supersedes**
+
+Any documentation implication that Phase 1 characterization, entry
+certification, or a green full regression constitutes Phase 1 completion.
 
 **Superseded by**
 
@@ -872,8 +850,8 @@ Phase 0 status:
 
 Phase 1 status:
 
-`APPROVED SCOPE — CORE RELIABILITY`
+`CHARACTERIZED — CLOSURE WAVE REVIEWED — NOT CERTIFIED COMPLETE`
 
 Current next action:
 
-`PHASE 1 ENTRY-GATE VERIFICATION FOLLOWED BY REPOSITORY/RUNTIME CHARACTERIZATION`
+`PHASE 1 CORE RELIABILITY GAP CLOSURE THROUGH CURRENT REPOSITORY CHARACTERIZATION AND INTEGRATION TESTS`

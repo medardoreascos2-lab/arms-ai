@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from backend.execution.position_sizing_engine_v2 import (
     PositionSizingEngineV2,
 )
@@ -15,8 +17,7 @@ class RiskManagerV2:
     def __init__(
         self,
         *,
-        position_sizing_engine:
-        PositionSizingEngineV2,
+        position_sizing_engine: PositionSizingEngineV2,
         maximum_daily_loss: float | None,
         maximum_total_drawdown: float,
         maximum_contracts: int,
@@ -52,14 +53,20 @@ class RiskManagerV2:
 
         if (
             normalized_daily_loss is not None
-            and normalized_daily_loss <= 0
+            and (
+                not math.isfinite(normalized_daily_loss)
+                or normalized_daily_loss <= 0
+            )
         ):
             raise ValueError(
                 "maximum_daily_loss debe ser "
                 "mayor que cero cuando está definido."
             )
 
-        if normalized_drawdown <= 0:
+        if (
+            not math.isfinite(normalized_drawdown)
+            or normalized_drawdown <= 0
+        ):
             raise ValueError(
                 "maximum_total_drawdown debe ser "
                 "mayor que cero."
@@ -99,6 +106,7 @@ class RiskManagerV2:
         self.maximum_open_positions = (
             normalized_maximum_open_positions
         )
+
         self.contract_limit_resolver = (
             contract_limit_resolver
         )
@@ -132,17 +140,68 @@ class RiskManagerV2:
         open_positions: int,
         symbol: str | None = None,
     ) -> dict[str, object]:
+        normalized_account_balance = float(
+            account_balance
+        )
+        normalized_risk_percent = float(
+            risk_percent
+        )
+        normalized_stop_points = float(
+            stop_points
+        )
+        normalized_point_value = float(
+            point_value
+        )
         normalized_total_drawdown = float(
             total_drawdown
         )
-
+        normalized_daily_pnl = float(
+            daily_pnl
+        )
         normalized_open_positions = int(
             open_positions
         )
 
-        normalized_daily_pnl = float(
-            daily_pnl
-        )
+        numeric_values = {
+            "account_balance": normalized_account_balance,
+            "risk_percent": normalized_risk_percent,
+            "stop_points": normalized_stop_points,
+            "point_value": normalized_point_value,
+            "daily_pnl": normalized_daily_pnl,
+            "total_drawdown": normalized_total_drawdown,
+        }
+
+        non_finite_fields = [
+            field
+            for field, value in numeric_values.items()
+            if not math.isfinite(value)
+        ]
+
+        if non_finite_fields:
+            raise ValueError(
+                "risk_context contiene valores no finitos: "
+                + ", ".join(non_finite_fields)
+            )
+
+        if normalized_account_balance <= 0:
+            raise ValueError(
+                "account_balance debe ser mayor que cero."
+            )
+
+        if normalized_risk_percent <= 0:
+            raise ValueError(
+                "risk_percent debe ser mayor que cero."
+            )
+
+        if normalized_stop_points <= 0:
+            raise ValueError(
+                "stop_points debe ser mayor que cero."
+            )
+
+        if normalized_point_value <= 0:
+            raise ValueError(
+                "point_value debe ser mayor que cero."
+            )
 
         if normalized_total_drawdown < 0:
             raise ValueError(
@@ -158,12 +217,10 @@ class RiskManagerV2:
 
         sizing = (
             self.position_sizing_engine.calculate(
-                account_balance=(
-                    account_balance
-                ),
-                risk_percent=risk_percent,
-                stop_points=stop_points,
-                point_value=point_value,
+                account_balance=normalized_account_balance,
+                risk_percent=normalized_risk_percent,
+                stop_points=normalized_stop_points,
+                point_value=normalized_point_value,
             )
         )
 
@@ -187,6 +244,23 @@ class RiskManagerV2:
                 0.0,
             )
         )
+
+        sizing_values = {
+            "risk_amount": risk_amount,
+            "actual_risk": actual_risk,
+        }
+
+        non_finite_sizing_fields = [
+            field
+            for field, value in sizing_values.items()
+            if not math.isfinite(value)
+        ]
+
+        if non_finite_sizing_fields:
+            raise ValueError(
+                "position sizing contiene valores no finitos: "
+                + ", ".join(non_finite_sizing_fields)
+            )
 
         daily_loss_used = max(
             0.0,
@@ -307,44 +381,28 @@ class RiskManagerV2:
             "risk_per_contract": sizing.get(
                 "risk_per_contract"
             ),
-            "daily_pnl": (
-                normalized_daily_pnl
-            ),
-            "daily_loss_used": (
-                daily_loss_used
-            ),
-            "projected_daily_loss": (
-                projected_daily_loss
-            ),
+            "daily_pnl": normalized_daily_pnl,
+            "daily_loss_used": daily_loss_used,
+            "projected_daily_loss": projected_daily_loss,
             "remaining_daily_loss_capacity": (
                 remaining_daily_loss_capacity
             ),
-            "total_drawdown": (
-                normalized_total_drawdown
-            ),
-            "projected_total_drawdown": (
-                projected_total_drawdown
-            ),
+            "total_drawdown": normalized_total_drawdown,
+            "projected_total_drawdown": projected_total_drawdown,
             "remaining_drawdown_capacity": (
                 remaining_drawdown_capacity
             ),
-            "open_positions": (
-                normalized_open_positions
-            ),
+            "open_positions": normalized_open_positions,
             "maximum_open_positions": (
                 self.maximum_open_positions
             ),
-            "maximum_contracts": (
-                self.maximum_contracts
-            ),
+            "maximum_contracts": self.maximum_contracts,
             "maximum_daily_loss": (
                 self.maximum_daily_loss
             ),
             "maximum_total_drawdown": (
                 self.maximum_total_drawdown
             ),
-            "blocking_reasons": (
-                blocking_reasons
-            ),
+            "blocking_reasons": blocking_reasons,
             "position_sizing": sizing,
         }

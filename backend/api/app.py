@@ -1053,16 +1053,21 @@ def create_app(
 
     if position_manager is None:
         position_manager = (
-            PositionManager()
+            runtime_context.position_manager
+            if runtime_context is not None
+            else PositionManager()
         )
 
     if not isinstance(
         position_manager,
-        PositionManager,
+        (
+            PositionManager,
+            PositionManagerV2,
+        ),
     ):
         raise TypeError(
             "position_manager debe ser "
-            "PositionManager."
+            "PositionManager o PositionManagerV2."
         )
 
     if trade_history_store is None:
