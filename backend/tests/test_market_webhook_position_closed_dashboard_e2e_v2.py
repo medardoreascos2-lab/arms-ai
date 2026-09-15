@@ -4,6 +4,7 @@ from datetime import timezone
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
+from backend.security.admin_authorization_v2 import AdminAuthorizationV2
 
 
 def build_trade_signal() -> dict[str, object]:
@@ -57,6 +58,10 @@ def test_position_closed_reaches_dashboard_websocket():
 
     client = TestClient(
         app
+    )
+
+    client.app.state.admin_authorization_v2 = AdminAuthorizationV2(
+        token="arms-dashboard-ws-test-admin-token",
     )
 
     service = (

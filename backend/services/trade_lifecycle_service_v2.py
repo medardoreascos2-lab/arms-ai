@@ -1346,6 +1346,16 @@ class TradeLifecycleServiceV2(
                 )
             )
 
+            if not bool(
+                opened_position.get(
+                    "opened",
+                    False,
+                )
+            ):
+                raise RuntimeError(
+                    "filled_execution_position_open_failed"
+                )
+
             if bool(
                 opened_position.get(
                     "opened",

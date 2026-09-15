@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
+from backend.security.admin_authorization_v2 import AdminAuthorizationV2
 
 
 def build_trade_signal():
@@ -33,6 +34,10 @@ def test_live_position_monitor_updates_dashboard_realtime():
 
     client = TestClient(
         app
+    )
+
+    client.app.state.admin_authorization_v2 = AdminAuthorizationV2(
+        token="arms-dashboard-ws-test-admin-token",
     )
 
     service = (
@@ -168,6 +173,10 @@ def test_live_position_monitor_closes_trade_realtime():
 
     client = TestClient(
         app
+    )
+
+    client.app.state.admin_authorization_v2 = AdminAuthorizationV2(
+        token="arms-dashboard-ws-test-admin-token",
     )
 
     service = (
