@@ -842,6 +842,219 @@ def command_batch(batch_file):
 
         return 1
 
+
+def command_phase1():
+    """Run the known Phase 1 certification gates read-only."""
+
+    started = time.time()
+
+    gates = [
+        (
+            "GATE1",
+            "route_lifecycle_delegation",
+            [
+                "backend/tests/test_phase1_route_lifecycle_delegation_v2.py",
+            ],
+        ),
+        (
+            "GATE2",
+            "rejected_signal_zero_side_effect",
+            [
+                "backend/tests/test_phase1_rejected_signal_zero_side_effect_v2.py",
+            ],
+        ),
+        (
+            "GATE3",
+            "parallel_path_fail_closed_equivalence",
+            [
+                "backend/tests/test_phase1_parallel_execution_equivalence_v2.py",
+                "backend/tests/test_trade_lifecycle_signal_blocking_reasons_policy_v2.py",
+                "backend/tests/test_trade_lifecycle_signal_decision_policy_v2.py",
+                "backend/tests/test_signal_submission_target_v2.py",
+            ],
+        ),
+        (
+            "GATE4",
+            "paper_live_mechanical_isolation",
+            [
+                "backend/tests/test_phase1_paper_live_isolation_v2.py",
+            ],
+        ),
+    ]
+
+    state = baseline()
+
+    if state["branch"] != "refactor/backend-architecture":
+        print("PHASE1_STATUS=BLOCKED")
+        print("ERROR=wrong_branch")
+        return 1
+
+    # During V3 self-certification the runner itself may be the only
+    # tracked modification. No production modification is permitted.
+    tracked = [
+        line
+        for line in git(
+            "status",
+            "--short",
+            "--untracked-files=no",
+        ).splitlines()
+        if line.strip()
+    ]
+
+    allowed_self_test_dirty = (
+        tracked == [" M tools/arms_dev_runner.py"]
+        or tracked == ["M  tools/arms_dev_runner.py"]
+    )
+
+    if (
+        state["staged"] != 0
+        or (
+            state["tracked_dirty"] != 0
+            and not allowed_self_test_dirty
+        )
+        or state["diff_check"] != 0
+    ):
+        print("PHASE1_STATUS=BLOCKED")
+        print("ERROR=dirty_baseline")
+        print(f"TRACKED={tracked}")
+        return 1
+
+    results = []
+
+    print("ARMS_AI_PHASE1_AUTOMATIC_CERTIFICATION")
+    print(f"HEAD={state['head']}")
+
+    for gate_id, name, tests in gates:
+        print()
+        print("=" * 60)
+        print(f"{gate_id}={name}")
+        print("=" * 60)
+
+        missing = [
+            test
+            for test in tests
+            if not (ROOT / test).is_file()
+        ]
+
+        if missing:
+            print("STATUS=BLOCKED")
+            print("ERROR=missing_tests")
+            for item in missing:
+                print(f"MISSING={item}")
+            results.append((gate_id, name, "BLOCKED"))
+            overall = "BLOCKED"
+            break
+
+        completed = execute(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                *tests,
+            ]
+        )
+
+        if completed.stdout:
+            print(completed.stdout, end="")
+        if completed.stderr:
+            print(completed.stderr, end="")
+
+        if completed.returncode != 0:
+            print("STATUS=BLOCKED")
+            print(f"TEST_EXIT={completed.returncode}")
+            results.append((gate_id, name, "BLOCKED"))
+            overall = "BLOCKED"
+            break
+
+        after = baseline()
+
+        after_tracked = [
+            line
+            for line in git(
+                "status",
+                "--short",
+                "--untracked-files=no",
+            ).splitlines()
+            if line.strip()
+        ]
+
+        after_allowed_self_test_dirty = (
+            after_tracked == [" M tools/arms_dev_runner.py"]
+            or after_tracked == ["M  tools/arms_dev_runner.py"]
+        )
+
+        if (
+            after["staged"] != 0
+            or (
+                after["tracked_dirty"] != 0
+                and not after_allowed_self_test_dirty
+            )
+            or after["diff_check"] != 0
+        ):
+            print("STATUS=BLOCKED")
+            print("ERROR=safety_changed")
+            results.append((gate_id, name, "BLOCKED"))
+            overall = "BLOCKED"
+            break
+
+        print("STATUS=GREEN")
+        print(f"TEST_FILES={len(tests)}")
+        results.append((gate_id, name, "GREEN"))
+    else:
+        # Gate 5 deliberately remains open.
+        overall = "NEEDS_COVERAGE"
+
+    print()
+    print("=" * 60)
+    print("GATE5=global_duplicate_submission_idempotency")
+    print("=" * 60)
+
+    if overall != "BLOCKED":
+        print("STATUS=NEEDS_COVERAGE")
+        print(
+            "REASON=duplicate_fill_idempotency_exists_but_"
+            "global_duplicate_submission_is_not_certified"
+        )
+
+    lines = [
+        "ARMS AI PHASE 1 AUTOMATIC CERTIFICATION",
+        "=" * 60,
+        f"HEAD={state['head']}",
+        f"OVERALL={overall}",
+        "",
+    ]
+
+    for gate_id, name, status in results:
+        lines.append(f"{gate_id} {name} {status}")
+
+    if overall != "BLOCKED":
+        lines.append(
+            "GATE5 global_duplicate_submission_idempotency "
+            "NEEDS_COVERAGE"
+        )
+
+    report = save_report(
+        "PHASE1",
+        overall,
+        "\n".join(lines),
+        started,
+    )
+
+    final = baseline()
+
+    print()
+    print(f"PHASE1_STATUS={overall}")
+    print(f"REPORT={report.relative_to(ROOT)}")
+    print(f"STAGED={final['staged']}")
+    print(f"TRACKED_DIRTY={final['tracked_dirty']}")
+    print(f"DIFF_CHECK_EXIT={final['diff_check']}")
+    print("GIT_ADD=NO")
+    print("COMMIT=NO")
+    print("PUSH=NO")
+
+    return 0 if overall == "GREEN" else 2 if overall == "NEEDS_COVERAGE" else 1
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARMS AI semi-automatic development runner"
@@ -855,6 +1068,7 @@ def main():
             "certify",
             "report",
             "batch",
+            "phase1",
         ],
     )
 
@@ -878,6 +1092,7 @@ def main():
         "run": command_run,
         "certify": command_certify,
         "report": command_report,
+        "phase1": command_phase1,
     }
 
     return commands[args.command]()
