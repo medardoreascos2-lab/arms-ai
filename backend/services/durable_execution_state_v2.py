@@ -294,6 +294,7 @@ class DurableExecutionStateV2:
                 return
             outer = self.depth == 0
             baseline = None
+            body_completed = False
             try:
                 if outer:
                     baseline = self.store.validate_state(state=self.store.capture_state())
@@ -317,6 +318,7 @@ class DurableExecutionStateV2:
                 self.depth += 1
                 try:
                     yield
+                    body_completed = True
                 finally:
                     self.depth -= 1
                 if outer:
@@ -329,13 +331,26 @@ class DurableExecutionStateV2:
             except BaseException:
                 if outer and baseline is not None:
                     try:
-                        self.store.rollback_state(
-                            state=baseline,
-                        )
-                        self.record_evidence(
-                            "ROLLED_BACK",
-                            baseline,
-                        )
+                        if body_completed:
+                            # The operation body completed, but durable finalization
+                            # failed. Preserve the in-memory state behind the
+                            # durable PENDING fence for later reconciliation.
+                            self.record_evidence(
+                                "UNCERTAIN",
+                                self.store.capture_state(),
+                            )
+                            self.operation = None
+                            self.fail_closed()
+                        else:
+                            # The operation body itself failed. Returning to the
+                            # pre-operation baseline remains the atomic behavior.
+                            self.store.rollback_state(
+                                state=baseline,
+                            )
+                            self.record_evidence(
+                                "ROLLED_BACK",
+                                baseline,
+                            )
                         self.operation = None
                     except BaseException:
                         self.fail_closed()

@@ -599,6 +599,7 @@ class AccountStateManagerV2:
         """Advance at first operational use; reads and snapshot capture stay pure."""
         return self.reset_daily_state()
 
+
     def _preserve_unclassified_block(self) -> None:
         if self._state["trading_blocked"] and not self._state["blocking_reasons"]:
             self._state["blocking_reasons"] = ["unclassified_trading_block"]
