@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
+import shutil
 import os
 from pathlib import Path
 import subprocess
@@ -454,6 +456,392 @@ def command_report():
     return 0
 
 
+
+def command_batch(batch_file):
+    """
+    Execute one authorized ARMS AI development batch.
+
+    The batch manifest is JSON and may contain:
+
+    {
+      "name": "example",
+      "base_head": "<required git HEAD>",
+      "allowed_files": ["path/a.py", "path/test_a.py"],
+      "operations": [
+        {
+          "type": "write",
+          "path": "path/a.py",
+          "content": "..."
+        }
+      ],
+      "full_backend": false
+    }
+
+    Safety:
+    - exact branch
+    - exact base HEAD
+    - clean tracked worktree before application
+    - no staged content
+    - paths restricted to repository
+    - modifications restricted to allowed_files
+    - automatic rollback on application/test failure
+    - no git add
+    - no commit
+    - no push
+    """
+    started = time.time()
+
+    manifest_path = Path(batch_file)
+
+    if not manifest_path.is_absolute():
+        manifest_path = ROOT / manifest_path
+
+    if not manifest_path.exists():
+        print("STATUS=BLOCKED_BATCH_NOT_FOUND")
+        print(f"BATCH={manifest_path}")
+        return 1
+
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8")
+        )
+    except Exception as exc:
+        print("STATUS=BLOCKED_INVALID_BATCH_JSON")
+        print(f"ERROR={exc}")
+        return 1
+
+    name = str(manifest.get("name", "")).strip()
+    base_head = str(manifest.get("base_head", "")).strip()
+    allowed = manifest.get("allowed_files", [])
+    operations = manifest.get("operations", [])
+    full_backend = bool(
+        manifest.get("full_backend", False)
+    )
+
+    if not name:
+        print("STATUS=BLOCKED_BATCH_NAME_MISSING")
+        return 1
+
+    if not base_head:
+        print("STATUS=BLOCKED_BASE_HEAD_MISSING")
+        return 1
+
+    if not isinstance(allowed, list) or not allowed:
+        print("STATUS=BLOCKED_ALLOWED_FILES_MISSING")
+        return 1
+
+    if not isinstance(operations, list) or not operations:
+        print("STATUS=BLOCKED_OPERATIONS_MISSING")
+        return 1
+
+    allowed = {
+        Path(str(x)).as_posix()
+        for x in allowed
+    }
+
+    info = baseline()
+
+    if info["branch"] != BRANCH:
+        print("STATUS=BLOCKED_WRONG_BRANCH")
+        return 1
+
+    if info["head"] != base_head:
+        print("STATUS=BLOCKED_BASE_HEAD_CHANGED")
+        print(f"EXPECTED={base_head}")
+        print(f"ACTUAL={info['head']}")
+        return 1
+
+    if info["staged"] != 0:
+        print("STATUS=BLOCKED_STAGED_CONTENT")
+        return 1
+
+    if info["tracked_dirty"] != 0:
+        print("STATUS=BLOCKED_TRACKED_WORKTREE")
+        return 1
+
+    if info["diff_check"] != 0:
+        print("STATUS=BLOCKED_DIFF_CHECK")
+        return 1
+
+    backup_root = (
+        STATE
+        / "backups"
+        / f"{name}_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    )
+
+    backup_root.mkdir(parents=True, exist_ok=True)
+
+    original_state = {}
+
+    def safe_path(relative):
+        relative = Path(str(relative)).as_posix()
+
+        if relative not in allowed:
+            raise RuntimeError(
+                f"unauthorized_file:{relative}"
+            )
+
+        candidate = (ROOT / relative).resolve()
+
+        try:
+            candidate.relative_to(ROOT.resolve())
+        except ValueError:
+            raise RuntimeError(
+                f"path_escape:{relative}"
+            )
+
+        return relative, candidate
+
+    try:
+        # Snapshot authorized files.
+        for relative in allowed:
+            rel, target = safe_path(relative)
+
+            if target.exists():
+                original_state[rel] = True
+
+                backup = backup_root / rel
+                backup.parent.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
+                shutil.copy2(target, backup)
+            else:
+                original_state[rel] = False
+
+        # Apply authorized operations.
+        for operation in operations:
+            if not isinstance(operation, dict):
+                raise RuntimeError(
+                    "invalid_operation"
+                )
+
+            op_type = str(
+                operation.get("type", "")
+            ).strip()
+
+            relative, target = safe_path(
+                operation.get("path", "")
+            )
+
+            if op_type == "write":
+                content = operation.get("content")
+
+                if not isinstance(content, str):
+                    raise RuntimeError(
+                        f"invalid_content:{relative}"
+                    )
+
+                target.parent.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
+
+                target.write_text(
+                    content,
+                    encoding="utf-8",
+                    newline="\n",
+                )
+
+            elif op_type == "delete":
+                if target.exists():
+                    if target.is_dir():
+                        raise RuntimeError(
+                            f"directory_delete_forbidden:{relative}"
+                        )
+                    target.unlink()
+
+            else:
+                raise RuntimeError(
+                    f"unsupported_operation:{op_type}"
+                )
+
+        # Verify actual tracked/untracked delta is inside boundary.
+        after_files = set(changed_files())
+
+        relevant_after = {
+            x for x in after_files
+            if x in allowed
+        }
+
+        unauthorized_tracked = []
+
+        tracked_output = git(
+            "status",
+            "--short",
+            "--untracked-files=no",
+        )
+
+        for line in tracked_output.splitlines():
+            if not line.strip():
+                continue
+
+            filename = line[3:].strip()
+
+            if filename not in allowed:
+                unauthorized_tracked.append(
+                    filename
+                )
+
+        if unauthorized_tracked:
+            raise RuntimeError(
+                "unauthorized_tracked_changes:"
+                + ",".join(unauthorized_tracked)
+            )
+
+        if not relevant_after:
+            raise RuntimeError(
+                "batch_produced_no_changes"
+            )
+
+        diff_check = execute(
+            ["git", "diff", "--check"]
+        )
+
+        if diff_check.returncode != 0:
+            raise RuntimeError(
+                "diff_check_failed:\n"
+                + (diff_check.stdout or "")
+            )
+
+        tests = select_tests(
+            sorted(relevant_after)
+        )
+
+        test_output = ""
+
+        if tests:
+            print(f"AUTO_TESTS={len(tests)}")
+            print("PHASE=RELATED_TESTS")
+
+            related = execute(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    *tests,
+                    "-q",
+                    "--disable-warnings",
+                    "--maxfail=1",
+                ],
+                env=CERTIFIED_ENV,
+            )
+
+            test_output = related.stdout or ""
+            print(test_output)
+
+            if related.returncode != 0:
+                raise RuntimeError(
+                    "related_tests_failed"
+                )
+
+        full_output = ""
+
+        if full_backend:
+            print("PHASE=FULL_BACKEND")
+
+            full = execute(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "backend/tests",
+                    "-q",
+                    "--disable-warnings",
+                    "--maxfail=1",
+                ],
+                env=CERTIFIED_ENV,
+            )
+
+            full_output = full.stdout or ""
+            print(full_output)
+
+            if full.returncode != 0:
+                raise RuntimeError(
+                    "full_backend_failed"
+                )
+
+        content = (
+            f"BATCH={name}\n"
+            f"BASE_HEAD={base_head}\n"
+            f"ALLOWED_FILES={len(allowed)}\n"
+            f"CHANGED_FILES={len(relevant_after)}\n"
+            f"AUTO_TESTS={len(tests)}\n"
+            f"FULL_BACKEND={full_backend}\n\n"
+            "CHANGED\n"
+            "========================================\n"
+            + "\n".join(sorted(relevant_after))
+            + "\n\nRELATED TEST OUTPUT\n"
+            "========================================\n"
+            + (test_output or "NONE")
+            + "\n\nFULL BACKEND OUTPUT\n"
+            "========================================\n"
+            + (full_output or "NOT_REQUESTED")
+        )
+
+        report = save_report(
+            "BATCH",
+            "GREEN",
+            content,
+            started,
+        )
+
+        print("STATUS=GREEN")
+        print(f"BATCH={name}")
+        print(
+            f"CHANGED_FILES={len(relevant_after)}"
+        )
+        print(f"AUTO_TESTS={len(tests)}")
+        print(
+            f"FULL_BACKEND={'YES' if full_backend else 'NO'}"
+        )
+        print(f"REPORT={report.relative_to(ROOT)}")
+        print("GIT_ADD=NO")
+        print("COMMIT=NO")
+        print("PUSH=NO")
+
+        return 0
+
+    except Exception as exc:
+        # Roll back only files authorized by this batch.
+        for relative, existed in original_state.items():
+            target = ROOT / relative
+            backup = backup_root / relative
+
+            if existed:
+                target.parent.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
+                shutil.copy2(backup, target)
+            else:
+                if target.exists() and target.is_file():
+                    target.unlink()
+
+        content = (
+            f"BATCH={name}\n"
+            f"BASE_HEAD={base_head}\n"
+            f"ERROR={exc}\n"
+            "ROLLBACK=APPLIED\n"
+        )
+
+        report = save_report(
+            "BATCH",
+            "BLOCKED",
+            content,
+            started,
+        )
+
+        print("STATUS=BLOCKED")
+        print(f"ERROR={exc}")
+        print("ROLLBACK=APPLIED")
+        print(f"REPORT={report.relative_to(ROOT)}")
+        print("GIT_ADD=NO")
+        print("COMMIT=NO")
+        print("PUSH=NO")
+
+        return 1
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARMS AI semi-automatic development runner"
@@ -466,10 +854,24 @@ def main():
             "run",
             "certify",
             "report",
+            "batch",
         ],
     )
 
+    parser.add_argument(
+        "batch_file",
+        nargs="?",
+        help="JSON batch manifest for the batch command",
+    )
+
     args = parser.parse_args()
+
+    if args.command == "batch":
+        if not args.batch_file:
+            parser.error(
+                "batch requires a JSON manifest"
+            )
+        return command_batch(args.batch_file)
 
     commands = {
         "status": command_status,
