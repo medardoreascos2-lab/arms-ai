@@ -94,7 +94,10 @@ def test_position_closed_reaches_dashboard_websocket():
     assert position_id is not None
 
     with client.websocket_connect(
-        "/api/v2/dashboard/ws"
+        "/api/v2/dashboard/ws",
+        headers={
+            "X-ARMS-ADMIN-TOKEN": "arms-dashboard-ws-test-admin-token",
+        },
     ) as websocket:
 
         initial_message = (

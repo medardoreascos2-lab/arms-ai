@@ -3,7 +3,13 @@ from fastapi.testclient import TestClient
 from backend.api.app import create_app
 
 
-def test_app_realtime_dashboard_e2e():
+def test_app_realtime_dashboard_e2e(monkeypatch):
+    admin_token = "dashboard-e2e-admin-token"
+    monkeypatch.setenv(
+        "ARMS_ADMIN_TOKEN",
+        admin_token,
+    )
+
     app = create_app()
 
     required_state = (
@@ -26,7 +32,10 @@ def test_app_realtime_dashboard_e2e():
     )
 
     with client.websocket_connect(
-        "/api/v2/dashboard/ws"
+        "/api/v2/dashboard/ws",
+        headers={
+            "X-ARMS-ADMIN-TOKEN": admin_token,
+        },
     ) as websocket:
 
         initial_message = (

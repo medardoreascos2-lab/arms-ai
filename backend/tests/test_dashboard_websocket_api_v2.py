@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from backend.api.dashboard_websocket_api_v2 import (
     create_dashboard_websocket_router_v2,
 )
+from backend.security.admin_authorization_v2 import AdminAuthorizationV2
 
 
 class FakeWebSocketHub:
@@ -131,8 +132,16 @@ def test_websocket_receives_initial_snapshot():
         ),
     )
 
+    admin_token = "dashboard-websocket-api-admin-token"
+    client.app.state.admin_authorization_v2 = AdminAuthorizationV2(
+        token=admin_token,
+    )
+
     with client.websocket_connect(
-        "/api/v2/dashboard/ws"
+        "/api/v2/dashboard/ws",
+        headers={
+            "X-ARMS-ADMIN-TOKEN": admin_token,
+        },
     ) as websocket:
 
         payload = (
@@ -170,8 +179,16 @@ def test_websocket_without_live_data_service():
         live_data_service=None,
     )
 
+    admin_token = "dashboard-websocket-api-admin-token"
+    client.app.state.admin_authorization_v2 = AdminAuthorizationV2(
+        token=admin_token,
+    )
+
     with client.websocket_connect(
-        "/api/v2/dashboard/ws"
+        "/api/v2/dashboard/ws",
+        headers={
+            "X-ARMS-ADMIN-TOKEN": admin_token,
+        },
     ) as websocket:
 
         payload = (

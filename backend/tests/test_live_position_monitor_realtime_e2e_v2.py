@@ -78,7 +78,11 @@ def test_live_position_monitor_updates_dashboard_realtime():
     ]
 
     with client.websocket_connect(
-        "/api/v2/dashboard/ws"
+        "/api/v2/dashboard/ws",
+        headers={
+            "X-ARMS-ADMIN-TOKEN":
+                "arms-dashboard-ws-test-admin-token",
+        },
     ) as websocket:
 
         initial_message = (
@@ -205,7 +209,11 @@ def test_live_position_monitor_closes_trade_realtime():
     ]
 
     with client.websocket_connect(
-        "/api/v2/dashboard/ws"
+        "/api/v2/dashboard/ws",
+        headers={
+            "X-ARMS-ADMIN-TOKEN":
+                "arms-dashboard-ws-test-admin-token",
+        },
     ) as websocket:
 
         initial_message = (

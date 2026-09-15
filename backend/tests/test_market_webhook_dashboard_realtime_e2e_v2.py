@@ -94,7 +94,11 @@ def test_market_webhook_updates_dashboard_realtime():
     assert position_id is not None
 
     with client.websocket_connect(
-        "/api/v2/dashboard/ws"
+        "/api/v2/dashboard/ws",
+        headers={
+            "X-ARMS-ADMIN-TOKEN":
+                "arms-dashboard-ws-test-admin-token",
+        },
     ) as websocket:
 
         initial_message = (

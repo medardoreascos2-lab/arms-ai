@@ -6,6 +6,13 @@ from fastapi import APIRouter
 from fastapi import WebSocket
 from fastapi import WebSocketDisconnect
 
+from backend.api.admin_authorization_dependency_v2 import (
+    ADMIN_TOKEN_HEADER,
+)
+from backend.security.admin_authorization_v2 import (
+    AdminAuthorizationV2,
+)
+
 
 def create_dashboard_websocket_router_v2(
     *,
@@ -65,6 +72,33 @@ def create_dashboard_websocket_router_v2(
     async def dashboard_websocket(
         websocket: WebSocket,
     ) -> None:
+
+        authority = getattr(
+            websocket.app.state,
+            "admin_authorization_v2",
+            None,
+        )
+
+        if not isinstance(
+            authority,
+            AdminAuthorizationV2,
+        ):
+            await websocket.close(
+                code=1008,
+            )
+            return
+
+        try:
+            authority.require_authorized(
+                websocket.headers.get(
+                    ADMIN_TOKEN_HEADER
+                )
+            )
+        except PermissionError:
+            await websocket.close(
+                code=1008,
+            )
+            return
 
         if websocket_hub_v2 is None:
             await websocket.close()

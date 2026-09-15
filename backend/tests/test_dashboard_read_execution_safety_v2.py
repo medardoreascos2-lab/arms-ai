@@ -158,13 +158,24 @@ DASHBOARD_READS = [
 
 @pytest.mark.parametrize("activity", [False, True], ids=["empty", "existing"])
 def test_dashboard_load_refresh_and_subscription_do_not_trade(tmp_path, monkeypatch, activity):
+    admin_token = "dashboard-read-safety-admin-token"
+    monkeypatch.setenv(
+        "ARMS_ADMIN_TOKEN",
+        admin_token,
+    )
+
     app = create_app(risk_event_store_path_v2=tmp_path / "risk-events.json")
     if activity:
         seed_existing_activity(app)
     before = capture(app)
     guards = forbid_mutations(app, monkeypatch)
     client = TestClient(app)
-    with client.websocket_connect("/api/v2/dashboard/ws") as websocket:
+    with client.websocket_connect(
+        "/api/v2/dashboard/ws",
+        headers={
+            "X-ARMS-ADMIN-TOKEN": admin_token,
+        },
+    ) as websocket:
         assert websocket.receive_json()["event_type"] == "dashboard_snapshot"
         for _ in range(2):  # Initial load and manual refresh.
             with ThreadPoolExecutor(max_workers=8) as pool:
