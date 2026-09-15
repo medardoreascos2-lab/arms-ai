@@ -18,3 +18,6 @@ reports/test/
 tmp_*/
 *.pre_contract_patch
 *.pre_certification_contract_patch
+
+# ARMS AI local development runner state
+.arms-dev/
