@@ -1076,7 +1076,7 @@ def command_next():
 
     before = baseline()
 
-    if before["branch"] != CERTIFIED_BRANCH:
+    if before["branch"] != BRANCH:
         print("STATUS=BLOCKED")
         print("ERROR=wrong_branch")
         return 1
