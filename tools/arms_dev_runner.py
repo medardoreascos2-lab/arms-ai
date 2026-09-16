@@ -1223,6 +1223,61 @@ def data005_certification_evidence():
     )
 
 
+
+def data006_certification_evidence():
+    boundary = (
+        ROOT
+        / "backend/market_data/external_market_data_provider_v2.py"
+    )
+    service = (
+        ROOT
+        / "backend/services/price_feed_service_v2.py"
+    )
+    certification = (
+        ROOT
+        / "backend/tests/test_external_market_data_provider_v2.py"
+    )
+
+    if (
+        not boundary.exists()
+        or not service.exists()
+        or not certification.exists()
+    ):
+        return False
+
+    boundary_text = boundary.read_text(encoding="utf-8")
+    service_text = service.read_text(encoding="utf-8")
+    certification_text = certification.read_text(encoding="utf-8")
+
+    required_boundary = (
+        "ExternalMarketDataProviderV2",
+        "ExternalMarketDataQuoteV2",
+        "get_quote",
+        "provider_name",
+    )
+
+    required_service = (
+        "external_market_data_provider_v2",
+        "pull_external_quote",
+        "provider.get_quote",
+        "self.process_price",
+    )
+
+    required_tests = (
+        "test_concrete_provider_satisfies_runtime_boundary",
+        "test_provider_returns_canonical_quote_contract",
+        "test_price_feed_can_pull_from_external_provider",
+        "test_price_feed_external_pull_fails_closed_without_provider",
+        "test_price_feed_rejects_invalid_external_provider",
+    )
+
+    return (
+        all(item in boundary_text for item in required_boundary)
+        and all(item in service_text for item in required_service)
+        and all(item in certification_text for item in required_tests)
+    )
+
+
 def characterize_phase2_requirement(requirement):
     if requirement.get("status") != "PENDING":
         return {
@@ -1252,6 +1307,27 @@ def characterize_phase2_requirement(requirement):
             "unresolved_semantic": "conflicting_required_data",
             "auto_patch": False,
             "human_decision_required": True,
+        }
+
+    if requirement_id == "DATA-006":
+        if data006_certification_evidence():
+            return {
+                "state": "CERTIFIED",
+                "certification_evidence": "FOUND",
+                "related_tests": "GREEN",
+                "production_patch_required": False,
+                "auto_patch": False,
+                "human_decision_required": False,
+            }
+
+        return {
+            "state": "IMPLEMENTATION_REQUIRED",
+            "certification_evidence": "MISSING",
+            "related_tests": "UNKNOWN",
+            "production_patch_required": True,
+            "unresolved_semantic": "external_market_data_provider_boundary",
+            "auto_patch": False,
+            "human_decision_required": False,
         }
 
     return {

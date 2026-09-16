@@ -13,6 +13,7 @@ class PriceFeedServiceV2:
         *,
         live_position_monitor_v2=None,
         maximum_age_seconds: float | None = None,
+        external_market_data_provider_v2=None,
     ) -> None:
 
         if (
@@ -33,6 +34,35 @@ class PriceFeedServiceV2:
 
         self.live_position_monitor_v2 = (
             live_position_monitor_v2
+        )
+
+        if (
+            external_market_data_provider_v2 is not None
+            and (
+                not callable(
+                    getattr(
+                        external_market_data_provider_v2,
+                        "get_quote",
+                        None,
+                    )
+                )
+                or not isinstance(
+                    getattr(
+                        external_market_data_provider_v2,
+                        "provider_name",
+                        None,
+                    ),
+                    str,
+                )
+            )
+        ):
+            raise TypeError(
+                "external_market_data_provider_v2 debe "
+                "implementar provider_name y get_quote()."
+            )
+
+        self._external_market_data_provider_v2 = (
+            external_market_data_provider_v2
         )
 
         if maximum_age_seconds is None:
@@ -67,6 +97,33 @@ class PriceFeedServiceV2:
             "monitor_calls": 0,
             "monitor_errors": 0,
         }
+
+
+    def pull_external_quote(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+    ):
+        provider = self._external_market_data_provider_v2
+
+        if provider is None:
+            raise RuntimeError(
+                "external market-data provider no configurado."
+            )
+
+        quote = provider.get_quote(
+            symbol=symbol,
+            timeframe=timeframe,
+        )
+
+        return self.process_price(
+            symbol=quote.symbol,
+            current_price=quote.price,
+            source=quote.source,
+            timestamp=quote.timestamp,
+        )
+
 
     def process_price(
         self,
