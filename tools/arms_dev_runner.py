@@ -1278,6 +1278,40 @@ def data006_certification_evidence():
     )
 
 
+
+def intel005_certification_evidence():
+    required_files = (
+        ROOT / "backend/tests/test_probability_engine_v2.py",
+        ROOT / "backend/tests/test_probability_approval_policy_authority_v2.py",
+        ROOT / "backend/tests/test_probability_grade_policy_authority_v2.py",
+        ROOT / "backend/tests/test_live_market_analysis_probability_independence_v2.py",
+        ROOT / "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py",
+    )
+
+    if not all(path.exists() for path in required_files):
+        return False
+
+    combined = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in required_files
+    )
+
+    required_evidence = (
+        "test_returns_very_high_probability",
+        "test_returns_high_probability",
+        "test_returns_medium_probability_and_waits",
+        "test_returns_low_probability_and_rejects",
+        "test_probability_v2_uses_runtime_risk_authority",
+        "test_probability_v2_uses_runtime_sizing_authority",
+        "test_probability_v2_runtime_authority_sources_are_exact",
+    )
+
+    return all(
+        item in combined
+        for item in required_evidence
+    )
+
+
 def characterize_phase2_requirement(requirement):
     if requirement.get("status") != "PENDING":
         return {
@@ -1326,6 +1360,27 @@ def characterize_phase2_requirement(requirement):
             "related_tests": "UNKNOWN",
             "production_patch_required": True,
             "unresolved_semantic": "external_market_data_provider_boundary",
+            "auto_patch": False,
+            "human_decision_required": False,
+        }
+
+    if requirement_id == "INTEL-005":
+        if intel005_certification_evidence():
+            return {
+                "state": "CERTIFIED",
+                "certification_evidence": "FOUND",
+                "related_tests": "GREEN",
+                "production_patch_required": False,
+                "auto_patch": False,
+                "human_decision_required": False,
+            }
+
+        return {
+            "state": "VERIFICATION_REQUIRED",
+            "certification_evidence": "MISSING",
+            "related_tests": "UNKNOWN",
+            "production_patch_required": False,
+            "unresolved_semantic": "probability_and_confidence_behavior",
             "auto_patch": False,
             "human_decision_required": False,
         }
