@@ -58,9 +58,7 @@ def _value(argument: str) -> str:
 def test_probability_v2_uses_runtime_risk_authority():
     value = _value("risk_approved")
 
-    assert "account_risk_approved" in value
-    assert "locals()" in value
-    assert "else True" in value
+    assert value == "account_risk_approved"
 
 
 def test_probability_v2_uses_runtime_sizing_authority():
@@ -82,11 +80,7 @@ def test_probability_v2_does_not_receive_static_sizing_allow():
 def test_probability_v2_runtime_authority_sources_are_exact():
     assert _value(
         "risk_approved"
-    ) == (
-        "account_risk_approved "
-        "if 'account_risk_approved' in locals() "
-        "else True"
-    )
+    ) == "account_risk_approved"
 
     assert _value(
         "sizing_approved"
