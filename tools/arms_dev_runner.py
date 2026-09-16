@@ -1138,6 +1138,17 @@ def command_next():
     return 1
 
 
+def command_advance():
+    print("ARMS_AI_AUTO_ADVANCE")
+    print("MODE=SEMI_AUTOMATIC")
+    print("AUTO_TEST=YES")
+    print("AUTO_ROLLBACK=YES")
+    print("AUTO_COMMIT=NO")
+    print("AUTO_PUSH=NO")
+    print("LIVE_EXECUTION=NO")
+    return command_next()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARMS AI semi-automatic development runner"
@@ -1153,6 +1164,7 @@ def main():
             "batch",
             "phase1",
             "next",
+            "advance",
         ],
     )
 
@@ -1178,6 +1190,7 @@ def main():
         "report": command_report,
         "phase1": command_phase1,
         "next": command_next,
+        "advance": command_advance,
     }
 
     return commands[args.command]()
