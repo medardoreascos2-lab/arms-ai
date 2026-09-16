@@ -1050,6 +1050,10 @@ def command_phase1():
     return 0 if overall == "GREEN" else 2 if overall == "NEEDS_COVERAGE" else 1
 
 
+def discover_next_phase():
+    return {"status": "READY", "phase": "PHASE2", "name": "DATA_AND_MARKET_INTELLIGENCE", "mode": "DISCOVERY_ONLY"}
+
+
 def command_next():
     """
     ARMS AI semi-automatic development orchestrator.
@@ -1101,7 +1105,12 @@ def command_next():
     if rc == 0:
         print("STATUS=GREEN")
         print("PHASE1=GREEN")
-        print("NEXT_ACTION=PHASE1_COMPLETE")
+        transition = discover_next_phase()
+        print("PHASE1_COMPLETE=YES")
+        print("NEXT_PHASE=" + transition["phase"])
+        print("NEXT_PHASE_NAME=" + transition["name"])
+        print("TRANSITION_MODE=" + transition["mode"])
+        print("NEXT_ACTION=PHASE2_ENTRY_DISCOVERY")
         print("AUTO_COMMIT=NO")
         print("AUTO_PUSH=NO")
         print("LIVE_EXECUTION=NO")
