@@ -1148,6 +1148,36 @@ def discover_phase2_requirement():
     return {"status": "PENDING", "requirement": parts[0], "domain": parts[1], "description": parts[2]}
 
 
+
+def characterize_phase2_requirement(requirement):
+    if requirement.get("status") != "PENDING":
+        return {
+            "state": "COMPLETE",
+            "auto_patch": False,
+            "human_decision_required": False,
+        }
+
+    requirement_id = requirement.get("requirement")
+
+    if requirement_id == "DATA-005":
+        return {
+            "state": "SPECIFICATION_REQUIRED",
+            "related_tests": "GREEN",
+            "production_patch_required": False,
+            "unresolved_semantic": "conflicting_required_data",
+            "auto_patch": False,
+            "human_decision_required": True,
+        }
+
+    return {
+        "state": "CHARACTERIZATION_REQUIRED",
+        "related_tests": "UNKNOWN",
+        "production_patch_required": False,
+        "auto_patch": False,
+        "human_decision_required": False,
+    }
+
+
 def command_advance():
     print("ARMS_AI_AUTO_ADVANCE")
     print("MODE=SEMI_AUTOMATIC")
@@ -1161,7 +1191,32 @@ def command_advance():
         print("NEXT_REQUIREMENT=" + requirement["requirement"])
         print("NEXT_DOMAIN=" + requirement["domain"])
         print("NEXT_REQUIREMENT_DESCRIPTION=" + requirement["description"])
-        print("NEXT_REQUIREMENT_ACTION=CHARACTERIZE_REQUIREMENT")
+
+        characterization = characterize_phase2_requirement(requirement)
+
+        print("AUTO_CHARACTERIZATION=YES")
+        print("REQUIREMENT_STATE=" + characterization["state"])
+        print(
+            "RELATED_TESTS="
+            + characterization.get("related_tests", "UNKNOWN")
+        )
+        print(
+            "PRODUCTION_PATCH_REQUIRED="
+            + ("YES" if characterization.get("production_patch_required") else "NO")
+        )
+
+        unresolved = characterization.get("unresolved_semantic")
+        if unresolved:
+            print("UNRESOLVED_SEMANTIC=" + unresolved)
+
+        print(
+            "AUTO_PATCH="
+            + ("YES" if characterization.get("auto_patch") else "BLOCKED")
+        )
+        print(
+            "HUMAN_DECISION_REQUIRED="
+            + ("YES" if characterization.get("human_decision_required") else "NO")
+        )
     else:
         print("PHASE2_REQUIREMENTS=COMPLETE")
     return command_next()
