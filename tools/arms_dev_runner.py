@@ -1138,6 +1138,16 @@ def command_next():
     return 1
 
 
+def discover_phase2_requirement():
+    matrix = ROOT / "docs/master/ARMS_AI_REQUIREMENTS_MATRIX.md"
+    text = matrix.read_text(encoding="utf-8")
+    rows = [x.strip() for x in text.splitlines() if x.strip().startswith("|") and ("| Market Data |" in x or "| Intelligence |" in x) and "| P1 |" in x and ("PARTIALLY_IMPLEMENTED" in x or "NEEDS_VERIFICATION" in x or "NOT_STARTED" in x)]
+    if not rows:
+        return {"status": "COMPLETE"}
+    parts = [x.strip() for x in rows[0].strip("|").split("|")]
+    return {"status": "PENDING", "requirement": parts[0], "domain": parts[1], "description": parts[2]}
+
+
 def command_advance():
     print("ARMS_AI_AUTO_ADVANCE")
     print("MODE=SEMI_AUTOMATIC")
@@ -1146,6 +1156,14 @@ def command_advance():
     print("AUTO_COMMIT=NO")
     print("AUTO_PUSH=NO")
     print("LIVE_EXECUTION=NO")
+    requirement = discover_phase2_requirement()
+    if requirement["status"] == "PENDING":
+        print("NEXT_REQUIREMENT=" + requirement["requirement"])
+        print("NEXT_DOMAIN=" + requirement["domain"])
+        print("NEXT_REQUIREMENT_DESCRIPTION=" + requirement["description"])
+        print("NEXT_REQUIREMENT_ACTION=CHARACTERIZE_REQUIREMENT")
+    else:
+        print("PHASE2_REQUIREMENTS=COMPLETE")
     return command_next()
 
 
