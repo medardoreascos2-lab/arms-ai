@@ -72,6 +72,11 @@ class MarketDataHubV2:
             float,
         ] = {}
 
+        self._observed_prices: dict[
+            tuple[str, str, str, str],
+            float,
+        ] = {}
+
         self._state = {
             "message_count": 0,
             "processed_count": 0,
@@ -185,6 +190,36 @@ class MarketDataHubV2:
         self._state["last_received_at"] = (
             received_at
         )
+
+        observation_key = (
+            normalized_symbol,
+            normalized_source,
+            normalized_timeframe,
+            received_at,
+        )
+
+        observed_price = self._observed_prices.get(
+            observation_key
+        )
+
+        if (
+            observed_price is not None
+            and observed_price != normalized_price
+        ):
+            return {
+                "processed": False,
+                "duplicate": False,
+                "reason": "conflicting_market_data",
+                "feed_error": False,
+                "symbol": normalized_symbol,
+                "current_price": normalized_price,
+                "source": normalized_source,
+                "timeframe": normalized_timeframe,
+                "received_at": received_at,
+                "market_state_updated": False,
+                "market_state_error": False,
+                "price_feed_result": None,
+            }
 
         duplicate_key = (
             normalized_symbol,
@@ -311,6 +346,10 @@ class MarketDataHubV2:
 
         self._last_prices[
             duplicate_key
+        ] = normalized_price
+
+        self._observed_prices[
+            observation_key
         ] = normalized_price
 
         self._state[
