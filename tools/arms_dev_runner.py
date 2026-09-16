@@ -1061,6 +1061,86 @@ def command_phase1():
 
     return 0 if overall == "GREEN" else 2 if overall == "NEEDS_COVERAGE" else 1
 
+
+def command_next():
+    """
+    ARMS AI semi-automatic development orchestrator.
+
+    Runs the current Phase 1 certification and reports the
+    next authorized development action without committing,
+    pushing, or enabling LIVE execution.
+    """
+    print("=" * 60)
+    print("ARMS AI — AUTO DEV V4 — NEXT")
+    print("=" * 60)
+
+    before = baseline()
+
+    if before["branch"] != CERTIFIED_BRANCH:
+        print("STATUS=BLOCKED")
+        print("ERROR=wrong_branch")
+        return 1
+
+    if (
+        before["staged"] != 0
+        or before["tracked_dirty"] != 0
+        or before["diff_check"] != 0
+    ):
+        print("STATUS=BLOCKED")
+        print("ERROR=dirty_baseline")
+        return 1
+
+    print("ACTION=RUN_PHASE1_CERTIFICATION")
+
+    rc = command_phase1()
+
+    after = baseline()
+
+    if (
+        after["staged"] != 0
+        or after["tracked_dirty"] != 0
+        or after["diff_check"] != 0
+    ):
+        print("STATUS=BLOCKED")
+        print("ERROR=phase1_changed_repository")
+        return 1
+
+    print()
+    print("=" * 60)
+    print("AUTO DEV RESULT")
+    print("=" * 60)
+
+    if rc == 0:
+        print("STATUS=GREEN")
+        print("PHASE1=GREEN")
+        print("NEXT_ACTION=PHASE1_COMPLETE")
+        print("AUTO_COMMIT=NO")
+        print("AUTO_PUSH=NO")
+        print("LIVE_EXECUTION=NO")
+        return 0
+
+    if rc == 2:
+        print("STATUS=NEEDS_COVERAGE")
+        print("PHASE1=NEEDS_COVERAGE")
+        print("NEXT_GATE=GATE5")
+        print(
+            "NEXT_ACTION="
+            "AUTHORIZED_GATE5_IMPLEMENTATION_BATCH"
+        )
+        print("AUTO_COMMIT=NO")
+        print("AUTO_PUSH=NO")
+        print("LIVE_EXECUTION=NO")
+        return 2
+
+    print("STATUS=BLOCKED")
+    print("PHASE1=BLOCKED")
+    print("NEXT_ACTION=FIX_FIRST_REPORTED_GATE")
+    print("AUTO_COMMIT=NO")
+    print("AUTO_PUSH=NO")
+    print("LIVE_EXECUTION=NO")
+    return 1
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARMS AI semi-automatic development runner"
@@ -1075,6 +1155,7 @@ def main():
             "report",
             "batch",
             "phase1",
+            "next",
         ],
     )
 
@@ -1099,6 +1180,7 @@ def main():
         "certify": command_certify,
         "report": command_report,
         "phase1": command_phase1,
+        "next": command_next,
     }
 
     return commands[args.command]()
