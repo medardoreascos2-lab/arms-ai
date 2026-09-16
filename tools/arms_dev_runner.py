@@ -877,7 +877,9 @@ def command_phase1():
             "GATE4",
             "paper_live_mechanical_isolation",
             [
-                "backend/tests/test_phase1_paper_live_isolation_v2.py",
+                "backend/tests/test_phase1_safety_closure_v2.py",
+                "backend/tests/test_trade_lifecycle_broker_connector_integration_v2.py",
+                "backend/tests/test_trade_lifecycle_execution_risk_gate_v1.py",
             ],
         ),
     ]
