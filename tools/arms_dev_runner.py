@@ -1051,7 +1051,90 @@ def command_phase1():
 
 
 def discover_next_phase():
-    return {"status": "READY", "phase": "PHASE2", "name": "DATA_AND_MARKET_INTELLIGENCE", "mode": "DISCOVERY_ONLY"}
+    matrix = ROOT / "docs/master/ARMS_AI_REQUIREMENTS_MATRIX.md"
+
+    if not matrix.exists():
+        return {
+            "status": "BLOCKED",
+            "reason": "requirements_matrix_missing",
+            "mode": "DISCOVERY_ONLY",
+        }
+
+    text = matrix.read_text(encoding="utf-8")
+
+    open_statuses = {
+        "PARTIALLY_IMPLEMENTED",
+        "NEEDS_VERIFICATION",
+        "NOT_STARTED",
+    }
+
+    priority_rank = {
+        "CRITICAL": 0,
+        "P0": 1,
+        "P1": 2,
+        "P2": 3,
+    }
+
+    candidates = []
+
+    for line_number, line in enumerate(text.splitlines(), 1):
+        if not line.strip().startswith("|"):
+            continue
+
+        parts = [
+            item.strip()
+            for item in line.strip("|").split("|")
+        ]
+
+        if len(parts) < 7:
+            continue
+
+        status = parts[4]
+        priority = parts[5]
+
+        if status not in open_statuses:
+            continue
+
+        if priority not in priority_rank:
+            continue
+
+        candidates.append(
+            {
+                "line": line_number,
+                "requirement": parts[0],
+                "domain": parts[1],
+                "description": parts[2],
+                "evidence": parts[3],
+                "requirement_status": status,
+                "priority": priority,
+                "gap": parts[6],
+            }
+        )
+
+    if not candidates:
+        return {
+            "status": "COMPLETE",
+            "phase": "GLOBAL",
+            "name": "REQUIREMENTS_COMPLETE",
+            "mode": "DISCOVERY_ONLY",
+        }
+
+    candidates.sort(
+        key=lambda item: (
+            priority_rank[item["priority"]],
+            item["line"],
+        )
+    )
+
+    selected = candidates[0]
+
+    return {
+        "status": "READY",
+        "phase": "GLOBAL",
+        "name": "GLOBAL_REQUIREMENT_DISCOVERY",
+        "mode": "DISCOVERY_ONLY",
+        **selected,
+    }
 
 
 def command_next():
@@ -1110,7 +1193,19 @@ def command_next():
         print("NEXT_PHASE=" + transition["phase"])
         print("NEXT_PHASE_NAME=" + transition["name"])
         print("TRANSITION_MODE=" + transition["mode"])
-        print("NEXT_ACTION=PHASE2_ENTRY_DISCOVERY")
+
+        if transition.get("requirement"):
+            print("NEXT_REQUIREMENT=" + transition["requirement"])
+            print("NEXT_DOMAIN=" + transition["domain"])
+            print("NEXT_REQUIREMENT_DESCRIPTION=" + transition["description"])
+            print("NEXT_REQUIREMENT_STATUS=" + transition["requirement_status"])
+            print("NEXT_PRIORITY=" + transition["priority"])
+            print("NEXT_GAP=" + transition["gap"])
+            print("NEXT_MATRIX_LINE=" + str(transition["line"]))
+            print("NEXT_ACTION=GLOBAL_REQUIREMENT_CHARACTERIZATION")
+        else:
+            print("NEXT_ACTION=REQUIREMENTS_COMPLETE")
+
         print("AUTO_COMMIT=NO")
         print("AUTO_PUSH=NO")
         print("LIVE_EXECUTION=NO")
