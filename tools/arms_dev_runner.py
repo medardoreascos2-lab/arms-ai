@@ -1141,12 +1141,86 @@ def command_next():
 def discover_phase2_requirement():
     matrix = ROOT / "docs/master/ARMS_AI_REQUIREMENTS_MATRIX.md"
     text = matrix.read_text(encoding="utf-8")
-    rows = [x.strip() for x in text.splitlines() if x.strip().startswith("|") and ("| Market Data |" in x or "| Intelligence |" in x) and "| P1 |" in x and ("PARTIALLY_IMPLEMENTED" in x or "NEEDS_VERIFICATION" in x or "NOT_STARTED" in x)]
-    if not rows:
-        return {"status": "COMPLETE"}
-    parts = [x.strip() for x in rows[0].strip("|").split("|")]
-    return {"status": "PENDING", "requirement": parts[0], "domain": parts[1], "description": parts[2]}
 
+    rows = [
+        x.strip()
+        for x in text.splitlines()
+        if x.strip().startswith("|")
+        and ("| Market Data |" in x or "| Intelligence |" in x)
+        and "| P1 |" in x
+        and (
+            "PARTIALLY_IMPLEMENTED" in x
+            or "NEEDS_VERIFICATION" in x
+            or "NOT_STARTED" in x
+        )
+    ]
+
+    for row in rows:
+        parts = [
+            x.strip()
+            for x in row.strip("|").split("|")
+        ]
+
+        candidate = {
+            "status": "PENDING",
+            "requirement": parts[0],
+            "domain": parts[1],
+            "description": parts[2],
+        }
+
+        characterization = characterize_phase2_requirement(
+            candidate
+        )
+
+        if characterization.get("state") == "CERTIFIED":
+            continue
+
+        return candidate
+
+    return {"status": "COMPLETE"}
+
+
+
+
+def data005_certification_evidence():
+    implementation = (
+        ROOT / "backend/market_data/market_data_hub_v2.py"
+    )
+    certification = (
+        ROOT
+        / "backend/tests/test_phase2_data005_required_data_rejection_v2.py"
+    )
+
+    if not implementation.exists() or not certification.exists():
+        return False
+
+    implementation_text = implementation.read_text(encoding="utf-8")
+    certification_text = certification.read_text(encoding="utf-8")
+
+    required_implementation = (
+        "conflicting_market_data",
+        "_observed_prices",
+    )
+
+    required_tests = (
+        "test_data005_rejects_missing_symbol",
+        "test_data005_rejects_malformed_price",
+        "test_data005_rejects_missing_source",
+        "test_data005_rejects_duplicate_required_data",
+        "test_data005_rejects_malformed_timestamp",
+        "test_data005_rejects_conflicting_market_data_same_observation",
+    )
+
+    return (
+        all(
+            item in implementation_text
+            for item in required_implementation
+        )
+        and all(
+            item in certification_text
+            for item in required_tests
+        )
+    )
 
 
 def characterize_phase2_requirement(requirement):
@@ -1160,9 +1234,20 @@ def characterize_phase2_requirement(requirement):
     requirement_id = requirement.get("requirement")
 
     if requirement_id == "DATA-005":
+        if data005_certification_evidence():
+            return {
+                "state": "CERTIFIED",
+                "certification_evidence": "FOUND",
+                "related_tests": "GREEN",
+                "production_patch_required": False,
+                "auto_patch": False,
+                "human_decision_required": False,
+            }
+
         return {
             "state": "SPECIFICATION_REQUIRED",
-            "related_tests": "GREEN",
+            "certification_evidence": "MISSING",
+            "related_tests": "UNKNOWN",
             "production_patch_required": False,
             "unresolved_semantic": "conflicting_required_data",
             "auto_patch": False,
