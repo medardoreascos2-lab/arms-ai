@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import threading
+import time
+
 from backend.services.durable_execution_state_v2 import durable_mutation
 
 from datetime import datetime, timezone
@@ -462,6 +467,100 @@ class TradeLifecycleServiceV2(
             str,
             dict[str, object],
         ] = {}
+
+        # Phase 1 Gate 5.
+        #
+        # Idempotency is scoped to this lifecycle authority so every
+        # entry point sharing it observes the same reservation state.
+        self._submission_idempotency_lock = threading.Lock()
+        self._submission_idempotency_registry: dict[
+            str,
+            float,
+        ] = {}
+        self._submission_retry_window_seconds = 30.0
+
+    @staticmethod
+    def _submission_fingerprint(
+        *,
+        signal: dict[str, object],
+        order_type: str,
+    ) -> str:
+        explicit_id = str(
+            signal.get(
+                "submission_id",
+                "",
+            )
+        ).strip()
+
+        if explicit_id:
+            return "submission:" + explicit_id
+
+        # Backward-compatible retry identity for callers that have
+        # not yet adopted explicit submission_id.
+        payload = {
+            "symbol": signal.get("symbol"),
+            "timeframe": signal.get("timeframe"),
+            "direction": signal.get("direction"),
+            "entry_price": signal.get("entry_price"),
+            "stop_loss": signal.get("stop_loss"),
+            "take_profit": signal.get("take_profit"),
+            "contracts": signal.get("contracts"),
+            "order_type": str(order_type).strip().upper(),
+        }
+
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+
+        return (
+            "legacy:"
+            + hashlib.sha256(encoded).hexdigest()
+        )
+
+    def _reserve_submission(
+        self,
+        *,
+        signal: dict[str, object],
+        order_type: str,
+    ) -> bool:
+        key = self._submission_fingerprint(
+            signal=signal,
+            order_type=order_type,
+        )
+
+        now = time.monotonic()
+
+        with self._submission_idempotency_lock:
+            expired = [
+                existing
+                for existing, expires_at
+                in self._submission_idempotency_registry.items()
+                if expires_at <= now
+            ]
+
+            for existing in expired:
+                self._submission_idempotency_registry.pop(
+                    existing,
+                    None,
+                )
+
+            if (
+                key
+                in self._submission_idempotency_registry
+            ):
+                return False
+
+            self._submission_idempotency_registry[
+                key
+            ] = (
+                now
+                + self._submission_retry_window_seconds
+            )
+
+            return True
 
     @durable_mutation
     def submit_signal(
@@ -1072,6 +1171,34 @@ class TradeLifecycleServiceV2(
                         else None
                     ),
                 }
+
+        # ======================================
+        # 3B. IDEMPOTENCIA DE SUBMISSION
+        # ======================================
+
+        if not self._reserve_submission(
+            signal=working_signal,
+            order_type=order_type,
+        ):
+            return {
+                "accepted": False,
+                "reason": "duplicate_submission",
+                "risk_evaluation": risk_evaluation,
+                "exposure_evaluation": exposure_evaluation,
+                "portfolio_risk_evaluation": (
+                    portfolio_risk_evaluation
+                ),
+                "order_validation": None,
+                "execution_risk_gate": None,
+                "prepared_order": None,
+                "execution": None,
+                "position": None,
+                "active_position_id": None,
+                "portfolio_summary": portfolio_summary,
+                "trade_journal_summary": (
+                    trade_journal_summary
+                ),
+            }
 
         # ======================================
         # 4. PREPARAR ORDEN

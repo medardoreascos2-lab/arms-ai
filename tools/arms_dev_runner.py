@@ -882,6 +882,13 @@ def command_phase1():
                 "backend/tests/test_trade_lifecycle_execution_risk_gate_v1.py",
             ],
         ),
+        (
+            "GATE5",
+            "global_duplicate_submission_idempotency",
+            [
+                "backend/tests/test_phase1_global_duplicate_submission_idempotency_v2.py",
+            ],
+        ),
     ]
 
     state = baseline()
@@ -1008,20 +1015,7 @@ def command_phase1():
         print(f"TEST_FILES={len(tests)}")
         results.append((gate_id, name, "GREEN"))
     else:
-        # Gate 5 deliberately remains open.
-        overall = "NEEDS_COVERAGE"
-
-    print()
-    print("=" * 60)
-    print("GATE5=global_duplicate_submission_idempotency")
-    print("=" * 60)
-
-    if overall != "BLOCKED":
-        print("STATUS=NEEDS_COVERAGE")
-        print(
-            "REASON=duplicate_fill_idempotency_exists_but_"
-            "global_duplicate_submission_is_not_certified"
-        )
+        overall = "GREEN"
 
     lines = [
         "ARMS AI PHASE 1 AUTOMATIC CERTIFICATION",
@@ -1033,12 +1027,6 @@ def command_phase1():
 
     for gate_id, name, status in results:
         lines.append(f"{gate_id} {name} {status}")
-
-    if overall != "BLOCKED":
-        lines.append(
-            "GATE5 global_duplicate_submission_idempotency "
-            "NEEDS_COVERAGE"
-        )
 
     report = save_report(
         "PHASE1",
