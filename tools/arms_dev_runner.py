@@ -945,6 +945,9 @@ def command_phase1():
             overall = "BLOCKED"
             break
 
+        test_env = os.environ.copy()
+        test_env.update(CERTIFIED_ENV)
+
         completed = execute(
             [
                 sys.executable,
@@ -952,7 +955,8 @@ def command_phase1():
                 "pytest",
                 "-q",
                 *tests,
-            ]
+            ],
+            env=test_env,
         )
 
         if completed.stdout:
