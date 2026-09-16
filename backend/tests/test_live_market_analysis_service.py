@@ -3299,6 +3299,9 @@ def test_inactive_trade_plan_v2_when_execution_waits():
     from backend.execution.execution_decision_engine_v2 import (
         ExecutionDecisionEngineV2,
     )
+    from backend.account_risk.account_risk_guard import (
+        AccountRiskGuard,
+    )
     from backend.execution.trade_planner_v2 import (
         TradePlannerV2,
     )
@@ -3340,6 +3343,13 @@ def test_inactive_trade_plan_v2_when_execution_waits():
             TradePlannerV2(
                 minimum_reward_risk_ratio=2.0,
             )
+        ),
+        account_risk_guard=AccountRiskGuard(
+            daily_loss_limit=3000.0,
+            max_trades_per_day=4,
+            max_consecutive_losses=3,
+            max_open_positions=1,
+            max_risk_per_trade=100.0,
         ),
     )
 

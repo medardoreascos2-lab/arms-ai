@@ -55,11 +55,7 @@ def _value(name: str) -> str:
 def test_execution_v2_uses_runtime_account_risk_authority():
     assert _value(
         "risk_approved"
-    ) == (
-        "account_risk_approved "
-        "if 'account_risk_approved' in locals() "
-        "else True"
-    )
+    ) == "account_risk_approved"
 
 
 def test_execution_v2_uses_runtime_position_sizing_authority():

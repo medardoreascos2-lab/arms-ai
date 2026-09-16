@@ -2215,6 +2215,62 @@ class LiveMarketAnalysisService:
         ):
             open_positions = 1
 
+        account_risk_approved = False
+
+        if (
+            self.account_risk_guard
+            is not None
+        ):
+            proposed_risk = (
+                account_balance
+                * risk_percent
+                / 100.0
+            )
+
+            trades_today: list[
+                dict[str, object]
+            ] = []
+
+            if (
+                self.trade_history_store
+                is not None
+            ):
+                history = (
+                    self.trade_history_store.get_history(
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        limit=500,
+                    )
+                )
+
+                analysis_date = (
+                    result["analyzed_at"].date()
+                )
+
+                trades_today = [
+                    trade
+                    for trade in history
+                    if trade["closed_at"].date()
+                    == analysis_date
+                ]
+
+            account_risk = (
+                self.account_risk_guard.evaluate(
+                    trades_today=trades_today,
+                    open_positions=open_positions,
+                    proposed_risk=proposed_risk,
+                )
+            )
+
+            result["account_risk"] = (
+                account_risk
+            )
+
+            account_risk_approved = bool(
+                account_risk["approved"]
+            )
+
+
         if (
             self.execution_manager
             is not None
@@ -2314,61 +2370,6 @@ class LiveMarketAnalysisService:
                         execution["contracts"] = int(
                             position_sizing["contracts"]
                         )
-
-                account_risk_approved = True
-
-                if (
-                    self.account_risk_guard
-                    is not None
-                ):
-                    proposed_risk = (
-                        account_balance
-                        * risk_percent
-                        / 100.0
-                    )
-
-                    trades_today: list[
-                        dict[str, object]
-                    ] = []
-
-                    if (
-                        self.trade_history_store
-                        is not None
-                    ):
-                        history = (
-                            self.trade_history_store.get_history(
-                                symbol=symbol,
-                                timeframe=timeframe,
-                                limit=500,
-                            )
-                        )
-
-                        analysis_date = (
-                            result["analyzed_at"].date()
-                        )
-
-                        trades_today = [
-                            trade
-                            for trade in history
-                            if trade["closed_at"].date()
-                            == analysis_date
-                        ]
-
-                    account_risk = (
-                        self.account_risk_guard.evaluate(
-                            trades_today=trades_today,
-                            open_positions=open_positions,
-                            proposed_risk=proposed_risk,
-                        )
-                    )
-
-                    result["account_risk"] = (
-                        account_risk
-                    )
-
-                    account_risk_approved = bool(
-                        account_risk["approved"]
-                    )
 
                 execution_decision_approved = (
                     position_sizing_approved
@@ -2760,11 +2761,7 @@ class LiveMarketAnalysisService:
                             True,
                         )
                     ),
-                    risk_approved=(
-                    account_risk_approved
-                    if "account_risk_approved" in locals()
-                    else True
-                ),
+                    risk_approved=account_risk_approved,
                     sizing_approved=(
                     position_sizing_approved
                     if "position_sizing_approved" in locals()
