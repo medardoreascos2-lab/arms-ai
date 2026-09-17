@@ -720,7 +720,7 @@ def test_main_exposes_a_supported_runtime_entrypoint() -> None:
     assert callable(getattr(main_module, "build_runtime_context", None))
 
     source = inspect.getsource(main_module.main)
-    assert "start_clean" in source
+    assert "startup_coordinator.startup_clean" in source
     assert "shutdown_to" in source
     assert "ArmsPipeline" in source
 
