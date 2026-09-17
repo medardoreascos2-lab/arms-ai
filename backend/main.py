@@ -30,7 +30,7 @@ def main() -> None:
     runtime_started = False
 
     try:
-        lifecycle_manager.start_clean()
+        runtime_context.startup_coordinator.startup_clean()
         runtime_started = True
 
         arms = ArmsCore()
