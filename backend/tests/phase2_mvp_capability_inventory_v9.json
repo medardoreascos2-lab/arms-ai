@@ -4,7 +4,7 @@
   "PHASE1_STATUS": "CLOSED",
   "MVP_READY": false,
   "LIVE_EXECUTION": "NO",
-  "counting_rule": "30 groups, 24 mandatory; floor(100 * 22 / 24)=91. V11 closes MVP-018/019/021 for local PAPER browser authorization, projection and isolation. V12 proves the controlled local PAPER operational path. V13 closes MVP-010 for the operator-maintained certified calendar/news lifecycle; MVP-023 remains open for sustained joined operational acceptance and MVP-024 remains open for arbitrary empirical certification. Six post-MVP groups are excluded.",
+  "counting_rule": "30 groups, 24 mandatory; floor(100 * 23 / 24)=95. V11 closes local PAPER browser authorization, projection and isolation. V12 proves the controlled PAPER operational path. V13 closes the certified calendar/news lifecycle. V14 closes MVP-023 with sustained joined PAPER acceptance across repeated cycles, risk rejection, dashboard observation, account switching and idempotency. MVP-024 remains P2 for arbitrary empirical strategy/dataset certification. Six post-MVP groups are excluded.",
   "scope_authority": [
     "docs/master/ARMS_AI_MASTER_ROADMAP.md#12-mvp-beta-and-production-boundaries",
     "docs/master/ARMS_AI_REQUIREMENTS_MATRIX.md",
@@ -13,15 +13,15 @@
   "counts": {
     "TOTAL_MVP_CAPABILITIES": 30,
     "MANDATORY_MVP_CAPABILITIES": 24,
-    "CLOSED_CERTIFIED": 22,
-    "IMPLEMENTED_NEEDS_INTEGRATION": 1,
+    "CLOSED_CERTIFIED": 23,
+    "IMPLEMENTED_NEEDS_INTEGRATION": 0,
     "PARTIAL": 2,
     "MISSING": 0,
     "BLOCKED_EXTERNAL": 0,
     "POST_MVP": 6,
-    "MVP_COMPLETION_PERCENT": 91,
+    "MVP_COMPLETION_PERCENT": 95,
     "P0_GAPS": 0,
-    "P1_GAPS": 1,
+    "P1_GAPS": 0,
     "P2_GAPS": 1
   },
   "capabilities": [
@@ -532,14 +532,14 @@
       "CAPABILITY_ID": "MVP-023",
       "NAME": "Reproducible operator startup-to-PAPER acceptance",
       "OWNER": "ASGI entry point / frontend scripts / operational runbook",
-      "STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "STATUS": "CLOSED_CERTIFIED",
       "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
-      "INTEGRATION_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "END_TO_END_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
       "MVP_REQUIRED": "YES",
       "PRIORITY": "P1",
-      "BLOCKER": "V11 certifies authorized browser observation/account switching with isolated PAPER fixtures and documents frontend setup. Joined sustained public inputs, certified-input maintenance, operator startup and restart acceptance remain unproven as one scenario.",
+      "BLOCKER": "NONE for local PAPER MVP. Sustained joined operator startup-to-PAPER acceptance is certified by V12, V13 and V14. External paid/public feed provisioning and production deployment remain separate boundaries.",
       "DEPENDENCIES": [
         "MVP-005",
         "MVP-008",
@@ -554,9 +554,12 @@
         "frontend/README.md",
         "scripts/live_http_smoke_v2.py",
         "backend/tests/test_phase2_paper_mvp_operational_acceptance_v12.py",
-        "docs/architecture/phase2_paper_mvp_operational_acceptance_v12.md"
+        "docs/architecture/phase2_paper_mvp_operational_acceptance_v12.md",
+        "backend/tests/test_phase2_sustained_operational_acceptance_v14.py",
+        "docs/architecture/phase2_sustained_operational_acceptance_v14.md",
+        "backend/tests/test_certified_economic_news_operationalization_v13.py"
       ],
-      "ASSESSMENT": "V12 proves controlled deterministic PAPER startup, market admission, risk rejection, valid fill/close, financial and journal synchronization, authorized dashboard projection, account switching and restart recovery. Sustained public inputs and certified-input maintenance remain unproven because MVP-010 is still open."
+      "ASSESSMENT": "V12 proves deterministic PAPER startup, admission, risk rejection, valid fill/close, financial/journal synchronization, authorized dashboard projection, account switching and restart recovery. V13 certifies operator-maintained calendar/news lifecycle. V14 adds repeated joined PAPER cycles, repeated risk rejection, repeated HTTP/WebSocket observation, account-switch containment and submission-id idempotency without introducing a second authority."
     },
     {
       "CAPABILITY_ID": "MVP-024",
