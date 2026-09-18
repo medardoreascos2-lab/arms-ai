@@ -217,6 +217,20 @@
   ],
   "application_state_bindings": [
     {
+      "binding": "economic_news_runtime_refresh_service_v2",
+      "account_identity_source": "Published application state; certified economic-news configuration is global to the active runtime",
+      "runtime_generation_source": "PublishedAccountRuntimeV2.generation",
+      "can_read_other_account": "NO account ledger access; owns only certified news activation state",
+      "can_mutate_other_account": "NO account or execution mutation; protected operator refresh only",
+      "switch_behavior": "Rebuilt with the new application and bound to its economic-news lifecycle",
+      "recovery_behavior": "Rebuilt from configured certified path at application startup",
+      "stale_reference_behavior": "Old service remains attached to the retired application and cannot publish to the new state",
+      "evidence": [
+        "backend/services/certified_economic_news_runtime_refresh_service_v2.py",
+        "backend/tests/test_certified_economic_news_operationalization_v13.py"
+      ]
+    },
+    {
       "binding": "account_config_manager_v2",
       "account_identity_source": "PublishedAccountRuntimeV2.runtime.account_switch_safety_v2.identity; selected by AccountRuntimeCoordinatorV2 catalog",
       "runtime_generation_source": "PublishedAccountRuntimeV2.generation; shared durable admission generation",

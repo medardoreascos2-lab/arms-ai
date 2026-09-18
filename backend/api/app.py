@@ -676,8 +676,14 @@ from backend.services.live_candle_store import (
 from backend.services.certified_market_hours_runtime_refresh_service_v2 import (
     CertifiedMarketHoursRuntimeRefreshServiceV2,
 )
+from backend.services.certified_economic_news_runtime_refresh_service_v2 import (
+    CertifiedEconomicNewsRuntimeRefreshServiceV2,
+)
 from backend.api.routers.certified_market_hours_refresh_api_v2 import (
     create_certified_market_hours_refresh_router_v2,
+)
+from backend.api.routers.certified_economic_news_refresh_api_v2 import (
+    create_certified_economic_news_refresh_router_v2,
 )
 
 from backend.trend.trend_engine_v2 import (
@@ -1868,6 +1874,12 @@ def create_app(
             ),
         )
     )
+    app.state.economic_news_runtime_refresh_service_v2 = (
+        CertifiedEconomicNewsRuntimeRefreshServiceV2(
+            app_state=app.state,
+            lifecycle=app.state.economic_news_data_lifecycle_v2,
+        )
+    )
 
     app.state.trend_engine_v2 = (
         TrendEngineV2(
@@ -2762,6 +2774,32 @@ def create_app(
     register_router_v2(
         app,
         market_hours_router_v2,
+    )
+
+    economic_news_router_v2 = (
+        create_certified_economic_news_refresh_router_v2(
+            refresh_service=(
+                app.state.economic_news_runtime_refresh_service_v2
+            ),
+            lifecycle=(
+                app.state.economic_news_data_lifecycle_v2
+            ),
+            runtime_provider=(
+                app.state.economic_news_runtime_provider_v2
+            ),
+        )
+    )
+
+    _protect_admin_routes_v2(
+        economic_news_router_v2,
+        paths={
+            "/api/v2/economic-news/refresh",
+        },
+    )
+
+    register_router_v2(
+        app,
+        economic_news_router_v2,
     )
 
     register_router_v2(

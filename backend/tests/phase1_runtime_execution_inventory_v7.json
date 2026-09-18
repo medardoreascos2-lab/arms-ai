@@ -7,7 +7,7 @@
       "id": "backend/api/app.py:create_app",
       "path": "backend/api/app.py",
       "function": "create_app",
-      "source_sha256": "8ac86dd68dcd8425b50d051d25bd6efab7d671d155baa19b17925d0a6d82862b",
+      "source_sha256": "912429f26ff99ad9453c54ecdd6ad13816e10a38f2ea123dfef4318817a18656",
       "calls": [
         "APISettings",
         "AccountConfigManagerV2",
@@ -36,6 +36,7 @@
         "BacktestingWorkerV2",
         "BreakEvenEngineV2",
         "BreakdownWidgetV2",
+        "CertifiedEconomicNewsRuntimeRefreshServiceV2",
         "CertifiedMarketHoursRuntimeRefreshServiceV2",
         "ConfluenceEngineV2",
         "DashboardAutoRefreshEngineV2",
@@ -164,6 +165,7 @@
         "create_backtesting_metrics_router_v2",
         "create_backtesting_orchestrator_v2",
         "create_backtesting_router_v2",
+        "create_certified_economic_news_refresh_router_v2",
         "create_certified_market_hours_refresh_router_v2",
         "create_dashboard_live_router_v2",
         "create_dashboard_websocket_router_v2",
@@ -227,7 +229,7 @@
       "id": "backend/api/app.py:<module>",
       "path": "backend/api/app.py",
       "function": "<module>",
-      "source_sha256": "271b5f4f2b44fe52de86bffcf23cf2fd1d85039399128104455752c840400b95",
+      "source_sha256": "a4878480979ae065af36029e6c3bf8041ea84e4fb950c239b4c9355cfa3aaa03",
       "calls": [
         "create_app"
       ],

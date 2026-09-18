@@ -23,6 +23,8 @@ ARMS_MAXIMUM_OPEN_POSITIONS=1
 
 The acceptance fixture supplies isolated PAPER account profiles, certified test hours/news JSON, and deterministic market input. Production startup may additionally set `ARMS_CERTIFIED_MARKET_HOURS_PATH` and `ARMS_CERTIFIED_ECONOMIC_NEWS_PATH` to operator-maintained certified files. Missing or invalid required policy values fail closed.
 
+The operator-maintained calendar/news preparation, validation, activation, provenance, refresh, and recovery procedure is documented in [phase2_certified_calendar_news_operationalization_v13.md](phase2_certified_calendar_news_operationalization_v13.md).
+
 ## Backend
 
 From `C:/Development/ARMS-AI`, run the canonical ASGI entry point:
