@@ -138,7 +138,9 @@ def test_dashboard_websocket_uses_snapshot_projection():
 
     source = inspect.getsource(route.endpoint)
 
-    assert "get_snapshot" in source
+    from backend.api.dashboard_browser_transport_v11 import dashboard_snapshot
+    assert "dashboard_snapshot" in source
+    assert "get_snapshot" in inspect.getsource(dashboard_snapshot)
     assert "send_json" in source
 
 
@@ -333,7 +335,9 @@ def test_switch_retires_old_socket_without_new_account_projection(hosted, monkey
     with hosted.client.websocket_connect(WEBSOCKET_PATH, headers=headers) as old_socket:
         assert old_socket.receive_json() == {
             "event_type": "dashboard_snapshot",
-            "data": {"profile": "A", "generation": source.generation},
+            "data": {"profile": "A", "generation": source.generation,
+                     "runtime": source.runtime.execution_state_store.account_identity,
+                     "execution_mode": "PAPER", "positions": [], "journal_history": []},
         }
         response = hosted.client.post(url, json=target(hosted, "B"), headers=headers)
         assert response.status_code == 200, response.text
@@ -344,7 +348,9 @@ def test_switch_retires_old_socket_without_new_account_projection(hosted, monkey
             snapshot = new_socket.receive_json()
             assert snapshot == {
                 "event_type": "dashboard_snapshot",
-                "data": {"profile": "B", "generation": current.generation},
+                "data": {"profile": "B", "generation": current.generation,
+                         "runtime": current.runtime.execution_state_store.account_identity,
+                         "execution_mode": "PAPER", "positions": [], "journal_history": []},
             }
             # A target-account broadcast must reach only the new generation.
             update = {"event_type": "dashboard_updated", "data": snapshot["data"]}

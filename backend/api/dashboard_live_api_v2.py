@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 from fastapi import HTTPException
+from fastapi import Request
+from backend.api.dashboard_browser_transport_v11 import dashboard_snapshot
 
 from datetime import datetime
 from datetime import timezone
@@ -36,7 +38,7 @@ def create_dashboard_live_router_v2(
     @router.get(
         "/dashboard/live",
     )
-    def get_dashboard_live():
+    def get_dashboard_live(request: Request = None):
 
         if live_data_service_v2 is None:
             return {
@@ -50,8 +52,8 @@ def create_dashboard_live_router_v2(
 
         try:
             return (
-                live_data_service_v2
-                .get_snapshot()
+                dashboard_snapshot(request.app.state, live_data_service_v2)
+                if request is not None else live_data_service_v2.get_snapshot()
             )
 
         except Exception as exc:

@@ -1,15 +1,6 @@
 "use client";
 
-import {
-    useEffect,
-    useState,
-} from "react";
-
-import {
-    getStrategyIntelligence,
-    StrategyIntelligence,
-} from "../../../dashboard-v2/strategyIntelligenceApi";
-
+import type { StrategyIntelligence } from "../../../dashboard-v2/strategyIntelligenceApi";
 
 function decisionStyle(
     decision: string
@@ -28,25 +19,7 @@ function decisionStyle(
 
 
 
-export default function StrategyIntelligenceCard() {
-
-    const [
-        data,
-        setData,
-    ] = useState<StrategyIntelligence | null>(
-        null
-    );
-
-
-    useEffect(() => {
-
-        getStrategyIntelligence()
-            .then(setData)
-            .catch(console.error);
-
-    }, []);
-
-
+export default function StrategyIntelligenceCard({ data }: { data: StrategyIntelligence | null }) {
 
     if (!data) {
 

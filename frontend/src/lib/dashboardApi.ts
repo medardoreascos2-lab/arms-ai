@@ -15,111 +15,57 @@ export type JsonObject = {
   [key: string]: JsonValue;
 };
 
-const API_URL =
-  "http://localhost:8000";
+// Public build configuration contains an origin only, never a credential.
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+let adminToken = "";
 
-const WEBSOCKET_URL =
-  "ws://localhost:8000";
-
-async function getJson(
-  path: string
-): Promise<JsonObject> {
-  const response = await fetch(
-    `${API_URL}${path}`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    }
-  );
-
-  if (!response.ok) {
-    let detail = "";
-
-    try {
-      const payload =
-        (await response.json()) as JsonObject;
-
-      detail = String(
-        payload.detail ??
-          payload.error ??
-          ""
-      );
-    } catch {
-      detail = "";
-    }
-
-    throw new Error(
-      detail ||
-        `API Error: ${response.status}`
-    );
+export function configurePaperCredential(token: string): void {
+  if (token && (!/^[\x21-\x7e]+$/.test(token) || token.length > 2048)) {
+    throw new Error("La credencial PAPER debe ser ASCII sin espacios.");
   }
+  adminToken = token;
+}
 
+function apiOrigin(): string {
+  const url = new URL(API_URL);
+  if (url.username || url.password || url.search || url.hash || url.pathname !== "/" ||
+      !(url.protocol === "https:" || (url.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))) {
+    throw new Error("Usa un origen HTTPS o localhost para PAPER.");
+  }
+  return url.origin;
+}
+
+export async function requestJson(path: string, body?: JsonObject, protectedCall = false,
+                                  missingIsEmpty = false): Promise<JsonObject> {
+  if (!path.startsWith("/") || path.startsWith("//")) throw new Error("Ruta API inválida.");
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (protectedCall) {
+    if (!adminToken) throw new Error("Introduce la credencial administrativa PAPER.");
+    headers["X-ARMS-ADMIN-TOKEN"] = adminToken;
+  }
+  const response = await fetch(`${apiOrigin()}${path}`, {
+    method: body === undefined ? "GET" : "POST", headers,
+    body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store",
+    redirect: "error", credentials: "omit",
+  });
+  if (missingIsEmpty && response.status === 404) return { status: "UNAVAILABLE", reason: "Sin análisis de mercado disponible." };
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(String(payload.detail ?? payload.error ?? `API Error: ${response.status}`));
+  }
   return response.json();
 }
 
+const getJson = (path: string) => requestJson(path);
+const postJson = (path: string, body: JsonObject) => requestJson(path, body, true);
 
-async function postJson(
-  path: string,
-  body: JsonObject
-): Promise<JsonObject> {
-
-  const response = await fetch(
-    `${API_URL}${path}`,
-    {
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-
-      body: JSON.stringify(
-        body
-      ),
-
-      cache: "no-store",
-    }
-  );
-
-
-  if (!response.ok) {
-
-    let detail = "";
-
-    try {
-
-      const payload =
-        (await response.json()) as JsonObject;
-
-
-      detail = String(
-        payload.detail ??
-        payload.error ??
-        ""
-      );
-
-    } catch {
-
-      detail = "";
-
-    }
-
-
-    throw new Error(
-      detail ||
-      `API Error: ${response.status}`
-    );
-
-  }
-
-
-  return response.json();
-
+export function openDashboardWebSocket(): WebSocket {
+  if (!adminToken) throw new Error("Introduce la credencial administrativa PAPER.");
+  const encoded = btoa(adminToken).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return new WebSocket(getDashboardWebSocketUrl(), ["arms-dashboard-v1", `arms-admin.${encoded}`]);
 }
-
 
 export function getDashboardLive():
 Promise<JsonObject> {
@@ -192,14 +138,9 @@ export async function switchAccount(
 }
 
 
-export function getDashboardWebSocketUrl():
-string {
-  return (
-    `${WEBSOCKET_URL}` +
-    "/api/v2/dashboard/ws"
-  );
+export function getDashboardWebSocketUrl(): string {
+  return apiOrigin().replace(/^http/, "ws") + "/api/v2/dashboard/ws";
 }
-
 
 export function getStrategyRanking():
 Promise<JsonObject> {
@@ -234,30 +175,9 @@ Promise<JsonObject> {
 
 
 
-export function getAIDecision():
-Promise<JsonObject> {
-
-  return postJson(
-    "/ai/decision",
-    {
-      weights: {
-        trend: 0.3,
-        risk: 0.3,
-        performance: 0.4
-      },
-
-      metrics: {
-        beta: 1.1,
-        sharpe_ratio: 1.8,
-        volatility: 0.15,
-        drawdown: 0.05
-      }
-    }
-  );
-
+export function getAIDecision(): Promise<JsonObject> {
+  return getIntelligenceDecision();
 }
-
-
 
 export function getExecutionApproval():
 Promise<JsonObject> {
@@ -401,3 +321,35 @@ Promise<JsonObject> {
 
 }
 
+
+export function runtimeKey(value: JsonObject): string {
+  if (typeof value.account_id !== "string" || typeof value.profile_name !== "string" ||
+      typeof value.runtime_generation !== "number") throw new Error("Runtime PAPER no verificable.");
+  return JSON.stringify([value.account_id, value.profile_name, value.runtime_generation]);
+}
+
+export async function getDashboardBundle(): Promise<JsonObject> {
+  const context = await getJson("/api/v2/dashboard/account-manager/switch-context");
+  const key = runtimeKey(context);
+  // Legacy ranking/setup/approval/fusion routes evaluate demonstration inputs.
+  // Keep their APIs for compatibility, but never present them as PAPER state.
+  const readers = {
+    live: getDashboardLive, widgets: getDashboardWidgets,
+    backtesting: getBacktestingDashboard, plan: getExecutionManager,
+    performance: getPerformanceIntelligence, pattern: getAIPattern, learning: getAILearning,
+    memory: getTradingMemory, pipeline: getExecutionPipeline,
+    risk: getRiskDashboard, account: getAccountProfile,
+    strategy: () => getJson("/api/v2/strategy/intelligence"),
+    market: () => requestJson("/market/latest-analysis?symbol=" +
+      encodeURIComponent(process.env.NEXT_PUBLIC_PAPER_SYMBOL ?? "MNQ") + "&timeframe=" +
+      encodeURIComponent(process.env.NEXT_PUBLIC_PAPER_TIMEFRAME ?? "5m"), undefined, false, true),
+  };
+  const entries = await Promise.all(Object.entries(readers).map(async ([name, read]) => [name, await read()]));
+  const result: JsonObject = Object.fromEntries(entries);
+  const after = await getJson("/api/v2/dashboard/account-manager/switch-context");
+  const live = result.live as JsonObject;
+  if (key !== runtimeKey(after) || key !== runtimeKey(live.runtime as JsonObject) || live.execution_mode !== "PAPER") {
+    throw new Error("El runtime PAPER cambió; reconectando.");
+  }
+  return { ...result, context };
+}

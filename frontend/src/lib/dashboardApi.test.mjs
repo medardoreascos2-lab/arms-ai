@@ -8,7 +8,7 @@ import ts from "typescript";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function client(responses) {
+function client(responses, env = {}) {
   const calls = [];
   const source = fs.readFileSync(path.join(__dirname, "dashboardApi.ts"), "utf8");
   const compiled = ts.transpileModule(source, {
@@ -16,15 +16,17 @@ function client(responses) {
   }).outputText;
   const exports = {};
   vm.runInNewContext(compiled, {
-    exports,
+    exports, process: { env }, URL, btoa,
+    WebSocket: class { constructor(url, protocols) { this.url = url; this.protocols = protocols; } },
     fetch: async (url, options) => {
       calls.push({ url, options });
-      const response = responses.shift();
+      const response = typeof responses === 'function' ? responses(url, options) : responses.shift();
       assert.ok(response, "Unexpected request");
       return { ok: response.ok ?? true, status: response.status ?? 200,
         json: async () => response.body };
     },
   });
+  exports.configurePaperCredential("test-paper-admin");
   return { api: exports, calls };
 }
 
@@ -41,6 +43,75 @@ test("switch posts canonical operational identity and separate profile using JSO
   assert.equal(c.calls[1].options.method, "POST");
   assert.deepEqual(JSON.parse(c.calls[1].options.body),
     { account_id: "ARMS-PAPER-LIFECYCLE", profile_name: "A" });
+});
+
+test("only protected requests carry the canonical credential", async () => {
+  const c = client([{ body: {} }, { body: {} }]);
+  await c.api.getDashboardLive();
+  await c.api.requestJson('/api/v2/dashboard/account-manager/switch', {}, true);
+  assert.equal(c.calls[0].options.headers['X-ARMS-ADMIN-TOKEN'], undefined);
+  assert.equal(c.calls[1].options.headers['X-ARMS-ADMIN-TOKEN'], 'test-paper-admin');
+  assert.equal(c.calls[1].options.redirect, 'error');
+  assert.equal(c.calls[1].options.credentials, 'omit');
+});
+
+test("missing credential cannot send a protected command or open a socket", async () => {
+  const c = client([]);
+  c.api.configurePaperCredential('');
+  await assert.rejects(c.api.requestJson('/control', {}, true), /credencial/);
+  assert.throws(() => c.api.openDashboardWebSocket(), /credencial/);
+  assert.equal(c.calls.length, 0);
+});
+
+test("wrong credential failure is surfaced without retry or mutation fallback", async () => {
+  const c = client([{ ok: false, status: 401, body: { detail: 'admin_unauthorized' } }]);
+  c.api.configurePaperCredential('wrong');
+  await assert.rejects(c.api.requestJson('/control', {}, true), /admin_unauthorized/);
+  assert.equal(c.calls.length, 1);
+});
+
+test("WebSocket uses same credential in protocol and never in URL", () => {
+  const c = client([]);
+  const ws = c.api.openDashboardWebSocket();
+  assert.equal(ws.url, 'ws://localhost:8000/api/v2/dashboard/ws');
+  assert.equal(ws.protocols[0], 'arms-dashboard-v1');
+  assert.equal(ws.protocols[1], 'arms-admin.' + Buffer.from('test-paper-admin').toString('base64url'));
+});
+
+test("insecure remote origin fails before sending a credential", async () => {
+  const c = client([], { NEXT_PUBLIC_API_URL: 'http://remote.example' });
+  await assert.rejects(c.api.requestJson('/control', {}, true), /HTTPS/);
+  assert.equal(c.calls.length, 0);
+});
+
+test("AI decision reads backend intelligence without demo metrics", async () => {
+  const c = client([{ body: { decision: 'WAIT' } }]);
+  await c.api.getAIDecision();
+  assert.equal(c.calls[0].options.method, 'GET');
+  assert.equal(c.calls[0].options.body, undefined);
+});
+
+test("bundle excludes demonstration approvals and preserves authoritative snapshot values", async () => {
+  const identity = { account_id: 'PAPER-A', profile_name: 'A', runtime_generation: 1 };
+  const snapshot = { runtime: identity, execution_mode: 'PAPER', account_state: { balance: 150020 },
+    risk_status: { trading_blocked: true }, portfolio_summary: { total_realized_pnl: 20 } };
+  const c = client(url => ({ body: url.endsWith('/switch-context') ? identity :
+    url.endsWith('/live') ? snapshot : {} }));
+  const result = await c.api.getDashboardBundle();
+  assert.equal(result.live, snapshot);
+  assert.ok(c.calls.every(call => call.options.method === 'GET'));
+  for (const suffix of ['/trade-setup', '/execution-approval', '/execution-simulator', '/strategy-ranking', '/confidence-fusion', '/intelligence-decision']) {
+    assert.ok(c.calls.every(call => !call.url.endsWith(suffix)), suffix);
+  }
+});
+
+test("bundle rejects account generation changes during parallel reads", async () => {
+  let contexts = 0;
+  const identity = { account_id: 'PAPER-A', profile_name: 'A', runtime_generation: 1 };
+  const c = client(url => ({ body: url.endsWith('/switch-context') ?
+    { ...identity, runtime_generation: ++contexts } :
+    url.endsWith('/live') ? { runtime: identity, execution_mode: 'PAPER' } : {} }));
+  await assert.rejects(c.api.getDashboardBundle(), /runtime PAPER cambió/);
 });
 
 test("rejected switch propagates failure so dashboard does not publish success", async () => {

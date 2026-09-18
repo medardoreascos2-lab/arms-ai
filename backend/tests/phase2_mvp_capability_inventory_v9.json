@@ -4,7 +4,7 @@
   "PHASE1_STATUS": "CLOSED",
   "MVP_READY": false,
   "LIVE_EXECUTION": "NO",
-  "counting_rule": "30 capability groups, 24 mandatory; floor(100 * 18 closed / 24 mandatory)=75. Integration bucket combines IMPLEMENTED_NOT_INTEGRATED and IMPLEMENTED_NEEDS_E2E_PROOF. V10 closes four mandatory controlled application-market-to-candidate boundaries; sustained operational source provisioning remains in MVP-023. Counts are scoped capability evidence, not effort or complete browser MVP readiness.",
+  "counting_rule": "30 groups, 24 mandatory; floor(100 * 21 / 24)=87. V11 closes MVP-018/019/021 for local PAPER browser authorization, projection and isolation. MVP-010/023/024 remain open; six post-MVP groups excluded. This is not whole-product release readiness.",
   "scope_authority": [
     "docs/master/ARMS_AI_MASTER_ROADMAP.md#12-mvp-beta-and-production-boundaries",
     "docs/master/ARMS_AI_REQUIREMENTS_MATRIX.md",
@@ -13,15 +13,15 @@
   "counts": {
     "TOTAL_MVP_CAPABILITIES": 30,
     "MANDATORY_MVP_CAPABILITIES": 24,
-    "CLOSED_CERTIFIED": 18,
-    "IMPLEMENTED_NEEDS_INTEGRATION": 2,
-    "PARTIAL": 4,
+    "CLOSED_CERTIFIED": 21,
+    "IMPLEMENTED_NEEDS_INTEGRATION": 1,
+    "PARTIAL": 2,
     "MISSING": 0,
     "BLOCKED_EXTERNAL": 0,
     "POST_MVP": 6,
-    "MVP_COMPLETION_PERCENT": 75,
+    "MVP_COMPLETION_PERCENT": 87,
     "P0_GAPS": 0,
-    "P1_GAPS": 5,
+    "P1_GAPS": 2,
     "P2_GAPS": 1
   },
   "capabilities": [
@@ -404,36 +404,40 @@
     {
       "CAPABILITY_ID": "MVP-018",
       "NAME": "Browser HTTP authorization and endpoint configuration",
-      "OWNER": "frontend dashboardApi.ts",
-      "STATUS": "PARTIAL",
-      "IMPLEMENTATION_STATUS": "PARTIAL",
-      "INTEGRATION_STATUS": "PARTIAL",
-      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "END_TO_END_STATUS": "PARTIAL",
+      "OWNER": "frontend/src/lib/dashboardApi.ts::requestJson",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
       "MVP_REQUIRED": "YES",
       "PRIORITY": "P1",
-      "BLOCKER": "Hardcoded localhost endpoints and no admin header/session support. Public switch-context and dashboard reads work; the protected switch mutation rejects unauthenticated browser calls. Do not solve by weakening backend auth or exposing server secrets.",
+      "BLOCKER": "NONE within local PAPER dashboard scope",
       "DEPENDENCIES": [
         "MVP-017"
       ],
       "EVIDENCE": [
         "frontend/src/lib/dashboardApi.ts",
-        "backend/api/admin_authorization_dependency_v2.py"
+        "backend/api/admin_authorization_dependency_v2.py",
+        "backend/tests/test_authorized_dashboard_v11.py",
+        "frontend/src/lib/dashboardConnection.test.mjs",
+        "frontend/src/lib/dashboardApi.test.mjs",
+        "docs/architecture/phase2_authorized_paper_dashboard_v11.md"
       ],
-      "ASSESSMENT": "Hardcoded localhost endpoints and no admin header/session support. Public switch-context and dashboard reads work; the protected switch mutation rejects unauthenticated browser calls. Do not solve by weakening backend auth or exposing server secrets."
+      "ASSESSMENT": "Canonical admin header for protected control, public GETs without credentials, validated build-time origin and memory-only operator PAPER credential; actual Node-to-ASGI and browser transport verified."
     },
     {
       "CAPABILITY_ID": "MVP-019",
       "NAME": "Usable mandatory dashboard views and candidate state",
-      "OWNER": "frontend dashboard-v2/page.tsx and cards",
-      "STATUS": "PARTIAL",
-      "IMPLEMENTATION_STATUS": "PARTIAL",
-      "INTEGRATION_STATUS": "PARTIAL",
-      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "END_TO_END_STATUS": "PARTIAL",
+      "OWNER": "frontend/src/app/dashboard-v2/page.tsx / dashboardProjection.ts",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
       "MVP_REQUIRED": "YES",
       "PRIORITY": "P1",
-      "BLOCKER": "Existing account/risk/journal/position cards compile; required candidate/market views and unavailable/error states lack browser-to-runtime acceptance. Advisory getAIDecision submits hardcoded demo metrics.",
+      "BLOCKER": "NONE within local PAPER dashboard scope",
       "DEPENDENCIES": [
         "MVP-008",
         "MVP-018"
@@ -441,9 +445,13 @@
       "EVIDENCE": [
         "frontend/src/app/dashboard-v2/page.tsx",
         "frontend/src/components/dashboard-v2/AccountOverviewCard.tsx",
-        "frontend/src/components/dashboard-v2/TradeJournalCard.tsx"
+        "frontend/src/components/dashboard-v2/TradeJournalCard.tsx",
+        "backend/tests/test_authorized_dashboard_v11.py",
+        "frontend/src/lib/dashboardConnection.test.mjs",
+        "frontend/src/lib/dashboardApi.test.mjs",
+        "docs/architecture/phase2_authorized_paper_dashboard_v11.md"
       ],
-      "ASSESSMENT": "Existing account/risk/journal/position cards compile; required candidate/market views and unavailable/error states lack browser-to-runtime acceptance. Advisory getAIDecision submits hardcoded demo metrics."
+      "ASSESSMENT": "Canonical account/risk/positions/PnL/journal/execution and V10 market/candidate projections; explicit unavailable states, no demo approvals, no frontend financial/risk calculations. Browser A/B and real candidate client integration verified."
     },
     {
       "CAPABILITY_ID": "MVP-020",
@@ -470,15 +478,15 @@
     {
       "CAPABILITY_ID": "MVP-021",
       "NAME": "Browser WebSocket authentication and reconnection",
-      "OWNER": "dashboard-v2/page.tsx WebSocket client",
-      "STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "OWNER": "frontend/src/lib/dashboardConnection.ts::DashboardConnection",
+      "STATUS": "CLOSED_CERTIFIED",
       "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
-      "INTEGRATION_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
-      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "END_TO_END_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
       "MVP_REQUIRED": "YES",
       "PRIORITY": "P1",
-      "BLOCKER": "Browser opens a bare URL; backend requires custom admin header before accept. A supported browser session/proxy/ticket design is needed; native browser constructor cannot set that header.",
+      "BLOCKER": "NONE within local PAPER dashboard scope",
       "DEPENDENCIES": [
         "MVP-018",
         "MVP-020"
@@ -486,9 +494,13 @@
       "EVIDENCE": [
         "frontend/src/app/dashboard-v2/page.tsx",
         "frontend/src/lib/dashboardApi.ts",
-        "backend/api/dashboard_websocket_api_v2.py"
+        "backend/api/dashboard_websocket_api_v2.py",
+        "backend/tests/test_authorized_dashboard_v11.py",
+        "frontend/src/lib/dashboardConnection.test.mjs",
+        "frontend/src/lib/dashboardApi.test.mjs",
+        "docs/architecture/phase2_authorized_paper_dashboard_v11.md"
       ],
-      "ASSESSMENT": "Browser opens a bare URL; backend requires custom admin header before accept. A supported browser session/proxy/ticket design is needed; native browser constructor cannot set that header."
+      "ASSESSMENT": "Same admin authority validates browser protocol credential before acceptance; only public protocol echoed. Snapshot receipt, retirement/reconnection, delayed-response suppression and generation isolation verified."
     },
     {
       "CAPABILITY_ID": "MVP-022",
@@ -523,7 +535,7 @@
       "END_TO_END_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
       "MVP_REQUIRED": "YES",
       "PRIORITY": "P1",
-      "BLOCKER": "Backend/frontend start commands exist, but no current complete public-input/browser/restart smoke. Existing smoke prebuilds signal and lacks current auth/calendar/account setup; generic frontend README is insufficient.",
+      "BLOCKER": "V11 certifies authorized browser observation/account switching with isolated PAPER fixtures and documents frontend setup. Joined sustained public inputs, certified-input maintenance, operator startup and restart acceptance remain unproven as one scenario.",
       "DEPENDENCIES": [
         "MVP-005",
         "MVP-008",
@@ -538,7 +550,7 @@
         "frontend/README.md",
         "scripts/live_http_smoke_v2.py"
       ],
-      "ASSESSMENT": "Backend/frontend start commands exist, but no current complete public-input/browser/restart smoke. Existing smoke prebuilds signal and lacks current auth/calendar/account setup; generic frontend README is insufficient."
+      "ASSESSMENT": "V11 certifies authorized browser observation/account switching with isolated PAPER fixtures and documents frontend setup. Joined sustained public inputs, certified-input maintenance, operator startup and restart acceptance remain unproven as one scenario."
     },
     {
       "CAPABILITY_ID": "MVP-024",
@@ -770,7 +782,7 @@
     },
     {
       "TRANSITION": "Dashboard backend -> browser",
-      "STATUS": "PARTIAL",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-018",
       "MANDATORY": true
     },
@@ -782,7 +794,7 @@
     },
     {
       "TRANSITION": "Backend WebSocket -> browser",
-      "STATUS": "DISCONNECTED",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-021",
       "MANDATORY": true
     },
@@ -1224,8 +1236,8 @@
       "environment_note": "A restricted focused rerun produced 59 fixture setup errors (one manifest test passed); isolated -x reproduction confirmed WinError 5 accessing pytest-of-Thecrazyboss. Identical focused selection with required temporary-directory access passed all 60. Full backend certified run already had required access."
     }
   },
-  "current_package": "PHASE2_CANONICAL_MARKET_TO_CANDIDATE",
-  "current_baseline": "2aa50801a8902c1cea2ba752dec6147a19352db6",
+  "current_package": "PHASE2_AUTHORIZED_PAPER_DASHBOARD",
+  "current_baseline": "41f568fe3c4648ceeaf8167414d2628dd4a27b86",
   "v10_test_execution": {
     "direct_green": {
       "exit_code": 0,
@@ -1548,5 +1560,161 @@
     "LIVE_EXECUTION": "NO",
     "PHASE1_REGRESSION": "GREEN",
     "V9_MVP_ACCEPTANCE": "GREEN"
+  },
+  "historical_v10": {
+    "counts": {
+      "TOTAL_MVP_CAPABILITIES": 30,
+      "MANDATORY_MVP_CAPABILITIES": 24,
+      "CLOSED_CERTIFIED": 18,
+      "IMPLEMENTED_NEEDS_INTEGRATION": 2,
+      "PARTIAL": 4,
+      "MISSING": 0,
+      "BLOCKED_EXTERNAL": 0,
+      "POST_MVP": 6,
+      "MVP_COMPLETION_PERCENT": 75,
+      "P0_GAPS": 0,
+      "P1_GAPS": 5,
+      "P2_GAPS": 1
+    },
+    "package": "PHASE2_CANONICAL_MARKET_TO_CANDIDATE",
+    "baseline": "2aa50801a8902c1cea2ba752dec6147a19352db6"
+  },
+  "v11_test_execution": {
+    "direct": {
+      "passed": 1142,
+      "failed": 0,
+      "skipped": 1,
+      "module_count": 111,
+      "stage": "before cancellation cleanup repair; retained on resume"
+    },
+    "direct_modules": [
+      "backend/tests/test_account_risk_guard_max_risk_authority_v2.py",
+      "backend/tests/test_account_runtime_transition_v2.py",
+      "backend/tests/test_account_switch_api_v2.py",
+      "backend/tests/test_account_switch_safety_containment_v2.py",
+      "backend/tests/test_account_switch_safety_v2.py",
+      "backend/tests/test_authorized_dashboard_v11.py",
+      "backend/tests/test_backtest_dashboard_exporter.py",
+      "backend/tests/test_backtesting_dashboard_api_v2.py",
+      "backend/tests/test_backtesting_dashboard_app_registration_v2.py",
+      "backend/tests/test_backtesting_dashboard_execution_v2.py",
+      "backend/tests/test_backtesting_dashboard_job_counts_v2.py",
+      "backend/tests/test_backtesting_dashboard_metrics_v2.py",
+      "backend/tests/test_backtesting_dashboard_performance_report_v2.py",
+      "backend/tests/test_backtesting_dashboard_performance_v2.py",
+      "backend/tests/test_backtesting_dashboard_queue_worker_v2.py",
+      "backend/tests/test_backtesting_dashboard_read_safety_v2.py",
+      "backend/tests/test_backtesting_dashboard_risk_validation_v2.py",
+      "backend/tests/test_backtesting_dashboard_shared_manager_v2.py",
+      "backend/tests/test_backtesting_dashboard_shared_queue_v2.py",
+      "backend/tests/test_backtesting_dashboard_shared_worker_v2.py",
+      "backend/tests/test_backtesting_dashboard_strategy_decision_v2.py",
+      "backend/tests/test_backtesting_dashboard_strategy_performance_v2.py",
+      "backend/tests/test_backtesting_dashboard_strategy_ranking_v2.py",
+      "backend/tests/test_backtesting_dashboard_strategy_recommendation_v2.py",
+      "backend/tests/test_backtesting_dashboard_strategy_registry_v2.py",
+      "backend/tests/test_backtesting_dashboard_strategy_selection_v2.py",
+      "backend/tests/test_backtesting_dashboard_trade_plan_v2.py",
+      "backend/tests/test_dashboard_app_dependency_wiring_v2.py",
+      "backend/tests/test_dashboard_app_realtime_e2e_v2.py",
+      "backend/tests/test_dashboard_auto_refresh_engine_v2.py",
+      "backend/tests/test_dashboard_event_bus_v2.py",
+      "backend/tests/test_dashboard_event_dispatcher_v2.py",
+      "backend/tests/test_dashboard_event_dispatcher_websocket_integration_v2.py",
+      "backend/tests/test_dashboard_execution_manager_read_only_v2.py",
+      "backend/tests/test_dashboard_execution_pipeline_read_only_v3.py",
+      "backend/tests/test_dashboard_live_api_v2.py",
+      "backend/tests/test_dashboard_live_data_service_v2.py",
+      "backend/tests/test_dashboard_read_execution_safety_v2.py",
+      "backend/tests/test_dashboard_read_side_effects_v2.py",
+      "backend/tests/test_dashboard_realtime_pipeline_v2.py",
+      "backend/tests/test_dashboard_refresh_service_v2.py",
+      "backend/tests/test_dashboard_strategy_intelligence_read_only_v2.py",
+      "backend/tests/test_dashboard_websocket_api_v2.py",
+      "backend/tests/test_dashboard_websocket_broadcaster_v2.py",
+      "backend/tests/test_dashboard_websocket_hub_v2.py",
+      "backend/tests/test_dashboard_widget_registry_v2.py",
+      "backend/tests/test_dashboard_widgets_api_v2.py",
+      "backend/tests/test_durable_crash_recovery_v2.py",
+      "backend/tests/test_execution_dashboard_provider_v2.py",
+      "backend/tests/test_live_market_trade_planner_reward_risk_authority_v2.py",
+      "backend/tests/test_market_to_candidate_v10.py",
+      "backend/tests/test_market_webhook_dashboard_realtime_e2e_v2.py",
+      "backend/tests/test_market_webhook_journal_dashboard_sync_e2e_v2.py",
+      "backend/tests/test_market_webhook_position_closed_dashboard_e2e_v2.py",
+      "backend/tests/test_monte_carlo_dashboard_exporter.py",
+      "backend/tests/test_parameter_stability_dashboard_exporter.py",
+      "backend/tests/test_performance_dashboard_api_v2.py",
+      "backend/tests/test_performance_dashboard_engine_v2.py",
+      "backend/tests/test_performance_dashboard_provider_v2.py",
+      "backend/tests/test_performance_dashboard_score_integration_v2.py",
+      "backend/tests/test_ph1_req008_startup_pending_recovery_v2.py",
+      "backend/tests/test_phase1_account_isolation_characterization_v2.py",
+      "backend/tests/test_phase1_account_switch_full_containment_v2.py",
+      "backend/tests/test_phase1_api_authorization_observational_contract_v2.py",
+      "backend/tests/test_phase1_api_ownership_characterization_v2.py",
+      "backend/tests/test_phase1_api_route_account_scope_contract_v2.py",
+      "backend/tests/test_phase1_asgi_cli_equivalence_v2.py",
+      "backend/tests/test_phase1_consolidated_acceptance_v8.py",
+      "backend/tests/test_phase1_duplicate_fill_idempotency_v2.py",
+      "backend/tests/test_phase1_fill_atomicity_v2.py",
+      "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "backend/tests/test_phase1_financial_sync_characterization_v2.py",
+      "backend/tests/test_phase1_global_duplicate_submission_idempotency_v2.py",
+      "backend/tests/test_phase1_market_ownership_availability_v4.py",
+      "backend/tests/test_phase1_paper_execution_characterization_v2.py",
+      "backend/tests/test_phase1_paper_live_isolation_v2.py",
+      "backend/tests/test_phase1_parallel_execution_equivalence_v2.py",
+      "backend/tests/test_phase1_recovery_characterization_v2.py",
+      "backend/tests/test_phase1_recovery_execution_blocking_v2.py",
+      "backend/tests/test_phase1_rejected_signal_zero_side_effect_v2.py",
+      "backend/tests/test_phase1_risk_authority_characterization_v2.py",
+      "backend/tests/test_phase1_risk_authority_integration_v2.py",
+      "backend/tests/test_phase1_risk_precedence_v5.py",
+      "backend/tests/test_phase1_route_lifecycle_contract_v2.py",
+      "backend/tests/test_phase1_route_lifecycle_delegation_v2.py",
+      "backend/tests/test_phase1_runtime_characterization_v2.py",
+      "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+      "backend/tests/test_phase1_safety_closure_v2.py",
+      "backend/tests/test_phase1_websocket_account_isolation_characterization_v2.py",
+      "backend/tests/test_phase1_websocket_authorization_contract_v2.py",
+      "backend/tests/test_phase2_data005_required_data_rejection_v2.py",
+      "backend/tests/test_phase2_mvp_acceptance_v9.py",
+      "backend/tests/test_portfolio_dashboard_exporter.py",
+      "backend/tests/test_recovery_cli_pending_contract_v2.py",
+      "backend/tests/test_recovery_consistency_v2.py",
+      "backend/tests/test_risk_dashboard_analytics_integration_v2.py",
+      "backend/tests/test_risk_dashboard_event_publisher_v2.py",
+      "backend/tests/test_risk_validation_dashboard_provider_v2.py",
+      "backend/tests/test_runtime_admission_v81.py",
+      "backend/tests/test_safe003_execution_v2_risk_authority_wiring_v2.py",
+      "backend/tests/test_safe003_final_cross_path_risk_authority_v2.py",
+      "backend/tests/test_safe003_missing_runtime_risk_authority_v2.py",
+      "backend/tests/test_state_recovery_service_v2.py",
+      "backend/tests/test_strategy_decision_dashboard_provider_v2.py",
+      "backend/tests/test_strategy_performance_dashboard_provider_v2.py",
+      "backend/tests/test_strategy_ranking_dashboard_provider_v2.py",
+      "backend/tests/test_strategy_selection_dashboard_provider_v2.py",
+      "backend/tests/test_trade_lifecycle_dashboard_event_publisher_v2.py",
+      "backend/tests/test_trade_plan_dashboard_provider_v2.py",
+      "backend/tests/test_walk_forward_dashboard_exporter.py",
+      "backend/tests/test_walk_forward_optimization_dashboard_exporter.py"
+    ],
+    "focused_cleanup": {
+      "passed": 37,
+      "failed": 0
+    },
+    "v11_final_module": {
+      "passed": 15,
+      "failed": 0
+    },
+    "frontend": {
+      "node_tests": 23,
+      "failed": 0,
+      "lint": "PASS",
+      "build_including_typescript": "PASS"
+    },
+    "full_backend": "PENDING_FINAL_RUN",
+    "staged_certification": "PENDING"
   }
 }

@@ -63,7 +63,7 @@ export default function TradeJournalCard({
 
                 <span className="text-cyan-400 font-bold">
 
-                    LIVE
+                    PAPER
 
                 </span>
 

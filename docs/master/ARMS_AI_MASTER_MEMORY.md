@@ -1,6 +1,28 @@
 # ARMS AI — MASTER MEMORY
 
-## Current Phase 2 market-to-candidate integration — V10
+## Current Phase 2 authorized PAPER dashboard — V11
+
+[Authorized dashboard certificate](../architecture/phase2_authorized_paper_dashboard_v11.md)
+records baseline `41f568fe3c4648ceeaf8167414d2628dd4a27b86`.
+The browser now uses the existing admin authority for protected HTTP and a
+credential-validated WebSocket subprotocol. The public negotiated protocol never
+echoes the credential. Runtime generation checks and socket retirement protect
+all dashboard projections through account changes. Financial/risk/market/candidate
+state comes from canonical backend owners; demonstration approval cards are
+excluded. Reads never trade; the existing protected account switch is the only
+control-plane command. Local configuration is documented without real secrets.
+
+The [current capability inventory](../../backend/tests/phase2_mvp_capability_inventory_v9.json)
+closes MVP-018/019/021: **21/24 mandatory groups certified (87%)**, **P0=0, P1=2,
+P2=1**. Six post-MVP groups remain excluded. Phase 1 remains CLOSED. The complete
+PAPER product is not yet release-ready: certified input maintenance, joined
+operator startup/public-input/browser/restart acceptance and remaining research
+validation provenance remain open.
+
+Next: **PHASE2_PAPER_MVP_OPERATIONAL_ACCEPTANCE**. `LIVE_EXECUTION=NO`.
+V9/V10 sections below are historical evidence and counts.
+
+## Historical Phase 2 market-to-candidate integration — V10
 
 [Market-to-candidate certificate](../architecture/phase2_market_to_candidate_v10.md)
 records baseline `2aa50801a8902c1cea2ba752dec6147a19352db6`.
@@ -23,7 +45,7 @@ and validation provenance still require work. V9 counts below are historical.
 Next: **PHASE2_AUTHORIZED_PAPER_DASHBOARD**, then
 **PHASE2_PAPER_MVP_OPERATIONAL_ACCEPTANCE**. No LIVE execution.
 
-## Current Phase 2 MVP audit — V9
+## Historical Phase 2 MVP audit — V9
 
 [Remaining-gap audit](../architecture/phase2_mvp_remaining_gap_audit_v9.md) and
 [capability inventory](../../backend/tests/phase2_mvp_capability_inventory_v9.json)

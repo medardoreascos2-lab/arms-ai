@@ -1051,10 +1051,11 @@
           ]
         }
       },
-      "source_sha256": "ed504e8fe83ef51e1d387423dd7b8cfee3252ffffd6ac1e4ea3ffa894c57fc82",
+      "source_sha256": "bf8fc0ac9e37502f6af555a719c658ecb00a6b8eeab86c5c6158279621f3a60c",
       "state_fields": [],
       "calls": [
         "HTTPException",
+        "dashboard_snapshot",
         "datetime.now",
         "datetime.now(timezone.utc).isoformat",
         "live_data_service_v2.get_snapshot"
@@ -1311,18 +1312,19 @@
           ]
         }
       },
-      "source_sha256": "50515171ffba26e11994a4868102aaf548aab837d91b716561236b5e106f6602",
+      "source_sha256": "98d1869e48f9d9e7dde9f241a85d1547f032267e97b359a9a8d0d65cd376b160",
       "state_fields": [
         "admin_authorization_v2"
       ],
       "calls": [
-        "asyncio.sleep",
         "authority.require_authorized",
+        "browser_admin_token",
+        "dashboard_snapshot",
         "getattr",
         "isinstance",
-        "live_data_service_v2.get_snapshot",
         "websocket.close",
-        "websocket.headers.get",
+        "websocket.receive_text",
+        "websocket.scope.get",
         "websocket.send_json",
         "websocket_hub_v2.connect",
         "websocket_hub_v2.disconnect"
@@ -1333,7 +1335,7 @@
       "mutation": "NONE",
       "owner": "AdminAuthorizationV2; DashboardWebSocketHubV2; DashboardLiveDataServiceV2",
       "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
-      "authorization_rationale": "Imperative canonical authority before accept/snapshot; publication guard retires old generation.",
+      "authorization_rationale": "AdminAuthorizationV2 checks canonical header or browser arms-admin subprotocol before acceptance; credential is not echoed or placed in URL.",
       "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
     },
     {

@@ -1,6 +1,7 @@
 """ASGI publication boundary: each request uses one complete account application."""
 import asyncio
 from contextlib import asynccontextmanager
+from anyio import CancelScope
 from fastapi import FastAPI
 from starlette.responses import JSONResponse
 
@@ -78,9 +79,13 @@ class AccountRuntimeApplicationV2(FastAPI):
             try:
                 await asyncio.wait((worker, watcher), return_when=asyncio.FIRST_COMPLETED)
             finally:
-                worker.cancel()
-                watcher.cancel()
-                await asyncio.gather(worker, watcher, return_exceptions=True)
+                # Disconnect and ASGI cancellation can arrive together. Finish
+                # child cleanup under shielding; preserve the original outer
+                # cancellation instead of leaking a second cleanup cancellation.
+                with CancelScope(shield=True):
+                    worker.cancel()
+                    watcher.cancel()
+                    await asyncio.gather(worker, watcher, return_exceptions=True)
             return
         try:
             await bundle.application(scope, receive, send)

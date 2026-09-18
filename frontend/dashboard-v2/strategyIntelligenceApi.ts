@@ -1,3 +1,5 @@
+import { requestJson } from "../src/lib/dashboardApi";
+
 export interface StrategyIntelligence {
 
     strategy: string;
@@ -31,20 +33,5 @@ export interface StrategyIntelligence {
 export async function getStrategyIntelligence()
 : Promise<StrategyIntelligence> {
 
-    const response = await fetch(
-        "http://localhost:8000/api/v2/strategy/intelligence"
-    );
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            "Failed to fetch strategy intelligence"
-        );
-
-    }
-
-
-    return response.json();
-
+    return requestJson("/api/v2/strategy/intelligence") as unknown as Promise<StrategyIntelligence>;
 }

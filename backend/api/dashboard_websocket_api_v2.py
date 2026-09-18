@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter
 from fastapi import WebSocket
 from fastapi import WebSocketDisconnect
@@ -12,6 +10,7 @@ from backend.api.admin_authorization_dependency_v2 import (
 from backend.security.admin_authorization_v2 import (
     AdminAuthorizationV2,
 )
+from backend.api.dashboard_browser_transport_v11 import browser_admin_token, dashboard_snapshot
 
 
 def create_dashboard_websocket_router_v2(
@@ -90,9 +89,7 @@ def create_dashboard_websocket_router_v2(
 
         try:
             authority.require_authorized(
-                websocket.headers.get(
-                    ADMIN_TOKEN_HEADER
-                )
+                browser_admin_token(websocket, ADMIN_TOKEN_HEADER)
             )
         except PermissionError:
             await websocket.close(
@@ -104,13 +101,14 @@ def create_dashboard_websocket_router_v2(
             await websocket.close()
             return
 
-        await websocket_hub_v2.connect(
-            websocket=websocket,
-        )
+        if 'arms-dashboard-v1' in websocket.scope.get('subprotocols', []):
+            await websocket_hub_v2.connect(websocket=websocket, subprotocol='arms-dashboard-v1')
+        else:
+            await websocket_hub_v2.connect(websocket=websocket)
 
         try:
             snapshot = (
-                live_data_service_v2.get_snapshot()
+                dashboard_snapshot(websocket.app.state, live_data_service_v2)
                 if live_data_service_v2
                 is not None
                 else None
@@ -126,9 +124,7 @@ def create_dashboard_websocket_router_v2(
             )
 
             while True:
-                await asyncio.sleep(
-                    3600
-                )
+                await websocket.receive_text()
 
         except WebSocketDisconnect:
             pass

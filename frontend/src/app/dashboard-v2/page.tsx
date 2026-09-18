@@ -8,35 +8,10 @@ import {
   useState,
 } from "react";
 
-import {
-  getDashboardLive,
-  getDashboardWebSocketUrl,
-  getDashboardWidgets,
-  getRiskDashboard,
-  getAccountProfile,
-  switchAccount,
-  getStrategyRanking,
-  getBacktestingDashboard,
-  getTradeSetup,
-  getExecutionApproval,
-  getExecutionSimulator,
-  getExecutionManager,
-  getPerformanceIntelligence,
-  getAILearning,
-  getAIPattern,
-  getTradingMemory,
-  getAIDecisionMemory,
-  getConfidenceFusion,
-  getIntelligenceDecisionV3,
-  getExecutionPipeline,
-
-  getLearningSummary,
-  getIntelligenceDecision,
-  getAIDecision,
-  type JsonObject,
-  type JsonValue,
-} from "@/lib/dashboardApi";
-
+import { configurePaperCredential, type JsonObject, type JsonValue } from "@/lib/dashboardApi";
+import { journalCardData } from "@/lib/dashboardProjection";
+import { DashboardConnection, type ConnectionStatus } from "@/lib/dashboardConnection";
+import type { StrategyIntelligence } from "../../../dashboard-v2/strategyIntelligenceApi";
 
 import StrategyIntelligenceCard from "@/components/dashboard-v2/StrategyIntelligenceCard";
 
@@ -65,13 +40,6 @@ import ExecutionPipelineCard from "@/components/dashboard-v2/ExecutionPipelineCa
 import AIDecisionEngineCard from "@/components/dashboard-v2/AIDecisionEngineCard";
 import TradeJournalCard from "@/components/dashboard-v2/TradeJournalCard";
 import StrategyRankingCard from "@/components/dashboard-v2/StrategyRankingCard";
-
-
-type ConnectionStatus =
-  | "CONNECTING"
-  | "CONNECTED"
-  | "DISCONNECTED"
-  | "ERROR";
 
 
 type MetricItem = {
@@ -394,27 +362,6 @@ export default function DashboardV2Page() {
 
 
   const [
-    learningIntelligenceData,
-    setLearningIntelligenceData,
-  ] = useState<JsonObject | null>(
-    null
-  );
-
-
-  const [
-    intelligenceDecisionData,
-    setIntelligenceDecisionData,
-  ] = useState<JsonObject | null>(
-    null
-  );
-
-
-
-
-
-
-
-  const [
     aiDecision,
     setAiDecision,
   ] = useState<JsonObject | null>(
@@ -436,7 +383,7 @@ export default function DashboardV2Page() {
     connectionStatus,
     setConnectionStatus,
   ] = useState<ConnectionStatus>(
-    "CONNECTING"
+    "DISCONNECTED"
   );
 
   const [
@@ -451,449 +398,52 @@ export default function DashboardV2Page() {
     null
   );
 
-  const websocketRef =
-    useRef<WebSocket | null>(
-      null
-    );
-
-  const reconnectTimerRef =
-    useRef<
-      ReturnType<typeof setTimeout>
-      | null
-    >(null);
-
-
-  const handleChangeAccount =
-    useCallback(
-      async (
-        account: string
-      ) => {
-
-        try {
-
-          await switchAccount(
-            account
-          );
-
-
-          const updatedAccount =
-            await getAccountProfile();
-
-
-          setAccountData(
-            updatedAccount
-          );
-
-
-          const updatedRisk =
-            await getRiskDashboard();
-
-
-          setRiskProfileData(
-            updatedRisk
-          );
-
-
-        } catch (error) {
-
-          console.error(
-            "ACCOUNT SWITCH ERROR:",
-            error
-          );
-
-        }
-
-      },
-      []
-    );
-
-
-
-  const loadDashboard =
-    useCallback(
-      async () => {
-        try {
-          setError("");
-
-          const [
-            liveResult,
-            widgetResult,
-            rankingResult,
-            backtestingResult,
-            tradeSetupResult,
-            aiDecisionResult,
-            executionApprovalResult,
-            executionSimulationResult,
-            executionPlanResult,
-            performanceResult,
-            aiPatternResult,
-            aiLearningResult,
-            tradingMemoryResult,
-            aiDecisionMemoryResult,
-            confidenceFusionResult,
-            intelligenceDecisionV3Result,
-            executionPipelineResult,
-            learningIntelligenceResult,
-            riskResult,
-            accountResult,
-          ] = await Promise.all(
-            [
-              getDashboardLive(),
-              getDashboardWidgets(),
-              getStrategyRanking(),
-              getBacktestingDashboard(),
-              getTradeSetup(),
-              getAIDecision(),
-              getExecutionApproval(),
-              getExecutionSimulator(),
-              getExecutionManager(),
-              getPerformanceIntelligence(),
-              getAIPattern(),
-              getAILearning(),
-              getTradingMemory(),
-              getAIDecisionMemory(),
-              getConfidenceFusion(),
-              getIntelligenceDecisionV3(),
-              getExecutionPipeline(),
-              getLearningSummary(),
-              getRiskDashboard(),
-              getAccountProfile(),
-            ]
-          );
-
-          setLiveSnapshot(
-            liveResult
-          );
-
-          setWidgets(
-            widgetResult
-          );
-
-          setStrategyRanking(
-            rankingResult
-          );
-
-          setBacktestingDashboard(
-            backtestingResult
-          );
-
-
-          setTradeSetup(
-            tradeSetupResult
-          );
-
-
-          setRiskProfileData(
-            riskResult
-          );
-
-
-          setAccountData(
-            accountResult
-          );
-
-
-          console.log(
-            "AI DECISION RESULT:",
-            JSON.stringify(
-              aiDecisionResult,
-              null,
-              2
-            )
-          );
-
-
-          console.log(
-            "EXECUTION APPROVAL RESULT:",
-            JSON.stringify(
-              executionApprovalResult,
-              null,
-              2
-            )
-          );
-
-
-          console.log(
-            "EXECUTION SIMULATION RESULT:",
-            JSON.stringify(
-              executionSimulationResult,
-              null,
-              2
-            )
-          );
-
-
-          console.log(
-            "EXECUTION PLAN RESULT:",
-            JSON.stringify(
-              {
-                executionPlanResult,
-                performanceResult,
-            aiPatternResult,
-            aiLearningResult,
-              },
-              null,
-              2
-            )
-          );
-
-
-          setAiDecision(
-            aiDecisionResult
-          );
-
-
-          setExecutionApproval(
-            executionApprovalResult
-          );
-
-
-          setExecutionSimulation(
-            executionSimulationResult
-          );
-
-
-          setExecutionPlan(
-            executionPlanResult
-          );
-
-
-          console.log(
-            "PERFORMANCE RESULT:",
-            performanceResult
-          );
-
-
-          setPerformanceData(
-            performanceResult
-          );
-
-
-          setAILearningData(
-            aiLearningResult
-          );
-
-
-          setAiPatternData(
-            aiPatternResult
-          );
-
-
-          setTradingMemoryData(
-            tradingMemoryResult
-          );
-
-
-          setAIDecisionMemoryData(
-            aiDecisionMemoryResult
-          );
-
-
-          setConfidenceFusionData(
-            confidenceFusionResult
-          );
-
-
-          setIntelligenceDecisionV3Data(
-            intelligenceDecisionV3Result
-          );
-
-
-          setIntelligenceTradePlanData(
-            intelligenceDecisionV3Result.trade_plan as JsonObject
-          );
-
-
-          setExecutionPipelineData(
-            executionPipelineResult
-          );
-
-
-          setLearningIntelligenceData(
-            learningIntelligenceResult
-          );
-
-
-          setIntelligenceDecisionV3Data(
-            intelligenceDecisionV3Result
-          );
-
-
-          setLastUpdated(
-            new Date()
-          );
-        } catch (
-          caughtError
-        ) {
-          const message =
-            caughtError
-            instanceof Error
-              ? caughtError.message
-              : "No fue posible cargar el Dashboard.";
-
-          setError(message);
-        }
-      },
-      []
-    );
-
-
-  useEffect(
-    () => {
-      const initialLoadTimer =
-        window.setTimeout(
-          () => {
-            void loadDashboard();
-          },
-          0
-        );
-
-      return () => {
-        window.clearTimeout(
-          initialLoadTimer
-        );
-      };
-    },
-    [loadDashboard]
-  );
-
-
-  useEffect(
-    () => {
-      let active = true;
-
-      function connect() {
-        if (!active) {
-          return;
-        }
-
-        setConnectionStatus(
-          "CONNECTING"
-        );
-
-        const websocket =
-          new WebSocket(
-            getDashboardWebSocketUrl()
-          );
-
-        websocketRef.current =
-          websocket;
-
-        websocket.onopen =
-          () => {
-            if (!active) {
-              return;
-            }
-
-            setConnectionStatus(
-              "CONNECTED"
-            );
-          };
-
-        websocket.onmessage =
-          (event) => {
-            if (!active) {
-              return;
-            }
-
-            try {
-              const payload =
-                JSON.parse(
-                  String(event.data)
-                ) as JsonObject;
-
-              setLatestEvent(
-                payload
-              );
-
-              const eventType =
-                payload.event_type;
-
-              if (
-                eventType
-                === "dashboard_snapshot"
-                && isObject(
-                  payload.data
-                )
-              ) {
-                setLiveSnapshot(
-                  payload.data
-                );
-              }
-
-              if (
-                eventType
-                === "dashboard_updated"
-              ) {
-                if (
-                  isObject(
-                    payload.dashboard
-                  )
-                ) {
-                  setLiveSnapshot(
-                    payload.dashboard
-                  );
-                }
-              }
-
-              setLastUpdated(
-                new Date()
-              );
-            } catch {
-              setError(
-                "El WebSocket envió un mensaje inválido."
-              );
-            }
-          };
-
-        websocket.onerror =
-          () => {
-            if (!active) {
-              return;
-            }
-
-            setConnectionStatus(
-              "ERROR"
-            );
-          };
-
-        websocket.onclose =
-          () => {
-            if (!active) {
-              return;
-            }
-
-            setConnectionStatus(
-              "DISCONNECTED"
-            );
-
-            reconnectTimerRef.current =
-              setTimeout(
-                connect,
-                3000
-              );
-          };
-      }
-
-      connect();
-
-      return () => {
-        active = false;
-
-        if (
-          reconnectTimerRef.current
-        ) {
-          clearTimeout(
-            reconnectTimerRef.current
-          );
-        }
-
-        websocketRef.current?.close();
-      };
-    },
-    [loadDashboard]
-  );
-
+  const connection = useRef<DashboardConnection | null>(null);
+  const [credential, setCredential] = useState("");
+  const [context, setContext] = useState<JsonObject | null>(null);
+  const [market, setMarket] = useState<JsonObject | null>(null);
+  const [strategy, setStrategy] = useState<StrategyIntelligence | null>(null);
+
+  const publish = useCallback((bundle: JsonObject | null) => {
+    const value = (key: string) => bundle?.[key] as JsonObject ?? null;
+    const live = value("live");
+    setLiveSnapshot(live);
+    setWidgets(value("widgets"));
+    setStrategyRanking(value("ranking"));
+    setBacktestingDashboard(value("backtesting"));
+    setTradeSetup(value("setup"));
+    setRiskProfileData(bundle ? { ...value("risk"), status: live?.dashboard_status ?? "UNAVAILABLE" } : null);
+    setAccountData(bundle ? { ...value("account"), balance: (live?.account_state as JsonObject)?.balance ?? null } : null);
+    setAiDecision(value("aiDecision"));
+    setExecutionApproval(value("approval"));
+    setExecutionSimulation(value("simulation"));
+    setExecutionPlan(value("plan"));
+    setPerformanceData(value("performance"));
+    setAILearningData(value("learning"));
+    setAiPatternData(value("pattern"));
+    setTradingMemoryData(value("memory"));
+    setAIDecisionMemoryData(value("decisionMemory"));
+    setConfidenceFusionData(value("fusion"));
+    setIntelligenceDecisionV3Data(value("intelligence"));
+    setIntelligenceTradePlanData(value("intelligence")?.trade_plan as JsonObject ?? null);
+    setExecutionPipelineData(value("pipeline"));
+    setContext(value("context"));
+    setMarket(value("market"));
+    setStrategy(value("strategy") as unknown as StrategyIntelligence | null);
+    setLatestEvent(bundle ? { event_type: "authorized_dashboard_projection", runtime: live?.runtime ?? null } : null);
+    setLastUpdated(bundle ? new Date() : null);
+  }, []);
+
+  useEffect(() => {
+    const client = new DashboardConnection(publish, setConnectionStatus, setError);
+    connection.current = client;
+    return () => { client.stop(); configurePaperCredential(""); };
+  }, [publish]);
+
+  const loadDashboard = () => connection.current?.refresh();
+  const handleChangeAccount = async (profile: string, accountId: string) => {
+    await connection.current?.switch(profile, accountId);
+  };
 
   const metrics =
     useMemo(
@@ -963,7 +513,7 @@ export default function DashboardV2Page() {
             </span>
 
             <span>
-              Mercado: Tiempo real
+              Modo: PAPER · datos del backend
             </span>
 
             <span>
@@ -977,6 +527,26 @@ export default function DashboardV2Page() {
             </span>
           </div>
         </header>
+
+        <form className="mt-6 flex flex-wrap gap-3" onSubmit={(event) => {
+          event.preventDefault();
+          try {
+            connection.current?.stop();
+            configurePaperCredential(credential);
+            setCredential("");
+            connection.current?.start();
+          } catch (error) { setError(error instanceof Error ? error.message : "Credencial inválida."); }
+        }}>
+          <label className="text-sm">Credencial administrativa PAPER
+            <input type="password" autoComplete="off" value={credential}
+              onChange={(event) => setCredential(event.target.value)}
+              className="ml-3 rounded-lg bg-slate-800 px-3 py-2" />
+          </label>
+          <button className="rounded-lg bg-cyan-700 px-4 py-2" type="submit">Conectar PAPER</button>
+          <button className="rounded-lg bg-slate-800 px-4 py-2" type="button" onClick={() => {
+            connection.current?.stop(); configurePaperCredential(""); setCredential("");
+          }}>Desconectar</button>
+        </form>
 
         {error && (
           <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -1003,7 +573,7 @@ export default function DashboardV2Page() {
 
 
         <section className="mt-6">
-          <StrategyIntelligenceCard />
+          <StrategyIntelligenceCard data={strategy} />
         </section>
 
 
@@ -1056,9 +626,8 @@ export default function DashboardV2Page() {
                 : null
             }
 
-            onChangeAccount={
-              handleChangeAccount
-            }
+            onChangeAccount={handleChangeAccount}
+            context={context}
           />
         </section>
 
@@ -1269,7 +838,7 @@ export default function DashboardV2Page() {
 
                     win_rate:
                       Number(
-                        liveSnapshot.analytics.win_rate
+                        (liveSnapshot.performance_overview as JsonObject)?.win_rate
                       ),
 
                     profit_factor:
@@ -1304,62 +873,12 @@ export default function DashboardV2Page() {
 
 
         <section className="mt-6">
-          <TradeJournalCard
-            data={
-              isObject(
-                liveSnapshot?.trade_journal_summary
-              )
-                ? (() => {
-                    const journalSummary =
-                      liveSnapshot.trade_journal_summary;
-
-                    const journalAnalytics =
-                      isObject(
-                        journalSummary.analytics
-                      )
-                        ? journalSummary.analytics
-                        : null;
-
-                    return {
-                      open_trades:
-                        Number(
-                          journalSummary.open_trades
-                        ),
-
-                      closed_trades:
-                        Number(
-                          journalSummary.closed_trades
-                        ),
-
-                      winning_trades:
-                        Number(
-                          journalAnalytics?.winning_trades
-                        ),
-
-                      losing_trades:
-                        Number(
-                          journalAnalytics?.losing_trades
-                        ),
-
-                      total_realized_pnl:
-                        Number(
-                          journalAnalytics?.net_profit
-                        ),
-
-                      win_rate:
-                        Number(
-                          journalAnalytics?.win_rate
-                        ),
-                    };
-                  })()
-                : null
-            }
-          />
+          <TradeJournalCard data={journalCardData(liveSnapshot)} />
         </section>
 
 
         <section className="mt-6">
-          <StrategyRankingCard
+          {strategyRanking && (<StrategyRankingCard
             data={
               isObject(
                 strategyRanking
@@ -1396,12 +915,12 @@ export default function DashboardV2Page() {
                 }
               : null
             }
-          />
+          />)}
         </section>
 
 
         <section className="mt-6">
-          <AIDecisionEngineCard
+          {aiDecision && (<AIDecisionEngineCard
             data={
               aiDecision
                 ? {
@@ -1439,7 +958,7 @@ export default function DashboardV2Page() {
                   }
                 : null
             }
-          />
+          />)}
         </section>
 
 
@@ -1521,7 +1040,7 @@ export default function DashboardV2Page() {
 
 
         <section className="mt-6">
-          <ExecutionApprovalCard
+          {executionApproval && (<ExecutionApprovalCard
             data={
               executionApproval
                 ? {
@@ -1576,12 +1095,12 @@ export default function DashboardV2Page() {
                   }
                 : null
             }
-          />
+          />)}
         </section>
 
 
         <section className="mt-6">
-          <ExecutionSimulatorCard
+          {executionSimulation && (<ExecutionSimulatorCard
             data={
               executionSimulation
                 ? {
@@ -1647,7 +1166,7 @@ export default function DashboardV2Page() {
                   }
                 : null
             }
-          />
+          />)}
         </section>
 
 
@@ -1917,7 +1436,7 @@ export default function DashboardV2Page() {
 
 
         <section className="mt-6">
-          <TradeSetupIntelligenceCard
+          {tradeSetup && (<TradeSetupIntelligenceCard
             data={
               isObject(
                 tradeSetup
@@ -1969,12 +1488,12 @@ export default function DashboardV2Page() {
                   }
                 : null
             }
-          />
+          />)}
         </section>
 
 
         <section className="mt-6">
-          <AIDecisionMemoryIntelligenceCard
+          {aiDecisionMemoryData && (<AIDecisionMemoryIntelligenceCard
             data={
               aiDecisionMemoryData
                 ? {
@@ -2025,12 +1544,12 @@ export default function DashboardV2Page() {
                   }
                 : null
             }
-          />
+          />)}
         </section>
 
 
         <section className="mt-6">
-          <ConfidenceFusionIntelligenceCard
+          {confidenceFusionData && (<ConfidenceFusionIntelligenceCard
             data={
               confidenceFusionData
                 ? {
@@ -2091,14 +1610,14 @@ export default function DashboardV2Page() {
                   }
                 : null
             }
-          />
+          />)}
         </section>
 
 
         
         <section className="mt-6">
 
-          <AIDecisionEngineV3Card
+          {intelligenceDecisionV3Data && (<AIDecisionEngineV3Card
 
             data={
 
@@ -2152,14 +1671,14 @@ export default function DashboardV2Page() {
 
             }
 
-          />
+          />)}
 
         </section>
 
 
         <section className="mt-6">
 
-          <TradeExecutionPlanCard
+          {intelligenceTradePlanData && (<TradeExecutionPlanCard
 
             data={
 
@@ -2213,7 +1732,7 @@ export default function DashboardV2Page() {
 
             }
 
-          />
+          />)}
 
         </section>
 
@@ -2255,6 +1774,13 @@ export default function DashboardV2Page() {
         </section>
 
 
+        <section className="mt-6 grid gap-6 xl:grid-cols-2">
+          <DataPanel title="Runtime PAPER" data={context} />
+          <DataPanel title="Mercado y candidato (observación; requiere admisión independiente)" data={market} />
+          <DataPanel title="Posiciones activas" data={liveSnapshot ? { positions: liveSnapshot.positions ?? null } : null} />
+          <DataPanel title="Historial del diario" data={liveSnapshot ? { trades: liveSnapshot.journal_history ?? null } : null} />
+          <DataPanel title="PnL realizado / no realizado" data={liveSnapshot?.portfolio_summary as JsonObject ?? null} />
+        </section>
         <section className="mt-6">
           <DataPanel
             title="Dashboard Widgets"

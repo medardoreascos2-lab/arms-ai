@@ -17,11 +17,14 @@ type AccountData = {
 export default function AccountSelectorCard({
   data,
   onChangeAccount,
+  context,
 }: {
   data: AccountData | null;
+  context: import("@/lib/dashboardApi").JsonObject | null;
 
   onChangeAccount: (
-    account: string
+    account: string,
+    accountId: string
   ) => Promise<void>;
 
 }) {
@@ -31,9 +34,16 @@ export default function AccountSelectorCard({
     selectedAccount,
     setSelectedAccount,
   ] = useState(
-    data?.account ?? "TOPSTEP_150K"
+    ""
   );
 
+
+  const accounts = Array.isArray(context?.accounts) ? context.accounts.filter(
+    (row): row is import("@/lib/dashboardApi").JsonObject =>
+      row !== null && typeof row === "object" && !Array.isArray(row)
+  ) : [];
+  const selection = accounts.some(row => row.account_id === selectedAccount)
+    ? selectedAccount : String(context?.account_id ?? "");
 
   if (!data) {
 
@@ -107,7 +117,7 @@ export default function AccountSelectorCard({
 
 
         <select
-          value={selectedAccount}
+          value={selection}
           onChange={
             (event) =>
               setSelectedAccount(
@@ -117,26 +127,19 @@ export default function AccountSelectorCard({
           className="rounded-xl bg-slate-800 px-4 py-2 text-white"
         >
 
-          <option value="TOPSTEP_50K">
-            TOPSTEP 50K
-          </option>
-
-          <option value="TOPSTEP_150K">
-            TOPSTEP 150K
-          </option>
-
-          <option value="PERSONAL">
-            PERSONAL
-          </option>
+          {accounts.map(row => <option key={String(row.account_id)} value={String(row.account_id)}>
+            {String(row.profile_name)} · {String(row.account_id)}
+          </option>)}
 
         </select>
 
 
         <button
+          disabled={!accounts.length}
           onClick={
             () =>
               onChangeAccount(
-                selectedAccount
+                String(accounts.find(row => row.account_id === selection)?.profile_name ?? ""), selection
               )
           }
           className="rounded-xl bg-cyan-600 px-5 py-2 font-bold text-white"

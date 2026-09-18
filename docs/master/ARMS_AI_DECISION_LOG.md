@@ -1038,3 +1038,42 @@ its browser/operational/provenance gaps and DEC-0019 Phase 1 safety closure.
 **Superseded by**
 
 None.
+
+
+## DEC-0022 — Authorized local PAPER dashboard (V11)
+
+**Decision**
+
+Reuse AdminAuthorizationV2 for the operator-entered PAPER admin credential.
+Protected HTTP uses the canonical header; browser WebSocket offers an encoded
+credential protocol and negotiates only the public arms-dashboard-v1 protocol.
+Store no browser token persistently and expose no server secret through public
+build configuration. Use one frontend request wrapper and one connection
+controller with account-generation and asynchronous-response guards.
+
+**Reason**
+
+Native browsers cannot set the existing WebSocket header. A transport adapter
+preserves the single authority and pre-acceptance rejection. Account retirement
+must invalidate every card, not only account/risk labels. Demo approvals are not
+operational state; only canonical financial/risk and V10 candidate projections
+belong in the authorized PAPER view.
+
+**Consequences**
+
+[The V11 certificate](../architecture/phase2_authorized_paper_dashboard_v11.md)
+closes MVP-018/019/021: 21/24 (87%), P0=0, P1=2, P2=1. Candidate observation does
+not submit trades. Legacy demonstration APIs/components remain available, but
+are excluded from this view. Native header clients remain supported. Repeated
+socket disconnect cleanup is cancellation-safe. Next is
+PHASE2_PAPER_MVP_OPERATIONAL_ACCEPTANCE; sustained inputs, joined restart proof
+and remaining validation provenance are still required. LIVE_EXECUTION=NO.
+
+**Supersedes**
+
+DEC-0021's browser-gap disposition and current counts only. Phase 1 closure,
+V10 market-to-candidate evidence and operational/provenance limitations remain.
+
+**Superseded by**
+
+None.

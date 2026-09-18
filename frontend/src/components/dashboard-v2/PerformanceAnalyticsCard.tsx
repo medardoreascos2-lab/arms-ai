@@ -70,7 +70,7 @@ export default function PerformanceAnalyticsCard({
 
                 <span className="text-cyan-400 font-bold">
 
-                    LIVE
+                    PAPER
 
                 </span>
 

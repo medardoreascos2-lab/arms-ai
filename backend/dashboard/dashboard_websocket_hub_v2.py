@@ -25,6 +25,7 @@ class DashboardWebSocketHubV2:
         self,
         *,
         websocket,
+        subprotocol=None,
     ) -> dict[str, object]:
 
         if (
@@ -56,7 +57,10 @@ class DashboardWebSocketHubV2:
                 ),
             }
 
-        await websocket.accept()
+        if subprotocol is None:
+            await websocket.accept()
+        else:
+            await websocket.accept(subprotocol=subprotocol)
 
         self._connections.append(
             websocket
