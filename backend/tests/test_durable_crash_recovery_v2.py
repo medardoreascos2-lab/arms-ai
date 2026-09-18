@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from unittest.mock import Mock
 
 import pytest
 
@@ -14,6 +15,7 @@ from backend.portfolio.portfolio_manager_v2 import PortfolioManagerV2
 from backend.services.execution_state_store_v2 import ExecutionStateStoreV2
 from backend.services.state_recovery_service_v2 import StateRecoveryServiceV2
 from backend.services.startup_coordinator_v2 import StartupCoordinatorV2
+from backend.services.durable_execution_state_v2 import evidence_path
 from backend.tests.test_execution_state_store_v2 import build_lifecycle_service
 from backend.tests.test_trade_lifecycle_close_sync_v2 import build_signal, build_risk_manager
 
@@ -162,7 +164,7 @@ def test_abrupt_crash_preserves_complete_state(tmp_path, action, quantity, pnl, 
 
 
 @pytest.mark.parametrize("damage", ["empty", "truncated", "checksum", "pending", "temporary", "pending_open", "pending_loss"])
-def test_corrupt_or_inflight_state_fails_closed(tmp_path, damage):
+def test_corrupt_or_inflight_state_fails_closed(tmp_path, monkeypatch, damage):
     path = tmp_path / "state.json"
     run_crash(path, damage if damage.startswith("pending") else "open")
     if damage == "empty":
@@ -175,18 +177,53 @@ def test_corrupt_or_inflight_state_fails_closed(tmp_path, damage):
         path.write_text(json.dumps(data))
     elif damage == "temporary":
         path.with_suffix(".json.tmp").write_text("{")
-    lifecycle, account, store, _, startup = build_runtime()
+    lifecycle, account, store, recovery, startup = build_runtime()
     before = path.read_bytes()
-    with pytest.raises((ValueError, FileNotFoundError)):
+    evidence_before = evidence_path(path).read_bytes()
+    enable = Mock(wraps=store._durability.enable)
+    recover = Mock(wraps=recovery.recover_from)
+    monkeypatch.setattr(store._durability, "enable", enable)
+    monkeypatch.setattr(recovery, "recover_from", recover)
+    expected_error = RuntimeError if damage.startswith("pending") else (ValueError, FileNotFoundError)
+    with pytest.raises(expected_error) as failure:
         startup.startup_from(file_path=path)
+    if damage.startswith("pending"):
+        assert "did not resolve" in str(failure.value)
     assert startup.get_status() == "FAILED"
     assert account.get_state()["trading_blocked"] is True
-    assert lifecycle.get_active_positions() == []
-    assert lifecycle.trade_journal_v2.trades == []
+    assert store._durability.failed is True
+    assert store._durability.enabled is False
+    assert store._durability._lease is None
+    enable.assert_not_called()
+    if damage == "temporary":
+        # Applicability accepts the main COMMITTED envelope; ordinary recovery
+        # detects the interrupted write and rejects it before restoration.
+        recover.assert_called_once_with(file_path=path)
+        assert recovery.get_last_recovery_report()["success"] is False
+    else:
+        recover.assert_not_called()
+    if damage == "pending":
+        # A proven consistent partial prefix is reconstructed, but it remains
+        # blocked. Compare all participants to the actual persisted evidence.
+        expected = json.loads(evidence_before)["state"]
+        risk = expected["account_portfolio"]["account"]["state"]
+        risk["trading_blocked"] = True
+        risk["blocking_reasons"].append("durability_consistency_unproven")
+        assert comparable(store.capture_state()) == comparable(expected)
+        assert lifecycle.get_active_positions()[0]["quantity"] == 1
+        assert account.get_state()["realized_pnl"] == account.get_state()["daily_pnl"] == 20
+        assert len(lifecycle.broker_connector_v2.get_fills()) == 2
+        assert len(lifecycle.trade_journal_v2.trades) == 1
+    else:
+        assert lifecycle.get_active_positions() == []
+        assert lifecycle.trade_journal_v2.trades == []
+        assert lifecycle.broker_connector_v2.get_fills() == []
     assert path.read_bytes() == before
+    assert evidence_path(path).read_bytes() == evidence_before
+    blocked_state = comparable(store.capture_state())
     with pytest.raises(RuntimeError, match="failed closed"):
         open_position(lifecycle)
-    assert lifecycle.broker_connector_v2.get_fills() == []
+    assert comparable(store.capture_state()) == blocked_state
     with pytest.raises(RuntimeError):
         store.save_to_file(file_path=path)
 
@@ -299,9 +336,11 @@ def test_legacy_snapshot_with_missing_journal_is_not_invented(tmp_path):
     for key in ("execution_records", "durability", "checksum"):
         legacy.pop(key)
     path.write_text(json.dumps(legacy))
-    lifecycle, account, _, _, startup = build_runtime()
+    lifecycle, account, _, recovery, _ = build_runtime()
     with pytest.raises(ValueError, match="Legacy snapshot lacks"):
-        startup.startup_from(file_path=path)
+        # Legacy validation belongs to explicit recovery. Automatic startup
+        # now requires a verified durable envelope before applicability.
+        recovery.recover_from(file_path=path)
     assert account.get_state()["trading_blocked"] is True
     assert lifecycle.trade_journal_v2.trades == []
     assert lifecycle.get_active_positions() == []
@@ -372,6 +411,33 @@ def test_recovery_cannot_erase_a_current_risk_block(tmp_path):
     assert lifecycle.get_active_positions() == []
 
 
+@pytest.mark.parametrize("activity", [False, True])
+def test_unsigned_legacy_state_cannot_bypass_startup_envelope_validation(tmp_path, activity):
+    path = tmp_path / "state.json"
+    if activity:
+        run_crash(path, "open")
+        legacy = json.loads(path.read_text())
+    else:
+        legacy = build_runtime()[2].capture_state()
+    for key in ("execution_records", "durability", "checksum"):
+        legacy.pop(key, None)
+    path.write_text(json.dumps(legacy))
+    before = path.read_bytes()
+    lifecycle, account, store, recovery, startup = build_runtime()
+    with pytest.raises(ValueError, match="checksum"):
+        startup.startup_from(file_path=path)
+    assert startup.get_startup_report()["error"]["type"] == "ValueError"
+    assert recovery.get_last_recovery_report() is None  # Rejected before recovery.
+    assert store._durability.failed is True
+    assert store._durability.enabled is False
+    assert store._durability._lease is None
+    assert account.get_state()["trading_blocked"] is True
+    assert lifecycle.get_active_positions() == []
+    assert lifecycle.trade_journal_v2.trades == []
+    assert lifecycle.broker_connector_v2.get_fills() == []
+    assert path.read_bytes() == before
+
+
 def test_empty_legacy_snapshot_migrates_without_inventing_activity(tmp_path):
     path = tmp_path / "state.json"
     _, _, source, _, _ = build_runtime()
@@ -380,10 +446,16 @@ def test_empty_legacy_snapshot_migrates_without_inventing_activity(tmp_path):
     path.write_text(json.dumps(legacy))
     lifecycle, _, store, recovery, startup = build_runtime()
     try:
+        # Explicit offline migration validates/restores legacy data before
+        # publishing the durable COMMITTED envelope required by startup.
+        recovery.recover_from(file_path=path)
+        store.save_to_file(file_path=path)
         startup.startup_from(file_path=path)
         assert json.loads(path.read_text())["durability"]["phase"] == "COMMITTED"
         assert lifecycle.get_active_positions() == []
         assert lifecycle.trade_journal_v2.trades == []
+        assert lifecycle.broker_connector_v2.get_orders() == []
+        assert lifecycle.broker_connector_v2.get_fills() == []
         recovery.recover_from(file_path=path)
         with pytest.raises(RuntimeError, match="Cannot clear active"):
             recovery.clear_saved_state(file_path=path)
@@ -419,12 +491,16 @@ def test_read_only_load_cannot_authorize_overwriting_operational_state(tmp_path)
 
 @pytest.mark.parametrize("action,phase,recoverable,count", [
     ("window_before_pending", "COMMITTED", True, 0),
-    ("window_after_pending", "PENDING", False, 0),
+    # Keep historical node IDs for exact baseline-failure recertification;
+    # expected outcomes now reflect operation-bound reconciliation evidence.
+    pytest.param("window_after_pending", "PENDING", True, 0,
+                 id="window_after_pending-PENDING-False-0"),
     ("pending_open", "PENDING", False, 0),
-    ("window_before_committed", "PENDING", False, 0),
+    pytest.param("window_before_committed", "PENDING", True, 1,
+                 id="window_before_committed-PENDING-False-0"),
     ("window_after_committed", "COMMITTED", True, 1),
 ])
-def test_exact_crash_window_matrix(tmp_path, action, phase, recoverable, count):
+def test_exact_crash_window_matrix(tmp_path, monkeypatch, action, phase, recoverable, count):
     path = tmp_path / "state.json"
     run_crash(path, action)
     before = path.read_bytes()
@@ -432,10 +508,26 @@ def test_exact_crash_window_matrix(tmp_path, action, phase, recoverable, count):
     assert envelope["durability"]["phase"] == phase
     assert envelope["durability"]["generation"] == (1 if action == "window_before_pending" else 2)
     lifecycle, account, store, recovery, startup = build_runtime()
+    reconcile = Mock(wraps=recovery.reconcile_pending_from)
+    enable = Mock(wraps=store._durability.enable)
+    monkeypatch.setattr(recovery, "reconcile_pending_from", reconcile)
+    monkeypatch.setattr(store._durability, "enable", enable)
     if recoverable:
         try:
-            startup.startup_from(file_path=path)
+            report = startup.startup_from(file_path=path)
+            assert report["success"] is True
+            assert store._durability.enabled is True
+            enable.assert_called_once()
+            if phase == "PENDING":
+                reconcile.assert_called_once_with(file_path=path)
+            else:
+                reconcile.assert_not_called()
+            committed = json.loads(path.read_text())
+            assert committed["durability"]["phase"] == "COMMITTED"
+            assert committed["durability"]["generation"] == envelope["durability"]["generation"] + 1
+            restored = comparable(store.capture_state())
             recovery.recover_from(file_path=path)
+            assert comparable(store.capture_state()) == restored
             assert len(lifecycle.get_active_positions()) == count
             assert len(lifecycle.broker_connector_v2.get_fills()) == count
             assert len(lifecycle.trade_journal_v2.trades) == count
@@ -444,11 +536,16 @@ def test_exact_crash_window_matrix(tmp_path, action, phase, recoverable, count):
         finally:
             store._durability.release()
     else:
-        with pytest.raises(ValueError, match="Incomplete"):
+        with pytest.raises(RuntimeError, match="did not resolve"):
             startup.startup_from(file_path=path)
+        reconcile.assert_called_once_with(file_path=path)
+        enable.assert_not_called()
+        assert store._durability.enabled is False
         assert path.read_bytes() == before
         assert account.get_state()["trading_blocked"] is True
         assert lifecycle.get_active_positions() == []
+        assert lifecycle.broker_connector_v2.get_fills() == []
+        assert lifecycle.trade_journal_v2.trades == []
         with pytest.raises(RuntimeError, match="failed closed"):
             open_position(lifecycle)
 

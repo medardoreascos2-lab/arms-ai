@@ -30,7 +30,11 @@ def main() -> None:
     runtime_started = False
 
     try:
-        runtime_context.startup_coordinator.startup_clean()
+        # The lifecycle wrapper delegates recovery to StartupCoordinatorV2
+        # and records RUNNING only after persisted state is safe to resume.
+        lifecycle_manager.start_from(
+            file_path=settings.runtime_snapshot_path,
+        )
         runtime_started = True
 
         arms = ArmsCore()

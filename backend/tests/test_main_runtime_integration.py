@@ -10,12 +10,16 @@ import backend.main as main_module
 class FakeLifecycleManager:
     def __init__(self) -> None:
         self.start_calls = 0
+        self.start_paths: list[str] = []
         self.shutdown_paths: list[str] = []
 
-    def start_clean(
+    def start_from(
         self,
+        *,
+        file_path: str,
     ) -> dict[str, object]:
         self.start_calls += 1
+        self.start_paths.append(file_path)
 
         return {
             "success": True,
@@ -180,6 +184,7 @@ def test_main_starts_and_stops_runtime(
     main_module.main()
 
     assert lifecycle_manager.start_calls == 1
+    assert lifecycle_manager.start_paths == ["data/runtime_state_v2.json"]
     assert lifecycle_manager.shutdown_paths == [
         "data/runtime_state_v2.json"
     ]
@@ -214,6 +219,7 @@ def test_main_stops_runtime_when_pipeline_fails(
         main_module.main()
 
     assert lifecycle_manager.start_calls == 1
+    assert lifecycle_manager.start_paths == ["data/runtime_state_v2.json"]
     assert lifecycle_manager.shutdown_paths == [
         "data/runtime_state_v2.json"
     ]
@@ -225,8 +231,10 @@ def test_main_does_not_shutdown_when_startup_fails(
     class FailingLifecycleManager(
         FakeLifecycleManager
     ):
-        def start_clean(
+        def start_from(
             self,
+            *,
+            file_path: str,
         ) -> dict[str, object]:
             self.start_calls += 1
 
@@ -249,6 +257,9 @@ def test_main_does_not_shutdown_when_startup_fails(
 
     assert lifecycle_manager.start_calls == 1
     assert lifecycle_manager.shutdown_paths == []
+    assert FakeArmsCore.started is False
+    assert FakeMarketConnector.connected is False
+    assert FakePipeline.received_stages is None
 
 
 def test_main_risk_stage_propagates_settings_instrument():

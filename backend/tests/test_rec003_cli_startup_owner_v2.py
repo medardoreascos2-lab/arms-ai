@@ -47,33 +47,31 @@ def test_cli_uses_canonical_startup_owner() -> None:
     """
     REC-003:
     backend/main.py must delegate process startup through the
-    canonical StartupCoordinatorV2 boundary.
+    canonical lifecycle wrapper, which delegates to StartupCoordinatorV2.
     """
 
     calls = _call_chains(_tree())
 
-    expected = (
-        "runtime_context."
-        "startup_coordinator."
-        "startup_clean"
-    )
+    expected = "lifecycle_manager.start_from"
 
     assert expected in calls, (
         "backend/main.py must delegate startup through "
-        "runtime_context.startup_coordinator.startup_clean(); "
+        "lifecycle_manager.start_from(file_path=...); "
         f"observed calls={calls}"
     )
 
 
-def test_cli_does_not_directly_start_lifecycle_manager() -> None:
+def test_cli_does_not_bypass_persisted_state_with_clean_startup() -> None:
     """
-    RuntimeLifecycleManagerV2 must not be used as the process
-    startup owner by backend/main.py.
+    Clean startup must not bypass the canonical persisted-state decision.
     """
 
     calls = _call_chains(_tree())
 
     forbidden = {
+        "runtime_context.startup_coordinator.startup_clean",
+        "runtime_context.state_recovery_service.recover_from",
+        "runtime_context.state_recovery_service.reconcile_pending_from",
         "lifecycle_manager.start_clean",
         "runtime_context."
         "runtime_lifecycle_manager."
@@ -85,6 +83,6 @@ def test_cli_does_not_directly_start_lifecycle_manager() -> None:
     )
 
     assert not violations, (
-        "backend/main.py bypasses StartupCoordinatorV2: "
+        "backend/main.py bypasses canonical persisted-state startup: "
         f"{violations}"
     )

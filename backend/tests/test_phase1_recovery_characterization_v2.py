@@ -71,6 +71,9 @@ def test_incompatible_recovery_is_rejected_and_execution_remains_blocked(
     state["active_positions"][0]["execution_mode"] = "LIVE"
 
     metadata = state["durability"]
+    # seal() hashes an unsigned payload. Preserve a valid envelope so this
+    # test reaches semantic LIVE rejection rather than checksum rejection.
+    state.pop("checksum")
     incompatible_state = seal(
         state,
         metadata["generation"],
@@ -84,7 +87,7 @@ def test_incompatible_recovery_is_rejected_and_execution_remains_blocked(
     lifecycle, account, store, recovery, startup = build_runtime()
 
     try:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="PAPER"):
             startup.startup_from(file_path=path)
 
         assert startup.get_status() == "FAILED"
