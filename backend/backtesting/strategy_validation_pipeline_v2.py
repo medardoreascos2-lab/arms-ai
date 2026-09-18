@@ -141,6 +141,10 @@ class StrategyValidationPipelineV2:
         *,
         backtest_score,
         output_directory,
+        items=None,
+        parameter_sets=None,
+        trade_pnls=None,
+        starting_balance=10000,
         json_filename: str = (
             "strategy_validation.json"
         ),
@@ -171,28 +175,34 @@ class StrategyValidationPipelineV2:
             output_directory
         )
 
-        loader = CsvCandleLoaderV2(
-            csv_path=Path(
-                "data/backtest/nq_history.csv"
-            ),
-            symbol="NQ",
-            timeframe="1m",
-        )
+        # Arbitrary dataset/empirical injection seam (V15); None preserves the
+        # pre-V15 fixed-fixture behavior for all existing callers.
+        if items is None:
+            loader = CsvCandleLoaderV2(
+                csv_path=Path(
+                    "data/backtest/nq_history.csv"
+                ),
+                symbol="NQ",
+                timeframe="1m",
+            )
 
+            items = loader.load()
+        else:
+            items = list(items)
 
-        items = loader.load()
-
+        if parameter_sets is None:
+            parameter_sets = [
+                {
+                    "ema": 50,
+                    "stop_loss": 30,
+                    "take_profit": 60,
+                }
+            ]
 
         walk_forward_result = (
             self.walk_forward_pipeline.run(
                 items=items,
-                parameter_sets=[
-                    {
-                        "ema": 50,
-                        "stop_loss": 30,
-                        "take_profit": 60,
-                    }
-                ],
+                parameter_sets=parameter_sets,
                 output_directory=(
                     normalized_output_directory
                     / "walk_forward"
@@ -209,16 +219,19 @@ class StrategyValidationPipelineV2:
                 "WalkForwardOptimizationResultV2."
             )
 
+        if trade_pnls is None:
+            trade_pnls = [
+                100,
+                -50,
+                200,
+                150,
+                -30,
+            ]
+
         monte_carlo_result = (
             self.monte_carlo_pipeline.run(
-                trade_pnls=[
-                    100,
-                    -50,
-                    200,
-                    150,
-                    -30,
-                ],
-                starting_balance=10000,
+                trade_pnls=trade_pnls,
+                starting_balance=starting_balance,
                 output_directory=(
                     normalized_output_directory
                     / "monte_carlo"

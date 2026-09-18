@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from backend.accounts.account_config_manager_v2 import (
+    AccountConfigManagerV2,
+)
 from backend.config.api_settings import APISettings
 from backend.analytics.performance_analytics_v2 import (
     PerformanceAnalyticsV2,

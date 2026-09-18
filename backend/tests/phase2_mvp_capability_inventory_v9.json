@@ -572,16 +572,18 @@
       "END_TO_END_STATUS": "PARTIAL",
       "MVP_REQUIRED": "YES",
       "PRIORITY": "P2",
-      "BLOCKER": "V10 certifies generated candidate source/time/account provenance. Dataset/strategy validation claims remain limited by fixed application research factories and partly fake certification tests; arbitrary empirical certification is not proven.",
+      "BLOCKER": "V10 certifies generated candidate source/time/account provenance. V15 proved the real WalkForwardOptimizerV2/MonteCarloSimulatorV2 machinery certifies arbitrary datasets end-to-end with genuine, non-canned, empirical trade evidence, but also found that the actual app.py production walk-forward wiring (BacktestCandidateFactoryV2 + build_strategy_backtest_pipeline + ParameterizedStrategyRunnerV2) raises TypeError against real candles because ParameterizedStrategyRunnerV2 calls ConfluenceEngineV2.evaluate() with an obsolete keyword contract. Arbitrary empirical certification of the actual production wiring remains unproven until that contract defect is fixed and re-verified.",
       "DEPENDENCIES": [
         "MVP-008"
       ],
       "EVIDENCE": [
         "backend/backtesting/strategy_certification_pipeline_v2.py",
         "backend/api/app.py",
-        "backend/tests/test_strategy_certification_pipeline_real_e2e_v2.py"
+        "backend/tests/test_strategy_certification_pipeline_real_e2e_v2.py",
+        "backend/tests/test_strategy_certification_empirical_dataset_v15.py",
+        "docs/architecture/phase2_empirical_strategy_certification_v15.md"
       ],
-      "ASSESSMENT": "V10 certifies generated candidate source/time/account provenance. Dataset/strategy validation claims remain limited by fixed application research factories and partly fake certification tests; arbitrary empirical certification is not proven."
+      "ASSESSMENT": "V10 certifies generated candidate source/time/account provenance. V15 certifies arbitrary-dataset empirical evidence (real Walk Forward + real Monte Carlo, no Fake* doubles) reaches StrategyCertificationPipelineV2 correctly, is reproducible, and fails closed on insufficient evidence. V15 also identifies a concrete, verified defect (ConfluenceEngineV2/ParameterizedStrategyRunnerV2 keyword-contract mismatch) that breaks the actual production walk-forward wiring the moment it runs against real candles; MVP-024 stays PARTIAL until that defect is fixed and the production wiring itself is certified end-to-end."
     },
     {
       "CAPABILITY_ID": "MVP-025",
