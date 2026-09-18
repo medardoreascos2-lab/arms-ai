@@ -5045,7 +5045,7 @@
       "path": "backend/services/live_market_analysis_service.py",
       "function": "LiveMarketAnalysisService.analyze",
       "input": "self, *, symbol: str, timeframe: str, candle_limit: int, account_balance: float, risk_percent: float, point_value: float, reward_risk_ratio: float",
-      "source_sha256": "314c57d1c91bd2609398e20a75df3d66e0aa63daf0a7f03fae6b9cc8d3c0195f",
+      "source_sha256": "d5179fef0646deb945a0d3463d5e67a7745e2876ebe9ebc5b06b284254473631",
       "writes": [],
       "calls": [
         "', '.join",
@@ -5123,6 +5123,7 @@
         "self.signal_store.save",
         "self.trade_execution_engine.execute",
         "self.trade_history_store.get_history",
+        "self.trade_lifecycle_service_v2.get_active_positions",
         "self.trade_lifecycle_service_v2.submit_signal",
         "self.trade_planner_v2.build",
         "self.trade_validator_v2.validate",
@@ -5143,21 +5144,27 @@
         "MEDIA",
         "MUY ALTA",
         "account_balance",
+        "approved",
         "backtest_candles",
+        "blocking_reasons",
         "confluence_score",
         "current_price",
         "daily_pnl",
+        "direction",
+        "ema",
         "market_is_open",
         "point_value",
         "probability",
         "risk_percent",
+        "status",
         "symbol",
         "timeframe",
-        "total_drawdown"
+        "total_drawdown",
+        "warnings"
       ],
       "owner": "backend.services.live_market_analysis_service.LiveMarketAnalysisService",
       "classification": "EXECUTION_ADAPTER",
-      "output": "Delegates to the canonical lifecycle/calculation/market authority; market freshness and account admission remain required. Protective/OCO registries own linked protection metadata, not a second PnL ledger.",
+      "output": "Coordinated candidate-only analysis performs calculations and canonical position reads without execution/financial mutation; returned signal is input to separate canonical lifecycle admission. Legacy compatibility behavior stays guarded.",
       "mutates_fill_state": true,
       "mutates_position_state": true,
       "mutates_portfolio": true,
@@ -5168,7 +5175,8 @@
       "persisted": false,
       "recovery_relevant": true,
       "callers": [
-        "backend/api/routers/market.py"
+        "backend/api/routers/market.py",
+        "backend/services/canonical_market_pipeline_v2.py"
       ],
       "caller_evidence": "Static importing modules; calls contains exact source call expressions. Runtime call-order and publication tests verify operational wiring.",
       "downstream_consumers": [
@@ -6503,5 +6511,6 @@
       "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal"
     ],
     "reason": "Mandatory canonical runtime admission, shared freshness delegation, generation validation and execution scope; financial application unchanged"
-  }
+  },
+  "v10_review": "Reviewed source evidence for candidate-only canonical market orchestration; execution admission and risk thresholds unchanged. V10 real application tests certify non-execution during analysis and separate admission handoff."
 }

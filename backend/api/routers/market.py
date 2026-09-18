@@ -150,12 +150,13 @@ def receive_market_quote(
         request.app.state.runtime_quote_authority_v2
     )
 
-    quote_authority.publish_quote(
-        symbol=payload.symbol,
-        bid=payload.bid,
-        ask=payload.ask,
-        timestamp=payload.timestamp,
-    )
+    try:
+        quote_authority.publish_quote(
+            symbol=payload.symbol, bid=payload.bid, ask=payload.ask,
+            timestamp=payload.timestamp,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
     quote = quote_authority.get_quote(
         symbol=payload.symbol,
@@ -215,6 +216,15 @@ def receive_market_webhook(
         volume=payload.volume,
         timestamp=payload.timestamp,
     )
+
+    from backend.execution.position_manager_v2 import PositionManagerV2
+    if isinstance(request.app.state.position_manager, PositionManagerV2):
+        from backend.services.canonical_market_pipeline_v2 import CanonicalMarketPipelineV2
+        try:
+            return CanonicalMarketPipelineV2(request.app.state).ingest(candle)
+        except ValueError as error:
+            code = 409 if "conflicting" in str(error) or "out-of-order" in str(error) else 400
+            raise HTTPException(status_code=code, detail=str(error)) from error
 
     position_manager = get_position_manager(
         request
@@ -501,6 +511,15 @@ def analyze_live_market(
     payload: LiveMarketAnalysisRequest,
     request: Request,
 ) -> dict[str, object]:
+    from backend.execution.position_manager_v2 import PositionManagerV2
+    if isinstance(request.app.state.position_manager, PositionManagerV2):
+        from backend.services.canonical_market_pipeline_v2 import CanonicalMarketPipelineV2
+        try:
+            return CanonicalMarketPipelineV2(request.app.state).analyze(
+                symbol=payload.symbol, timeframe=payload.timeframe, candle_limit=payload.candle_limit)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
     candle_store = get_live_store(
         request
     )

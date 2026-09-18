@@ -1949,7 +1949,7 @@
       "transport": "HTTP",
       "canonical_admin_dependency": true,
       "closure_owners": {},
-      "source_sha256": "d7a24a4156413e988313db46e2dc0c049f4bf196238c1f92e5b5ca27982e0eba",
+      "source_sha256": "804e1bf6bf463387e7a3511daa6186c52c79d56f350707828b1e98157a7b16d2",
       "state_fields": [
         "account_risk_guard",
         "confluence_engine_v2",
@@ -1981,6 +1981,8 @@
         "trade_validator_v2"
       ],
       "calls": [
+        "CanonicalMarketPipelineV2",
+        "CanonicalMarketPipelineV2(request.app.state).analyze",
         "HTTPException",
         "LiveMarketAnalysisService",
         "RuntimeError",
@@ -2006,8 +2008,8 @@
       "authorization": "ADMIN",
       "account_scope": "ACTIVE_RUNTIME",
       "mutation": "EXECUTION",
-      "owner": "LiveMarketAnalysisService -> TradeLifecycleServiceV2 (factory wires canonical lifecycle)",
-      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "owner": "CanonicalMarketPipelineV2 -> LiveCandleStore / LiveMarketAnalysisService; compatibility app retains guarded legacy composition",
+      "scope_resolution": "Published account application; candidate only, explicit handoff to existing admission; caller risk values do not override active account",
       "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
       "account_switch_effect": "NEW_PUBLISHED_APPLICATION",
       "availability_limitation": "Coordinated runtime uses PositionManagerV2; the legacy symbol/timeframe interface is unavailable and returns 503 before owner dispatch/cache writes. No adapter or alternate account position owner is created."
@@ -2168,7 +2170,7 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "196547a27e5eef362948aaa0fb5f1fc1f6c04f2562417230b0bf8ca90d7aada3",
+      "source_sha256": "0f8902d7af4153b827ab4285dd097d450994f97e5e0f9599179e2867c17b2b52",
       "state_fields": [
         "runtime_quote_authority_v2",
         "webhook_token"
@@ -2275,7 +2277,7 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "233701dbab974482184fd297d0382d7020b8ecd8b715110e8177d9864653b437",
+      "source_sha256": "b71805dcef3d410b71184750b8610e7bc655add51be3bdd4c8d6d346a9a24ad6",
       "state_fields": [
         "account_config_manager_v2",
         "account_risk_guard",
@@ -2313,6 +2315,8 @@
       ],
       "calls": [
         "Candle",
+        "CanonicalMarketPipelineV2",
+        "CanonicalMarketPipelineV2(request.app.state).ingest",
         "HTTPException",
         "Header",
         "InstrumentProfileEngine",
@@ -2355,8 +2359,8 @@
       "authorization": "OTHER_CANONICAL",
       "account_scope": "ACTIVE_RUNTIME",
       "mutation": "EXECUTION",
-      "owner": "LiveMarketAnalysisService -> TradeLifecycleServiceV2; MarketDataHubV2 -> PriceFeedServiceV2 -> canonical lifecycle; disconnected legacy positions rejected before writes",
-      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "owner": "CanonicalMarketPipelineV2 -> LiveCandleStore / LiveMarketAnalysisService; compatibility app retains guarded legacy composition",
+      "scope_resolution": "Published account application; candidate only, explicit handoff to existing admission; caller risk values do not override active account",
       "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
       "account_switch_effect": "NEW_PUBLISHED_APPLICATION",
       "availability_limitation": "Coordinated runtime uses PositionManagerV2; the legacy symbol/timeframe interface is unavailable and returns 503 before owner dispatch/cache writes. No adapter or alternate account position owner is created."

@@ -5090,7 +5090,8 @@
       "execution_scoped": false,
       "persisted_or_ephemeral": "EPHEMERAL_RESULT_OR_POLICY",
       "callers": [
-        "backend/api/routers/market.py"
+        "backend/api/routers/market.py",
+        "backend/services/canonical_market_pipeline_v2.py"
       ],
       "caller_evidence": "Actual importing modules; calls lists record the reviewed local delegation. Runtime object identity and registered-route tests certify the operational composition.",
       "downstream_effect": "Recommendation, signal quality, eligibility or cooldown only. Its approval is input to canonical lifecycle admission, not permission to bypass account/risk blocks.",
@@ -5125,7 +5126,8 @@
       "execution_scoped": false,
       "persisted_or_ephemeral": "EPHEMERAL_RESULT_OR_POLICY",
       "callers": [
-        "backend/api/routers/market.py"
+        "backend/api/routers/market.py",
+        "backend/services/canonical_market_pipeline_v2.py"
       ],
       "caller_evidence": "Actual importing modules; calls lists record the reviewed local delegation. Runtime object identity and registered-route tests certify the operational composition.",
       "downstream_effect": "Recommendation, signal quality, eligibility or cooldown only. Its approval is input to canonical lifecycle admission, not permission to bypass account/risk blocks.",
@@ -5194,7 +5196,8 @@
       "execution_scoped": false,
       "persisted_or_ephemeral": "EPHEMERAL_RESULT_OR_POLICY",
       "callers": [
-        "backend/api/routers/market.py"
+        "backend/api/routers/market.py",
+        "backend/services/canonical_market_pipeline_v2.py"
       ],
       "caller_evidence": "Actual importing modules; calls lists record the reviewed local delegation. Runtime object identity and registered-route tests certify the operational composition.",
       "downstream_effect": "Recommendation, signal quality, eligibility or cooldown only. Its approval is input to canonical lifecycle admission, not permission to bypass account/risk blocks.",
@@ -5205,7 +5208,7 @@
       "id": "backend/services/live_market_analysis_service.py:LiveMarketAnalysisService.analyze",
       "path": "backend/services/live_market_analysis_service.py",
       "function": "LiveMarketAnalysisService.analyze",
-      "source_sha256": "314c57d1c91bd2609398e20a75df3d66e0aa63daf0a7f03fae6b9cc8d3c0195f",
+      "source_sha256": "d5179fef0646deb945a0d3463d5e67a7745e2876ebe9ebc5b06b284254473631",
       "inputs": "self, *, symbol: str, timeframe: str, candle_limit: int, account_balance: float, risk_percent: float, point_value: float, reward_risk_ratio: float",
       "calls": [
         "', '.join",
@@ -5283,6 +5286,7 @@
         "self.signal_store.save",
         "self.trade_execution_engine.execute",
         "self.trade_history_store.get_history",
+        "self.trade_lifecycle_service_v2.get_active_positions",
         "self.trade_lifecycle_service_v2.submit_signal",
         "self.trade_planner_v2.build",
         "self.trade_validator_v2.validate",
@@ -5303,17 +5307,23 @@
         "MEDIA",
         "MUY ALTA",
         "account_balance",
+        "approved",
         "backtest_candles",
+        "blocking_reasons",
         "confluence_score",
         "current_price",
         "daily_pnl",
+        "direction",
+        "ema",
         "market_is_open",
         "point_value",
         "probability",
         "risk_percent",
+        "status",
         "symbol",
         "timeframe",
-        "total_drawdown"
+        "total_drawdown",
+        "warnings"
       ],
       "owner": "backend.services.live_market_analysis_service.LiveMarketAnalysisService.analyze",
       "classification": "STRATEGY_POLICY",
@@ -5327,10 +5337,11 @@
       "execution_scoped": false,
       "persisted_or_ephemeral": "EPHEMERAL_RESULT_OR_POLICY",
       "callers": [
-        "backend/api/routers/market.py"
+        "backend/api/routers/market.py",
+        "backend/services/canonical_market_pipeline_v2.py"
       ],
       "caller_evidence": "Actual importing modules; calls lists record the reviewed local delegation. Runtime object identity and registered-route tests certify the operational composition.",
-      "downstream_effect": "Recommendation, signal quality, eligibility or cooldown only. Its approval is input to canonical lifecycle admission, not permission to bypass account/risk blocks.",
+      "downstream_effect": "Coordinated candidate-only analysis performs calculations and canonical position reads without execution/financial mutation; returned signal is input to separate canonical lifecycle admission. Legacy compatibility behavior stays guarded.",
       "persistent_block_writer": false,
       "persistent_block_clearer": false
     },
@@ -6483,5 +6494,6 @@
       "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal"
     ],
     "reason": "Mandatory canonical runtime admission, shared freshness delegation, generation validation and execution scope; financial application unchanged"
-  }
+  },
+  "v10_review": "Reviewed source evidence for candidate-only canonical market orchestration; execution admission and risk thresholds unchanged. V10 real application tests certify non-execution during analysis and separate admission handoff."
 }

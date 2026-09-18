@@ -39,7 +39,7 @@ def test_public_quote_ingress_reaches_canonical_owner_without_execution(hosted):
 
 
 @pytest.mark.parametrize('entry', ['webhook', 'analyze'])
-def test_current_public_candle_analysis_barrier_is_explicit_and_safe(hosted, entry):
+def test_public_candle_analysis_boundary_is_explicit_and_safe(hosted, entry):
     runtime = hosted.c.published.runtime
     app = hosted.c.published.application
     before = economic_state(runtime)
@@ -53,9 +53,14 @@ def test_current_public_candle_analysis_barrier_is_explicit_and_safe(hosted, ent
                    'point_value': 2., 'reward_risk_ratio': 2.}
     response = hosted.client.post('/market/'+entry, json=payload,
         headers={'X-ARMS-TOKEN': app.state.webhook_token})
-    assert response.status_code == 503, response.text
-    assert response.json()['detail'] == 'legacy_position_manager_unavailable'
-    assert app.state.live_candle_store.count(symbol='MNQ', timeframe='5m') == 0
+    # V10 replaces the reproduced V9 legacy 503 with canonical ingestion.
+    # An analysis request with no candles still fails closed, before execution.
+    assert response.status_code == (201 if entry == 'webhook' else 400), response.text
+    if entry == 'webhook':
+        assert response.json()['analysis_generated'] is False
+    else:
+        assert 'suficientes velas' in response.json()['detail']
+    assert app.state.live_candle_store.count(symbol='MNQ', timeframe='5m') == (1 if entry == 'webhook' else 0)
     assert economic_state(runtime) == before
     assert runtime.trade_lifecycle_service.broker_connector_v2.get_fills() == []
 

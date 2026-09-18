@@ -985,3 +985,56 @@ contracts remain valid. No product release, LIVE or external broker approval.
 **Superseded by**
 
 None.
+
+
+---
+
+### DEC-0021 — Connect canonical application market input to candidate evaluation
+
+**Date:** 2026-09-18
+**Status:** Approved within explicit V10 scope
+**Area:** PAPER market/intelligence integration and execution safety
+
+**Context**
+
+V9 exposed the coordinated PositionManagerV2/legacy PositionManager mismatch.
+Two new public-ingress regression tests reproduced the 503 before production
+changes. Simply broadening the type check would leave incompatible position
+calls and implicit execution in the old composition. Real pipeline evidence
+also exposed the missing calculated EMA-to-confluence alignment connection.
+
+**Decision**
+
+Use CanonicalMarketPipelineV2 as an orchestration boundary over the published
+LiveCandleStore and existing LiveMarketAnalysisService/SignalGeneratorV2.
+Serialize closed-candle ingestion; reject conflicts and late/future/invalid
+observations. Bind real EMA alignment to existing confluence policy. Resolve
+canonical position/account context and market/news authorities. Generate an
+account/profile/generation-bound candidate and compatible admission request;
+execute only through the separate existing canonical submission command.
+
+**Reason**
+
+Candidate approval is not risk permission or a fill. Controlled public inputs
+must exercise existing owners without injecting private indicator state,
+constructing fills or manipulating strategy thresholds. OHLC history must not
+manufacture a quote or drive operational position-price monitoring. The existing
+legacy disconnected-position safety boundary remains for compatibility callers.
+
+**Consequences**
+
+[The V10 certificate](../architecture/phase2_market_to_candidate_v10.md) and current
+inventory close four mandatory groups: 18/24 (75%), P0=0, P1=5, P2=1. The complete
+browser MVP remains open. No paid feed, LIVE execution, risk weakening or
+empirical strategy certification is claimed. Next package:
+PHASE2_AUTHORIZED_PAPER_DASHBOARD. Sustained source provisioning and complete
+operational acceptance follow it.
+
+**Supersedes**
+
+DEC-0020's current market-to-candidate gap disposition and counts only. Retains
+its browser/operational/provenance gaps and DEC-0019 Phase 1 safety closure.
+
+**Superseded by**
+
+None.

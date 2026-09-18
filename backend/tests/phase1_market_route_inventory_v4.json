@@ -248,8 +248,10 @@
       "endpoint": "backend.api.routers.market.analyze_live_market",
       "module": "backend.api.routers.market",
       "canonical_admin_dependency": true,
-      "source_sha256": "d7a24a4156413e988313db46e2dc0c049f4bf196238c1f92e5b5ca27982e0eba",
+      "source_sha256": "804e1bf6bf463387e7a3511daa6186c52c79d56f350707828b1e98157a7b16d2",
       "calls": [
+        "CanonicalMarketPipelineV2",
+        "CanonicalMarketPipelineV2(request.app.state).analyze",
         "HTTPException",
         "LiveMarketAnalysisService",
         "RuntimeError",
@@ -305,11 +307,11 @@
       "account_scope": "ACTIVE_RUNTIME",
       "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
       "read_or_mutation": "EXECUTION",
-      "market_data_owner": "LiveMarketAnalysisService -> TradeLifecycleServiceV2 (factory wires canonical lifecycle)",
-      "source_of_truth": "LiveCandleStore stores supplied OHLC; canonical lifecycle owns execution. OHLC never synthesizes L1.",
-      "freshness_policy": "RuntimeSpreadAuthorityV2 validates L1; LiveMarketAnalysisService signal gate validates signal age; webhook operational price additionally delegated to PriceFeedServiceV2. No router age math.",
-      "unavailable_behavior": "503 before writes in coordinated runtime with incompatible legacy manager. Webhook also rejects a disconnected existing legacy position before writes. Compatible ingestion may acknowledge stored historical candles while price processing explicitly reports false; missing/stale L1 prevents executable analysis.",
-      "legacy_or_canonical": "LEGACY_CONTAINED"
+      "market_data_owner": "Published LiveCandleStore + RuntimeQuoteAuthorityV2; CanonicalMarketPipelineV2 orchestrates existing owners",
+      "source_of_truth": "Authenticated OHLC into canonical candle store; explicit bid/ask into runtime quote authority; no synthesized quotes",
+      "freshness_policy": "Strict duplicate/conflict/order candle ingestion; existing runtime spread and signal-age validators; historical candles do not drive operational position prices",
+      "unavailable_behavior": "Warmup before 50 candles; unavailable quotes/news/hours block candidate; legacy positions still fail closed",
+      "legacy_or_canonical": "CANONICAL coordinated candidate path; guarded legacy compatibility composition retained"
     },
     {
       "methods": [
@@ -455,7 +457,7 @@
       "endpoint": "backend.api.routers.market.receive_market_quote",
       "module": "backend.api.routers.market",
       "canonical_admin_dependency": false,
-      "source_sha256": "196547a27e5eef362948aaa0fb5f1fc1f6c04f2562417230b0bf8ca90d7aada3",
+      "source_sha256": "0f8902d7af4153b827ab4285dd097d450994f97e5e0f9599179e2867c17b2b52",
       "calls": [
         "HTTPException",
         "Header",
@@ -556,9 +558,11 @@
       "endpoint": "backend.api.routers.market.receive_market_webhook",
       "module": "backend.api.routers.market",
       "canonical_admin_dependency": false,
-      "source_sha256": "233701dbab974482184fd297d0382d7020b8ecd8b715110e8177d9864653b437",
+      "source_sha256": "b71805dcef3d410b71184750b8610e7bc655add51be3bdd4c8d6d346a9a24ad6",
       "calls": [
         "Candle",
+        "CanonicalMarketPipelineV2",
+        "CanonicalMarketPipelineV2(request.app.state).ingest",
         "HTTPException",
         "Header",
         "InstrumentProfileEngine",
@@ -636,11 +640,11 @@
       "account_scope": "ACTIVE_RUNTIME",
       "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
       "read_or_mutation": "EXECUTION",
-      "market_data_owner": "LiveMarketAnalysisService -> TradeLifecycleServiceV2; MarketDataHubV2 -> PriceFeedServiceV2 -> canonical lifecycle; disconnected legacy positions rejected before writes",
-      "source_of_truth": "LiveCandleStore stores supplied OHLC; canonical lifecycle owns execution. OHLC never synthesizes L1.",
-      "freshness_policy": "RuntimeSpreadAuthorityV2 validates L1; LiveMarketAnalysisService signal gate validates signal age; webhook operational price additionally delegated to PriceFeedServiceV2. No router age math.",
-      "unavailable_behavior": "503 before writes in coordinated runtime with incompatible legacy manager. Webhook also rejects a disconnected existing legacy position before writes. Compatible ingestion may acknowledge stored historical candles while price processing explicitly reports false; missing/stale L1 prevents executable analysis.",
-      "legacy_or_canonical": "LEGACY_CONTAINED"
+      "market_data_owner": "Published LiveCandleStore + RuntimeQuoteAuthorityV2; CanonicalMarketPipelineV2 orchestrates existing owners",
+      "source_of_truth": "Authenticated OHLC into canonical candle store; explicit bid/ask into runtime quote authority; no synthesized quotes",
+      "freshness_policy": "Strict duplicate/conflict/order candle ingestion; existing runtime spread and signal-age validators; historical candles do not drive operational position prices",
+      "unavailable_behavior": "Warmup before 50 candles; unavailable quotes/news/hours block candidate; legacy positions still fail closed",
+      "legacy_or_canonical": "CANONICAL coordinated candidate path; guarded legacy compatibility composition retained"
     },
     {
       "methods": [

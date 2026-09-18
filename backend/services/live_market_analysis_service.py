@@ -279,7 +279,9 @@ class LiveMarketAnalysisService:
         | None = None,
         runtime_spread_authority_v2=None,
         economic_news_authority_v2=None,
+        candidate_only: bool = False,
 ) -> None:
+        self.candidate_only = candidate_only
         self.runtime_spread_authority_v2 = (
             runtime_spread_authority_v2
         )
@@ -2147,6 +2149,16 @@ class LiveMarketAnalysisService:
             context
         )
 
+        if self.candidate_only:
+            # Copilot nests the EMA value under indicators, while confluence
+            # consumes an explicit alignment. Use the same calculated EMA and
+            # trend owner, rather than leaving real input at the missing-data
+            # neutral fallback. No policy weights or thresholds change.
+            result["ema_alignment"] = {
+                "direction": context["trend"].trend,
+                "ema": context["ema"].ema,
+            }
+
         result["analyzed_at"] = (
             candles[-1].timestamp
         )
@@ -2204,7 +2216,9 @@ class LiveMarketAnalysisService:
 
         open_positions = 0
 
-        if (
+        if self.candidate_only and self.trade_lifecycle_service_v2 is not None:
+            open_positions = len(self.trade_lifecycle_service_v2.get_active_positions())
+        elif (
             self.position_manager
             is not None
             and self.position_manager.get_open_position(
@@ -2506,7 +2520,7 @@ class LiveMarketAnalysisService:
                     if execution_decision_approved and (
                         self.executable_signal_store
                         is not None
-                    ):
+                    ) and not self.candidate_only:
                         self.executable_signal_store.save(
                             execution
                         )
@@ -2516,6 +2530,7 @@ class LiveMarketAnalysisService:
                         is not None
                         and self.trade_lifecycle_service_v2
                         is None
+                        and not self.candidate_only
                     ):
                         trade = (
                             self.trade_execution_engine.execute(
@@ -2959,13 +2974,15 @@ class LiveMarketAnalysisService:
                     "runtime spread authority is required"
                 )
 
-            runtime_spread_points = (
-                self.runtime_spread_authority_v2
-                .get_spread_points(
-                    symbol=symbol,
-                    now=datetime.now(timezone.utc),
-                )
-            )
+            try:
+                runtime_spread_points = self.runtime_spread_authority_v2.get_spread_points(
+                    symbol=symbol, now=datetime.now(timezone.utc))
+            except (RuntimeError, ValueError) as error:
+                if not self.candidate_only:
+                    raise
+                # Missing current quote is an explicit veto, not an invented spread.
+                runtime_spread_points = None
+                quote_error = str(error)
 
             validation = (
                 self.trade_validator_v2.validate(
@@ -2991,7 +3008,10 @@ class LiveMarketAnalysisService:
                             result["analyzed_at"]
                         )
                     ),
-                )
+                ) if runtime_spread_points is not None else {
+                    "approved": False, "blocking_reasons": ["runtime_quote_unavailable"],
+                    "warnings": [quote_error], "status": "BLOCKED",
+                }
             )
 
             validation[
@@ -3077,7 +3097,7 @@ class LiveMarketAnalysisService:
             if (
                 self.trade_lifecycle_service_v2
                 is not None
-            ):
+            ) and not self.candidate_only:
                 portfolio_manager_v2 = getattr(
                     self.trade_lifecycle_service_v2,
                     "portfolio_manager_v2",
@@ -3206,6 +3226,7 @@ class LiveMarketAnalysisService:
         elif (
             self.execution_manager_v2 is not None
             and "signal_v2" in result
+            and not self.candidate_only
         ):
             prepared_order = self.execution_manager_v2.prepare_order(
                 signal=result["signal_v2"],

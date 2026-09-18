@@ -1,5 +1,28 @@
 # ARMS AI — MASTER ROADMAP
 
+## Current Phase 2 market-to-candidate integration — V10
+
+[Market-to-candidate certificate](../architecture/phase2_market_to_candidate_v10.md)
+records baseline `2aa50801a8902c1cea2ba752dec6147a19352db6`.
+The coordinated application's authenticated OHLC path now reaches the existing
+indicators/intelligence and generates an account-bound canonical candidate.
+Generation does not execute; the returned request uses the existing explicit
+submission endpoint and all Phase 1 runtime admission guards. The deterministic
+A+ scenario uses unchanged thresholds and produces one PAPER fill only after
+that separate command. Invalid/duplicate/late inputs and admission vetoes are
+covered by real-owner application tests.
+
+The [current capability inventory](../../backend/tests/phase2_mvp_capability_inventory_v9.json)
+closes MVP-005/006/007/008: **18/24 mandatory capability groups certified (75%)**;
+**P0=0, P1=5, P2=1**, with six post-MVP groups. This is controlled application-input
+certification; sustained feed provisioning and operator maintenance remain in
+operational acceptance. **Phase 1 remains CLOSED; the complete PAPER MVP is not
+release-ready.** Browser integration, joined startup/browser/restart acceptance
+and validation provenance still require work. V9 counts below are historical.
+
+Next: **PHASE2_AUTHORIZED_PAPER_DASHBOARD**, then
+**PHASE2_PAPER_MVP_OPERATIONAL_ACCEPTANCE**. No LIVE execution.
+
 ## Current Phase 2 MVP audit — V9
 
 [Remaining-gap audit](../architecture/phase2_mvp_remaining_gap_audit_v9.md) and

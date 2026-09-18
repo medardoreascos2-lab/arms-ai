@@ -4,7 +4,7 @@
   "PHASE1_STATUS": "CLOSED",
   "MVP_READY": false,
   "LIVE_EXECUTION": "NO",
-  "counting_rule": "30 audited capability groups, 24 mandatory; floor(100 * 14 closed / 24 mandatory)=58. Integration bucket combines IMPLEMENTED_NOT_INTEGRATED and IMPLEMENTED_NEEDS_E2E_PROOF. Gap counts count mandatory capability groups, not independent root causes or estimates of effort. Closed means certified component/operational boundary, not the entire market-to-browser product.",
+  "counting_rule": "30 capability groups, 24 mandatory; floor(100 * 18 closed / 24 mandatory)=75. Integration bucket combines IMPLEMENTED_NOT_INTEGRATED and IMPLEMENTED_NEEDS_E2E_PROOF. V10 closes four mandatory controlled application-market-to-candidate boundaries; sustained operational source provisioning remains in MVP-023. Counts are scoped capability evidence, not effort or complete browser MVP readiness.",
   "scope_authority": [
     "docs/master/ARMS_AI_MASTER_ROADMAP.md#12-mvp-beta-and-production-boundaries",
     "docs/master/ARMS_AI_REQUIREMENTS_MATRIX.md",
@@ -13,14 +13,14 @@
   "counts": {
     "TOTAL_MVP_CAPABILITIES": 30,
     "MANDATORY_MVP_CAPABILITIES": 24,
-    "CLOSED_CERTIFIED": 14,
-    "IMPLEMENTED_NEEDS_INTEGRATION": 4,
-    "PARTIAL": 6,
+    "CLOSED_CERTIFIED": 18,
+    "IMPLEMENTED_NEEDS_INTEGRATION": 2,
+    "PARTIAL": 4,
     "MISSING": 0,
     "BLOCKED_EXTERNAL": 0,
     "POST_MVP": 6,
-    "MVP_COMPLETION_PERCENT": 58,
-    "P0_GAPS": 4,
+    "MVP_COMPLETION_PERCENT": 75,
+    "P0_GAPS": 0,
     "P1_GAPS": 5,
     "P2_GAPS": 1
   },
@@ -111,37 +111,39 @@
     {
       "CAPABILITY_ID": "MVP-005",
       "NAME": "Operational candle ingestion and feed source",
-      "OWNER": "market.receive_market_webhook / LiveCandleStore",
-      "STATUS": "PARTIAL",
-      "IMPLEMENTATION_STATUS": "PARTIAL",
-      "INTEGRATION_STATUS": "PARTIAL",
-      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "END_TO_END_STATUS": "PARTIAL",
+      "OWNER": "CanonicalMarketPipelineV2 -> published LiveCandleStore",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
       "MVP_REQUIRED": "YES",
-      "PRIORITY": "P0",
-      "BLOCKER": "Coordinated /market/webhook returns 503 before storing a candle because PositionManagerV2 fails the legacy PositionManager dependency. External provider is a Protocol, not a configured adapter; quotes alone do not populate candles.",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within the controlled application-input/candidate scope",
       "DEPENDENCIES": [
         "MVP-001",
         "MVP-004"
       ],
       "EVIDENCE": [
         "backend/api/routers/market.py",
-        "backend/market_data/external_market_data_provider_v2.py"
+        "backend/market_data/external_market_data_provider_v2.py",
+        "backend/services/canonical_market_pipeline_v2.py",
+        "backend/tests/test_market_to_candidate_v10.py"
       ],
-      "ASSESSMENT": "Coordinated /market/webhook returns 503 before storing a candle because PositionManagerV2 fails the legacy PositionManager dependency. External provider is a Protocol, not a configured adapter; quotes alone do not populate candles."
+      "ASSESSMENT": "Controlled authenticated OHLC enters the existing published LiveCandleStore exactly once. Conflicts, late/future/invalid observations reject; OHLC never synthesizes quotes or drives operational position-price updates. Feed-vendor provisioning is not required by V10; sustained operator input remains part of MVP-023."
     },
     {
       "CAPABILITY_ID": "MVP-006",
       "NAME": "Minimum indicators and market structure stack",
       "OWNER": "IndicatorStage / SmartMoneyStage / IntelligenceStage",
-      "STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "STATUS": "CLOSED_CERTIFIED",
       "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
-      "INTEGRATION_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
-      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "END_TO_END_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
       "MVP_REQUIRED": "YES",
-      "PRIORITY": "P0",
-      "BLOCKER": "EMA(50), RSI(14), ATR(14), trend, structure, BOS/CHOCH and liquidity exist; public coordinated data path cannot reach them.",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within the controlled application-input/candidate scope",
       "DEPENDENCIES": [
         "MVP-005"
       ],
@@ -149,43 +151,47 @@
         "backend/pipeline/indicator_stage.py",
         "backend/pipeline/smart_money_stage.py",
         "backend/pipeline/intelligence_stage.py",
-        "backend/tests/test_indicator_stage.py"
+        "backend/tests/test_indicator_stage.py",
+        "backend/services/canonical_market_pipeline_v2.py",
+        "backend/tests/test_market_to_candidate_v10.py"
       ],
-      "ASSESSMENT": "EMA(50), RSI(14), ATR(14), trend, structure, BOS/CHOCH and liquidity exist; public coordinated data path cannot reach them."
+      "ASSESSMENT": "Real IndicatorStage EMA50/RSI14/ATR14 and SmartMoneyStage consume application-ingested candles; canonical EMA alignment is connected to confluence. MTF uses the same candle owner."
     },
     {
       "CAPABILITY_ID": "MVP-007",
       "NAME": "Confluence, probability and decision evaluation",
       "OWNER": "LiveMarketAnalysisService / ConfluenceEngineV2 / ProbabilityEngineV2",
-      "STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "STATUS": "CLOSED_CERTIFIED",
       "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
-      "INTEGRATION_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
-      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "END_TO_END_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
       "MVP_REQUIRED": "YES",
-      "PRIORITY": "P0",
-      "BLOCKER": "Real component calculations exist and delegate into v2 plan/validation; coordinated analyze endpoint is unavailable. No profitable-strategy claim follows from component tests.",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within the controlled application-input/candidate scope",
       "DEPENDENCIES": [
         "MVP-006"
       ],
       "EVIDENCE": [
         "backend/services/live_market_analysis_service.py",
-        "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py"
+        "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py",
+        "backend/services/canonical_market_pipeline_v2.py",
+        "backend/tests/test_market_to_candidate_v10.py"
       ],
-      "ASSESSMENT": "Real component calculations exist and delegate into v2 plan/validation; coordinated analyze endpoint is unavailable. No profitable-strategy claim follows from component tests."
+      "ASSESSMENT": "Real confluence/probability/council/plan/validation generate a deterministic A+ candidate with unchanged thresholds and weights; flat valid inputs and missing permission remain blocked."
     },
     {
       "CAPABILITY_ID": "MVP-008",
       "NAME": "Canonical candidate to account-bound submission",
       "OWNER": "SignalGeneratorV2 / LiveMarketAnalysisService",
-      "STATUS": "PARTIAL",
-      "IMPLEMENTATION_STATUS": "PARTIAL",
-      "INTEGRATION_STATUS": "PARTIAL",
-      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "END_TO_END_STATUS": "PARTIAL",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
       "MVP_REQUIRED": "YES",
-      "PRIORITY": "P0",
-      "BLOCKER": "Analysis builds lifecycle risk_context without required account_id/profile_name; request identity/provenance and command separation need integration. Direct manually supplied valid signals are not generated-market E2E evidence.",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within the controlled application-input/candidate scope",
       "DEPENDENCIES": [
         "MVP-007",
         "MVP-009",
@@ -194,9 +200,11 @@
       "EVIDENCE": [
         "backend/signals/signal_generator_v2.py",
         "backend/services/live_market_analysis_service.py",
-        "backend/services/account_switch_safety_v2.py"
+        "backend/services/account_switch_safety_v2.py",
+        "backend/services/canonical_market_pipeline_v2.py",
+        "backend/tests/test_market_to_candidate_v10.py"
       ],
-      "ASSESSMENT": "Analysis builds lifecycle risk_context without required account_id/profile_name; request identity/provenance and command separation need integration. Direct manually supplied valid signals are not generated-market E2E evidence."
+      "ASSESSMENT": "SignalGeneratorV2 candidate carries source hash, timestamp, account/profile/generation and stable submission_id. Returned admission_request submits unchanged through the existing canonical endpoint; one PAPER fill, duplicate prevention and vetoes proven. Generation itself cannot execute."
     },
     {
       "CAPABILITY_ID": "MVP-009",
@@ -543,7 +551,7 @@
       "END_TO_END_STATUS": "PARTIAL",
       "MVP_REQUIRED": "YES",
       "PRIORITY": "P2",
-      "BLOCKER": "Require chosen candidate/source/time/strategy identity and honest validation claims. Full app walk-forward factories use fixed nq_history.csv; registry certification uses STR-001; nominal real_e2e test uses fake validation pipelines. Do not certify arbitrary dataset/strategy based on those results.",
+      "BLOCKER": "V10 certifies generated candidate source/time/account provenance. Dataset/strategy validation claims remain limited by fixed application research factories and partly fake certification tests; arbitrary empirical certification is not proven.",
       "DEPENDENCIES": [
         "MVP-008"
       ],
@@ -552,7 +560,7 @@
         "backend/api/app.py",
         "backend/tests/test_strategy_certification_pipeline_real_e2e_v2.py"
       ],
-      "ASSESSMENT": "Require chosen candidate/source/time/strategy identity and honest validation claims. Full app walk-forward factories use fixed nq_history.csv; registry certification uses STR-001; nominal real_e2e test uses fake validation pipelines. Do not certify arbitrary dataset/strategy based on those results."
+      "ASSESSMENT": "V10 certifies generated candidate source/time/account provenance. Dataset/strategy validation claims remain limited by fixed application research factories and partly fake certification tests; arbitrary empirical certification is not proven."
     },
     {
       "CAPABILITY_ID": "MVP-025",
@@ -671,8 +679,8 @@
   ],
   "transitions": [
     {
-      "TRANSITION": "Operator/source -> public bid/ask ingress",
-      "STATUS": "MANUAL_ONLY",
+      "TRANSITION": "Controlled application source -> authenticated public bid/ask and OHLC ingress",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-005",
       "MANDATORY": true
     },
@@ -684,42 +692,42 @@
     },
     {
       "TRANSITION": "Public candle ingress -> canonical candle owner",
-      "STATUS": "DISCONNECTED",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-005",
       "MANDATORY": true
     },
     {
       "TRANSITION": "Candle owner -> indicators/structure in coordinated application",
-      "STATUS": "DISCONNECTED",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-006",
       "MANDATORY": true
     },
     {
       "TRANSITION": "Indicators/structure -> intelligence/confluence/probability",
-      "STATUS": "TEST_ONLY",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-007",
       "MANDATORY": true
     },
     {
       "TRANSITION": "Intelligence -> generated canonical candidate",
-      "STATUS": "TEST_ONLY",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-008",
       "MANDATORY": true
     },
     {
       "TRANSITION": "Candidate -> certified session/news veto",
-      "STATUS": "PARTIAL",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-009",
       "MANDATORY": true
     },
     {
       "TRANSITION": "Generated candidate -> account-bound risk context",
-      "STATUS": "DISCONNECTED",
+      "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-008",
       "MANDATORY": true
     },
     {
-      "TRANSITION": "Manually supplied canonical request -> risk",
+      "TRANSITION": "Generated canonical request -> explicit submission -> risk",
       "STATUS": "CONNECTED",
       "CAPABILITY_ID": "MVP-011",
       "MANDATORY": true
@@ -813,8 +821,8 @@
     {
       "STEP": 3,
       "CONTRACT": "Public market inputs reach canonical owners",
-      "STATUS": "PARTIAL",
-      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase2_mvp_acceptance_v9.py",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_market_to_candidate_v10.py",
       "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
       "ACTION": "POST dated bid/ask quote and OHLC candles through authenticated application ingress, including malformed/stale/duplicate/out-of-order negatives.",
       "ASSERTIONS": "Accepted source reaches the same quote/candle owners used by admission; no synthetic spread or store injection. Current candle 503 is an explicit blocker."
@@ -822,8 +830,8 @@
     {
       "STEP": 4,
       "CONTRACT": "Real intelligence generates/evaluates candidate",
-      "STATUS": "IMPLEMENTED_NOT_INTEGRATED",
-      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_indicator_stage.py",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_market_to_candidate_v10.py",
       "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
       "ACTION": "Run real indicators/structure/confluence/probability/plan over supplied candles through the supported command boundary.",
       "ASSERTIONS": "Candidate or explicit rejection with source, symbol, timestamps, strategy/config identity; no mocked approval or fabricated confidence."
@@ -840,8 +848,8 @@
     {
       "STEP": 6,
       "CONTRACT": "Generated valid candidate admitted",
-      "STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
-      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_runtime_admission_v81.py",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_market_to_candidate_v10.py",
       "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
       "ACTION": "Supply a genuinely qualifying dated input sequence and certified hours/news coverage.",
       "ASSERTIONS": "Generated candidate carries canonical account/profile/generation and reaches existing admission; do not replace it with a prebuilt approved signal."
@@ -1065,9 +1073,9 @@
     },
     {
       "SOURCE": "Operational candles",
-      "CLASS": "DISCONNECTED_APPLICATION_INPUT",
-      "OWNER": "/market/webhook -> LiveCandleStore",
-      "LIMIT": "Coordinated application returns legacy_position_manager_unavailable before storage."
+      "CLASS": "APPLICATION_INPUT",
+      "OWNER": "/market/webhook -> CanonicalMarketPipelineV2 -> LiveCandleStore",
+      "LIMIT": "Controlled HTTP sequences certified. No paid feed claimed; historical OHLC does not update current position-price monitoring or synthesize bid/ask."
     },
     {
       "SOURCE": "External provider",
@@ -1089,9 +1097,9 @@
     },
     {
       "SOURCE": "Generated intelligence tests",
-      "CLASS": "MIXED_COMPONENT_AND_TEST_INPUTS",
-      "OWNER": "LiveMarketAnalysisService tests",
-      "LIMIT": "Real calculators plus candle stores/test fixtures; no current complete public-ingress proof."
+      "CLASS": "REAL_OWNERS_CONTROLLED_APPLICATION_INPUT",
+      "OWNER": "LiveMarketAnalysisService -> SignalGeneratorV2",
+      "LIMIT": "V10 public OHLC/quote input with explicit test calendar/news configuration and fixed test clock; no patched approval or private indicator injection. No profitability claim."
     },
     {
       "SOURCE": "PAPER fill",
@@ -1123,5 +1131,422 @@
       "OWNER": "test_strategy_certification_pipeline_real_e2e_v2.py",
       "LIMIT": "FakeWalkForwardPipeline and FakeMonteCarloPipeline; no empirical strategy certification claim."
     }
-  ]
+  ],
+  "historical_v9": {
+    "baseline": "25280bdfbc01156cc027b5dd1955eb20107317a5",
+    "counts": {
+      "TOTAL_MVP_CAPABILITIES": 30,
+      "MANDATORY_MVP_CAPABILITIES": 24,
+      "CLOSED_CERTIFIED": 14,
+      "IMPLEMENTED_NEEDS_INTEGRATION": 4,
+      "PARTIAL": 6,
+      "MISSING": 0,
+      "BLOCKED_EXTERNAL": 0,
+      "POST_MVP": 6,
+      "MVP_COMPLETION_PERCENT": 58,
+      "P0_GAPS": 4,
+      "P1_GAPS": 5,
+      "P2_GAPS": 1
+    },
+    "test_execution": {
+      "backend_baseline": {
+        "exit_code": 0,
+        "counts": {
+          "passed": 5508,
+          "skipped": 1,
+          "failed": 0
+        },
+        "evidence_file": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-mvp-v9-yv_am1b9\\backend_baseline.json",
+        "sha256": "8b4358fc3e02c90114cda67801d48b7ba9cd580c732e08b33768cfe9687eb736"
+      },
+      "frontend": {
+        "frontend_lint": {
+          "exit_code": 0,
+          "command": [
+            "npm.cmd",
+            "run",
+            "lint"
+          ]
+        },
+        "frontend_build": {
+          "exit_code": 0,
+          "command": [
+            "npm.cmd",
+            "run",
+            "build"
+          ]
+        },
+        "frontend_tests": {
+          "exit_code": 0,
+          "command": [
+            "node",
+            "--test",
+            "src/lib/dashboardApi.test.mjs"
+          ]
+        }
+      },
+      "audit_tests": {
+        "exit_code": 0,
+        "counts": {
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0
+        },
+        "evidence_file": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-mvp-v9-yv_am1b9\\audit_green.json",
+        "sha256": "bdff5c4b02db9ab371f281d3bcad5eabb417c469fde7dcced60547affcecb081"
+      },
+      "full_backend_final": {
+        "exit_code": 0,
+        "counts": {
+          "passed": 5514,
+          "skipped": 1,
+          "failed": 0
+        },
+        "evidence_file": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-mvp-v9-yv_am1b9\\backend_final.json",
+        "sha256": "ffbfe9cbe8da5511f27db3886172e8b957b124e3213318d4107aca53356fdd72"
+      },
+      "backend_command": "python -c \"import os, pytest; from backend.tests.test_account_switch_safety_containment_v2 import POLICY; os.environ.update(POLICY); raise SystemExit(pytest.main(['-q', '-p', 'no:cacheprovider', '--tb=short', 'backend/tests']))\"",
+      "focused_final": {
+        "exit_code": 0,
+        "counts": {
+          "passed": 60,
+          "failed": 0,
+          "skipped": 0
+        },
+        "modules": [
+          "backend/tests/test_phase2_mvp_acceptance_v9.py",
+          "backend/tests/test_phase1_consolidated_acceptance_v8.py",
+          "backend/tests/test_runtime_admission_v81.py"
+        ],
+        "evidence_file": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-mvp-v9-yv_am1b9\\focused_final.json",
+        "sha256": "a5706002adb094eadbea8db9b799581983f842b43765fc4545e37c00fdbdcb14"
+      },
+      "environment_note": "A restricted focused rerun produced 59 fixture setup errors (one manifest test passed); isolated -x reproduction confirmed WinError 5 accessing pytest-of-Thecrazyboss. Identical focused selection with required temporary-directory access passed all 60. Full backend certified run already had required access."
+    }
+  },
+  "current_package": "PHASE2_CANONICAL_MARKET_TO_CANDIDATE",
+  "current_baseline": "2aa50801a8902c1cea2ba752dec6147a19352db6",
+  "v10_test_execution": {
+    "direct_green": {
+      "exit_code": 0,
+      "passed": 2327,
+      "failed": 0,
+      "skipped": 1,
+      "evidence": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-v10-gc5t70ah\\direct_green.json",
+      "sha256": "2a35163ca32763133e5d2450555a5f0c418fa205a9224a2364416baed5ab1ab5"
+    },
+    "supplemental": {
+      "exit_code": 0,
+      "passed": 57,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-v10-gc5t70ah\\supplemental.json",
+      "sha256": "6f1e034182dbada00a7c9c05e2971aa3defbd103e5be04e3328c07c2c0ad7e34"
+    },
+    "direct_modules": [
+      "backend/tests/test_account_config_manager_v2.py",
+      "backend/tests/test_account_contract_enforcement_v2.py",
+      "backend/tests/test_account_contract_exposure_runtime_v2.py",
+      "backend/tests/test_account_contract_position_sizing_runtime_v2.py",
+      "backend/tests/test_account_contract_runtime_limits_v2.py",
+      "backend/tests/test_account_contract_symbol_aware_v2.py",
+      "backend/tests/test_account_manager_api_v2.py",
+      "backend/tests/test_account_overview_widget_v2.py",
+      "backend/tests/test_account_performance_router.py",
+      "backend/tests/test_account_performance_service.py",
+      "backend/tests/test_account_risk_guard.py",
+      "backend/tests/test_account_risk_guard_daily_loss_authority_v2.py",
+      "backend/tests/test_account_risk_guard_internal_policy_authority_v2.py",
+      "backend/tests/test_account_risk_guard_max_risk_authority_v2.py",
+      "backend/tests/test_account_runtime_transition_v2.py",
+      "backend/tests/test_account_state_manager_v2.py",
+      "backend/tests/test_account_switch_api_v2.py",
+      "backend/tests/test_account_switch_safety_containment_v2.py",
+      "backend/tests/test_account_switch_safety_v2.py",
+      "backend/tests/test_admin_account_trade_boundary_v2.py",
+      "backend/tests/test_admin_market_boundary_v2.py",
+      "backend/tests/test_admission_price_authority_safety_v2.py",
+      "backend/tests/test_ai_decision_engine.py",
+      "backend/tests/test_ai_decision_memory_canonical_journal_e2e_v2.py",
+      "backend/tests/test_ai_decision_router.py",
+      "backend/tests/test_atr_engine.py",
+      "backend/tests/test_backtesting_dashboard_execution_v2.py",
+      "backend/tests/test_backtesting_dashboard_risk_validation_v2.py",
+      "backend/tests/test_backtesting_dashboard_strategy_decision_v2.py",
+      "backend/tests/test_backtest_account_config_v2_migration.py",
+      "backend/tests/test_backtest_account_contract_runtime_v2.py",
+      "backend/tests/test_backtest_execution_simulator_v2.py",
+      "backend/tests/test_backtest_execution_stage.py",
+      "backend/tests/test_backtest_market_stage.py",
+      "backend/tests/test_backtest_risk_adapter_factory_v2.py",
+      "backend/tests/test_backtest_risk_compatibility_adapter_integration_v2.py",
+      "backend/tests/test_backtest_session_signal_generation_v2.py",
+      "backend/tests/test_backtest_session_signal_submission_v2.py",
+      "backend/tests/test_certified_market_calendar_v2.py",
+      "backend/tests/test_certified_market_hours_app_loading_v2.py",
+      "backend/tests/test_certified_market_hours_data_lifecycle_v2.py",
+      "backend/tests/test_certified_market_hours_refresh_api_v2.py",
+      "backend/tests/test_certified_market_hours_refresh_app_wiring_v2.py",
+      "backend/tests/test_certified_market_hours_runtime_provider_v2.py",
+      "backend/tests/test_certified_market_hours_runtime_refresh_service_v2.py",
+      "backend/tests/test_certified_market_hours_snapshot_loader_v2.py",
+      "backend/tests/test_certified_market_hours_versioned_data_v2.py",
+      "backend/tests/test_confluence_engine.py",
+      "backend/tests/test_confluence_engine_v2.py",
+      "backend/tests/test_csv_candle_loader_v2.py",
+      "backend/tests/test_dashboard_execution_manager_read_only_v2.py",
+      "backend/tests/test_dashboard_execution_pipeline_read_only_v3.py",
+      "backend/tests/test_dashboard_read_execution_safety_v2.py",
+      "backend/tests/test_dashboard_strategy_intelligence_read_only_v2.py",
+      "backend/tests/test_decision_council.py",
+      "backend/tests/test_decision_council_v2.py",
+      "backend/tests/test_decision_stage.py",
+      "backend/tests/test_executable_signal_store.py",
+      "backend/tests/test_execution_approval_daily_loss_authority_v2.py",
+      "backend/tests/test_execution_dashboard_provider_v2.py",
+      "backend/tests/test_execution_decision_app.py",
+      "backend/tests/test_execution_decision_engine.py",
+      "backend/tests/test_execution_decision_engine_v2.py",
+      "backend/tests/test_execution_decision_legacy_confidence_authority_v2.py",
+      "backend/tests/test_execution_engine_v2.py",
+      "backend/tests/test_execution_manager_v2.py",
+      "backend/tests/test_execution_pipeline_account_balance_authority_v2.py",
+      "backend/tests/test_execution_pipeline_account_size_authority_v2.py",
+      "backend/tests/test_execution_pipeline_daily_pnl_authority_v2.py",
+      "backend/tests/test_execution_pipeline_point_value_authority_v2.py",
+      "backend/tests/test_execution_pipeline_total_drawdown_authority_v2.py",
+      "backend/tests/test_execution_position_bridge_risk_v1.py",
+      "backend/tests/test_execution_risk_events_api_v2.py",
+      "backend/tests/test_execution_risk_event_summary_api_v2.py",
+      "backend/tests/test_execution_risk_gate_v1.py",
+      "backend/tests/test_execution_risk_validation_integration_v2.py",
+      "backend/tests/test_execution_service_v2.py",
+      "backend/tests/test_execution_stage.py",
+      "backend/tests/test_execution_state_store_v2.py",
+      "backend/tests/test_exit_decision_engine.py",
+      "backend/tests/test_external_market_data_provider_v2.py",
+      "backend/tests/test_indicator_stage.py",
+      "backend/tests/test_intelligence_stage.py",
+      "backend/tests/test_intelligence_v2_app.py",
+      "backend/tests/test_latest_market_analysis_router.py",
+      "backend/tests/test_latest_market_signal_router.py",
+      "backend/tests/test_live_candle_store.py",
+      "backend/tests/test_live_market_analysis_decision_council_v2.py",
+      "backend/tests/test_live_market_analysis_directional_confluence_v2.py",
+      "backend/tests/test_live_market_analysis_early_confluence_authority_v2.py",
+      "backend/tests/test_live_market_analysis_ema_directional_confluence_v2.py",
+      "backend/tests/test_live_market_analysis_equal_level_pool_semantics_v2.py",
+      "backend/tests/test_live_market_analysis_execution_v2_runtime_authority_v2.py",
+      "backend/tests/test_live_market_analysis_liquidity_directional_confluence_v2.py",
+      "backend/tests/test_live_market_analysis_market_context_v2.py",
+      "backend/tests/test_live_market_analysis_market_regime_quality_semantics_v2.py",
+      "backend/tests/test_live_market_analysis_news_authority_wiring_v2.py",
+      "backend/tests/test_live_market_analysis_order_block_direction_semantics_v2.py",
+      "backend/tests/test_live_market_analysis_probability_evidence_independence_v2.py",
+      "backend/tests/test_live_market_analysis_probability_independence_v2.py",
+      "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py",
+      "backend/tests/test_live_market_analysis_probability_volume_authority_v2.py",
+      "backend/tests/test_live_market_analysis_router.py",
+      "backend/tests/test_live_market_analysis_runtime_spread_wiring_v2.py",
+      "backend/tests/test_live_market_analysis_service.py",
+      "backend/tests/test_live_market_analysis_signal_freshness_v2.py",
+      "backend/tests/test_live_market_analysis_validator_atr_authority_v2.py",
+      "backend/tests/test_live_market_analysis_validator_daily_limit_authority_v2.py",
+      "backend/tests/test_live_market_analysis_validator_open_position_authority_v2.py",
+      "backend/tests/test_live_market_analysis_validator_session_authority_v2.py",
+      "backend/tests/test_live_market_analysis_validator_spread_authority_v2.py",
+      "backend/tests/test_live_market_analysis_volume_quality_semantics_v2.py",
+      "backend/tests/test_live_market_hours_wiring_v2.py",
+      "backend/tests/test_live_market_trade_planner_reward_risk_authority_v2.py",
+      "backend/tests/test_live_signal_store.py",
+      "backend/tests/test_market_auto_point_value_authority_v2.py",
+      "backend/tests/test_market_context_engine_v2.py",
+      "backend/tests/test_market_context_policy_authority_v2.py",
+      "backend/tests/test_market_data.py",
+      "backend/tests/test_market_data_analysis.py",
+      "backend/tests/test_market_data_hub_v2.py",
+      "backend/tests/test_market_hours_app_wiring_v2.py",
+      "backend/tests/test_market_hours_service_v2.py",
+      "backend/tests/test_market_hours_special_hours_integration_v2.py",
+      "backend/tests/test_market_quote_router_v2.py",
+      "backend/tests/test_market_regime_engine.py",
+      "backend/tests/test_market_regime_trend_policy_authority_v2.py",
+      "backend/tests/test_market_regime_volatility_policy_authority_v2.py",
+      "backend/tests/test_market_router_economic_news_authority_injection_v2.py",
+      "backend/tests/test_market_signal_history_router.py",
+      "backend/tests/test_market_stage.py",
+      "backend/tests/test_market_state_engine_v2.py",
+      "backend/tests/test_market_structure_engine_v3.py",
+      "backend/tests/test_market_to_candidate_v10.py",
+      "backend/tests/test_market_webhook_auth.py",
+      "backend/tests/test_market_webhook_auto_close_e2e_v2.py",
+      "backend/tests/test_market_webhook_dashboard_realtime_e2e_v2.py",
+      "backend/tests/test_market_webhook_institutional_pipeline_e2e_v2.py",
+      "backend/tests/test_market_webhook_journal_dashboard_sync_e2e_v2.py",
+      "backend/tests/test_market_webhook_market_data_hub_e2e_v2.py",
+      "backend/tests/test_market_webhook_market_state_e2e_v2.py",
+      "backend/tests/test_market_webhook_position_closed_dashboard_e2e_v2.py",
+      "backend/tests/test_market_webhook_router.py",
+      "backend/tests/test_market_webhook_trend_engine_e2e_v2.py",
+      "backend/tests/test_multi_timeframe_decision_engine_v2.py",
+      "backend/tests/test_paper_execution_engine_v2.py",
+      "backend/tests/test_paper_execution_fill_policy_authority_v2.py",
+      "backend/tests/test_paper_execution_slippage_policy_authority_v2.py",
+      "backend/tests/test_performance_intelligence_canonical_journal_e2e_v2.py",
+      "backend/tests/test_phase1_account_isolation_characterization_v2.py",
+      "backend/tests/test_phase1_account_switch_full_containment_v2.py",
+      "backend/tests/test_phase1_api_authorization_observational_contract_v2.py",
+      "backend/tests/test_phase1_api_ownership_characterization_v2.py",
+      "backend/tests/test_phase1_api_route_account_scope_contract_v2.py",
+      "backend/tests/test_phase1_asgi_cli_equivalence_v2.py",
+      "backend/tests/test_phase1_consolidated_acceptance_v8.py",
+      "backend/tests/test_phase1_duplicate_fill_idempotency_v2.py",
+      "backend/tests/test_phase1_fill_atomicity_v2.py",
+      "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "backend/tests/test_phase1_financial_sync_characterization_v2.py",
+      "backend/tests/test_phase1_global_duplicate_submission_idempotency_v2.py",
+      "backend/tests/test_phase1_market_ownership_availability_v4.py",
+      "backend/tests/test_phase1_paper_execution_characterization_v2.py",
+      "backend/tests/test_phase1_paper_live_isolation_v2.py",
+      "backend/tests/test_phase1_parallel_execution_equivalence_v2.py",
+      "backend/tests/test_phase1_recovery_characterization_v2.py",
+      "backend/tests/test_phase1_recovery_execution_blocking_v2.py",
+      "backend/tests/test_phase1_rejected_signal_zero_side_effect_v2.py",
+      "backend/tests/test_phase1_risk_authority_characterization_v2.py",
+      "backend/tests/test_phase1_risk_authority_integration_v2.py",
+      "backend/tests/test_phase1_risk_precedence_v5.py",
+      "backend/tests/test_phase1_route_lifecycle_contract_v2.py",
+      "backend/tests/test_phase1_route_lifecycle_delegation_v2.py",
+      "backend/tests/test_phase1_runtime_characterization_v2.py",
+      "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+      "backend/tests/test_phase1_safety_closure_v2.py",
+      "backend/tests/test_phase1_websocket_account_isolation_characterization_v2.py",
+      "backend/tests/test_phase1_websocket_authorization_contract_v2.py",
+      "backend/tests/test_phase2_data005_required_data_rejection_v2.py",
+      "backend/tests/test_phase2_mvp_acceptance_v9.py",
+      "backend/tests/test_portfolio_account_state_integration_v2.py",
+      "backend/tests/test_portfolio_market_router.py",
+      "backend/tests/test_portfolio_risk_contribution.py",
+      "backend/tests/test_portfolio_risk_engine_v2.py",
+      "backend/tests/test_portfolio_risk_parity_optimizer.py",
+      "backend/tests/test_price_feed_service_v2.py",
+      "backend/tests/test_probability_approval_policy_authority_v2.py",
+      "backend/tests/test_probability_engine.py",
+      "backend/tests/test_probability_engine_v2.py",
+      "backend/tests/test_probability_grade_policy_authority_v2.py",
+      "backend/tests/test_replay_market_data_bridge_v2.py",
+      "backend/tests/test_risk_analytics.py",
+      "backend/tests/test_risk_analytics_market_router.py",
+      "backend/tests/test_risk_analytics_router.py",
+      "backend/tests/test_risk_compatibility_adapter_v2.py",
+      "backend/tests/test_risk_contribution.py",
+      "backend/tests/test_risk_contribution_router.py",
+      "backend/tests/test_risk_dashboard_analytics_integration_v2.py",
+      "backend/tests/test_risk_dashboard_event_publisher_v2.py",
+      "backend/tests/test_risk_event_analytics_v2.py",
+      "backend/tests/test_risk_event_logger_persistence_v2.py",
+      "backend/tests/test_risk_event_query_filtering_v2.py",
+      "backend/tests/test_risk_event_runtime_persistence_wiring_v2.py",
+      "backend/tests/test_risk_event_store_v2.py",
+      "backend/tests/test_risk_manager_v2.py",
+      "backend/tests/test_risk_stage.py",
+      "backend/tests/test_risk_status_widget_v2.py",
+      "backend/tests/test_risk_validation_dashboard_provider_v2.py",
+      "backend/tests/test_risk_validation_engine_v2.py",
+      "backend/tests/test_risk_validation_service_v2.py",
+      "backend/tests/test_risk_validation_trade_plan_integration_v2.py",
+      "backend/tests/test_runtime_account_capital_authority_v2.py",
+      "backend/tests/test_runtime_admission_v81.py",
+      "backend/tests/test_runtime_context_account_contract_v2.py",
+      "backend/tests/test_runtime_risk_percent_authority_v2.py",
+      "backend/tests/test_safe003_execution_v2_risk_authority_wiring_v2.py",
+      "backend/tests/test_safe003_final_cross_path_risk_authority_v2.py",
+      "backend/tests/test_safe003_missing_runtime_risk_authority_v2.py",
+      "backend/tests/test_shared_account_policy_runtime_wiring_v2.py",
+      "backend/tests/test_signal_controller_v2.py",
+      "backend/tests/test_signal_engine.py",
+      "backend/tests/test_signal_execution_cooldown_policy_authority_v2.py",
+      "backend/tests/test_signal_execution_manager.py",
+      "backend/tests/test_signal_generator_v2.py",
+      "backend/tests/test_signal_history_store.py",
+      "backend/tests/test_signal_submission_target_v2.py",
+      "backend/tests/test_smart_money_engine_v2.py",
+      "backend/tests/test_smart_money_stage.py",
+      "backend/tests/test_strategy_decision_dashboard_provider_v2.py",
+      "backend/tests/test_strategy_decision_engine_v2.py",
+      "backend/tests/test_strategy_decision_selection_integration_v2.py",
+      "backend/tests/test_strategy_decision_service_v2.py",
+      "backend/tests/test_strategy_intelligence_orchestrator_v2.py",
+      "backend/tests/test_strategy_intelligence_read_only_v2.py",
+      "backend/tests/test_takeprofit_account_profiles_v2.py",
+      "backend/tests/test_topstep_account_profiles_v2.py",
+      "backend/tests/test_trade_accounting_safety_v2.py",
+      "backend/tests/test_trade_execution_engine.py",
+      "backend/tests/test_trade_lifecycle_a_plus_confluence_policy_v2.py",
+      "backend/tests/test_trade_lifecycle_a_plus_probability_policy_v2.py",
+      "backend/tests/test_trade_lifecycle_execution_risk_gate_v1.py",
+      "backend/tests/test_trade_lifecycle_portfolio_risk_integration_v2.py",
+      "backend/tests/test_trade_lifecycle_risk_manager_integration_v2.py",
+      "backend/tests/test_trade_lifecycle_signal_blocking_reasons_policy_v2.py",
+      "backend/tests/test_trade_lifecycle_signal_decision_policy_v2.py",
+      "backend/tests/test_trade_lifecycle_signal_status_policy_v2.py",
+      "backend/tests/test_trade_lifecycle_signal_submission_target_v2.py",
+      "backend/tests/test_trade_plan_decision_integration_v2.py",
+      "backend/tests/test_trade_risk_validator_instruments_v2.py",
+      "backend/tests/test_trade_risk_validator_v2.py",
+      "backend/tests/test_trading_intelligence.py"
+    ],
+    "supplemental_modules": [
+      "backend/tests/test_trend_context_engine_v2.py",
+      "backend/tests/test_trend_engine_v2.py",
+      "backend/tests/test_trend_policy_authority_v2.py"
+    ],
+    "initial_regression_attribution": "2325 passed, 2 failed, 1 skipped: two Phase 1 characterizations expected the intentionally replaced legacy 503. Updated to assert canonical storage/insufficient candles while retaining no-financial-mutation tripwires. Same 251 modules then passed 2327/0/1.",
+    "test_development_attribution": "Before implementation: two new ingress assertions failed on legacy 503. During acceptance development: corrected HTTP envelope (order_context is not part of SubmitTradeRequestV2), test clock isinstance compatibility, EMA projection key, and execution spy scope. Real A+ scenario exposed missing calculated EMA alignment wiring, repaired without threshold changes.",
+    "full_backend": {
+      "exit_code": 0,
+      "passed": 5533,
+      "failed": 0,
+      "skipped": 1,
+      "evidence": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-v10-gc5t70ah\\full_backend.json",
+      "sha256": "bb69e97747c0e8f32c9a7823231739fed764a22a4ffdeac9fc0bbffbae1f1460"
+    },
+    "backend_invocation": "python -c \"import os,pytest; from backend.tests.test_account_switch_safety_containment_v2 import POLICY; os.environ.update(POLICY); raise SystemExit(pytest.main(['-q','-p','no:cacheprovider','--tb=short','--show-capture=no','backend/tests']))\"",
+    "staged_certification_modules": [
+      "backend/tests/test_market_to_candidate_v10.py",
+      "backend/tests/test_phase2_mvp_acceptance_v9.py",
+      "backend/tests/test_phase1_consolidated_acceptance_v8.py",
+      "backend/tests/test_runtime_admission_v81.py",
+      "backend/tests/test_phase1_api_route_account_scope_contract_v2.py",
+      "backend/tests/test_phase1_market_ownership_availability_v4.py",
+      "backend/tests/test_phase1_risk_precedence_v5.py",
+      "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "backend/tests/test_phase1_runtime_execution_ownership_v7.py"
+    ]
+  },
+  "v10_certificate": {
+    "PACKAGE": "PHASE2_CANONICAL_MARKET_TO_CANDIDATE",
+    "BASELINE": "2aa50801a8902c1cea2ba752dec6147a19352db6",
+    "V9_GAP_REPRODUCED": "YES",
+    "FAILURE_BOUNDARY": "market.get_position_manager: coordinated PositionManagerV2 fails legacy PositionManager type/API contract before store.add",
+    "CANONICAL_MARKET_INGESTION_OWNER": "CanonicalMarketPipelineV2 -> published LiveCandleStore.ingest",
+    "CANONICAL_CANDLE_OWNER": "LiveCandleStore",
+    "CANONICAL_QUOTE_OWNER": "RuntimeQuoteAuthorityV2",
+    "CANONICAL_INTELLIGENCE_OWNER": "LiveMarketAnalysisService",
+    "CANONICAL_CANDIDATE_OWNER": "SignalGeneratorV2",
+    "LEGACY_MARKET_PIPELINE_BLOCKERS": 0,
+    "MARKET_INDICATOR_SYNC": "GREEN",
+    "INTELLIGENCE_CAN_CONSUME_APPLICATION_MARKET_STATE": "GREEN",
+    "NO_TRADE_SCENARIO": "GREEN",
+    "QUALIFYING_CANDIDATE_SCENARIO": "GREEN",
+    "CANDIDATE_PROVENANCE": "GREEN",
+    "CANDIDATE_TO_ADMISSION": "GREEN",
+    "REJECTION_NO_FINANCIAL_MUTATION": "GREEN",
+    "MARKET_TO_CANDIDATE_E2E": "GREEN",
+    "PHASE1_STATUS": "CLOSED",
+    "NEXT_ACTION": "PHASE2_AUTHORIZED_PAPER_DASHBOARD",
+    "LIVE_EXECUTION": "NO",
+    "PHASE1_REGRESSION": "GREEN",
+    "V9_MVP_ACCEPTANCE": "GREEN"
+  }
 }

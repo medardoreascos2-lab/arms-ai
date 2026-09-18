@@ -1023,9 +1023,11 @@
       "id": "backend/api/routers/market.py:receive_market_webhook",
       "path": "backend/api/routers/market.py",
       "function": "receive_market_webhook",
-      "source_sha256": "0df12194e3f40a96cc47f325bd1b4964a61973d122990e7a339f07b4bacc0ca5",
+      "source_sha256": "dee2342a378147ec2d58b2ef12d555f02386692e5fb81c6121a7cf6cffbb0292",
       "calls": [
         "Candle",
+        "CanonicalMarketPipelineV2",
+        "CanonicalMarketPipelineV2(request.app.state).ingest",
         "HTTPException",
         "Header",
         "LiveMarketAnalysisService",
@@ -1045,6 +1047,7 @@
         "get_trade_execution_engine",
         "get_trade_history_store",
         "getattr",
+        "isinstance",
         "market_data_result.get",
         "payload.symbol.strip",
         "payload.timeframe.strip",
@@ -1066,7 +1069,7 @@
       "owner": "receive_market_webhook",
       "callers": "Registered market webhook/analysis routes",
       "lexical_caller_candidates": [],
-      "downstream_effects": "POST market ingestion/analysis builds an analysis service around existing app-state lifecycle/market/risk services; canonical lifecycle is always supplied by create_app.",
+      "downstream_effects": "Coordinated PositionManagerV2 paths delegate candidate-only evaluation to CanonicalMarketPipelineV2 using existing owners. Legacy compatibility branch preserves containment and canonical lifecycle delegation.",
       "operational_execution_owner": "TradeLifecycleServiceV2",
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
@@ -1075,8 +1078,10 @@
       "id": "backend/api/routers/market.py:analyze_live_market",
       "path": "backend/api/routers/market.py",
       "function": "analyze_live_market",
-      "source_sha256": "a95bee80697046140f1a9104762a6138133270bad201c8946241a869a16cffd6",
+      "source_sha256": "05dca339b74e48a84166d0d8f246d7ea726694096a951c27fd5a5bcf9a07a62c",
       "calls": [
+        "CanonicalMarketPipelineV2",
+        "CanonicalMarketPipelineV2(request.app.state).analyze",
         "Depends",
         "HTTPException",
         "LiveMarketAnalysisService",
@@ -1092,6 +1097,7 @@
         "get_trade_execution_engine",
         "get_trade_history_store",
         "getattr",
+        "isinstance",
         "payload.symbol.strip",
         "payload.timeframe.strip",
         "router.post",
@@ -1103,7 +1109,7 @@
       "owner": "analyze_live_market",
       "callers": "Registered market webhook/analysis routes",
       "lexical_caller_candidates": [],
-      "downstream_effects": "POST market ingestion/analysis builds an analysis service around existing app-state lifecycle/market/risk services; canonical lifecycle is always supplied by create_app.",
+      "downstream_effects": "Coordinated PositionManagerV2 paths delegate candidate-only evaluation to CanonicalMarketPipelineV2 using existing owners. Legacy compatibility branch preserves containment and canonical lifecycle delegation.",
       "operational_execution_owner": "TradeLifecycleServiceV2",
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
@@ -3610,7 +3616,7 @@
       "id": "backend/services/live_market_analysis_service.py:LiveMarketAnalysisService.analyze",
       "path": "backend/services/live_market_analysis_service.py",
       "function": "LiveMarketAnalysisService.analyze",
-      "source_sha256": "314c57d1c91bd2609398e20a75df3d66e0aa63daf0a7f03fae6b9cc8d3c0195f",
+      "source_sha256": "d5179fef0646deb945a0d3463d5e67a7745e2876ebe9ebc5b06b284254473631",
       "calls": [
         "', '.join",
         "ArmsPipeline",
@@ -3687,6 +3693,7 @@
         "self.signal_store.save",
         "self.trade_execution_engine.execute",
         "self.trade_history_store.get_history",
+        "self.trade_lifecycle_service_v2.get_active_positions",
         "self.trade_lifecycle_service_v2.submit_signal",
         "self.trade_planner_v2.build",
         "self.trade_validator_v2.validate",
@@ -3709,7 +3716,7 @@
       ],
       "classification": "INTELLIGENCE_REQUEST",
       "owner": "LiveMarketAnalysisService",
-      "callers": "Registered market analysis/webhook handlers",
+      "callers": "CanonicalMarketPipelineV2 for coordinated candidate evaluation; legacy compatibility market handlers",
       "lexical_caller_candidates": [
         "backend/ai/ai_decision_engine.py:AIDecisionEngine.analyze",
         "backend/ai/conversation_engine.py:ConversationEngine.ask",
@@ -3741,7 +3748,7 @@
         "backend/strategies/parameterized_strategy_runner_v2.py:ParameterizedStrategyRunnerV2.run",
         "backend/trend/trend_context_engine_v2.py:TrendContextEngineV2.analyze"
       ],
-      "downstream_effects": "Operational app always supplies canonical lifecycle; generated signal delegates submit_signal even when rejected. Legacy simulator/open fallback requires missing lifecycle and is only independently configured in isolated tests; no operational bypass.",
+      "downstream_effects": "Coordinated candidate_only mode reads canonical positions and generates an admission request without submission/preparation/execution. Explicit HTTP submission retains Phase 1 lifecycle admission. Legacy composition still supplies lifecycle; standalone fallback remains gated by missing lifecycle and candidate_only=False.",
       "operational_execution_owner": "TradeLifecycleServiceV2",
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
@@ -5433,5 +5440,6 @@
     },
     "canonical_admission_owner": "TradeLifecycleServiceV2.submit_signal",
     "duplicate_admission_authorities": 0
-  }
+  },
+  "v10_review": "Reviewed source evidence for candidate-only canonical market orchestration; execution admission and risk thresholds unchanged. V10 real application tests certify non-execution during analysis and separate admission handoff."
 }

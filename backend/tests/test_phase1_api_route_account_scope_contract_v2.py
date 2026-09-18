@@ -201,7 +201,7 @@ def test_all_account_reads_after_switch_are_observational(hosted, monkeypatch):
 
 
 @pytest.mark.parametrize("path", ["/market/analyze", "/market/webhook"])
-def test_incompatible_legacy_market_commands_fail_before_state_changes(hosted, monkeypatch, path):
+def test_canonical_market_commands_preserve_execution_safety(hosted, monkeypatch, path):
     from backend.tests.test_dashboard_read_execution_safety_v2 import capture, forbid_mutations
 
     app = hosted.c.published.application
@@ -220,9 +220,16 @@ def test_incompatible_legacy_market_commands_fail_before_state_changes(hosted, m
     response = hosted.client.post(
         path, json=payload, headers={"X-ARMS-TOKEN": app.state.webhook_token},
     )
-    assert response.status_code == 503, response.text
-    assert response.json()["detail"] == "legacy_position_manager_unavailable"
-    add.assert_not_called()
+    # V10 connects the previously unavailable canonical owner. Keep the original
+    # no-execution assertion; only authenticated candle storage becomes possible.
+    if path == "/market/analyze":
+        assert response.status_code == 400, response.text
+        assert "suficientes velas" in response.json()["detail"]
+        add.assert_not_called()
+    else:
+        assert response.status_code == 201, response.text
+        assert response.json()["analysis_generated"] is False
+        add.assert_called_once()
     assert capture(app) == before
     for guard in guards:
         guard.assert_not_called()
