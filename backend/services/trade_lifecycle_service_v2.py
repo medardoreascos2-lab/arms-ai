@@ -1447,6 +1447,30 @@ class TradeLifecycleServiceV2(
             .upper()
             == "FILLED"
         ):
+            # PAPER may redeliver an existing execution. Financial application is
+            # keyed by the existing account's order/position evidence, including
+            # closed history restored after restart, not by a new local UUID.
+            if isinstance(self.broker_connector_v2, PaperBrokerConnectorV2):
+                applied = list(self._active_positions.values()) + self.get_trade_history()
+                if self.portfolio_manager_v2 is not None:
+                    applied += self.portfolio_manager_v2.get_open_positions()
+                    applied += self.portfolio_manager_v2.get_closed_positions()
+                order_id = execution.get("order_id")
+                broker_position_id = execution.get("position_id")
+                if any(
+                    (order_id and row.get("order_id") == order_id)
+                    or (broker_position_id and row.get("broker_position_id") == broker_position_id)
+                    for row in applied
+                ):
+                    return {
+                        "accepted": False,
+                        "reason": "duplicate_execution",
+                        "prepared_order": None,
+                        "execution": None,
+                        "position": None,
+                        "active_position_id": None,
+                    }
+
             opened_position = (
                 self.position_manager.open_position(
                     execution=execution,
@@ -2149,6 +2173,7 @@ class TradeLifecycleServiceV2(
             )
 
             active_position_removed = True
+            updated_position["unrealized_pnl"] = 0.0
 
             performance_metrics = (
                 self.get_performance_metrics()
@@ -2187,6 +2212,7 @@ class TradeLifecycleServiceV2(
             ] = dict(
                 updated_position
             )
+            self._sync_open_position_state(updated_position)
 
             if (
                 self.dashboard_event_publisher_v2
@@ -2198,10 +2224,6 @@ class TradeLifecycleServiceV2(
                     ),
                 )
 
-        if updated_status == "CLOSED":
-            updated_position["unrealized_pnl"] = 0.0
-        else:
-            self._sync_open_position_state(updated_position)
         return {
             "updated": True,
             "position": updated_position,
