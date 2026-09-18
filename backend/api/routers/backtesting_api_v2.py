@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from fastapi import (
     APIRouter,
+    Depends,
     HTTPException,
 )
+
+from backend.api.admin_authorization_dependency_v2 import require_admin_authorization_v2
 
 from backend.api.schemas.backtesting import (
     BacktestingRunRequest,
@@ -55,6 +58,7 @@ def create_backtesting_router_v2(
 
     @router.post(
         "/run",
+        dependencies=[Depends(require_admin_authorization_v2)],
     )
     def run_backtesting(
         request: BacktestingRunRequest,

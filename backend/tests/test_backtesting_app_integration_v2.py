@@ -1,6 +1,14 @@
 from fastapi.testclient import TestClient
+import pytest
+
+from backend.api.admin_authorization_dependency_v2 import ADMIN_TOKEN_HEADER
 
 from backend.api.app import create_app
+
+
+@pytest.fixture(autouse=True)
+def configure_admin(monkeypatch):
+    monkeypatch.setenv("ARMS_ADMIN_TOKEN", "backtesting-integration-test-admin")
 
 
 class FakeBacktestingResult:
@@ -105,6 +113,7 @@ def test_default_orchestrator_is_configured():
 
     response = client.post(
         "/api/v2/backtesting/run",
+        headers={ADMIN_TOKEN_HEADER: "backtesting-integration-test-admin"},
         json=valid_payload(),
     )
 
@@ -127,6 +136,7 @@ def test_accepts_injected_orchestrator():
 
     response = client.post(
         "/api/v2/backtesting/run",
+        headers={ADMIN_TOKEN_HEADER: "backtesting-integration-test-admin"},
         json=valid_payload(),
     )
 

@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from backend.api.admin_authorization_dependency_v2 import ADMIN_TOKEN_HEADER
+from backend.security.admin_authorization_v2 import AdminAuthorizationV2
 
 from backend.api.routers.backtesting_api_v2 import (
     create_backtesting_router_v2,
@@ -54,6 +56,7 @@ def build_client():
     orchestrator = FakeOrchestrator()
 
     app = FastAPI()
+    app.state.admin_authorization_v2 = AdminAuthorizationV2(token="backtesting-router-test-admin")
 
     app.include_router(
         create_backtesting_router_v2(
@@ -62,7 +65,7 @@ def build_client():
     )
 
     return (
-        TestClient(app),
+        TestClient(app, headers={ADMIN_TOKEN_HEADER: "backtesting-router-test-admin"}),
         orchestrator,
     )
 

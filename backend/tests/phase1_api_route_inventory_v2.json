@@ -1,0 +1,3336 @@
+{
+  "schema_version": 1,
+  "baseline": "93039c140b7db486d0adab36de383b77dae1b55d",
+  "counting": "Route registrations; GET+HEAD metadata counts as one registration. Includes docs and health. No unregistered router is assumed.",
+  "certificate": {
+    "TOTAL_RELEVANT_ROUTES": 92,
+    "CLASSIFIED_ROUTES": 92,
+    "UNCLASSIFIED_ROUTES": 0,
+    "ACCOUNT_SCOPED_ROUTES": 60,
+    "ADMIN_REQUIRED_ROUTES": 14,
+    "OBSERVATIONAL_ROUTES": 77,
+    "EXECUTION_BOUNDARY_ROUTES": 5
+  },
+  "routes": [
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/ai/copilot",
+      "name": "ask_ai_copilot",
+      "endpoint": "backend.api.routers.ai.ask_ai_copilot",
+      "module": "backend.api.routers.ai",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "c891571650bc936440b00fdefffd1f34768d2fa988224abe37b12bb3bd792016",
+      "state_fields": [],
+      "calls": [
+        "ConversationEngine",
+        "ConversationEngine(provider=LocalAIProvider()).ask",
+        "LocalAIProvider"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.ai request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/ai/decision",
+      "name": "analyze_ai_decision",
+      "endpoint": "backend.api.routers.ai.analyze_ai_decision",
+      "module": "backend.api.routers.ai",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "05e00678cc3e19eb2ca3c97c9f8e221b2e04e362bf4f74aec15c60ce4f633e90",
+      "state_fields": [],
+      "calls": [
+        "AIDecisionEngine",
+        "AIDecisionEngine().analyze"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.ai request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/ai/trading-context",
+      "name": "analyze_trading_context",
+      "endpoint": "backend.api.routers.ai.analyze_trading_context",
+      "module": "backend.api.routers.ai",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "85d760edff90d46e445e9ff096a8965b4b994928e2f956124a195644b609f4b2",
+      "state_fields": [],
+      "calls": [
+        "ArmsPipeline",
+        "BacktestMarketStage",
+        "Candle",
+        "DecisionStage",
+        "IndicatorStage",
+        "IntelligenceStage",
+        "RiskStage",
+        "SmartMoneyStage",
+        "TradingCopilotService",
+        "TradingCopilotService().build_context",
+        "len",
+        "max",
+        "pipeline.run"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.ai request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v2/backtesting/controller/start",
+      "name": "start_controller",
+      "endpoint": "backend.api.routers.backtesting_controller_api_v2.start_controller",
+      "module": "backend.api.routers.backtesting_controller_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "controller": {
+          "type": "backend.backtesting.backtesting_controller_v2.BacktestingControllerV2",
+          "state_bindings": [
+            "backtesting_controller_v2"
+          ]
+        }
+      },
+      "source_sha256": "b821cd6f95cbdf3d5be9d7604aca2aaa4c95ec510d6eb263e9d610152c5a54d9",
+      "state_fields": [],
+      "calls": [
+        "bool",
+        "controller.start",
+        "getattr"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "OTHER",
+      "owner": "backend.backtesting.backtesting_controller_v2.BacktestingControllerV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Mutates application-local backtest jobs/results/workers or certified market-hours configuration; canonical admin authorization required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/backtesting/controller/status",
+      "name": "get_status",
+      "endpoint": "backend.api.routers.backtesting_controller_api_v2.get_status",
+      "module": "backend.api.routers.backtesting_controller_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "controller": {
+          "type": "backend.backtesting.backtesting_controller_v2.BacktestingControllerV2",
+          "state_bindings": [
+            "backtesting_controller_v2"
+          ]
+        }
+      },
+      "source_sha256": "09b458ebdf8af6f140d9224a800cbf01123d2afb4072ecf4996a791fb986e494",
+      "state_fields": [],
+      "calls": [
+        "controller.status"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.backtesting_controller_v2.BacktestingControllerV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v2/backtesting/controller/stop",
+      "name": "stop_controller",
+      "endpoint": "backend.api.routers.backtesting_controller_api_v2.stop_controller",
+      "module": "backend.api.routers.backtesting_controller_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "controller": {
+          "type": "backend.backtesting.backtesting_controller_v2.BacktestingControllerV2",
+          "state_bindings": [
+            "backtesting_controller_v2"
+          ]
+        }
+      },
+      "source_sha256": "527cae605655057c94a97d090fb6b58b0e0714cb1b967e542f92385681cbcba8",
+      "state_fields": [],
+      "calls": [
+        "bool",
+        "controller.stop",
+        "getattr"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "OTHER",
+      "owner": "backend.backtesting.backtesting_controller_v2.BacktestingControllerV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Mutates application-local backtest jobs/results/workers or certified market-hours configuration; canonical admin authorization required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/backtesting/dashboard",
+      "name": "get_dashboard",
+      "endpoint": "backend.api.routers.backtesting_dashboard_api_v2.get_dashboard",
+      "module": "backend.api.routers.backtesting_dashboard_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "controller": {
+          "type": "backend.backtesting.backtesting_controller_v2.BacktestingControllerV2",
+          "state_bindings": [
+            "backtesting_controller_v2"
+          ]
+        },
+        "job_manager": {
+          "type": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2",
+          "state_bindings": [
+            "backtesting_job_manager_v2"
+          ]
+        },
+        "job_queue": {
+          "type": "backend.backtesting.backtesting_job_queue_v2.BacktestingJobQueueV2",
+          "state_bindings": [
+            "backtesting_job_queue_v2"
+          ]
+        },
+        "metrics_provider": {
+          "type": "backend.backtesting.backtesting_metrics_provider_v2.BacktestingMetricsProviderV2",
+          "state_bindings": [
+            "backtesting_metrics_provider_v2"
+          ]
+        },
+        "performance_report_provider": {
+          "type": "backend.backtesting.backtesting_performance_report_provider_v2.BacktestingPerformanceReportProviderV2",
+          "state_bindings": [
+            "backtesting_performance_report_provider_v2"
+          ]
+        },
+        "strategy_ranking_provider": {
+          "type": "backend.backtesting.strategy_ranking_dashboard_provider_v2.StrategyRankingDashboardProviderV2",
+          "state_bindings": [
+            "strategy_ranking_dashboard_provider_v2"
+          ]
+        },
+        "strategy_registry_provider": {
+          "type": "backend.backtesting.strategy_registry_dashboard_provider_v2.StrategyRegistryDashboardProviderV2",
+          "state_bindings": [
+            "strategy_registry_dashboard_provider_v2"
+          ]
+        },
+        "worker": {
+          "type": "backend.backtesting.backtesting_worker_v2.BacktestingWorkerV2",
+          "state_bindings": [
+            "backtesting_worker_v2"
+          ]
+        }
+      },
+      "source_sha256": "67ffb8ce85ed833e40bfbf9e1795cab79db0e5b890c0b6659a10e1f4ec4e4498",
+      "state_fields": [],
+      "calls": [
+        "all",
+        "controller.status",
+        "isfinite",
+        "isinstance",
+        "item.get",
+        "job_manager.list_jobs",
+        "len",
+        "metrics.keys",
+        "metrics_provider.get_metrics",
+        "performance_report_provider.get_report",
+        "report.get",
+        "strategies.get",
+        "strategy_ranking_provider.get_ranking",
+        "strategy_registry_provider.get_strategies",
+        "worker.status"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.backtesting_controller_v2.BacktestingControllerV2; backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2; backend.backtesting.backtesting_job_queue_v2.BacktestingJobQueueV2; backend.backtesting.backtesting_metrics_provider_v2.BacktestingMetricsProviderV2; backend.backtesting.backtesting_performance_report_provider_v2.BacktestingPerformanceReportProviderV2; backend.backtesting.strategy_ranking_dashboard_provider_v2.StrategyRankingDashboardProviderV2; backend.backtesting.strategy_registry_dashboard_provider_v2.StrategyRegistryDashboardProviderV2; backend.backtesting.backtesting_worker_v2.BacktestingWorkerV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/backtesting/jobs",
+      "name": "list_jobs",
+      "endpoint": "backend.api.routers.backtesting_jobs_api_v2.list_jobs",
+      "module": "backend.api.routers.backtesting_jobs_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "job_manager": {
+          "type": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2",
+          "state_bindings": [
+            "backtesting_job_manager_v2"
+          ]
+        }
+      },
+      "source_sha256": "ce6f2e532fbbbbdf27dfe67ed775b6bb7121e2df0e55d4fd42411449229b44e4",
+      "state_fields": [],
+      "calls": [
+        "job.to_dict",
+        "job_manager.list_jobs"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v2/backtesting/jobs",
+      "name": "create_job",
+      "endpoint": "backend.api.routers.backtesting_jobs_api_v2.create_job",
+      "module": "backend.api.routers.backtesting_jobs_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "job_manager": {
+          "type": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2",
+          "state_bindings": [
+            "backtesting_job_manager_v2"
+          ]
+        },
+        "job_queue": {
+          "type": "backend.backtesting.backtesting_job_queue_v2.BacktestingJobQueueV2",
+          "state_bindings": [
+            "backtesting_job_queue_v2"
+          ]
+        }
+      },
+      "source_sha256": "cc79eef4b8e8559693596c88cdc8dcfb490fb5bc078dea8b572eacb08b6379f3",
+      "state_fields": [],
+      "calls": [
+        "BacktestingJobTaskV2",
+        "Candle",
+        "job.to_dict",
+        "job_manager.create_job",
+        "job_manager.delete_job",
+        "job_queue.enqueue",
+        "task.to_dict"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "OTHER",
+      "owner": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2; backend.backtesting.backtesting_job_queue_v2.BacktestingJobQueueV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Mutates application-local backtest jobs/results/workers or certified market-hours configuration; canonical admin authorization required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v2/backtesting/jobs/process-next",
+      "name": "process_next_job",
+      "endpoint": "backend.api.routers.backtesting_jobs_api_v2.process_next_job",
+      "module": "backend.api.routers.backtesting_jobs_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "worker": {
+          "type": "builtins.NoneType",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "55996690326c05cfd54456b1bd91da960b7b826fb40ab4ab40a69b82d3141dea",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "worker.process_next"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "OTHER",
+      "owner": "builtins.NoneType",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Mutates application-local backtest jobs/results/workers or certified market-hours configuration; canonical admin authorization required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/api/v2/backtesting/jobs/{job_id}",
+      "name": "delete_job",
+      "endpoint": "backend.api.routers.backtesting_jobs_api_v2.delete_job",
+      "module": "backend.api.routers.backtesting_jobs_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "job_manager": {
+          "type": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2",
+          "state_bindings": [
+            "backtesting_job_manager_v2"
+          ]
+        },
+        "job_queue": {
+          "type": "backend.backtesting.backtesting_job_queue_v2.BacktestingJobQueueV2",
+          "state_bindings": [
+            "backtesting_job_queue_v2"
+          ]
+        }
+      },
+      "source_sha256": "5cec1361d5b6937d9a02308dbedc8edeb693e17df936777792a77bcec9f078fd",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "job_manager.delete_job",
+        "job_queue.remove"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "OTHER",
+      "owner": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2; backend.backtesting.backtesting_job_queue_v2.BacktestingJobQueueV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Mutates application-local backtest jobs/results/workers or certified market-hours configuration; canonical admin authorization required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/backtesting/jobs/{job_id}",
+      "name": "get_job",
+      "endpoint": "backend.api.routers.backtesting_jobs_api_v2.get_job",
+      "module": "backend.api.routers.backtesting_jobs_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "job_manager": {
+          "type": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2",
+          "state_bindings": [
+            "backtesting_job_manager_v2"
+          ]
+        }
+      },
+      "source_sha256": "99be24ffd56e3cdac3e2d4f0206a056c77f193ca0d90dbb9387fb702f04a9dc9",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "job.to_dict",
+        "job_manager.get_job"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.backtesting_job_manager_v2.BacktestingJobManagerV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/backtesting/jobs/{job_id}/result",
+      "name": "get_job_result",
+      "endpoint": "backend.api.routers.backtesting_jobs_api_v2.get_job_result",
+      "module": "backend.api.routers.backtesting_jobs_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "result_provider": {
+          "type": "backend.backtesting.backtesting_job_executor_v2.BacktestingJobExecutorV2",
+          "state_bindings": [
+            "backtesting_job_executor_v2"
+          ]
+        }
+      },
+      "source_sha256": "6e86039a168e224d0966ad5acd235fac4c5726adb016d3bf0d3cb3e2dc86a103",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "callable",
+        "getattr",
+        "isinstance",
+        "result_provider.get_result",
+        "serializer"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.backtesting_job_executor_v2.BacktestingJobExecutorV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/backtesting/metrics",
+      "name": "get_metrics",
+      "endpoint": "backend.api.routers.backtesting_metrics_api_v2.get_metrics",
+      "module": "backend.api.routers.backtesting_metrics_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "metrics_provider": {
+          "type": "backend.backtesting.backtesting_metrics_provider_v2.BacktestingMetricsProviderV2",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "3d0d07f044e49f3faf380da1d785af60b03948884da65880bd271c56f6289a46",
+      "state_fields": [],
+      "calls": [
+        "metrics_provider.get_metrics"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.backtesting_metrics_provider_v2.BacktestingMetricsProviderV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v2/backtesting/run",
+      "name": "run_backtesting",
+      "endpoint": "backend.api.routers.backtesting_api_v2.run_backtesting",
+      "module": "backend.api.routers.backtesting_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "orchestrator": {
+          "type": "backend.backtesting.backtesting_orchestrator_v2.BacktestingOrchestratorV2",
+          "state_bindings": [
+            "backtesting_orchestrator_v2"
+          ]
+        }
+      },
+      "source_sha256": "06e890b40e5a084c0daab4e35b7d9ed255a7aa7cdc8aa6416e7b8bb3ed67fab7",
+      "state_fields": [],
+      "calls": [
+        "Candle",
+        "HTTPException",
+        "TypeError",
+        "callable",
+        "getattr",
+        "isinstance",
+        "orchestrator.run",
+        "to_dict"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "OTHER",
+      "owner": "backend.backtesting.backtesting_orchestrator_v2.BacktestingOrchestratorV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Mutates application-local backtest jobs/results/workers or certified market-hours configuration; canonical admin authorization required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard",
+      "name": "get_dashboard",
+      "endpoint": "backend.api.performance_dashboard_api_v2.get_dashboard",
+      "module": "backend.api.performance_dashboard_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "dashboard_engine_v2": {
+          "type": "backend.dashboard.performance_dashboard_engine_v2.PerformanceDashboardEngineV2",
+          "state_bindings": [
+            "performance_dashboard_engine_v2"
+          ]
+        }
+      },
+      "source_sha256": "3b2692217238864ef6378b85b8af5810fe12be2cebb4f0a79fc43660450ef52c",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "dashboard_engine_v2.build"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.dashboard.performance_dashboard_engine_v2.PerformanceDashboardEngineV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/account",
+      "name": "get_active_account",
+      "endpoint": "backend.api.routers.account_profile_api_v2.get_active_account",
+      "module": "backend.api.routers.account_profile_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "baf1b79815cb34c05c534f78c17e48842743bc332d199e4c92315be162848dda",
+      "state_fields": [
+        "account_config_manager_v2"
+      ],
+      "calls": [
+        "RuntimeError",
+        "_get_manager",
+        "getattr",
+        "isinstance",
+        "manager.get_active_account",
+        "manager.get_active_account_name"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "account_config_manager_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/account-manager",
+      "name": "get_account_manager",
+      "endpoint": "backend.api.routers.account_manager_api_v2.get_account_manager",
+      "module": "backend.api.routers.account_manager_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "9bddaab3060292dd8e2cfcf83a8867bc1c87e0663e557d100456ebdfecbc8b66",
+      "state_fields": [
+        "account_config_manager_v2"
+      ],
+      "calls": [
+        "RuntimeError",
+        "_get_manager",
+        "getattr",
+        "isinstance",
+        "manager.get_active_account"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "account_config_manager_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/account-manager/available",
+      "name": "get_available_accounts",
+      "endpoint": "backend.api.routers.account_manager_api_v2.get_available_accounts",
+      "module": "backend.api.routers.account_manager_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "b492965f781ebffb73c48ac169f4b986209ccad6f951cecbcbf91caa9a796987",
+      "state_fields": [
+        "account_config_manager_v2"
+      ],
+      "calls": [
+        "RuntimeError",
+        "_get_manager",
+        "getattr",
+        "isinstance",
+        "manager.get_available_accounts"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "account_config_manager_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v2/dashboard/account-manager/switch",
+      "name": "switch_account",
+      "endpoint": "backend.api.routers.account_manager_api_v2.switch_account",
+      "module": "backend.api.routers.account_manager_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {},
+      "source_sha256": "338e43acea15519f363dd3aeedd307490f96ec67010ca586b3da36b2e94a720a",
+      "state_fields": [
+        "account_switch_safety_v2"
+      ],
+      "calls": [
+        "HTTPException",
+        "JSONResponse",
+        "_get_switch_safety",
+        "getattr",
+        "isinstance",
+        "safety.switch",
+        "str"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "EXPLICIT_ACCOUNT",
+      "mutation": "ACCOUNT_CONTROL",
+      "owner": "AccountSwitchSafetyV2.switch -> AccountRuntimeCoordinatorV2.switch in hosted runtime",
+      "scope_resolution": "Current bundle supplies canonical coordinator; coordinator validates explicit target identity and publishes the complete replacement bundle.",
+      "authorization_rationale": "Canonical admin dependency and catalog-validated account_id/profile_name pair required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/account-manager/switch-context",
+      "name": "get_switch_context",
+      "endpoint": "backend.api.routers.account_manager_api_v2.get_switch_context",
+      "module": "backend.api.routers.account_manager_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "b51faed86c49767cd961452fb9901b1a9ec86e4ea148bd3a528e76c70beeeb3f",
+      "state_fields": [
+        "account_switch_safety_v2"
+      ],
+      "calls": [
+        "HTTPException",
+        "_get_switch_safety",
+        "_get_switch_safety(request).context",
+        "getattr",
+        "isinstance"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "account_switch_safety_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v2/dashboard/account/switch",
+      "name": "switch_account",
+      "endpoint": "backend.api.routers.account_manager_api_v2.switch_account",
+      "module": "backend.api.routers.account_manager_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {},
+      "source_sha256": "338e43acea15519f363dd3aeedd307490f96ec67010ca586b3da36b2e94a720a",
+      "state_fields": [
+        "account_switch_safety_v2"
+      ],
+      "calls": [
+        "HTTPException",
+        "JSONResponse",
+        "_get_switch_safety",
+        "getattr",
+        "isinstance",
+        "safety.switch",
+        "str"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "EXPLICIT_ACCOUNT",
+      "mutation": "ACCOUNT_CONTROL",
+      "owner": "AccountSwitchSafetyV2.switch -> AccountRuntimeCoordinatorV2.switch in hosted runtime",
+      "scope_resolution": "Current bundle supplies canonical coordinator; coordinator validates explicit target identity and publishes the complete replacement bundle.",
+      "authorization_rationale": "Canonical admin dependency and catalog-validated account_id/profile_name pair required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/ai-decision-memory",
+      "name": "ai_decision_memory_dashboard",
+      "endpoint": "backend.api.routers.ai_decision_memory_api_v2.ai_decision_memory_dashboard",
+      "module": "backend.api.routers.ai_decision_memory_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "2699a59b1ebc38c4743e41ba826c5e00ae935625776238be458bbf6a79deb6f1",
+      "state_fields": [
+        "trade_journal_v2"
+      ],
+      "calls": [
+        "CanonicalMemoryTrade",
+        "decision_adapter.evaluate",
+        "float",
+        "hasattr",
+        "journal.get_closed_trades",
+        "memory_engine.calculate"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_journal_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/ai-learning",
+      "name": "get_ai_learning",
+      "endpoint": "backend.api.routers.ai_learning_api_v2.get_ai_learning",
+      "module": "backend.api.routers.ai_learning_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "574a260a5c1701de51b6fffad3cb3ab9926b771ab9a8e028f4f53281f1efd2b4",
+      "state_fields": [
+        "trade_journal_v2"
+      ],
+      "calls": [
+        "AILearningEngine",
+        "CanonicalLearningTrade",
+        "engine.analyze",
+        "float",
+        "journal.get_closed_trades"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_journal_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/ai-pattern",
+      "name": "get_ai_pattern",
+      "endpoint": "backend.api.routers.ai_pattern_api_v2.get_ai_pattern",
+      "module": "backend.api.routers.ai_pattern_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "146f4b3e4e967bf0dc791000444b8bffa431614bcbcd76b95754208fd486827d",
+      "state_fields": [
+        "trade_journal_v2"
+      ],
+      "calls": [
+        "AIPatternEngine",
+        "CanonicalPatternTrade",
+        "_legacy_direction",
+        "engine.analyze",
+        "float",
+        "journal.get_closed_trades",
+        "str",
+        "str(direction).upper"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_journal_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/confidence-fusion",
+      "name": "confidence_fusion_dashboard",
+      "endpoint": "backend.api.routers.confidence_fusion_api_v2.confidence_fusion_dashboard",
+      "module": "backend.api.routers.confidence_fusion_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "a9eaf6f7365befc3cb5fc967468c1c378eaccb055e201ed642882b3f7fcc4579",
+      "state_fields": [],
+      "calls": [
+        "engine.calculate"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "ConfidenceFusionEngine.calculate (fixed demonstration inputs)",
+      "scope_resolution": "No account/runtime input; fixed examples are explicitly identified here, not certified as runtime market data.",
+      "authorization_rationale": "Stateless demonstration or availability-only projection; not evidence of real account performance.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/execution-approval",
+      "name": "execution_approval_dashboard",
+      "endpoint": "backend.api.routers.execution_approval_api_v2.execution_approval_dashboard",
+      "module": "backend.api.routers.execution_approval_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "4473c9676901df118852221e6d618916b762bc210f35c526fe1a65ad802a2383",
+      "state_fields": [
+        "active_maximum_daily_loss"
+      ],
+      "calls": [
+        "execution_engine.validate_execution"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "active_maximum_daily_loss",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/execution-manager",
+      "name": "execution_manager_dashboard",
+      "endpoint": "backend.api.routers.execution_manager_api_v2.execution_manager_dashboard",
+      "module": "backend.api.routers.execution_manager_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "957976843270c1e12ada3b8f7554242281694155082209982e1d50871fc47d58",
+      "state_fields": [
+        "live_analysis_store"
+      ],
+      "calls": [
+        "Query",
+        "getattr",
+        "project_execution_manager"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "live_analysis_store",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/execution-simulator",
+      "name": "execution_simulator_dashboard",
+      "endpoint": "backend.api.routers.execution_simulator_api_v2.execution_simulator_dashboard",
+      "module": "backend.api.routers.execution_simulator_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "3a37bb686629a5d24ce3c2dba759d49d565526cf56f06c7a98d3ef4fadc9ff33",
+      "state_fields": [],
+      "calls": [
+        "engine.simulate_execution"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "ExecutionSimulatorEngine.simulate_execution (fixed demonstration inputs)",
+      "scope_resolution": "No account/runtime input; fixed examples are explicitly identified here, not certified as runtime market data.",
+      "authorization_rationale": "Stateless demonstration or availability-only projection; not evidence of real account performance.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/intelligence-decision",
+      "name": "intelligence_decision_dashboard",
+      "endpoint": "backend.api.routers.intelligence_decision_api_v2.intelligence_decision_dashboard",
+      "module": "backend.api.routers.intelligence_decision_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "43c6e462ca3e1d90b50c4c97eb328cf2cb2195b12bcef621bfe601655b07b7a4",
+      "state_fields": [],
+      "calls": [
+        "orchestrator.analyze",
+        "provider.collect",
+        "structure_engine.analyze",
+        "technical_engine.analyze"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "ConfidenceIntelligenceOrchestratorV2.analyze (fixed demonstration inputs)",
+      "scope_resolution": "No account/runtime input; fixed examples are explicitly identified here, not certified as runtime market data.",
+      "authorization_rationale": "Stateless demonstration or availability-only projection; not evidence of real account performance.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/live",
+      "name": "get_dashboard_live",
+      "endpoint": "backend.api.dashboard_live_api_v2.get_dashboard_live",
+      "module": "backend.api.dashboard_live_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "live_data_service_v2": {
+          "type": "backend.dashboard.dashboard_live_data_service_v2.DashboardLiveDataServiceV2",
+          "state_bindings": [
+            "dashboard_live_data_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "ed504e8fe83ef51e1d387423dd7b8cfee3252ffffd6ac1e4ea3ffa894c57fc82",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "datetime.now",
+        "datetime.now(timezone.utc).isoformat",
+        "live_data_service_v2.get_snapshot"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.dashboard.dashboard_live_data_service_v2.DashboardLiveDataServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/performance-intelligence",
+      "name": "performance_intelligence_dashboard",
+      "endpoint": "backend.api.routers.performance_intelligence_api_v2.performance_intelligence_dashboard",
+      "module": "backend.api.routers.performance_intelligence_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "fd860fefdd410e5aae34831117dd62774eafddeeca75e405466ab388a1d4f564",
+      "state_fields": [
+        "trade_journal_v2"
+      ],
+      "calls": [
+        "CanonicalPerformanceTrade",
+        "float",
+        "journal.get_closed_trades",
+        "performance_engine.analyze",
+        "str"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_journal_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/risk",
+      "name": "get_risk_dashboard",
+      "endpoint": "backend.api.routers.risk_dashboard_api_v2.get_risk_dashboard",
+      "module": "backend.api.routers.risk_dashboard_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "ee60464a4e3fee136577a2144c3b5b1a0901a7632af1f471dc4cc60be196f2a7",
+      "state_fields": [
+        "account_config_manager_v2",
+        "trade_lifecycle_service_v2"
+      ],
+      "calls": [
+        "RiskEventAnalyticsV2",
+        "RiskEventAnalyticsV2().summarize",
+        "RuntimeError",
+        "_get_manager",
+        "float",
+        "gate.get_risk_events",
+        "getattr",
+        "isinstance",
+        "manager.get_active_account",
+        "manager.get_active_account_name",
+        "store.query_events"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "account_config_manager_v2; trade_lifecycle_service_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/strategy-intelligence",
+      "name": "strategy_intelligence",
+      "endpoint": "backend.api.routers.strategy_intelligence_api_v2.strategy_intelligence",
+      "module": "backend.api.routers.strategy_intelligence_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "ea16f8c36870f2559b55368c865c521f700b88e2bfde1f3f5894b183d84d99b7",
+      "state_fields": [
+        "backtesting_job_executor_v2",
+        "backtesting_job_manager_v2"
+      ],
+      "calls": [
+        "getattr",
+        "project_strategy_intelligence"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backtesting_job_executor_v2; backtesting_job_manager_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/strategy-ranking",
+      "name": "strategy_ranking_dashboard",
+      "endpoint": "backend.api.routers.strategy_ranking_dashboard_api_v2.strategy_ranking_dashboard",
+      "module": "backend.api.routers.strategy_ranking_dashboard_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "930bbc9a79c9e126e8731d949d687344d1dbad4266d092025ceded4931991f78",
+      "state_fields": [],
+      "calls": [
+        "StrategyIntelligenceDashboardProviderV1",
+        "StrategyIntelligenceOrchestratorV1",
+        "provider.get_strategy_intelligence"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "StrategyIntelligenceDashboardProviderV1.get_strategy_intelligence (request-local availability projection)",
+      "scope_resolution": "No account/runtime input; fixed examples are explicitly identified here, not certified as runtime market data.",
+      "authorization_rationale": "Stateless demonstration or availability-only projection; not evidence of real account performance.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/trade-setup",
+      "name": "trade_setup_dashboard",
+      "endpoint": "backend.api.routers.trade_setup_api_v2.trade_setup_dashboard",
+      "module": "backend.api.routers.trade_setup_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "ad95486890c0d3835cf045eb2438cf607f8a82200164f11bb1b634980d56e26d",
+      "state_fields": [],
+      "calls": [
+        "TradeSetupEngine",
+        "engine.generate_setup"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "TradeSetupEngine.generate_setup (fixed demonstration inputs)",
+      "scope_resolution": "No account/runtime input; fixed examples are explicitly identified here, not certified as runtime market data.",
+      "authorization_rationale": "Stateless demonstration or availability-only projection; not evidence of real account performance.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/trading-memory",
+      "name": "get_trading_memory",
+      "endpoint": "backend.api.routers.trading_memory_api_v2.get_trading_memory",
+      "module": "backend.api.routers.trading_memory_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "3b3f31b125b01245ff57d11f51acaec816eaad53ba924db929b8fdee491e019c",
+      "state_fields": [
+        "trade_journal_v2"
+      ],
+      "calls": [
+        "CanonicalMemoryTrade",
+        "_legacy_direction",
+        "float",
+        "journal.get_closed_trades",
+        "memory_engine.analyze",
+        "str",
+        "str(direction).upper"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_journal_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/dashboard/widgets",
+      "name": "get_dashboard_widgets",
+      "endpoint": "backend.api.dashboard_widgets_api_v2.get_dashboard_widgets",
+      "module": "backend.api.dashboard_widgets_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "widget_registry_v2": {
+          "type": "backend.dashboard.widgets.dashboard_widget_registry_v2.DashboardWidgetRegistryV2",
+          "state_bindings": [
+            "dashboard_widget_registry_v2"
+          ]
+        }
+      },
+      "source_sha256": "44b759eda30637bc316f12a102cc43a74b504679437006ca7479f34e92c7daf1",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "TypeError",
+        "isinstance",
+        "widget_registry_v2.render_all"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.dashboard.widgets.dashboard_widget_registry_v2.DashboardWidgetRegistryV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "WS"
+      ],
+      "path": "/api/v2/dashboard/ws",
+      "name": "dashboard_websocket",
+      "endpoint": "backend.api.dashboard_websocket_api_v2.dashboard_websocket",
+      "module": "backend.api.dashboard_websocket_api_v2",
+      "transport": "WEBSOCKET",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "live_data_service_v2": {
+          "type": "backend.dashboard.dashboard_live_data_service_v2.DashboardLiveDataServiceV2",
+          "state_bindings": [
+            "dashboard_live_data_service_v2"
+          ]
+        },
+        "websocket_hub_v2": {
+          "type": "backend.dashboard.dashboard_websocket_hub_v2.DashboardWebSocketHubV2",
+          "state_bindings": [
+            "dashboard_websocket_hub_v2"
+          ]
+        }
+      },
+      "source_sha256": "50515171ffba26e11994a4868102aaf548aab837d91b716561236b5e106f6602",
+      "state_fields": [
+        "admin_authorization_v2"
+      ],
+      "calls": [
+        "asyncio.sleep",
+        "authority.require_authorized",
+        "getattr",
+        "isinstance",
+        "live_data_service_v2.get_snapshot",
+        "websocket.close",
+        "websocket.headers.get",
+        "websocket.send_json",
+        "websocket_hub_v2.connect",
+        "websocket_hub_v2.disconnect"
+      ],
+      "classification": "WEBSOCKET_OBSERVATIONAL",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "AdminAuthorizationV2; DashboardWebSocketHubV2; DashboardLiveDataServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Imperative canonical authority before accept/snapshot; publication guard retires old generation.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/execution/risk-events",
+      "name": "get_execution_risk_events",
+      "endpoint": "backend.api.routers.execution_risk_events_api_v2.get_execution_risk_events",
+      "module": "backend.api.routers.execution_risk_events_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "baa36e31521d231b4ce85dfce33f824477a999ffb9f84c1bd537706d10193730",
+      "state_fields": [
+        "trade_lifecycle_service_v2"
+      ],
+      "calls": [
+        "HTTPException",
+        "Query",
+        "gate.get_risk_events",
+        "getattr",
+        "len",
+        "store.query_events",
+        "str"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_lifecycle_service_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/execution/risk-events/summary",
+      "name": "get_execution_risk_events_summary",
+      "endpoint": "backend.api.routers.execution_risk_events_api_v2.get_execution_risk_events_summary",
+      "module": "backend.api.routers.execution_risk_events_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "6f2407f017a213dd70e869ab05414d7df29534a7fb955136fd9f42558ddd2952",
+      "state_fields": [
+        "trade_lifecycle_service_v2"
+      ],
+      "calls": [
+        "HTTPException",
+        "RiskEventAnalyticsV2",
+        "RiskEventAnalyticsV2().summarize",
+        "ValueError",
+        "event.get",
+        "gate.get_risk_events",
+        "getattr",
+        "store.query_events",
+        "str",
+        "str(event.get('event_type', '')).strip",
+        "str(event.get('event_type', '')).strip().upper",
+        "str(event.get('symbol', '')).strip",
+        "str(event.get('symbol', '')).strip().upper",
+        "str(event_type).strip",
+        "str(event_type).strip().upper",
+        "str(symbol).strip",
+        "str(symbol).strip().upper"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_lifecycle_service_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/learning/summary",
+      "name": "learning_summary",
+      "endpoint": "backend.api.routers.learning_intelligence_api_v2.learning_summary",
+      "module": "backend.api.routers.learning_intelligence_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "77671cef5d35b74e238ac3d999660121fc4e49154843ca9972944f3fc73f627e",
+      "state_fields": [
+        "trade_learning_service_v2"
+      ],
+      "calls": [
+        "learning_service.get_learning_report"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_learning_service_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/market-hours/coverage",
+      "name": "get_certified_market_hours_coverage",
+      "endpoint": "backend.api.routers.certified_market_hours_refresh_api_v2.get_certified_market_hours_coverage",
+      "module": "backend.api.routers.certified_market_hours_refresh_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "lifecycle": {
+          "type": "backend.services.certified_market_hours_data_lifecycle_v2.CertifiedMarketHoursDataLifecycleV2",
+          "state_bindings": [
+            "market_hours_data_lifecycle_v2"
+          ]
+        },
+        "runtime_provider": {
+          "type": "backend.services.certified_market_hours_runtime_provider_v2.CertifiedMarketHoursRuntimeProviderV2",
+          "state_bindings": [
+            "market_hours_runtime_provider_v2"
+          ]
+        }
+      },
+      "source_sha256": "1ff9831e7f25913face68aaabe106a8c58a943def12b18ac31a96c046e465b48",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "callable",
+        "date.isoformat",
+        "get_active_provider",
+        "getattr",
+        "provider.is_date_covered"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.services.certified_market_hours_data_lifecycle_v2.CertifiedMarketHoursDataLifecycleV2; backend.services.certified_market_hours_runtime_provider_v2.CertifiedMarketHoursRuntimeProviderV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v2/market-hours/refresh",
+      "name": "refresh_certified_market_hours",
+      "endpoint": "backend.api.routers.certified_market_hours_refresh_api_v2.refresh_certified_market_hours",
+      "module": "backend.api.routers.certified_market_hours_refresh_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "refresh_service": {
+          "type": "backend.services.certified_market_hours_runtime_refresh_service_v2.CertifiedMarketHoursRuntimeRefreshServiceV2",
+          "state_bindings": [
+            "market_hours_runtime_refresh_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "471b9b72d1e247f16fe45a4599fb9aaff909d9bef2e318957660a6a0143101af",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "refresh_service.refresh_from_file",
+        "request.file_path.strip"
+      ],
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "OTHER",
+      "owner": "backend.services.certified_market_hours_runtime_refresh_service_v2.CertifiedMarketHoursRuntimeRefreshServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Mutates application-local backtest jobs/results/workers or certified market-hours configuration; canonical admin authorization required.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/market-hours/status",
+      "name": "get_certified_market_hours_status",
+      "endpoint": "backend.api.routers.certified_market_hours_refresh_api_v2.get_certified_market_hours_status",
+      "module": "backend.api.routers.certified_market_hours_refresh_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "lifecycle": {
+          "type": "backend.services.certified_market_hours_data_lifecycle_v2.CertifiedMarketHoursDataLifecycleV2",
+          "state_bindings": [
+            "market_hours_data_lifecycle_v2"
+          ]
+        }
+      },
+      "source_sha256": "e77f7ec99946bf78c3ce4bd0e8db39da9d64b00e7d6060ca9585d2d70a155f28",
+      "state_fields": [],
+      "calls": [
+        "lifecycle.get_active_path",
+        "lifecycle.get_last_activation_report",
+        "lifecycle.get_status",
+        "str"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.services.certified_market_hours_data_lifecycle_v2.CertifiedMarketHoursDataLifecycleV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/strategies",
+      "name": "list_strategies",
+      "endpoint": "backend.api.routers.strategy_registry_api_v2.list_strategies",
+      "module": "backend.api.routers.strategy_registry_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "registry": {
+          "type": "backend.backtesting.strategy_registry_v2.StrategyRegistryV2",
+          "state_bindings": [
+            "strategy_registry_v2"
+          ]
+        }
+      },
+      "source_sha256": "9e763e72cfaa5fd5a2a65271a089cddd0af2bd81188b938c3a454470591551cd",
+      "state_fields": [],
+      "calls": [
+        "registry.list"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.strategy_registry_v2.StrategyRegistryV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/strategies/ranking",
+      "name": "get_strategy_ranking",
+      "endpoint": "backend.api.routers.strategy_ranking_api_v2.get_strategy_ranking",
+      "module": "backend.api.routers.strategy_ranking_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "ranking_service": {
+          "type": "backend.backtesting.strategy_ranking_service_v2.StrategyRankingServiceV2",
+          "state_bindings": [
+            "strategy_ranking_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "0f031bcf0f8ced48db45821d0351d670c8b2e8948f5ae765a9ce627df29ec732",
+      "state_fields": [],
+      "calls": [
+        "isinstance",
+        "ranking_service.rank",
+        "result.get"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.strategy_ranking_service_v2.StrategyRankingServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/strategies/recommendation",
+      "name": "recommend_strategy",
+      "endpoint": "backend.api.routers.strategy_recommendation_api_v2.recommend_strategy",
+      "module": "backend.api.routers.strategy_recommendation_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "recommendation_service": {
+          "type": "backend.backtesting.strategy_recommendation_service_v2.StrategyRecommendationServiceV2",
+          "state_bindings": [
+            "strategy_recommendation_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "6da17296aba97420982c7b4d5eceb003d9cab3e443ec42614368a958193270ce",
+      "state_fields": [],
+      "calls": [
+        "recommendation_service.recommend"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.strategy_recommendation_service_v2.StrategyRecommendationServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/strategies/{strategy_id}",
+      "name": "get_strategy",
+      "endpoint": "backend.api.routers.strategy_registry_api_v2.get_strategy",
+      "module": "backend.api.routers.strategy_registry_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "registry": {
+          "type": "backend.backtesting.strategy_registry_v2.StrategyRegistryV2",
+          "state_bindings": [
+            "strategy_registry_v2"
+          ]
+        }
+      },
+      "source_sha256": "025f091a381793d56f25a1a690d84a57b35689c2b820533017e5676421755a56",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "registry.get"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.backtesting.strategy_registry_v2.StrategyRegistryV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v2/strategy/intelligence",
+      "name": "get_strategy_intelligence",
+      "endpoint": "backend.api.routers.strategy_intelligence_service_api_v2.get_strategy_intelligence",
+      "module": "backend.api.routers.strategy_intelligence_service_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "9e2db3bd2e1415fcf54f377597f5c8cc358d1ae6b5d44f6dbf13038b6eddaef0",
+      "state_fields": [],
+      "calls": [
+        "any"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "StrategyIntelligenceServiceV1 availability-only projection (unverified records never exposed)",
+      "scope_resolution": "No account/runtime input; fixed examples are explicitly identified here, not certified as runtime market data.",
+      "authorization_rationale": "Stateless demonstration or availability-only projection; not evidence of real account performance.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v3/dashboard/execution-pipeline",
+      "name": "execution_pipeline_v3",
+      "endpoint": "backend.api.routers.intelligence_decision_api_v3.execution_pipeline_v3",
+      "module": "backend.api.routers.intelligence_decision_api_v3",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "b4a020a53373cb41c6da11aa41f3d14dcd42fcc9617aeaeb6dfa5fd37cd10e3c",
+      "state_fields": [
+        "trade_journal_v2",
+        "trade_lifecycle_service_v2"
+      ],
+      "calls": [
+        "_pipeline_text",
+        "_read_pipeline_records",
+        "all",
+        "asdict",
+        "callable",
+        "dict",
+        "getattr",
+        "is_dataclass",
+        "isinstance",
+        "next",
+        "reader",
+        "record.get",
+        "reversed",
+        "snapshot.append",
+        "snapshot.update",
+        "value.strip"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_journal_v2; trade_lifecycle_service_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v3/dashboard/intelligence-decision",
+      "name": "intelligence_decision_v3",
+      "endpoint": "backend.api.routers.intelligence_decision_api_v3.intelligence_decision_v3",
+      "module": "backend.api.routers.intelligence_decision_api_v3",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "0fd66150cb83bc7fcdacf73d604b96a2e3a3f226f29671867a4e3bbca734a799",
+      "state_fields": [
+        "account_config_manager_v2"
+      ],
+      "calls": [
+        "execution_engine.analyze",
+        "float",
+        "orchestrator.analyze",
+        "provider.collect",
+        "request.app.state.account_config_manager_v2.get_active_account",
+        "risk_engine.analyze",
+        "structure_engine.analyze",
+        "technical_engine.analyze"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "account_config_manager_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v3/dashboard/journal-debug",
+      "name": "journal_debug_v3",
+      "endpoint": "backend.api.routers.intelligence_decision_api_v3.journal_debug_v3",
+      "module": "backend.api.routers.intelligence_decision_api_v3",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "3247f034aae32fe58d507a908f876a5db98f3a47c2076835c7ad37ba50bd23d6",
+      "state_fields": [
+        "execution_pipeline_v3"
+      ],
+      "calls": [
+        "getattr",
+        "len",
+        "pipeline.journal.get_trades"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "execution_pipeline_v3",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v3/dashboard/market-price",
+      "name": "market_price_v3",
+      "endpoint": "backend.api.routers.intelligence_decision_api_v3.market_price_v3",
+      "module": "backend.api.routers.intelligence_decision_api_v3",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {},
+      "source_sha256": "d0cb21dfca12115d65b73ab76ceaad379d56ff2847a3cecc0d4b0c8d3965bb08",
+      "state_fields": [
+        "price_feed_service_v2"
+      ],
+      "calls": [
+        "float",
+        "payload.get",
+        "request.app.state.price_feed_service_v2.process_price"
+      ],
+      "classification": "EXECUTION_BOUNDARY",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "EXECUTION",
+      "owner": "PriceFeedServiceV2.process_price -> LivePositionMonitorV2 -> TradeLifecycleServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v3/dashboard/position-debug",
+      "name": "position_debug_v3",
+      "endpoint": "backend.api.routers.intelligence_decision_api_v3.position_debug_v3",
+      "module": "backend.api.routers.intelligence_decision_api_v3",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "bdbe4a480de4a03e7c35c029569785c64ef9e1799bda9a5f1fbe9ef5352c0a91",
+      "state_fields": [
+        "portfolio_manager_v2",
+        "trade_journal_v2",
+        "trade_lifecycle_service_v2"
+      ],
+      "calls": [
+        "request.app.state.portfolio_manager_v2.get_summary",
+        "request.app.state.trade_journal_v2.get_trades",
+        "request.app.state.trade_lifecycle_service_v2.get_active_positions"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "portfolio_manager_v2; trade_journal_v2; trade_lifecycle_service_v2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/docs",
+      "name": "swagger_ui_html",
+      "endpoint": "fastapi.applications.swagger_ui_html",
+      "module": "fastapi.applications",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "FastAPI metadata/health",
+      "scope_resolution": "Application metadata, independent of account identity.",
+      "authorization_rationale": "Public metadata; no account data or mutation.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/docs/oauth2-redirect",
+      "name": "swagger_ui_redirect",
+      "endpoint": "fastapi.applications.swagger_ui_redirect",
+      "module": "fastapi.applications",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "FastAPI metadata/health",
+      "scope_resolution": "Application metadata, independent of account identity.",
+      "authorization_rationale": "Public metadata; no account data or mutation.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/health",
+      "name": "health",
+      "endpoint": "backend.api.app.health",
+      "module": "backend.api.app",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "fdf5bbcf8c9cd078dd23dc613e0ae2ac01c538f5b3bf4978226f5c0672b6206b",
+      "state_fields": [],
+      "calls": [],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "FastAPI metadata/health",
+      "scope_resolution": "Application metadata, independent of account identity.",
+      "authorization_rationale": "Public metadata; no account data or mutation.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/market/analyze",
+      "name": "analyze_live_market",
+      "endpoint": "backend.api.routers.market.analyze_live_market",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {},
+      "source_sha256": "d7a24a4156413e988313db46e2dc0c049f4bf196238c1f92e5b5ca27982e0eba",
+      "state_fields": [
+        "account_risk_guard",
+        "confluence_engine_v2",
+        "decision_council_v2",
+        "economic_news_authority_v2",
+        "execution_decision_engine",
+        "execution_decision_engine_v2",
+        "execution_manager_v2",
+        "live_analysis_store",
+        "live_candle_store",
+        "live_signal_store",
+        "market_context_engine_v2",
+        "market_hours_service_v2",
+        "market_regime_engine",
+        "multi_timeframe_decision_engine_v2",
+        "paper_execution_engine_v2",
+        "position_manager",
+        "position_sizing_engine",
+        "probability_engine_v2",
+        "runtime_spread_authority_v2",
+        "signal_execution_manager",
+        "signal_generator_v2",
+        "signal_history_store",
+        "smart_money_engine_v2",
+        "trade_execution_engine",
+        "trade_history_store",
+        "trade_lifecycle_service_v2",
+        "trade_planner_v2",
+        "trade_validator_v2"
+      ],
+      "calls": [
+        "HTTPException",
+        "LiveMarketAnalysisService",
+        "RuntimeError",
+        "get_account_risk_guard",
+        "get_execution_decision_engine",
+        "get_live_analysis_store",
+        "get_live_signal_store",
+        "get_live_store",
+        "get_position_manager",
+        "get_position_sizing_engine",
+        "get_signal_execution_manager",
+        "get_signal_history_store",
+        "get_trade_execution_engine",
+        "get_trade_history_store",
+        "getattr",
+        "isinstance",
+        "payload.symbol.strip",
+        "payload.timeframe.strip",
+        "service.analyze",
+        "str"
+      ],
+      "classification": "EXECUTION_BOUNDARY",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "EXECUTION",
+      "owner": "LiveMarketAnalysisService -> TradeLifecycleServiceV2 (factory wires canonical lifecycle)",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION",
+      "availability_limitation": "Coordinated runtime uses PositionManagerV2; the legacy symbol/timeframe interface is unavailable and returns 503 before owner dispatch/cache writes. No adapter or alternate account position owner is created."
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/market/latest-analysis",
+      "name": "get_latest_market_analysis",
+      "endpoint": "backend.api.routers.market.get_latest_market_analysis",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "a865fb3fcc806a12faf3960a33a74d9fad6e3c6684c9aec0fd2f8d8eae3c9331",
+      "state_fields": [
+        "live_analysis_store"
+      ],
+      "calls": [
+        "HTTPException",
+        "Query",
+        "RuntimeError",
+        "analysis_store.get_latest",
+        "get_live_analysis_store",
+        "isinstance"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "live_analysis_store",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/market/latest-signal",
+      "name": "get_latest_market_signal",
+      "endpoint": "backend.api.routers.market.get_latest_market_signal",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "eb5e0f4e7da97e180a87265abd2a3ef544bfebd9a9dc78dbf560c727b9eac964",
+      "state_fields": [
+        "live_signal_store"
+      ],
+      "calls": [
+        "HTTPException",
+        "Query",
+        "RuntimeError",
+        "get_live_signal_store",
+        "isinstance",
+        "signal_store.get_latest"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "live_signal_store",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/market/open-position",
+      "name": "get_open_market_position",
+      "endpoint": "backend.api.routers.market.get_open_market_position",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "db5dcc555b78e362102013196788b991abf8d79daf36fd2efa9a7d98e6f95107",
+      "state_fields": [
+        "position_manager"
+      ],
+      "calls": [
+        "HTTPException",
+        "Query",
+        "get_position_manager",
+        "isinstance",
+        "position_manager.get_open_position"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "position_manager",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION",
+      "availability_limitation": "Coordinated runtime uses PositionManagerV2; the legacy symbol/timeframe interface is unavailable and returns 503 before owner dispatch/cache writes. No adapter or alternate account position owner is created."
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/market/performance",
+      "name": "get_account_performance",
+      "endpoint": "backend.api.routers.market.get_account_performance",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "16ed8f445f2a2a5f92f16cc67f9da43143e46dc3350b06a3bdc062f83e6ad8f5",
+      "state_fields": [
+        "trade_history_store"
+      ],
+      "calls": [
+        "AccountPerformanceService",
+        "AccountPerformanceService().calculate",
+        "Query",
+        "RuntimeError",
+        "get_trade_history_store",
+        "history_store.get_history",
+        "isinstance",
+        "symbol.strip",
+        "symbol.strip().upper",
+        "timeframe.strip",
+        "timeframe.strip().lower"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_history_store",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/market/quote",
+      "name": "receive_market_quote",
+      "endpoint": "backend.api.routers.market.receive_market_quote",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "196547a27e5eef362948aaa0fb5f1fc1f6c04f2562417230b0bf8ca90d7aada3",
+      "state_fields": [
+        "runtime_quote_authority_v2",
+        "webhook_token"
+      ],
+      "calls": [
+        "HTTPException",
+        "Header",
+        "RuntimeError",
+        "compare_digest",
+        "quote['timestamp'].isoformat",
+        "quote_authority.get_quote",
+        "quote_authority.publish_quote",
+        "str"
+      ],
+      "classification": "ACCOUNT_MUTATION",
+      "authorization": "OTHER_CANONICAL",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "OTHER",
+      "owner": "RuntimeQuoteAuthorityV2.publish_quote",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Canonical webhook credential checked before writing the active application quote store.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/market/signals",
+      "name": "get_market_signal_history",
+      "endpoint": "backend.api.routers.market.get_market_signal_history",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "d6c180c7606a7bf3bd395fdf2156433b06535c8fe5abbc1b4a106b3c85d5dba5",
+      "state_fields": [
+        "signal_history_store"
+      ],
+      "calls": [
+        "Query",
+        "RuntimeError",
+        "get_signal_history_store",
+        "history_store.get_history",
+        "isinstance",
+        "len",
+        "symbol.strip",
+        "symbol.strip().upper",
+        "timeframe.strip",
+        "timeframe.strip().lower"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "signal_history_store",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/market/trades",
+      "name": "get_trade_history",
+      "endpoint": "backend.api.routers.market.get_trade_history",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "e0045b369c130e7a19ac589a05fd5aaef7c93359ba93c6e0f728d4d408311ceb",
+      "state_fields": [
+        "trade_history_store"
+      ],
+      "calls": [
+        "Query",
+        "RuntimeError",
+        "get_trade_history_store",
+        "history_store.get_history",
+        "isinstance",
+        "len",
+        "symbol.strip",
+        "symbol.strip().upper",
+        "timeframe.strip",
+        "timeframe.strip().lower"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "trade_history_store",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/market/webhook",
+      "name": "receive_market_webhook",
+      "endpoint": "backend.api.routers.market.receive_market_webhook",
+      "module": "backend.api.routers.market",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "51cee7a39eec626d2a75abfd27c5e2d98076952a7902fcfbad70f4ef1cdd552b",
+      "state_fields": [
+        "account_config_manager_v2",
+        "account_risk_guard",
+        "confluence_engine_v2",
+        "decision_council_v2",
+        "economic_news_authority_v2",
+        "execution_decision_engine",
+        "execution_decision_engine_v2",
+        "execution_manager_v2",
+        "live_analysis_store",
+        "live_candle_store",
+        "live_signal_store",
+        "market_context_engine_v2",
+        "market_data_hub_v2",
+        "market_hours_service_v2",
+        "market_regime_engine",
+        "multi_timeframe_decision_engine_v2",
+        "paper_execution_engine_v2",
+        "portfolio_manager_v2",
+        "position_manager",
+        "position_sizing_engine",
+        "probability_engine_v2",
+        "runtime_spread_authority_v2",
+        "signal_execution_manager",
+        "signal_generator_v2",
+        "signal_history_store",
+        "smart_money_engine_v2",
+        "trade_execution_engine",
+        "trade_history_store",
+        "trade_lifecycle_service_v2",
+        "trade_planner_v2",
+        "trade_validator_v2",
+        "trend_engine_v2",
+        "webhook_token"
+      ],
+      "calls": [
+        "Candle",
+        "ExitDecisionEngine",
+        "HTTPException",
+        "Header",
+        "InstrumentProfileEngine",
+        "InstrumentProfileEngine().get_profile",
+        "LiveMarketAnalysisService",
+        "RuntimeError",
+        "TradeManagementEngine",
+        "_resolve_trade_management_point_value",
+        "candle.timestamp.isoformat",
+        "compare_digest",
+        "float",
+        "get_account_risk_guard",
+        "get_execution_decision_engine",
+        "get_live_analysis_store",
+        "get_live_signal_store",
+        "get_live_store",
+        "get_position_manager",
+        "get_position_sizing_engine",
+        "get_signal_execution_manager",
+        "get_signal_history_store",
+        "get_trade_execution_engine",
+        "get_trade_history_store",
+        "getattr",
+        "isinstance",
+        "market_data_result.get",
+        "payload.symbol.strip",
+        "payload.timeframe.strip",
+        "price_feed_result.get",
+        "request.app.state.account_config_manager_v2.get_active_account",
+        "request.app.state.market_data_hub_v2.process_market_price",
+        "request.app.state.portfolio_manager_v2.get_available_balance",
+        "request.app.state.trend_engine_v2.analyze",
+        "service.analyze",
+        "service.can_analyze",
+        "store.add",
+        "store.count",
+        "str",
+        "trade_management_engine.evaluate_candle"
+      ],
+      "classification": "EXECUTION_BOUNDARY",
+      "authorization": "OTHER_CANONICAL",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "EXECUTION",
+      "owner": "LiveMarketAnalysisService -> TradeLifecycleServiceV2; MarketDataHubV2 -> PriceFeedServiceV2 -> lifecycle; legacy TradeManagementEngine compatibility path",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION",
+      "availability_limitation": "Coordinated runtime uses PositionManagerV2; the legacy symbol/timeframe interface is unavailable and returns 503 before owner dispatch/cache writes. No adapter or alternate account position owner is created."
+    },
+    {
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/openapi.json",
+      "name": "openapi",
+      "endpoint": "fastapi.applications.openapi",
+      "module": "fastapi.applications",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "FastAPI metadata/health",
+      "scope_resolution": "Application metadata, independent of account identity.",
+      "authorization_rationale": "Public metadata; no account data or mutation.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/analyze",
+      "name": "analyze_portfolio",
+      "endpoint": "backend.api.routers.portfolio.analyze_portfolio",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "313d0ab6934cc4c850c3c36ad1aa18e82369db918902bb11b42a452ea2ef1e81",
+      "state_fields": [],
+      "calls": [
+        "AnalyzePortfolio",
+        "use_case.execute"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/backtest",
+      "name": "backtest_portfolio",
+      "endpoint": "backend.api.routers.portfolio.backtest_portfolio",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "da04d76a807e41e4ae92abb9cacafca2d8504b1d121f8e1bc5099370c7acb31d",
+      "state_fields": [],
+      "calls": [
+        "PortfolioBacktest",
+        "PortfolioBacktest().run",
+        "download_prices"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/benchmark-analytics",
+      "name": "benchmark_analytics_from_market",
+      "endpoint": "backend.api.routers.portfolio.benchmark_analytics_from_market",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "e377938216c6828a3b737f212397f1b40700906e9083c1ae37bd32480a84a6d9",
+      "state_fields": [],
+      "calls": [
+        "BenchmarkAnalytics",
+        "BenchmarkAnalytics().calculate",
+        "ValueError",
+        "abs",
+        "benchmark_returns.tolist",
+        "download_prices",
+        "float",
+        "list",
+        "normalized_weights.values",
+        "portfolio_returns.tolist",
+        "prices[list(normalized_weights) + [benchmark_symbol]].astype",
+        "prices[list(normalized_weights) + [benchmark_symbol]].astype(float).pct_change",
+        "prices[list(normalized_weights) + [benchmark_symbol]].astype(float).pct_change().dropna",
+        "request.benchmark.strip",
+        "request.benchmark.strip().upper",
+        "request.weights.items",
+        "returns_frame[list(normalized_weights)].mul",
+        "returns_frame[list(normalized_weights)].mul(normalized_weights, axis='columns').sum",
+        "set",
+        "sum",
+        "symbol.strip",
+        "symbol.strip().upper"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/capm-analytics",
+      "name": "capm_analytics_from_market",
+      "endpoint": "backend.api.routers.portfolio.capm_analytics_from_market",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "8211983617aab4ab661cb9e6c5081d551dc2b855f0a9a284fc3049de23a3a748",
+      "state_fields": [],
+      "calls": [
+        "CapmAnalytics",
+        "CapmAnalytics().calculate",
+        "ValueError",
+        "abs",
+        "download_prices",
+        "float",
+        "list",
+        "market_returns.tolist",
+        "normalized_weights.values",
+        "portfolio_returns.tolist",
+        "prices[list(normalized_weights) + [market_symbol]].astype",
+        "prices[list(normalized_weights) + [market_symbol]].astype(float).pct_change",
+        "prices[list(normalized_weights) + [market_symbol]].astype(float).pct_change().dropna",
+        "request.market.strip",
+        "request.market.strip().upper",
+        "request.weights.items",
+        "returns_frame[list(normalized_weights)].mul",
+        "returns_frame[list(normalized_weights)].mul(normalized_weights, axis='columns').sum",
+        "set",
+        "sum",
+        "symbol.strip",
+        "symbol.strip().upper"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/drawdown-analytics",
+      "name": "drawdown_analytics_from_market",
+      "endpoint": "backend.api.routers.portfolio.drawdown_analytics_from_market",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "9d312cad0323e15a05c36299baccc474bd38951faa206a03fdff3fabdacc7783",
+      "state_fields": [],
+      "calls": [
+        "DrawdownAnalytics",
+        "DrawdownAnalytics().calculate",
+        "ValueError",
+        "abs",
+        "download_prices",
+        "float",
+        "list",
+        "normalized_weights.values",
+        "prices[list(normalized_weights)].astype",
+        "prices[list(normalized_weights)].astype(float).pct_change",
+        "prices[list(normalized_weights)].astype(float).pct_change().dropna",
+        "request.weights.items",
+        "returns_frame.mul",
+        "returns_frame.mul(normalized_weights, axis='columns').sum",
+        "returns_frame.mul(normalized_weights, axis='columns').sum(axis=1).tolist",
+        "set",
+        "sum",
+        "symbol.strip",
+        "symbol.strip().upper"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/efficient-frontier",
+      "name": "generate_efficient_frontier",
+      "endpoint": "backend.api.routers.portfolio.generate_efficient_frontier",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "06175eed3b75402bd922ad9899c0d40749a47bcce9d2443cd3473414bad99ef7",
+      "state_fields": [],
+      "calls": [
+        "EfficientFrontier.generate",
+        "np.array",
+        "np.corrcoef",
+        "np.outer",
+        "tuple"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/fama-french-analytics",
+      "name": "fama_french_analytics_from_market",
+      "endpoint": "backend.api.routers.portfolio.fama_french_analytics_from_market",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "bfceea99628906a37f3e20f7fd929b5a34596ab91708d71ca5607bbb009aa0a6",
+      "state_fields": [],
+      "calls": [
+        "FamaFrenchAnalytics",
+        "FamaFrenchAnalytics().calculate",
+        "ValueError",
+        "abs",
+        "download_prices",
+        "float",
+        "hml_returns.tolist",
+        "list",
+        "market_returns.tolist",
+        "normalized_weights.values",
+        "portfolio_returns.tolist",
+        "prices[ordered_columns].astype",
+        "prices[ordered_columns].astype(float).pct_change",
+        "prices[ordered_columns].astype(float).pct_change().dropna",
+        "request.growth.strip",
+        "request.growth.strip().upper",
+        "request.market.strip",
+        "request.market.strip().upper",
+        "request.small_cap.strip",
+        "request.small_cap.strip().upper",
+        "request.value.strip",
+        "request.value.strip().upper",
+        "request.weights.items",
+        "returns_frame[list(normalized_weights)].mul",
+        "returns_frame[list(normalized_weights)].mul(normalized_weights, axis='columns').sum",
+        "set",
+        "smb_returns.tolist",
+        "sum",
+        "symbol.strip",
+        "symbol.strip().upper"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/from-market",
+      "name": "analyze_portfolio_from_market",
+      "endpoint": "backend.api.routers.portfolio.analyze_portfolio_from_market",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "75cabbe1eaa5de8b5ee791defeba698581f512ae489b92d8ec848e930187d77e",
+      "state_fields": [],
+      "calls": [
+        "AnalyzePortfolio",
+        "AnalyzePortfolio().execute",
+        "build_portfolio_inputs_from_prices",
+        "download_prices"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/optimize",
+      "name": "optimize_portfolio",
+      "endpoint": "backend.api.routers.portfolio.optimize_portfolio",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "1ecb293befbf430590d6601a2e83d80664d56bc719c053ce59897e78abbaf47c",
+      "state_fields": [],
+      "calls": [
+        "OptimizePortfolio",
+        "OptimizePortfolio().execute",
+        "PortfolioCorrelationMatrix.from_returns",
+        "PortfolioCovarianceMatrix.from_inputs",
+        "dict",
+        "list"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/performance-attribution",
+      "name": "performance_attribution",
+      "endpoint": "backend.api.routers.portfolio.performance_attribution",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "90fd8f9bd7ce9e21d92865e0a88c7a0eaf7ef28b96275fb606a25d3ea4cab3b1",
+      "state_fields": [],
+      "calls": [
+        "PerformanceAttribution",
+        "PerformanceAttribution().calculate"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/rebalance",
+      "name": "rebalance_portfolio",
+      "endpoint": "backend.api.routers.portfolio.rebalance_portfolio",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "0e1cc3625e862c0fcd874c3f7aa601f3a78c39d1e32ecb0527a7c5eff56b7385",
+      "state_fields": [],
+      "calls": [
+        "RebalancePortfolio",
+        "RebalancePortfolio().execute",
+        "dict",
+        "list"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/risk-analytics",
+      "name": "risk_analytics",
+      "endpoint": "backend.api.routers.portfolio.risk_analytics",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "a2f818f2d510125f226d33e70bb9868e4bb367be10b3c359c64ff0cd70c10b75",
+      "state_fields": [],
+      "calls": [
+        "RiskAnalytics",
+        "RiskAnalytics().calculate"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/risk-analytics-from-market",
+      "name": "risk_analytics_from_market",
+      "endpoint": "backend.api.routers.portfolio.risk_analytics_from_market",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "5a7d32695d99d09785da8eb52a90743db7a449581d424e2e519edf48abdc1d4c",
+      "state_fields": [],
+      "calls": [
+        "RiskAnalytics",
+        "RiskAnalytics().calculate",
+        "ValueError",
+        "abs",
+        "download_prices",
+        "float",
+        "list",
+        "normalized_weights.values",
+        "prices[list(normalized_weights)].astype",
+        "prices[list(normalized_weights)].astype(float).pct_change",
+        "prices[list(normalized_weights)].astype(float).pct_change().dropna",
+        "request.weights.items",
+        "returns_frame.mul",
+        "returns_frame.mul(normalized_weights, axis='columns').sum",
+        "returns_frame.mul(normalized_weights, axis='columns').sum(axis=1).tolist",
+        "set",
+        "sum"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/risk-contribution",
+      "name": "risk_contribution_from_market",
+      "endpoint": "backend.api.routers.portfolio.risk_contribution_from_market",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "958c85e32b0a6b38853cb80e92eee9be1c19cd47ab8df833de5116a0681729d7",
+      "state_fields": [],
+      "calls": [
+        "RiskContribution",
+        "RiskContribution().calculate",
+        "ValueError",
+        "abs",
+        "download_prices",
+        "float",
+        "list",
+        "normalized_weights.values",
+        "prices[list(normalized_weights)].astype",
+        "prices[list(normalized_weights)].astype(float).pct_change",
+        "prices[list(normalized_weights)].astype(float).pct_change().dropna",
+        "request.weights.items",
+        "returns_frame.cov",
+        "returns_frame.cov().to_numpy",
+        "set",
+        "sum",
+        "symbol.strip",
+        "symbol.strip().upper"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/rolling-analytics",
+      "name": "rolling_analytics_from_market",
+      "endpoint": "backend.api.routers.portfolio.rolling_analytics_from_market",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "dd924ee3313c188360f6956b4581c45efb69e6e3f5e37d8b6ebb41c017bd3b8f",
+      "state_fields": [],
+      "calls": [
+        "RollingAnalytics",
+        "RollingAnalytics().calculate",
+        "ValueError",
+        "abs",
+        "download_prices",
+        "float",
+        "list",
+        "normalized_weights.values",
+        "prices[list(normalized_weights)].astype",
+        "prices[list(normalized_weights)].astype(float).pct_change",
+        "prices[list(normalized_weights)].astype(float).pct_change().dropna",
+        "request.weights.items",
+        "returns_frame.mul",
+        "returns_frame.mul(normalized_weights, axis='columns').sum",
+        "returns_frame.mul(normalized_weights, axis='columns').sum(axis=1).tolist",
+        "set",
+        "sum",
+        "symbol.strip",
+        "symbol.strip().upper"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/scenario-analysis",
+      "name": "scenario_analysis",
+      "endpoint": "backend.api.routers.portfolio.scenario_analysis",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "03b98a56b603b1e2ffecbfc5f95848db77543e1bae538d3644b3eb0d10810437",
+      "state_fields": [],
+      "calls": [
+        "ScenarioAnalysis",
+        "ScenarioAnalysis().calculate"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/simulate",
+      "name": "simulate_portfolio",
+      "endpoint": "backend.api.routers.portfolio.simulate_portfolio",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "587fa1dc6771ce6faa5b1705d160b884569ebc4ff169327a02fb97a272c400f6",
+      "state_fields": [],
+      "calls": [
+        "SimulatePortfolio",
+        "SimulatePortfolio().execute",
+        "list"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/portfolio/stress-test",
+      "name": "stress_test_portfolio",
+      "endpoint": "backend.api.routers.portfolio.stress_test_portfolio",
+      "module": "backend.api.routers.portfolio",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "source_sha256": "1b7523a83b712e1b61d2e458de9dc7f6c10bedbc3292355a4086b44b3b9566e9",
+      "state_fields": [],
+      "calls": [
+        "StressTesting",
+        "StressTesting().calculate"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "NOT_APPLICABLE",
+      "mutation": "NONE",
+      "owner": "backend.api.routers.portfolio request-local analytical use cases",
+      "scope_resolution": "Request-local calculation; supplied balance/weights are analysis inputs, not account selectors.",
+      "authorization_rationale": "Caller-supplied analytical inputs (and public historical prices where requested); results do not settle trades or mutate an account.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/redoc",
+      "name": "redoc_html",
+      "endpoint": "fastapi.applications.redoc_html",
+      "module": "fastapi.applications",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {},
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "FastAPI metadata/health",
+      "scope_resolution": "Application metadata, independent of account identity.",
+      "authorization_rationale": "Public metadata; no account data or mutation.",
+      "account_switch_effect": "UNCHANGED_DATA"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/v2/performance",
+      "name": "get_performance",
+      "endpoint": "backend.api.trade_lifecycle_api_v2.get_performance",
+      "module": "backend.api.trade_lifecycle_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "service": {
+          "type": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+          "state_bindings": [
+            "trade_lifecycle_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "513c9983d7bab0fcb9b6b63549698d15f4b2501876a56a09e47a526da04f2407",
+      "state_fields": [],
+      "calls": [
+        "service.get_performance_metrics"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/v2/positions",
+      "name": "get_active_positions",
+      "endpoint": "backend.api.trade_lifecycle_api_v2.get_active_positions",
+      "module": "backend.api.trade_lifecycle_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "service": {
+          "type": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+          "state_bindings": [
+            "trade_lifecycle_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "a303211a071d09b1663265cba814b65504018112ca11c6e4d8441e5acb93f46e",
+      "state_fields": [],
+      "calls": [
+        "len",
+        "service.get_active_positions"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/v2/positions/{position_id}/update",
+      "name": "update_position",
+      "endpoint": "backend.api.trade_lifecycle_api_v2.update_position",
+      "module": "backend.api.trade_lifecycle_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "service": {
+          "type": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+          "state_bindings": [
+            "trade_lifecycle_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "2ca04d3fbe6321f8a4207e1220387bfe1c8dba7312235719cb5434a2fbe9785c",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "service.update_position",
+        "str"
+      ],
+      "classification": "EXECUTION_BOUNDARY",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "EXECUTION",
+      "owner": "TradeLifecycleServiceV2.update_position",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/v2/trades/history",
+      "name": "get_trade_history",
+      "endpoint": "backend.api.trade_lifecycle_api_v2.get_trade_history",
+      "module": "backend.api.trade_lifecycle_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "service": {
+          "type": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+          "state_bindings": [
+            "trade_lifecycle_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "cb11e82901bd6f34b0f82d65d4d3595d71f0ef003bb95f4403eefb020a692eef",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "Query",
+        "len",
+        "service.get_trade_history",
+        "str"
+      ],
+      "classification": "ACCOUNT_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "NONE",
+      "owner": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/v2/trades/submit",
+      "name": "submit_trade",
+      "endpoint": "backend.api.trade_lifecycle_api_v2.submit_trade",
+      "module": "backend.api.trade_lifecycle_api_v2",
+      "transport": "HTTP",
+      "canonical_admin_dependency": true,
+      "closure_owners": {
+        "service": {
+          "type": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+          "state_bindings": [
+            "trade_lifecycle_service_v2"
+          ]
+        }
+      },
+      "source_sha256": "830c384581c2032a44709f42510e40e968aaee7489b71ee9eb899de134e93128",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "result.get",
+        "service.submit_signal",
+        "str"
+      ],
+      "classification": "EXECUTION_BOUNDARY",
+      "authorization": "ADMIN",
+      "account_scope": "ACTIVE_RUNTIME",
+      "mutation": "EXECUTION",
+      "owner": "TradeLifecycleServiceV2.submit_signal",
+      "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
+      "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
+      "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    }
+  ],
+  "package_status": "GREEN",
+  "regression_gate": {
+    "directly_related": {
+      "passed": 409,
+      "failed": 0,
+      "files": [
+        "backend/tests/test_phase1_websocket_account_isolation_characterization_v2.py",
+        "backend/tests/test_phase1_websocket_authorization_contract_v2.py",
+        "backend/tests/test_phase1_api_authorization_observational_contract_v2.py",
+        "backend/tests/test_phase1_api_ownership_characterization_v2.py",
+        "backend/tests/test_phase1_account_isolation_characterization_v2.py",
+        "backend/tests/test_phase1_account_switch_full_containment_v2.py",
+        "backend/tests/test_startup_coordinator_v2.py",
+        "backend/tests/test_dashboard_websocket_api_v2.py",
+        "backend/tests/test_dashboard_websocket_hub_v2.py",
+        "backend/tests/test_dashboard_websocket_broadcaster_v2.py",
+        "backend/tests/test_dashboard_event_dispatcher_websocket_integration_v2.py",
+        "backend/tests/test_dashboard_app_realtime_e2e_v2.py",
+        "backend/tests/test_dashboard_app_dependency_wiring_v2.py",
+        "backend/tests/test_dashboard_read_execution_safety_v2.py",
+        "backend/tests/test_admin_authorization_v2.py",
+        "backend/tests/test_admin_authorization_dependency_v2.py",
+        "backend/tests/test_admin_authorization_app_wiring_v2.py",
+        "backend/tests/test_api_app.py",
+        "backend/tests/test_api_security_boundaries_v2.py",
+        "backend/tests/test_asgi_runtime_integration_v2.py",
+        "backend/tests/test_runtime_context_app_integration_v2.py",
+        "backend/tests/test_account_runtime_transition_v2.py",
+        "backend/tests/test_account_switch_safety_containment_v2.py",
+        "backend/tests/test_phase1_api_route_account_scope_contract_v2.py",
+        "backend/tests/test_live_market_analysis_router.py",
+        "backend/tests/test_backtesting_api_v2.py",
+        "backend/tests/test_backtesting_app_integration_v2.py",
+        "backend/tests/test_backtesting_app_registration_v2.py",
+        "backend/tests/test_open_position_router.py",
+        "backend/tests/test_admin_market_boundary_v2.py",
+        "backend/tests/test_admin_backtesting_boundary_v2.py",
+        "backend/tests/test_admin_account_trade_boundary_v2.py",
+        "backend/tests/test_market_quote_router_v2.py",
+        "backend/tests/test_market_webhook_auth.py",
+        "backend/tests/test_phase1_route_lifecycle_contract_v2.py",
+        "backend/tests/test_phase1_route_lifecycle_delegation_v2.py"
+      ]
+    },
+    "full_backend": {
+      "passed": 5281,
+      "failed": 12,
+      "skipped": 1
+    },
+    "baseline_reproduction": {
+      "passed": 0,
+      "failed": 12,
+      "selection": "Exactly the 12 failing node IDs; same PAPER POLICY, interpreter, and pytest runner in separate processes.",
+      "classification": "CONFIRMED_PREEXISTING",
+      "node_ids_match": true,
+      "exception_types_match": true,
+      "exception_messages_match": true,
+      "archive_sha256": "58cbc1cefff46ee760d2af3b286134eb378b91e60b8ca5a74fae37a84c2deeb1",
+      "failures": [
+        {
+          "nodeid": "backend/tests/test_durable_crash_recovery_v2.py::test_corrupt_or_inflight_state_fails_closed[pending]",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "RuntimeError",
+          "exception_message": "Pending operation reconciliation did not resolve to a safe startup state."
+        },
+        {
+          "nodeid": "backend/tests/test_durable_crash_recovery_v2.py::test_corrupt_or_inflight_state_fails_closed[pending_open]",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "RuntimeError",
+          "exception_message": "Pending operation reconciliation did not resolve to a safe startup state."
+        },
+        {
+          "nodeid": "backend/tests/test_durable_crash_recovery_v2.py::test_corrupt_or_inflight_state_fails_closed[pending_loss]",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "RuntimeError",
+          "exception_message": "Pending operation reconciliation did not resolve to a safe startup state."
+        },
+        {
+          "nodeid": "backend/tests/test_durable_crash_recovery_v2.py::test_legacy_snapshot_with_missing_journal_is_not_invented",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "AssertionError",
+          "exception_message": "Regex pattern did not match.\n  Expected regex: 'Legacy snapshot lacks'\n  Actual message: 'Evidence checksum mismatch.'"
+        },
+        {
+          "nodeid": "backend/tests/test_durable_crash_recovery_v2.py::test_empty_legacy_snapshot_migrates_without_inventing_activity",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "ValueError",
+          "exception_message": "Evidence checksum mismatch."
+        },
+        {
+          "nodeid": "backend/tests/test_durable_crash_recovery_v2.py::test_exact_crash_window_matrix[window_after_pending-PENDING-False-0]",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "Failed",
+          "exception_message": "DID NOT RAISE ValueError"
+        },
+        {
+          "nodeid": "backend/tests/test_durable_crash_recovery_v2.py::test_exact_crash_window_matrix[pending_open-PENDING-False-0]",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "RuntimeError",
+          "exception_message": "Pending operation reconciliation did not resolve to a safe startup state."
+        },
+        {
+          "nodeid": "backend/tests/test_durable_crash_recovery_v2.py::test_exact_crash_window_matrix[window_before_committed-PENDING-False-0]",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "Failed",
+          "exception_message": "DID NOT RAISE ValueError"
+        },
+        {
+          "nodeid": "backend/tests/test_main_runtime_integration.py::test_main_starts_and_stops_runtime",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "AttributeError",
+          "exception_message": "'FakeRuntimeContext' object has no attribute 'startup_coordinator'"
+        },
+        {
+          "nodeid": "backend/tests/test_main_runtime_integration.py::test_main_stops_runtime_when_pipeline_fails",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "AttributeError",
+          "exception_message": "'FakeRuntimeContext' object has no attribute 'startup_coordinator'"
+        },
+        {
+          "nodeid": "backend/tests/test_main_runtime_integration.py::test_main_does_not_shutdown_when_startup_fails",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "AttributeError",
+          "exception_message": "'FakeRuntimeContext' object has no attribute 'startup_coordinator'"
+        },
+        {
+          "nodeid": "backend/tests/test_phase1_recovery_characterization_v2.py::test_incompatible_recovery_is_rejected_and_execution_remains_blocked",
+          "outcome": "failed",
+          "when": "call",
+          "exception_type": "TypeError",
+          "exception_message": "'NoneType' object is not subscriptable"
+        }
+      ]
+    },
+    "blocker": "NONE",
+    "failure_files": [
+      "backend/tests/test_durable_crash_recovery_v2.py",
+      "backend/tests/test_main_runtime_integration.py",
+      "backend/tests/test_phase1_recovery_characterization_v2.py"
+    ],
+    "package_regression": false,
+    "baseline_debt": "PREEXISTING_RECOVERY_CLI_BASELINE_REGRESSIONS",
+    "publication_gate": "User-authorized follow-up excludes confirmed pre-existing baseline debt; all directly relevant tests, scope, syntax, and diff checks must pass."
+  }
+}

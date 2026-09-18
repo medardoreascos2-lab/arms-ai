@@ -5,12 +5,20 @@ from datetime import (
 )
 
 from fastapi.testclient import TestClient
+import pytest
+
+from backend.api.admin_authorization_dependency_v2 import ADMIN_TOKEN_HEADER
 
 from backend.api.app import create_app
 from backend.models.candle import Candle
 from backend.services.live_candle_store import (
     LiveCandleStore,
 )
+
+
+@pytest.fixture(autouse=True)
+def configure_admin(monkeypatch):
+    monkeypatch.setenv("ARMS_ADMIN_TOKEN", "market-analysis-test-admin")
 
 
 def populate_store(
@@ -79,6 +87,7 @@ def test_live_market_analysis_endpoint():
 
     response = client.post(
         "/market/analyze",
+        headers={ADMIN_TOKEN_HEADER: "market-analysis-test-admin"},
         json=build_payload(),
     )
 
@@ -128,6 +137,7 @@ def test_live_market_analysis_uses_latest_candles():
 
     response = client.post(
         "/market/analyze",
+        headers={ADMIN_TOKEN_HEADER: "market-analysis-test-admin"},
         json=payload,
     )
 
@@ -152,6 +162,7 @@ def test_live_market_analysis_rejects_insufficient_candles():
 
     response = client.post(
         "/market/analyze",
+        headers={ADMIN_TOKEN_HEADER: "market-analysis-test-admin"},
         json=build_payload(),
     )
 
@@ -175,6 +186,7 @@ def test_live_market_analysis_rejects_missing_market():
 
     response = client.post(
         "/market/analyze",
+        headers={ADMIN_TOKEN_HEADER: "market-analysis-test-admin"},
         json=build_payload(),
     )
 
@@ -196,6 +208,7 @@ def test_live_market_analysis_rejects_invalid_risk():
 
     response = client.post(
         "/market/analyze",
+        headers={ADMIN_TOKEN_HEADER: "market-analysis-test-admin"},
         json=payload,
     )
 

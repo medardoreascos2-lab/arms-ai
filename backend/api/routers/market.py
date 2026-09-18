@@ -2,12 +2,15 @@ from secrets import compare_digest
 
 from fastapi import (
     APIRouter,
+    Depends,
     Header,
     HTTPException,
     Query,
     Request,
     status,
 )
+
+from backend.api.admin_authorization_dependency_v2 import require_admin_authorization_v2
 
 from backend.account_risk.account_risk_guard import (
     AccountRiskGuard,
@@ -218,11 +221,11 @@ def receive_market_webhook(
         timestamp=payload.timestamp,
     )
 
-    store.add(candle)
-
     position_manager = get_position_manager(
         request
     )
+
+    store.add(candle)
 
     trade_history_store = (
         get_trade_history_store(
@@ -541,6 +544,7 @@ def receive_market_webhook(
 
 @router.post(
     "/analyze",
+    dependencies=[Depends(require_admin_authorization_v2)],
 )
 def analyze_live_market(
     payload: LiveMarketAnalysisRequest,
@@ -850,8 +854,12 @@ def get_position_manager(
         manager,
         PositionManager,
     ):
-        raise RuntimeError(
-            "PositionManager no está configurado."
+        # A coordinated runtime may expose PositionManagerV2, which has no
+        # legacy symbol/timeframe API. Do not substitute a second position
+        # owner or proceed with partial writes through this compatibility path.
+        raise HTTPException(
+            status_code=503,
+            detail="legacy_position_manager_unavailable",
         )
 
     return manager
