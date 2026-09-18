@@ -74,6 +74,13 @@ class RuntimeSpreadAuthorityV2:
         symbol: str,
         now: datetime,
     ) -> float:
+        quote = self.get_current_quote(symbol=symbol, now=now)
+        return self._spread_authority.resolve_spread_points(
+            symbol=quote["symbol"], bid=quote["bid"], ask=quote["ask"],
+        )
+
+    def get_current_quote(self, *, symbol: str, now: datetime):
+        """Return the same validated quote used by spread and order admission."""
         normalized_now = self._validate_now(now)
 
         quote = self._quote_authority.get_quote(
@@ -104,8 +111,4 @@ class RuntimeSpreadAuthorityV2:
                 "runtime quote is stale"
             )
 
-        return self._spread_authority.resolve_spread_points(
-            symbol=quote["symbol"],
-            bid=quote["bid"],
-            ask=quote["ask"],
-        )
+        return quote

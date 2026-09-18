@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import isolated_policy_candidate
 """Only explicit test setup prepares orders; measured dashboard reads never do."""
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
@@ -40,7 +41,7 @@ def produce_analysis(manager, *, blocked=False, symbol="MES", order_type="MARKET
                     "probability": 0.93, "confluence_score": 0.91, "grade": "A+"},
         trade_validation={"approved": not blocked, "warnings": ["test-source-warning"]},
     )
-    plan = manager.prepare_order(signal=signal, order_type=order_type)
+    plan = isolated_policy_candidate(manager,signal=signal, order_type=order_type)
     return {
         "symbol": symbol, "timeframe": "5m", "current_price": 5378.25,
         "trend": "BAJISTA", "decision": {}, "probability": {}, "risk": {},

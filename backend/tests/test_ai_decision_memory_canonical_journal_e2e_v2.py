@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import submit_with_test_market
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
@@ -44,7 +45,7 @@ def test_ai_decision_memory_reads_canonical_closed_trade():
 
     journal.trades.clear()
 
-    submitted = lifecycle.submit_signal(
+    submitted = submit_with_test_market(lifecycle,
         signal=_approved_signal(),
         order_type="MARKET",
         risk_context=_risk_context(),

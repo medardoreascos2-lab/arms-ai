@@ -1905,17 +1905,19 @@
       "path": "backend/execution/execution_pipeline_v2.py",
       "function": "ExecutionPipelineV2.execute",
       "input": "self, symbol: str, direction: str, entry: float, stop_loss: float, take_profit: float, contracts: int, risk_amount: float, approved: bool",
-      "source_sha256": "e0920d113bf6b6f1baeed5e053d4697362e9887b8aa085acbf4b94841b393084",
+      "source_sha256": "c7b78fa5049c82b5b5b5e554f5697f43a142529b471bdf3519b6d9c0b401ce0b",
       "writes": [],
       "calls": [
+        "AccountAdmissionRejected",
         "ExecutionPipelineReport",
+        "getattr",
         "self.journal.record",
         "self.simulator.execute"
       ],
       "output_fields": [],
       "owner": "backend.execution.execution_pipeline_v2.ExecutionPipelineV2",
       "classification": "LEGACY_OR_DUPLICATE",
-      "output": "Retained standalone/legacy strategy simulation, position or journal surface. Not an independently reachable final financial owner of the registered canonical runtime; consumers use canonical lifecycle/history where operational.",
+      "output": "Isolated legacy simulation only; reject before simulation/counter/journal mutation when canonical account journal is bound. Operational requests use TradeLifecycleServiceV2 admission.",
       "mutates_fill_state": false,
       "mutates_position_state": false,
       "mutates_portfolio": false,
@@ -4526,10 +4528,12 @@
       "path": "backend/services/durable_execution_state_v2.py",
       "function": "durable_mutation",
       "input": "method",
-      "source_sha256": "c01b5c6fe035d9f5a29d3cc070916299bba3533fde784d08203f7f09e2b5138b",
+      "source_sha256": "1e495e45ef09d262c5e896f7bcb9018c920b8c0b9f842931697e36eee9133f41",
       "writes": [],
       "calls": [
+        "AccountAdmissionRejected",
         "ValueError",
+        "admission.require_execution_scope",
         "any",
         "durability.admission_barrier",
         "durability.mutation",
@@ -5834,7 +5838,7 @@
       "path": "backend/services/trade_lifecycle_service_v2.py",
       "function": "TradeLifecycleServiceV2.__init__",
       "input": "self, *, execution_manager: ExecutionManagerV2, paper_execution_engine: PaperExecutionEngineV2, position_manager: PositionManagerV2, instrument_profile_engine: InstrumentProfileEngine | None=None, trade_history_manager: TradeHistoryManagerV2, performance_analytics: PerformanceAnalyticsV2, starting_balance: float, risk_manager_v2: RiskManagerV2 | None=None, order_validation_engine_v2: OrderValidationEngineV2 | None=None, exposure_manager_v2: ExposureManagerV2 | None=None, portfolio_risk_engine_v2: PortfolioRiskEngineV2 | None=None, portfolio_manager_v2: PortfolioManagerV2 | None=None, trade_journal_v2: TradeJournalV2 | None=None, dashboard_event_publisher_v2: TradeLifecycleDashboardEventPublisherV2 | None=None, risk_dashboard_event_publisher_v2: RiskDashboardEventPublisherV2 | None=None, oco_manager_v2: OCOManagerV2 | None=None, protective_order_registry_v2: ProtectiveOrderRegistryV2 | None=None, broker_connector_v2: BrokerConnectorV2 | None=None, execution_risk_gate_v1: ExecutionRiskGateV1",
-      "source_sha256": "279fc6f41b6531393fd9ea16f091a7c7747ddc0653903f0aba49ed9e3224185f",
+      "source_sha256": "e11d99c5efc8be64a5dced031b70de97480c832f14acbfd4e6aea1148cdbc595",
       "writes": [
         "self._active_positions",
         "self.starting_balance"
@@ -5886,7 +5890,7 @@
       "path": "backend/services/trade_lifecycle_service_v2.py",
       "function": "TradeLifecycleServiceV2.submit_signal",
       "input": "self, *, signal: dict[str, object], order_type: str, risk_context: dict[str, object] | None=None, order_context: dict[str, object] | None=None",
-      "source_sha256": "822c353d17227401953c4ed354db30e7c9d6ab65053c158727fefd3c86f54b9c",
+      "source_sha256": "389c334f5e64ea50ba0f0cacd05d503f9daaf25a643a647fbf473e80242afd22",
       "writes": [
         "self._active_positions[active_position_id]"
       ],
@@ -5898,6 +5902,8 @@
         "abs",
         "account_state_manager.ensure_trading_day",
         "account_state_manager.get_state",
+        "admission._execution_scope",
+        "admission.validate_market",
         "any",
         "bool",
         "datetime.now",
@@ -5911,7 +5917,9 @@
         "len",
         "list",
         "min",
+        "nullcontext",
         "opened_position.get",
+        "order_context.get",
         "order_validation.get",
         "portfolio_risk_evaluation.get",
         "position.get",
@@ -5919,6 +5927,7 @@
         "protection.get",
         "risk_evaluation.get",
         "row.get",
+        "safety.validate_signal",
         "self._active_positions.values",
         "self._reserve_submission",
         "self.broker_connector_v2.submit_order",
@@ -5963,6 +5972,7 @@
       "output_fields": [
         "accepted",
         "active_position_id",
+        "admission_reason",
         "broker",
         "broker_position_id",
         "direction",
@@ -5972,6 +5982,7 @@
         "execution_mode",
         "execution_risk_gate",
         "exposure_evaluation",
+        "market_is_open",
         "order_id",
         "order_validation",
         "portfolio_risk_evaluation",
@@ -6482,5 +6493,15 @@
         "backend/backtesting/strategy_backtest_factory_v2.py"
       ]
     }
-  ]
+  ],
+  "v81_review": {
+    "baseline": "d40745fa0bc1a481ef2d171753e392890b9109e0",
+    "changed_boundaries": [
+      "backend/execution/execution_pipeline_v2.py:ExecutionPipelineV2.execute",
+      "backend/services/durable_execution_state_v2.py:durable_mutation",
+      "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.__init__",
+      "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal"
+    ],
+    "reason": "Mandatory canonical runtime admission, shared freshness delegation, generation validation and execution scope; financial application unchanged"
+  }
 }

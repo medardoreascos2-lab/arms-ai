@@ -348,5 +348,7 @@ def test_app_wires_order_validation():
         "backend/api/app.py"
     ).read_text(encoding="utf-8")
 
-    assert "OrderValidationEngineV2" in source
-    assert "order_validation_engine_v2" in source
+    assert "bind_runtime_admission" in source
+    binding = Path("backend/services/runtime_admission_v2.py").read_text(encoding="utf-8")
+    assert "OrderValidationEngineV2" in binding
+    assert "lifecycle.order_validation_engine_v2" in binding

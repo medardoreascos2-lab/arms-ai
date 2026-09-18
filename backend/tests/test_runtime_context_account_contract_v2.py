@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import isolated_policy_candidate
 from backend.services.runtime_context_v2 import (
     build_runtime_context,
 )
@@ -59,7 +60,7 @@ def test_default_runtime_context_blocks_six_nq():
 
     execution = context.execution_manager
 
-    result = execution.prepare_order(
+    result = isolated_policy_candidate(execution,
         signal=build_signal(
             symbol="NQ",
             contracts=16,
@@ -80,7 +81,7 @@ def test_default_runtime_context_allows_fifty_mnq():
 
     execution = context.execution_manager
 
-    result = execution.prepare_order(
+    result = isolated_policy_candidate(execution,
         signal=build_signal(
             symbol="MNQ",
             contracts=50,

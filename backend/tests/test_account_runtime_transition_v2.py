@@ -70,6 +70,8 @@ def snapshot(h):
 
 def trade(h, close_price=None):
     r = h.c.published.runtime
+    from backend.tests.runtime_market_fixture_v81 import publish_test_market
+    publish_test_market(r.trade_lifecycle_service, directory=h.config.parent)
     p = r.account_switch_safety_v2._managers[0].get_active_account()
     state = r.account_state_manager_v2.get_state()
     result = r.trade_lifecycle_service.submit_signal(
@@ -829,6 +831,8 @@ def test_second_process_catalog_writer_is_rejected(hosted):
 def test_signal_via_http_uses_b_risk_sizing_and_paper_identity(hosted):
     h = hosted
     assert switch(h, "B").status_code == 200
+    from backend.tests.runtime_market_fixture_v81 import publish_test_market
+    publish_test_market(h.c.published.runtime.trade_lifecycle_service, directory=h.config.parent)
 
     result = h.client.post(
         "/v2/trades/submit",

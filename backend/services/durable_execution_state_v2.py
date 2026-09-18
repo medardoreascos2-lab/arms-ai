@@ -23,6 +23,12 @@ def account_operation(method):
         if durability is None:
             return method(self, *args, **kwargs)
         with durability.admission_barrier():
+            if method.__name__ in {"prepare_order", "execute"}:
+                admission = getattr(durability.store.trade_lifecycle_service, "runtime_admission_v2", None)
+                if admission is None and getattr(durability.store.trade_lifecycle_service, "_runtime_admission_required", False):
+                    raise AccountAdmissionRejected("canonical_runtime_admission_required")
+                if admission is not None:
+                    admission.require_execution_scope()
             return method(self, *args, **kwargs)
     return call
 
@@ -36,6 +42,12 @@ def durable_mutation(method):
             return method(self, *args, **kwargs)
         try:
             with durability.admission_barrier():
+                if method.__name__ == "submit_order":
+                    admission = getattr(durability.store.trade_lifecycle_service, "runtime_admission_v2", None)
+                    if admission is None and getattr(durability.store.trade_lifecycle_service, "_runtime_admission_required", False):
+                        raise AccountAdmissionRejected("canonical_runtime_admission_required")
+                    if admission is not None:
+                        admission.require_execution_scope()
                 safety = durability.account_switch_safety
                 if method.__name__ == "submit_signal" and safety is not None:
                     safety.validate_signal(signal=kwargs.get("signal"),

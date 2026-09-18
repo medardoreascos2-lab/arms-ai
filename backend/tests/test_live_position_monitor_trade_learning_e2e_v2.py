@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import submit_with_test_market
 from backend.api.app import create_app
 
 
@@ -60,7 +61,7 @@ def test_real_app_monitor_close_reaches_trade_learning():
         "market_is_open": True,
     }
 
-    submitted = lifecycle.submit_signal(
+    submitted = submit_with_test_market(lifecycle,
         signal=signal,
         order_type="MARKET",
         risk_context=risk_context,

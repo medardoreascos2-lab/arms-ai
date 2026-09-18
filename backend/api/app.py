@@ -1,13 +1,4 @@
 from contextlib import asynccontextmanager
-from backend.services.runtime_quote_authority_v2 import (
-    RuntimeQuoteAuthorityV2,
-)
-from backend.services.runtime_spread_authority_v2 import (
-    RuntimeSpreadAuthorityV2,
-)
-from backend.services.spread_authority_v2 import (
-    SpreadAuthorityV2,
-)
 from backend.execution.execution_decision_engine_v2 import ExecutionDecisionEngineV2
 from backend.intelligence.probability_engine_v2 import ProbabilityEngineV2
 from backend.intelligence.confluence_engine_v2 import ConfluenceEngineV2
@@ -77,15 +68,6 @@ from backend.signals.signal_generator_v2 import (
 )
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
-)
-from backend.execution.exposure_manager_v2 import (
-    ExposureManagerV2,
-)
-from backend.execution.portfolio_risk_engine_v2 import (
-    PortfolioRiskEngineV2,
-)
-from backend.execution.order_validation_engine_v2 import (
-    OrderValidationEngineV2,
 )
 from backend.accounts.account_config_manager_v2 import (
     AccountConfigManagerV2,
@@ -691,15 +673,6 @@ from backend.services.live_analysis_store import (
 from backend.services.live_candle_store import (
     LiveCandleStore,
 )
-from backend.services.certified_market_hours_data_lifecycle_v2 import (
-    CertifiedMarketHoursDataLifecycleV2,
-)
-from backend.services.certified_economic_news_data_lifecycle_v2 import (
-    CertifiedEconomicNewsDataLifecycleV2,
-)
-from backend.services.certified_market_hours_runtime_provider_v2 import (
-    CertifiedMarketHoursRuntimeProviderV2,
-)
 from backend.services.certified_market_hours_runtime_refresh_service_v2 import (
     CertifiedMarketHoursRuntimeRefreshServiceV2,
 )
@@ -888,13 +861,6 @@ def create_app(
             "settings debe ser APISettings."
         )
 
-    runtime_quote_authority_v2 = RuntimeQuoteAuthorityV2()
-    spread_authority_v2 = SpreadAuthorityV2()
-    runtime_spread_authority_v2 = RuntimeSpreadAuthorityV2(
-        quote_authority=runtime_quote_authority_v2,
-        spread_authority=spread_authority_v2,
-        maximum_quote_age_seconds=settings.maximum_quote_age_seconds,
-    )
 
     if (
         runtime_context is not None
@@ -1433,65 +1399,12 @@ def create_app(
         position_sizing_engine.maximum_contracts = runtime_context.execution_manager.maximum_contracts
         position_sizing_engine.contract_limit_resolver = runtime_context.execution_manager.get_contract_limit
 
-        exposure_manager_v2 = ExposureManagerV2(
-            maximum_total_open_risk=(
-                internal_policy_settings
-                .maximum_total_open_risk
-            ),
-            maximum_symbol_open_risk=(
-                internal_policy_settings
-                .maximum_symbol_open_risk
-            ),
-            maximum_total_contracts=None,
-            maximum_symbol_contracts=None,
-        )
-        portfolio_risk_engine_v2 = (
-            PortfolioRiskEngineV2(
-                maximum_total_open_risk=(
-                    internal_policy_settings
-                    .maximum_portfolio_open_risk
-                ),
-                maximum_floating_loss=(
-                    internal_policy_settings
-                    .maximum_portfolio_floating_loss
-                ),
-                maximum_long_risk=(
-                    internal_policy_settings
-                    .maximum_portfolio_long_risk
-                ),
-                maximum_short_risk=(
-                    internal_policy_settings
-                    .maximum_portfolio_short_risk
-                ),
-                maximum_symbol_risk=(
-                    internal_policy_settings
-                    .maximum_portfolio_symbol_risk
-                ),
-            )
-        )
-        order_validation_engine_v2 = (
-            OrderValidationEngineV2(
-                minimum_reward_risk_ratio=(
-                    settings.minimum_reward_risk_ratio
-                ),
-                minimum_stop_points=(
-                    settings.minimum_stop_points
-                ),
-                maximum_stop_points=(
-                    settings.maximum_stop_points
-                ),
-                allowed_symbols={
-                    "NQ",
-                    "MNQ",
-                    "ES",
-                    "MES",
-                },
-            )
-        )
-
-        trade_lifecycle_service_v2.exposure_manager_v2 = exposure_manager_v2
-        trade_lifecycle_service_v2.portfolio_risk_engine_v2 = portfolio_risk_engine_v2
-        trade_lifecycle_service_v2.order_validation_engine_v2 = order_validation_engine_v2
+    from backend.services.runtime_admission_v2 import bind_runtime_admission
+    admission = bind_runtime_admission(trade_lifecycle_service_v2,
+        settings=settings, policy=internal_policy_settings)
+    runtime_quote_authority_v2 = admission.quote_authority
+    spread_authority_v2 = admission.spread_authority
+    runtime_spread_authority_v2 = admission.runtime_spread_authority
 
     if trade_lifecycle_service_v2 is None:
         raise RuntimeError(
@@ -1940,73 +1853,12 @@ def create_app(
         live_candle_store
     )
 
-    app.state.market_hours_data_lifecycle_v2 = (
-        CertifiedMarketHoursDataLifecycleV2()
-    )
-
-    if settings.certified_market_hours_path is not None:
-        app.state.market_hours_data_lifecycle_v2.activate_from_file(
-            file_path=(
-                settings.certified_market_hours_path
-            )
-        )
-
-        market_hours_runtime_provider_v2 = (
-            app.state
-            .market_hours_data_lifecycle_v2
-            .get_active_provider()
-        )
-
-        if market_hours_runtime_provider_v2 is None:
-            raise RuntimeError(
-                "certified market hours activation "
-                "did not produce a runtime provider"
-            )
-    else:
-        market_hours_runtime_provider_v2 = (
-            CertifiedMarketHoursRuntimeProviderV2()
-        )
-
-    app.state.market_hours_runtime_provider_v2 = (
-        market_hours_runtime_provider_v2
-    )
-
-    app.state.market_hours_service_v2 = (
-        app.state
-        .market_hours_runtime_provider_v2
-        .get_market_hours_service()
-    )
-
-    app.state.economic_news_data_lifecycle_v2 = (
-        CertifiedEconomicNewsDataLifecycleV2()
-    )
-
-    if settings.certified_economic_news_path is not None:
-        (
-            app.state
-            .economic_news_data_lifecycle_v2
-            .activate_from_file(
-                file_path=(
-                    settings.certified_economic_news_path
-                )
-            )
-        )
-
-    economic_news_runtime_provider_v2 = (
-        app.state
-        .economic_news_data_lifecycle_v2
-        .get_active_provider()
-    )
-
-    app.state.economic_news_runtime_provider_v2 = (
-        economic_news_runtime_provider_v2
-    )
-
-    app.state.economic_news_authority_v2 = (
-        app.state
-        .economic_news_runtime_provider_v2
-        .get_economic_news_authority()
-    )
+    app.state.market_hours_data_lifecycle_v2 = admission.market_hours_lifecycle
+    app.state.market_hours_runtime_provider_v2 = admission.market_hours_provider
+    app.state.market_hours_service_v2 = admission.market_hours_provider.get_market_hours_service()
+    app.state.economic_news_data_lifecycle_v2 = admission.news_lifecycle
+    app.state.economic_news_runtime_provider_v2 = admission.news_provider
+    app.state.economic_news_authority_v2 = admission.news_provider.get_economic_news_authority()
 
     app.state.market_hours_runtime_refresh_service_v2 = (
         CertifiedMarketHoursRuntimeRefreshServiceV2(

@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import submit_with_test_market
 from datetime import datetime
 from datetime import timezone
 
@@ -69,7 +70,7 @@ def test_market_webhook_updates_dashboard_realtime():
         .trade_lifecycle_service_v2
     )
 
-    submitted = service.submit_signal(
+    submitted = submit_with_test_market(service,
         signal=build_trade_signal(),
         order_type="MARKET",
         risk_context={

@@ -112,6 +112,9 @@ class AccountSwitchSafetyV2:
     def validate_signal(self, *, signal, risk_context):
         """Reject stale callers before any durable mutation or order preparation."""
         try:
+            coordinator = getattr(self, "coordinator", None)
+            if coordinator is not None and (coordinator.switching or coordinator.failed):
+                raise AccountSwitchRejected("account_runtime_unavailable")
             self._assert_identity()
             context = risk_context if isinstance(risk_context, dict) else {}
             if self.store.account_identity is not None:
@@ -119,6 +122,10 @@ class AccountSwitchSafetyV2:
                 if not required <= context.keys():
                     raise AccountSwitchRejected("signal_account_context_required")
             for source in (signal if isinstance(signal, dict) else {}, context):
+                if (self.store.account_identity is not None and "runtime_generation" in source
+                        and (type(source["runtime_generation"]) is not int
+                             or source["runtime_generation"] != self.store.account_identity["runtime_generation"])):
+                    raise AccountSwitchRejected("signal_runtime_generation_mismatch")
                 if ("account_id" in source and source["account_id"] != self.identity.account_id
                         or "profile_name" in source and source["profile_name"] != self.identity.profile_name):
                     raise AccountSwitchRejected("signal_account_mismatch")

@@ -51,24 +51,33 @@ def test_api_settings_owns_runtime_quote_freshness_policy():
 
 def test_app_constructs_runtime_quote_authority():
     source = _source(APP_PATH)
+    assert "bind_runtime_admission" in source
+    source = Path("backend/services/runtime_admission_v2.py").read_text(encoding="utf-8")
 
     assert "RuntimeQuoteAuthorityV2" in source
-    assert "runtime_quote_authority_v2" in source
+    assert "app.state.runtime_quote_authority_v2" in _source(APP_PATH)
+
 
 
 def test_app_constructs_spread_authority():
     source = _source(APP_PATH)
+    assert "bind_runtime_admission" in source
+    source = Path("backend/services/runtime_admission_v2.py").read_text(encoding="utf-8")
 
     assert "SpreadAuthorityV2" in source
-    assert "spread_authority_v2" in source
+    assert "app.state.spread_authority_v2" in _source(APP_PATH)
+
 
 
 def test_app_constructs_runtime_spread_authority():
     source = _source(APP_PATH)
+    assert "bind_runtime_admission" in source
+    source = Path("backend/services/runtime_admission_v2.py").read_text(encoding="utf-8")
 
     assert "RuntimeSpreadAuthorityV2" in source
-    assert "runtime_spread_authority_v2" in source
+    assert "app.state.runtime_spread_authority_v2" in _source(APP_PATH)
     assert "maximum_quote_age_seconds" in source
+
 
 
 def test_all_production_live_services_receive_runtime_spread_authority():

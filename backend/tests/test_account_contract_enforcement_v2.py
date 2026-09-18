@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import isolated_policy_candidate
 from backend.api.app import create_app
 
 
@@ -37,7 +38,7 @@ def test_execution_blocks_six_nq_contracts():
         .execution_manager
     )
 
-    result = execution.prepare_order(
+    result = isolated_policy_candidate(execution,
         signal=build_signal(
             symbol="NQ",
             contracts=16,
@@ -61,7 +62,7 @@ def test_execution_allows_fifty_mnq_contracts():
         .execution_manager
     )
 
-    result = execution.prepare_order(
+    result = isolated_policy_candidate(execution,
         signal=build_signal(
             symbol="MNQ",
             contracts=50,

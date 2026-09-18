@@ -87,8 +87,14 @@ class ExecutionPipelineV2:
         approved: bool,
 
     ) -> ExecutionPipelineReport:
-
-
+        # This retained simulator must never manufacture an operational journal
+        # trade. Account-bound execution belongs to the canonical lifecycle.
+        durability = getattr(self.journal, "_durability", None)
+        if durability is not None and getattr(
+            durability.store.trade_lifecycle_service, "_runtime_admission_required", False
+        ):
+            from backend.services.durable_execution_state_v2 import AccountAdmissionRejected
+            raise AccountAdmissionRejected("canonical_runtime_admission_required")
 
         self.counter += 1
 

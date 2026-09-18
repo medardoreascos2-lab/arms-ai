@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import submit_with_test_market
 from datetime import datetime
 from datetime import timezone
 
@@ -76,7 +77,7 @@ def submit_position(
         .trade_lifecycle_service_v2
     )
 
-    result = service.submit_signal(
+    result = submit_with_test_market(service,
         signal=build_trade_signal(
             direction=direction,
         ),

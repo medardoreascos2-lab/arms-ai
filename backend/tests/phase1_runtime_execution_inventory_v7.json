@@ -7,7 +7,7 @@
       "id": "backend/api/app.py:create_app",
       "path": "backend/api/app.py",
       "function": "create_app",
-      "source_sha256": "014c8a2c824c1d1677a5bd37a79f0a532cb88ec888a773f6f4f2b63d0c39749e",
+      "source_sha256": "8ac86dd68dcd8425b50d051d25bd6efab7d671d155baa19b17925d0a6d82862b",
       "calls": [
         "APISettings",
         "AccountConfigManagerV2",
@@ -36,9 +36,6 @@
         "BacktestingWorkerV2",
         "BreakEvenEngineV2",
         "BreakdownWidgetV2",
-        "CertifiedEconomicNewsDataLifecycleV2",
-        "CertifiedMarketHoursDataLifecycleV2",
-        "CertifiedMarketHoursRuntimeProviderV2",
         "CertifiedMarketHoursRuntimeRefreshServiceV2",
         "ConfluenceEngineV2",
         "DashboardAutoRefreshEngineV2",
@@ -58,7 +55,6 @@
         "ExecutionRiskGateV1",
         "ExecutionServiceV2",
         "ExecutionStateStoreV2",
-        "ExposureManagerV2",
         "FastAPI",
         "InstrumentProfileEngine",
         "LiveAnalysisStore",
@@ -76,7 +72,6 @@
         "MultiAccountRiskEngineV2",
         "MultiAccountRiskEngineV2(account_manager=account_config_manager_v2).get_active_risk_profile",
         "MultiTimeframeDecisionEngineV2",
-        "OrderValidationEngineV2",
         "ParameterBacktestEngineFactoryV2",
         "ParameterEvaluator",
         "ParameterEvaluatorAdapterV2",
@@ -90,7 +85,6 @@
         "PerformanceScoreEngineV2",
         "PerformanceScoreWidgetV2",
         "PerformanceServiceV2",
-        "PortfolioRiskEngineV2",
         "PortfolioSummaryWidgetV2",
         "PositionManager",
         "PositionSizingEngine",
@@ -105,13 +99,10 @@
         "RiskValidationEngineV2",
         "RiskValidationServiceV2",
         "RuntimeError",
-        "RuntimeQuoteAuthorityV2",
-        "RuntimeSpreadAuthorityV2",
         "SignalExecutionManager",
         "SignalGeneratorV2",
         "SignalHistoryStore",
         "SmartMoneyEngineV2",
-        "SpreadAuthorityV2",
         "StrategyCertificationEntryPointV2",
         "StrategyCertificationRegistryServiceV2",
         "StrategyDecisionDashboardProviderV2",
@@ -154,19 +145,16 @@
         "WalkForwardWindowGeneratorV2",
         "_protect_admin_routes_v2",
         "account_config_manager_v2.get_active_account",
+        "admission.market_hours_provider.get_market_hours_service",
+        "admission.news_provider.get_economic_news_authority",
         "app.add_middleware",
         "app.get",
         "app.include_router",
         "app.state.backtesting_background_worker_v2.start",
         "app.state.backtesting_background_worker_v2.stop",
         "app.state.dashboard_auto_refresh_engine_v2.start",
-        "app.state.economic_news_data_lifecycle_v2.activate_from_file",
-        "app.state.economic_news_data_lifecycle_v2.get_active_provider",
-        "app.state.economic_news_runtime_provider_v2.get_economic_news_authority",
-        "app.state.market_hours_data_lifecycle_v2.activate_from_file",
-        "app.state.market_hours_data_lifecycle_v2.get_active_provider",
-        "app.state.market_hours_runtime_provider_v2.get_market_hours_service",
         "app.state.strategy_certification_registry_service_v2.load_default_certified_strategies",
+        "bind_runtime_admission",
         "build_runtime_context",
         "build_strategy_backtest_pipeline",
         "callable",
@@ -204,6 +192,7 @@
         "PositionManager",
         "TradeExecutionEngine",
         "TradeJournalV2",
+        "bind_runtime_admission",
         "build_runtime_context",
         "build_strategy_backtest_pipeline"
       ],
@@ -220,24 +209,25 @@
         "PositionManager",
         "TradeExecutionEngine",
         "TradeJournalV2",
+        "bind_runtime_admission",
         "build_runtime_context",
         "build_strategy_backtest_pipeline"
       ],
       "execution_owner": "TradeLifecycleServiceV2",
       "risk_owner": "RiskManagerV2 + ExecutionRiskGateV1 + account/durability admission for operational/replay lifecycle; local simulation policy otherwise",
       "financial_owner": "TradeLifecycleServiceV2 -> PortfolioManagerV2 -> AccountStateManagerV2; TradeJournalV2/history in operational core; no shared account ledger in offline simulations",
-      "market_owner": "API PriceFeedServiceV2/LivePositionMonitorV2; explicit historical replay provider for simulation; CLI MarketConnector for separate pipeline",
+      "market_owner": "Same RuntimeAdmissionV2-bound quote/spread/calendar/news authorities for HTTP and direct lifecycle",
       "startup_or_runtime": "Composition/startup or validation; no order submission during construction",
       "test_or_production": "PRODUCTION_SOURCE",
       "canonical_or_legacy": "CANONICAL_DELEGATE",
-      "downstream_effect": "Delegates operational core to build_runtime_context; attaches API guards, projections and market feed. Legacy PositionManager/ExecutionPipeline are compatibility projections, not operational submission owners.",
+      "downstream_effect": "Canonical runtime composition binds shared mandatory admission and risk guards. API aliases the same quote/calendar/news owners and adds projections/refresh; no API-specific risk permission.",
       "unsafe_duplicate": false
     },
     {
       "id": "backend/api/app.py:<module>",
       "path": "backend/api/app.py",
       "function": "<module>",
-      "source_sha256": "de017fe5a80907b9c9ed071e192b855f943f355c7998bc00b3cb97f5037c19c3",
+      "source_sha256": "271b5f4f2b44fe52de86bffcf23cf2fd1d85039399128104455752c840400b95",
       "calls": [
         "create_app"
       ],
@@ -753,7 +743,7 @@
       "id": "backend/services/runtime_context_v2.py:build_runtime_context",
       "path": "backend/services/runtime_context_v2.py",
       "function": "build_runtime_context",
-      "source_sha256": "ec603370ada79fb051efdd1a96ebfe7b7e630320d9add425b339e99aa15f5bae",
+      "source_sha256": "fe70233fa074a1a53d6e9436970546fe2c7ee8b89355180013052496916ebebd",
       "calls": [
         "APISettings",
         "AccountConfigManagerV2",
@@ -789,6 +779,7 @@
         "account_manager.get_active_account",
         "account_manager.get_active_account_name",
         "active_account.get_contract_limit",
+        "bind_runtime_admission",
         "float",
         "instrument_profiles.get_profile",
         "isinstance",
@@ -811,7 +802,8 @@
         "StartupCoordinatorV2",
         "StateRecoveryServiceV2",
         "TradeJournalV2",
-        "TradeLifecycleServiceV2"
+        "TradeLifecycleServiceV2",
+        "bind_runtime_admission"
       ],
       "classification": "CANONICAL_RUNTIME_OWNER",
       "caller": "create_app, ASGI injected fallback, coordinator, CLI",
@@ -831,23 +823,24 @@
         "StartupCoordinatorV2",
         "StateRecoveryServiceV2",
         "TradeJournalV2",
-        "TradeLifecycleServiceV2"
+        "TradeLifecycleServiceV2",
+        "bind_runtime_admission"
       ],
       "execution_owner": "TradeLifecycleServiceV2",
       "risk_owner": "RiskManagerV2 + ExecutionRiskGateV1 + account/durability admission for operational/replay lifecycle; local simulation policy otherwise",
       "financial_owner": "TradeLifecycleServiceV2 -> PortfolioManagerV2 -> AccountStateManagerV2; TradeJournalV2/history in operational core; no shared account ledger in offline simulations",
-      "market_owner": "API PriceFeedServiceV2/LivePositionMonitorV2; explicit historical replay provider for simulation; CLI MarketConnector for separate pipeline",
+      "market_owner": "Same RuntimeAdmissionV2-bound quote/spread/calendar/news authorities for HTTP and direct lifecycle",
       "startup_or_runtime": "Composition/startup or validation; no order submission during construction",
       "test_or_production": "PRODUCTION_SOURCE",
       "canonical_or_legacy": "CANONICAL_RUNTIME_OWNER",
-      "downstream_effect": "Authoritative operational composition: account, portfolio, risk, execution manager, PAPER simulator/broker, positions, history, journal, protections/OCO, durability, recovery, startup/shutdown and switch safety.",
+      "downstream_effect": "Canonical runtime composition binds shared mandatory admission and risk guards. API aliases the same quote/calendar/news owners and adds projections/refresh; no API-specific risk permission.",
       "unsafe_duplicate": false
     },
     {
       "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.__init__",
       "path": "backend/services/trade_lifecycle_service_v2.py",
       "function": "TradeLifecycleServiceV2.__init__",
-      "source_sha256": "279fc6f41b6531393fd9ea16f091a7c7747ddc0653903f0aba49ed9e3224185f",
+      "source_sha256": "e11d99c5efc8be64a5dced031b70de97480c832f14acbfd4e6aea1148cdbc595",
       "calls": [
         "OCOManagerV2",
         "PaperBrokerConnectorV2",
@@ -915,6 +908,42 @@
       "canonical_or_legacy": "ISOLATED_SIMULATION",
       "downstream_effect": "PositionLifecycleManagerV1 tracks strategy evaluation state; no broker, portfolio or operational account mutation.",
       "unsafe_duplicate": false
+    },
+    {
+      "id": "backend/services/runtime_admission_v2.py:bind_runtime_admission",
+      "classification": "CANONICAL_DELEGATE",
+      "caller": "build_runtime_context and create_app for externally injected lifecycles",
+      "owner": "TradeLifecycleServiceV2 operational admission composition",
+      "account_scope": "Same lifecycle/account as published RuntimeContextV2",
+      "runtime_generation": "Shared account durability/publication; never transferable between runtimes",
+      "services_created": [
+        "RuntimeAdmissionV2",
+        "ExposureManagerV2",
+        "PortfolioRiskEngineV2",
+        "OrderValidationEngineV2"
+      ],
+      "execution_owner": "TradeLifecycleServiceV2",
+      "risk_owner": "Existing RiskManagerV2, ExecutionRiskGateV1, exposure/portfolio/order guards",
+      "financial_owner": "Unchanged lifecycle -> portfolio -> account/journal/history",
+      "market_owner": "RuntimeQuoteAuthorityV2 + RuntimeSpreadAuthorityV2 + certified calendar/news lifecycle providers",
+      "startup_or_runtime": "Composition only; no order or fill",
+      "test_or_production": "PRODUCTION_SOURCE",
+      "canonical_or_legacy": "CANONICAL_DELEGATE",
+      "downstream_effect": "Bind mandatory operational admission and existing policy guards once; no parallel risk or financial engine",
+      "unsafe_duplicate": false,
+      "path": "backend/services/runtime_admission_v2.py",
+      "function": "bind_runtime_admission",
+      "source_sha256": "cd86cb13685ae3a9edcddcf45ed08f067e71c7adb08174e8b080362ff304d7fa",
+      "calls": [
+        "ExposureManagerV2",
+        "OrderValidationEngineV2",
+        "PortfolioRiskEngineV2",
+        "RuntimeAdmissionV2",
+        "getattr"
+      ],
+      "construction_calls": [
+        "RuntimeAdmissionV2"
+      ]
     }
   ],
   "execution_points": [
@@ -2209,9 +2238,11 @@
       "id": "backend/execution/execution_pipeline_v2.py:ExecutionPipelineV2.execute",
       "path": "backend/execution/execution_pipeline_v2.py",
       "function": "ExecutionPipelineV2.execute",
-      "source_sha256": "e0920d113bf6b6f1baeed5e053d4697362e9887b8aa085acbf4b94841b393084",
+      "source_sha256": "c7b78fa5049c82b5b5b5e554f5697f43a142529b471bdf3519b6d9c0b401ce0b",
       "calls": [
+        "AccountAdmissionRejected",
         "ExecutionPipelineReport",
+        "getattr",
         "self.journal.record",
         "self.simulator.execute"
       ],
@@ -2248,7 +2279,7 @@
         "tools/arms_dev_runner.py:command_run",
         "tools/arms_dev_runner.py:git"
       ],
-      "downstream_effects": "Local simulator may record legacy journal entries; registered dashboard only reads its journal and never calls execute. Not an alternate operational execution entry.",
+      "downstream_effects": "Isolated legacy simulation only; reject before simulation/counter/journal mutation when canonical account journal is bound. Operational requests use TradeLifecycleServiceV2 admission.",
       "operational_execution_owner": "TradeLifecycleServiceV2",
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
@@ -3282,8 +3313,10 @@
       "id": "backend/services/durable_execution_state_v2.py:account_operation",
       "path": "backend/services/durable_execution_state_v2.py",
       "function": "account_operation",
-      "source_sha256": "d82350b6f0b631c209afd5b4e80c8955b7835123ed1b25b552bf4536ff9dfa02",
+      "source_sha256": "8e5420abed0fe26cb7e290d9089d2b7e076abeda33adce1a3b69db4f39419623",
       "calls": [
+        "AccountAdmissionRejected",
+        "admission.require_execution_scope",
         "durability.admission_barrier",
         "getattr",
         "isinstance",
@@ -3304,9 +3337,11 @@
       "id": "backend/services/durable_execution_state_v2.py:durable_mutation",
       "path": "backend/services/durable_execution_state_v2.py",
       "function": "durable_mutation",
-      "source_sha256": "c01b5c6fe035d9f5a29d3cc070916299bba3533fde784d08203f7f09e2b5138b",
+      "source_sha256": "1e495e45ef09d262c5e896f7bcb9018c920b8c0b9f842931697e36eee9133f41",
       "calls": [
+        "AccountAdmissionRejected",
         "ValueError",
+        "admission.require_execution_scope",
         "any",
         "durability.admission_barrier",
         "durability.mutation",
@@ -4068,7 +4103,7 @@
       "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal",
       "path": "backend/services/trade_lifecycle_service_v2.py",
       "function": "TradeLifecycleServiceV2.submit_signal",
-      "source_sha256": "822c353d17227401953c4ed354db30e7c9d6ab65053c158727fefd3c86f54b9c",
+      "source_sha256": "389c334f5e64ea50ba0f0cacd05d503f9daaf25a643a647fbf473e80242afd22",
       "calls": [
         "', '.join",
         "RuntimeError",
@@ -4077,6 +4112,8 @@
         "abs",
         "account_state_manager.ensure_trading_day",
         "account_state_manager.get_state",
+        "admission._execution_scope",
+        "admission.validate_market",
         "any",
         "bool",
         "datetime.now",
@@ -4090,7 +4127,9 @@
         "len",
         "list",
         "min",
+        "nullcontext",
         "opened_position.get",
+        "order_context.get",
         "order_validation.get",
         "portfolio_risk_evaluation.get",
         "position.get",
@@ -4098,6 +4137,7 @@
         "protection.get",
         "risk_evaluation.get",
         "row.get",
+        "safety.validate_signal",
         "self._active_positions.values",
         "self._reserve_submission",
         "self.broker_connector_v2.submit_order",
@@ -4763,18 +4803,113 @@
       "operational_execution_owner": "TradeLifecycleServiceV2",
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/services/runtime_admission_v2.py:RuntimeAdmissionV2._execution_scope",
+      "classification": "CANONICAL_ADMISSION_DELEGATE",
+      "owner": "TradeLifecycleServiceV2",
+      "callers": "backend/services/trade_lifecycle_service_v2.py",
+      "lexical_caller_candidates": [
+        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal"
+      ],
+      "downstream_effects": "Context manager yields after setting context-local execution permission; resets permission on every exit",
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false,
+      "path": "backend/services/runtime_admission_v2.py",
+      "function": "RuntimeAdmissionV2._execution_scope",
+      "source_sha256": "5ee7e4452a95a5276ed0900ea2c917f4f0e769011cc8edcc850b368e8b6ca2af",
+      "calls": [
+        "self._executing.reset",
+        "self._executing.set"
+      ],
+      "execution_calls": []
+    },
+    {
+      "id": "backend/services/runtime_admission_v2.py:RuntimeAdmissionV2.require_execution_scope",
+      "classification": "CANONICAL_ADMISSION_DELEGATE",
+      "owner": "TradeLifecycleServiceV2",
+      "callers": "backend/services/durable_execution_state_v2.py",
+      "lexical_caller_candidates": [
+        "backend/services/durable_execution_state_v2.py:account_operation",
+        "backend/services/durable_execution_state_v2.py:durable_mutation"
+      ],
+      "downstream_effects": "None when the canonical execution scope is active; otherwise AccountAdmissionRejected",
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false,
+      "path": "backend/services/runtime_admission_v2.py",
+      "function": "RuntimeAdmissionV2.require_execution_scope",
+      "source_sha256": "55e79f88668d8ce2ec3ebf10ac3128e90e762956ab9adb56978d5b07a6bbadbd",
+      "calls": [
+        "AccountAdmissionRejected",
+        "self._executing.get"
+      ],
+      "execution_calls": []
+    },
+    {
+      "id": "backend/services/runtime_admission_v2.py:RuntimeAdmissionV2.validate_market",
+      "classification": "CANONICAL_ADMISSION_DELEGATE",
+      "owner": "TradeLifecycleServiceV2",
+      "callers": "backend/services/trade_lifecycle_service_v2.py",
+      "lexical_caller_candidates": [
+        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal"
+      ],
+      "downstream_effects": "Validated current quote or an exception for unavailable/stale/closed/blocked market evidence",
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false,
+      "path": "backend/services/runtime_admission_v2.py",
+      "function": "RuntimeAdmissionV2.validate_market",
+      "source_sha256": "5a7a8b1882581ff1f66ca3202ae8a1256b08f7985e318ae15775e72f0c5d8e69",
+      "calls": [
+        "ValueError",
+        "self.clock",
+        "self.market_hours_provider.get_market_hours_service",
+        "self.market_hours_provider.get_market_hours_service().is_market_open",
+        "self.news_provider.get_economic_news_authority",
+        "self.news_provider.get_economic_news_authority().is_news_blocked",
+        "self.runtime_spread_authority.get_current_quote",
+        "self.spread_authority.resolve_spread_points"
+      ],
+      "execution_calls": []
+    },
+    {
+      "id": "backend/services/runtime_admission_v2.py:bind_runtime_admission",
+      "classification": "CANONICAL_ADMISSION_DELEGATE",
+      "owner": "TradeLifecycleServiceV2",
+      "callers": "backend/services/runtime_context_v2.py; backend/api/app.py",
+      "lexical_caller_candidates": [
+        "backend/services/runtime_context_v2.py:build_runtime_context",
+        "backend/api/app.py:create_app"
+      ],
+      "downstream_effects": "One shared RuntimeAdmissionV2 binding; install missing existing policy guards without submitting orders",
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false,
+      "path": "backend/services/runtime_admission_v2.py",
+      "function": "bind_runtime_admission",
+      "source_sha256": "cd86cb13685ae3a9edcddcf45ed08f067e71c7adb08174e8b080362ff304d7fa",
+      "calls": [
+        "ExposureManagerV2",
+        "OrderValidationEngineV2",
+        "PortfolioRiskEngineV2",
+        "RuntimeAdmissionV2",
+        "getattr"
+      ],
+      "execution_calls": []
     }
   ],
   "certificate": {
-    "TOTAL_RUNTIME_BUILDERS": 18,
-    "CLASSIFIED_RUNTIME_BUILDERS": 18,
+    "TOTAL_RUNTIME_BUILDERS": 19,
+    "CLASSIFIED_RUNTIME_BUILDERS": 19,
     "UNCLASSIFIED_RUNTIME_BUILDERS": 0,
     "UNSAFE_DUPLICATE_RUNTIME_BUILDERS": 0,
     "CANONICAL_RUNTIME_OWNER": "backend.services.runtime_context_v2.build_runtime_context",
     "CANONICAL_EXECUTION_OWNER": "TradeLifecycleServiceV2",
     "CANONICAL_ORDER_LIFECYCLE_OWNER": "TradeLifecycleServiceV2",
-    "TOTAL_EXECUTION_DECISION_POINTS": 105,
-    "CLASSIFIED_EXECUTION_DECISION_POINTS": 105,
+    "TOTAL_EXECUTION_DECISION_POINTS": 109,
+    "CLASSIFIED_EXECUTION_DECISION_POINTS": 109,
     "UNCLASSIFIED_EXECUTION_DECISION_POINTS": 0,
     "DIRECT_BROKER_BYPASS": 0,
     "UNAUTHORIZED_EXECUTION_ENTRY": 0,
@@ -4801,9 +4936,9 @@
     "CROSS_ACCOUNT_EXECUTION": "BLOCKED",
     "INITIAL_BACKEND_FAILURES": 0,
     "FINAL_BACKEND_FAILURES": 0,
-    "DIRECT_TESTS": "3617 passed, 0 failed, 1 unchanged skip; 424 modules",
-    "FULL_BACKEND": "5454 passed, 0 failed, 1 unchanged skip",
-    "PY_COMPILE": "10 passed",
+    "DIRECT_TESTS": "187 passed; seven directly affected modules",
+    "FULL_BACKEND": "5508 passed, 0 failed, 1 unchanged skip",
+    "PY_COMPILE": "37 passed",
     "DIFF_CHECK": "PASS",
     "UNRELATED_UNTRACKED_PRESERVED": 83
   },
@@ -5232,5 +5367,71 @@
     "backend/tests/test_trading_memory_canonical_journal_e2e_v2.py",
     "backend/tests/test_walk_forward_dashboard_exporter.py",
     "backend/tests/test_walk_forward_optimization_dashboard_exporter.py"
-  ]
+  ],
+  "historical_v7_certificate": {
+    "TOTAL_RUNTIME_BUILDERS": 18,
+    "CLASSIFIED_RUNTIME_BUILDERS": 18,
+    "UNCLASSIFIED_RUNTIME_BUILDERS": 0,
+    "UNSAFE_DUPLICATE_RUNTIME_BUILDERS": 0,
+    "CANONICAL_RUNTIME_OWNER": "backend.services.runtime_context_v2.build_runtime_context",
+    "CANONICAL_EXECUTION_OWNER": "TradeLifecycleServiceV2",
+    "CANONICAL_ORDER_LIFECYCLE_OWNER": "TradeLifecycleServiceV2",
+    "TOTAL_EXECUTION_DECISION_POINTS": 105,
+    "CLASSIFIED_EXECUTION_DECISION_POINTS": 105,
+    "UNCLASSIFIED_EXECUTION_DECISION_POINTS": 0,
+    "DIRECT_BROKER_BYPASS": 0,
+    "UNAUTHORIZED_EXECUTION_ENTRY": 0,
+    "INTELLIGENCE_EXECUTION_BYPASS": 0,
+    "STRATEGY_EXECUTION_BYPASS": 0,
+    "LIVE_EXECUTION": "NO",
+    "RUNTIME_SERVICE_GRAPH": "GREEN",
+    "RISK_BEFORE_EXECUTION": "GREEN",
+    "RISK_REJECTION_FAIL_CLOSED": "GREEN",
+    "PAPER_FILL_TO_LIFECYCLE": "GREEN",
+    "PAPER_FINANCIAL_SYNC": "GREEN",
+    "EXECUTION_TO_FILL_OWNER": "GREEN",
+    "FILL_TO_FINANCIAL_OWNER": "GREEN",
+    "NO_DOUBLE_FINANCIAL_APPLICATION": "GREEN",
+    "STARTUP_RUNTIME_EQUIVALENCE": "GREEN",
+    "RECOVERED_RUNTIME_EQUIVALENCE": "GREEN",
+    "PH1_REQ004_REGRESSION": "GREEN",
+    "PH1_REQ005_006_REGRESSION": "GREEN",
+    "PH1_REQ008_REGRESSION": "GREEN",
+    "PH1_REQ009_REGRESSION": "GREEN",
+    "MARKET_OWNERSHIP_REGRESSION": "GREEN",
+    "RECOVERY_CLI_REGRESSION": "GREEN",
+    "STALE_RUNTIME_EXECUTION": "BLOCKED",
+    "CROSS_ACCOUNT_EXECUTION": "BLOCKED",
+    "INITIAL_BACKEND_FAILURES": 0,
+    "FINAL_BACKEND_FAILURES": 0,
+    "DIRECT_TESTS": "3617 passed, 0 failed, 1 unchanged skip; 424 modules",
+    "FULL_BACKEND": "5454 passed, 0 failed, 1 unchanged skip",
+    "PY_COMPILE": "10 passed",
+    "DIFF_CHECK": "PASS",
+    "UNRELATED_UNTRACKED_PRESERVED": 83
+  },
+  "v81_review": {
+    "baseline": "d40745fa0bc1a481ef2d171753e392890b9109e0",
+    "changed_boundaries": {
+      "builders": [
+        "backend/api/app.py:<module>",
+        "backend/api/app.py:create_app",
+        "backend/services/runtime_admission_v2.py:bind_runtime_admission",
+        "backend/services/runtime_context_v2.py:build_runtime_context",
+        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.__init__"
+      ],
+      "execution_points": [
+        "backend/execution/execution_pipeline_v2.py:ExecutionPipelineV2.execute",
+        "backend/services/durable_execution_state_v2.py:account_operation",
+        "backend/services/durable_execution_state_v2.py:durable_mutation",
+        "backend/services/runtime_admission_v2.py:RuntimeAdmissionV2._execution_scope",
+        "backend/services/runtime_admission_v2.py:RuntimeAdmissionV2.require_execution_scope",
+        "backend/services/runtime_admission_v2.py:RuntimeAdmissionV2.validate_market",
+        "backend/services/runtime_admission_v2.py:bind_runtime_admission",
+        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal"
+      ]
+    },
+    "canonical_admission_owner": "TradeLifecycleServiceV2.submit_signal",
+    "duplicate_admission_authorities": 0
+  }
 }

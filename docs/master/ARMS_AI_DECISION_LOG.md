@@ -855,3 +855,81 @@ Phase 1 status:
 Current next action:
 
 `PHASE 1 CORE RELIABILITY GAP CLOSURE THROUGH CURRENT REPOSITORY CHARACTERIZATION AND INTEGRATION TESTS`
+
+
+### DEC-0018 — V8 CONSOLIDATED ACCEPTANCE KEEPS PHASE 1 OPEN
+
+**Date:** 2026-09-18
+**Status:** Approved reporting under V8 scope; implementation redesign not authorized
+**Area:** Phase 1 acceptance and trading safety
+
+**Context**
+
+The synchronized baseline is `d40745fa0bc1a481ef2d171753e392890b9109e0`.
+The authoritative matrix contains 12 Phase 1 requirements. Prior scoped V3–V7
+certifications pass baseline regression, but new real HTTP/direct PAPER tests
+show prepared orders, broker calls and fills without a quote or certified
+calendar/news permission. Core financial/account ownership alone cannot prevent
+that admission bypass.
+
+**Decision**
+
+Record a negative [V8 acceptance certificate](../architecture/phase1_consolidated_acceptance_v8.md):
+8 scoped CLOSED_CERTIFIED, 3 PARTIAL_REAL_GAP, 1 BLOCKED, 0 unclassified.
+Leave PH1-REQ-002/003/004/011 and Phase 1 open. Preserve the failing rejection
+tests without masking them. Stop production changes at V8 section H's boundary
+for large cross-module integration. Do not stage, commit or push a red package.
+
+**Reason**
+
+A route-only guard leaves direct runtime submission exposed. Attaching the
+existing optional order validator does not provide trusted quote/news evidence.
+One mandatory operational admission contract must span composition, lifecycle,
+API/analysis callers and the explicit isolated-replay boundary.
+
+**Consequences**
+
+Next package is `PHASE1_RUNTIME_MARKET_RISK_ADMISSION_INTEGRATION`. The current
+audit does not enable LIVE, change credentials, or authorize Phase 2/PAPER MVP
+release. Account isolation and financial/recovery certifications remain scoped
+to their demonstrated invariants; they do not supersede the admission failure.
+
+**Supersedes**
+
+DEC-0017's historical ten-partial/two-verified count as the current inventory;
+retains its decision that Phase 1 is not closed. Does not supersede prior valid
+package-specific evidence or grant implementation-design approval.
+
+**Superseded by**
+
+DEC-0019 under the explicitly authorized V8.1 integration package.
+
+---
+
+## DEC-0019 — Close Phase 1 after mandatory runtime admission certification
+
+**Status:** Accepted within authorized V8.1 PAPER scope.
+
+**Context:** V8 exposed two HTTP/direct submissions that filled without market
+permission. V8.1 explicitly authorized repairing the shared boundary and
+recertifying the consolidated acceptance gate while preserving V8 evidence.
+
+**Decision:** `TradeLifecycleServiceV2.submit_signal` owns mandatory operational
+admission, delegating to existing market, risk and account authorities. Shared
+composition eliminates missing guards; account-bound lower-level execution and
+the compatibility journal facade cannot bypass admission. No duplicate risk or
+freshness system is introduced. The original V8 tests are unchanged and green.
+
+**Evidence:** [V8.1 certificate](../architecture/phase1_runtime_market_risk_admission_v81.md)
+and its machine inventory record all 12 CLOSED_CERTIFIED requirements, zero
+remaining Phase 1 gaps and zero full backend failures. Focused and consolidated
+regressions protect rejection without preparation/fills/financial mutation,
+positive PAPER execution, ownership, synchronization, isolation and recovery.
+
+**Consequences:** PHASE1_STATUS=CLOSED for the documented PAPER scope; next
+planned phase is PHASE2, Data and Market Intelligence. No LIVE, real broker,
+credential change, product release or destructive consolidation is authorized.
+
+**Supersedes:** DEC-0018's current non-closure disposition and V8 scope stop,
+under the explicit V8.1 integration authorization. Retains all historical RED
+observations and prior valid scoped certifications.

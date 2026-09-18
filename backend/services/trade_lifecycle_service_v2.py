@@ -310,6 +310,8 @@ class TradeLifecycleServiceV2(
                 "OrderValidationEngineV2."
             )
 
+        self.runtime_admission_v2 = None
+        self._runtime_admission_required = False
         self.order_validation_engine_v2 = (
             order_validation_engine_v2
         )
@@ -719,6 +721,28 @@ class TradeLifecycleServiceV2(
                     else None
                 ),
             }
+
+        admission = self.runtime_admission_v2
+        if self._runtime_admission_required and admission is None:
+            return {"accepted": False, "reason": "runtime_admission_unavailable",
+                    "prepared_order": None, "execution": None, "position": None}
+        if admission is not None:
+            try:
+                if any(owner is None for owner in (self.risk_manager_v2,
+                        self.exposure_manager_v2, self.portfolio_risk_engine_v2,
+                        self.order_validation_engine_v2, self.execution_risk_gate_v1)):
+                    raise ValueError("required runtime execution guard unavailable")
+                quote = admission.validate_market(symbol=str(working_signal.get("symbol", "")))
+            except Exception as error:
+                return {"accepted": False, "reason": "runtime_admission_rejected",
+                        "admission_reason": str(error), "prepared_order": None,
+                        "execution": None, "position": None}
+            if isinstance(risk_context, dict):
+                risk_context = dict(risk_context)
+                risk_context["current_price"] = (quote["bid"] + quote["ask"]) / 2
+            # Canonical permission is mandatory; an explicit caller veto still wins.
+            order_context = {"market_is_open": order_context is None or (
+                isinstance(order_context, dict) and order_context.get("market_is_open") is True)}
 
         normalized_symbol = (
             str(
@@ -1405,23 +1429,40 @@ class TradeLifecycleServiceV2(
         # 5. PREPARAR ORDEN
         # ======================================
 
-        prepared_order = (
-            self.execution_manager.prepare_order(
-                signal=working_signal,
-                order_type=order_type,
+        if admission is not None:
+            try:
+                safety = self._durability.account_switch_safety
+                if safety is not None:
+                    safety.validate_signal(signal=working_signal, risk_context=risk_context)
+                if account_state_manager is not None and account_state_manager.get_state()["trading_blocked"]:
+                    raise ValueError("account_trading_blocked")
+                admission.validate_market(symbol=normalized_symbol)
+            except Exception as error:
+                return {"accepted": False, "reason": "runtime_admission_rejected",
+                        "admission_reason": str(error), "prepared_order": None,
+                        "execution": None, "position": None}
+
+        # Only this scope, entered after every guard, permits operational
+        # lower-level preparation/broker/simulator calls in this context.
+        from contextlib import nullcontext
+        with admission._execution_scope() if admission is not None else nullcontext():
+            prepared_order = (
+                self.execution_manager.prepare_order(
+                    signal=working_signal,
+                    order_type=order_type,
+                )
             )
-        )
 
 
-        # ======================================
-        # 6. EJECUTAR ORDEN MEDIANTE BROKER
-        # ======================================
+            # ======================================
+            # 6. EJECUTAR ORDEN MEDIANTE BROKER
+            # ======================================
 
-        execution = (
-            self.broker_connector_v2.submit_order(
-                prepared_order=prepared_order,
+            execution = (
+                self.broker_connector_v2.submit_order(
+                    prepared_order=prepared_order,
+                )
             )
-        )
 
         position: dict[str, object] | None = None
         active_position_id: str | None = None

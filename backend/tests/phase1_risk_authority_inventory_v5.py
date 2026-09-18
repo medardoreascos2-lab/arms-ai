@@ -9,6 +9,8 @@ VOCABULARY = {"BLOCKED", "BLOCK", "APPROVED", "ALLOW_TRADE", "BLOCK_TRADE",
               "DO_NOT_EXECUTE", "risk_approved", "sizing_approved", "EXECUTE"}
 # These owners decide through booleans/exceptions/delegation rather than result vocabulary.
 EXPLICIT = {
+ "backend/execution/execution_pipeline_v2.py": {"execute"},
+ "backend/services/runtime_admission_v2.py": {"bind_runtime_admission", "validate_market", "require_execution_scope", "_execution_scope"},
  "backend/account/account_state_manager_v2.py": {"record_daily_pnl", "update_open_risk", "ensure_trading_day"},
  "backend/accounts/funding_firm_profile_v1.py": {"get_contract_limit"},
  "backend/services/account_switch_safety_v2.py": {"_assert_identity", "validate_signal", "_assert_quiescent", "switch"},
@@ -19,7 +21,7 @@ EXPLICIT = {
  "backend/services/runtime_lifecycle_manager_v2.py": {"start_from", "start_clean", "shutdown_to"},
  "backend/services/execution_state_store_v2.py": {"validate_state", "rollback_state"},
  "backend/services/economic_news_authority_v2.py": {"is_news_blocked"},
- "backend/services/runtime_spread_authority_v2.py": {"get_spread_points"},
+ "backend/services/runtime_spread_authority_v2.py": {"get_spread_points", "get_current_quote"},
  "backend/services/price_feed_service_v2.py": {"process_price"},
  "backend/services/market_hours_service_v2.py": {"is_market_open", "is_regular_session_open", "trading_day_for"},
  "backend/services/live_market_analysis_service.py": {"analyze", "_evaluate_confluence_v2"},

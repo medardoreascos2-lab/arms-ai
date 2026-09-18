@@ -85,6 +85,8 @@ def signal():
 
 def submit(runtime, profile="A"):
     c = runtime.context
+    from backend.tests.runtime_market_fixture_v81 import publish_test_market
+    publish_test_market(c.trade_lifecycle_service, directory=runtime.safety._managers[0].config_path.parent)
     state = c.account_state_manager_v2.get_state()
     return c.trade_lifecycle_service.submit_signal(
         signal=signal(), order_type="MARKET",

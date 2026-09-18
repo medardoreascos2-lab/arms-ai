@@ -151,27 +151,46 @@ and the application-wide exit gates are not satisfied.
 
 | ID | Parent | Area | Requirement | Evidence Basis | Status | Priority | Acceptance Criteria | Known Limitations |
 |---|---|---|---|---|---|---|---|---|
-| PH1-REQ-001 | Phase 1 | Runtime | Produce a repository-derived runtime call graph from process entry through startup, routes, market data, decisions, admission, PAPER execution, state updates, persistence, and recovery | Runtime characterization and closure-wave review | PARTIALLY_IMPLEMENTED | P0 | Active entry points, callers, ownership, and recovery path are documented | ASGI, direct factory, CLI, and alternate paths are not proven to share one process-wide owner |
-| PH1-REQ-002 | Phase 1 | Execution | Select and document one canonical validated-market-data-to-PAPER-execution path | PAPER call-graph characterization and closure-wave review | PARTIALLY_IMPLEMENTED | P0 | One strongest path is documented and its controls are identified | Exclusive use by every API, CLI, legacy, and parallel path is unproven |
-| PH1-REQ-003 | Phase 1 | Execution | Define execution ownership boundaries for admission, validation, preparation, orchestration, PAPER submission, fill handling, position lifecycle, protection, persistence, and recovery | PAPER call graph and compatibility register | PARTIALLY_IMPLEMENTED | P0 | Each stage has one owner or an explicitly documented layered relationship | Parallel execution abstractions remain unresolved |
-| PH1-REQ-004 | Phase 1 | Risk | Identify one authoritative source for each risk limit and record unresolved conflicts | Risk-authority characterization | PARTIALLY_IMPLEMENTED | P0 | Daily loss, drawdown, blocks, limits, sizing, exposure, news, freshness, and authorization authorities are mapped | Single authority and precedence are not proven for all limits or paths |
-| PH1-REQ-005 | Phase 1 | State | Define account and financial-state ownership for balances, PnL, drawdown, positions, exposure, journal, histories, protections, and dashboard projections | Financial-fill synchronization characterization | PARTIALLY_IMPLEMENTED | P0 | Canonical state owners and update direction are documented | Complete atomic cross-subsystem ownership and synchronization are unproven |
-| PH1-REQ-006 | Phase 1 | State | Define an idempotent fill synchronization contract linking signal, plan, request, fill, position, account, portfolio, journal, history, protection, events, persistence, and recovery | Financial-fill synchronization characterization | PARTIALLY_IMPLEMENTED | P0 | Accepted, rejected, duplicate, partial, interrupted, and retried operations have observable semantics | Global idempotency, atomicity, and interrupted-fill recovery remain open |
-| PH1-REQ-007 | Phase 1 | Accounts | Verify account-switch containment across positions, risk, pending operations, services, events, journal/history, credentials, and configuration | Account-isolation characterization | PARTIALLY_IMPLEMENTED | P0 | Characterization tests show no cross-account leakage | CLI, legacy, auxiliary-store, dashboard, WebSocket, and every direct-caller path are not fully proven |
-| PH1-REQ-008 | Phase 1 | Runtime | Identify authoritative startup, shutdown, recovery, semantic-validation, pending-operation, readiness, failure, and blocked-state ownership | Recovery-lifecycle characterization | PARTIALLY_IMPLEMENTED | P0 | One owner or explicit layer relationship is documented; recovery success means validated state | ASGI/CLI equivalence and complete pending-operation integration remain unresolved |
-| PH1-REQ-009 | Phase 1 | API / Dashboard | Inventory routes, widgets, refreshes, reports, WebSockets, account scope, authorization, service ownership, and execution reachability | API/dashboard ownership characterization | PARTIALLY_IMPLEMENTED | P0 | Reviewed routes are classified as read, administrative mutation, or execution-capable mutation | Complete route inventory, account scope, and WebSocket authorization remain open |
-| PH1-REQ-010 | Phase 1 | Architecture | Create a compatibility and supersession register for active, parallel, compatibility, legacy, likely superseded, duplicate, conflicting, and unverified modules | Compatibility and supersession register | VERIFIED_IMPLEMENTED | P1 | Retained duplicate-looking paths have evidence-based classifications | Classification does not authorize deletion, merging, or destructive consolidation |
-| PH1-REQ-011 | Phase 1 | Testing | Add or identify characterization coverage for all retained paths affecting admission, risk, execution, state, protection, events, persistence, recovery, account switching, and reads | Characterization test-gap audit and closure-wave review | PARTIALLY_IMPLEMENTED | P0 | Current tests verify behavior and relevant side effects on characterized paths | Cross-path equivalence, route delegation, global idempotency, WebSocket isolation, and operational tests remain open |
-| PH1-REQ-012 | Phase 1 | Documentation | Produce the canonical runtime, ownership, route, compatibility, characterization, and open-risk documentation baseline | Phase 1 documentation baseline | VERIFIED_IMPLEMENTED | P1 | Evidence package is reviewed against AGENTS.md, the matrix, memory, and decision log | Documentation records unresolved gaps and does not close Phase 1 or approve the PAPER MVP |
+| PH1-REQ-001 | Phase 1 | Runtime | Produce a repository-derived runtime call graph from process entry through startup, routes, market data, decisions, admission, PAPER execution, state updates, persistence, and recovery | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | Active entry points, callers, ownership, and recovery path are documented | NONE within the documented PAPER scope |
+| PH1-REQ-002 | Phase 1 | Execution | Select and document one canonical validated-market-data-to-PAPER-execution path | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | One strongest path is documented and its controls are identified | NONE within the documented PAPER scope |
+| PH1-REQ-003 | Phase 1 | Execution | Define execution ownership boundaries for admission, validation, preparation, orchestration, PAPER submission, fill handling, position lifecycle, protection, persistence, and recovery | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | Each stage has one owner or an explicitly documented layered relationship | NONE within the documented PAPER scope |
+| PH1-REQ-004 | Phase 1 | Risk | Identify one authoritative source for each risk limit and record unresolved conflicts | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | Daily loss, drawdown, blocks, limits, sizing, exposure, news, freshness, and authorization authorities are mapped | NONE within the documented PAPER scope |
+| PH1-REQ-005 | Phase 1 | State | Define account and financial-state ownership for balances, PnL, drawdown, positions, exposure, journal, histories, protections, and dashboard projections | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | Canonical state owners and update direction are documented | NONE within the documented PAPER scope |
+| PH1-REQ-006 | Phase 1 | State | Define an idempotent fill synchronization contract linking signal, plan, request, fill, position, account, portfolio, journal, history, protection, events, persistence, and recovery | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | Accepted, rejected, duplicate, partial, interrupted, and retried operations have observable semantics | NONE within the documented PAPER scope |
+| PH1-REQ-007 | Phase 1 | Accounts | Verify account-switch containment across positions, risk, pending operations, services, events, journal/history, credentials, and configuration | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | Characterization tests show no cross-account leakage | NONE within the documented PAPER scope |
+| PH1-REQ-008 | Phase 1 | Runtime | Identify authoritative startup, shutdown, recovery, semantic-validation, pending-operation, readiness, failure, and blocked-state ownership | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | One owner or explicit layer relationship is documented; recovery success means validated state | NONE within the documented PAPER scope |
+| PH1-REQ-009 | Phase 1 | API / Dashboard | Inventory routes, widgets, refreshes, reports, WebSockets, account scope, authorization, service ownership, and execution reachability | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | Reviewed routes are classified as read, administrative mutation, or execution-capable mutation | NONE within the documented PAPER scope |
+| PH1-REQ-010 | Phase 1 | Architecture | Create a compatibility and supersession register for active, parallel, compatibility, legacy, likely superseded, duplicate, conflicting, and unverified modules | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P1 | Retained duplicate-looking paths have evidence-based classifications | NONE within the documented PAPER scope |
+| PH1-REQ-011 | Phase 1 | Testing | Add or identify characterization coverage for all retained paths affecting admission, risk, execution, state, protection, events, persistence, recovery, account switching, and reads | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P0 | Current tests verify behavior and relevant side effects on characterized paths | NONE within the documented PAPER scope |
+| PH1-REQ-012 | Phase 1 | Documentation | Produce the canonical runtime, ownership, route, compatibility, characterization, and open-risk documentation baseline | V8.1 runtime admission and consolidated acceptance; linked certificate and machine inventory | CLOSED_CERTIFIED | P1 | Evidence package is reviewed against AGENTS.md, the matrix, memory, and decision log | NONE within the documented PAPER scope |
 
 ### Phase 1 interpretation
 
-`VERIFIED_IMPLEMENTED` for `PH1-REQ-010` and `PH1-REQ-012` means that the
-requested register and documentation baseline are present and evidence-based.
-It does not mean that all runtime behavior they describe is complete.
+Current review: [V8.1 runtime admission — CLOSED](../architecture/phase1_runtime_market_risk_admission_v81.md).
+All 12 requirements are CLOSED_CERTIFIED within the defined PAPER scope: zero
+partial, blocked, documentation-only or unclassified gaps. The shared lifecycle
+now requires canonical market/risk/account admission for HTTP and direct requests.
+The two original V8 tests pass unchanged; consolidated and full backend gates
+have zero failures. Next planned phase: PHASE2. LIVE_EXECUTION=NO.
 
-The ten `PARTIALLY_IMPLEMENTED` requirements remain partially verified after the
-closure wave. No Phase 1 requirement is `VERIFIED_CLOSED`.
+The machine inventory `backend/tests/phase1_consolidated_acceptance_v8.json`
+contains current V8.1 results and preserved historical V8 evidence.
+
+#### Historical V8 interpretation
+
+Historical review: [V8 consolidated acceptance — OPEN](../architecture/phase1_consolidated_acceptance_v8.md).
+The machine inventory is `backend/tests/phase1_consolidated_acceptance_v8.json`.
+V8 discovers all 12 requirements: 8 CLOSED_CERTIFIED within their stated PAPER
+scope, 3 PARTIAL_REAL_GAP, 1 BLOCKED, no documentation-only or unclassified gaps.
+The earlier closure-wave counts above are historical, not the V8 certificate.
+
+The authenticated trade API and direct lifecycle can create a PAPER fill without
+required quote/calendar/news permission. Optional exposure/portfolio/order guards
+also differ by construction path. Thus PH1-REQ-002/003/004/011 remain open and
+**Phase 1 is not closed**. Ownership, documentation and route authorization
+certification does not certify mandatory trading admission. No production repair,
+staging, commit, push, Phase 2 approval or LIVE authorization is implied by this
+audit. Exact final test results and evidence are in the linked certificate.
 
 ---
 
@@ -390,7 +409,7 @@ The evidence does not support marking Phase 1 closed.
 
 ---
 
-## PHASE 1 EXIT-GATE DISPOSITION
+## HISTORICAL PHASE 1 CLOSURE-WAVE EXIT-GATE DISPOSITION
 
 The closure wave did not satisfy the following required gates:
 
@@ -410,6 +429,11 @@ Phase 1 remains open. The controlled PAPER MVP remains not approved.
 ---
 
 ## NEXT ACTION
+
+PHASE2 — Data and Market Intelligence. Phase 1 closure applies to the documented
+PAPER architecture and safety contracts; product release and LIVE remain separate.
+
+### Historical documentation-update next action
 
 The next approved action is:
 

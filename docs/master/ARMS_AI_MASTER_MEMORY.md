@@ -1,5 +1,42 @@
 # ARMS AI — MASTER MEMORY
 
+## Current Phase 1 acceptance — V8.1
+
+[Runtime admission certification](../architecture/phase1_runtime_market_risk_admission_v81.md)
+and the requirements matrix record **PHASE1_STATUS=CLOSED** for the defined PAPER
+scope: all 12 requirements CLOSED_CERTIFIED; zero partial, blocked, documentation-only
+or unclassified gaps. Baseline: `d40745fa0bc1a481ef2d171753e392890b9109e0`.
+
+One canonical lifecycle admission boundary now enforces account/runtime validity,
+current certified market evidence, existing risk limits and order guards for HTTP
+and direct submissions. The original two V8 RED tests pass unchanged. Direct tests:
+187 passed; consolidated: 3,803 passed / 0 failed / 1 unchanged skip across 432
+modules; full backend: 5,508 passed / 0 failed / 1 unchanged skip.
+
+Next planned action: **PHASE2 — Data and Market Intelligence**. This closure does
+not approve a product release or LIVE execution. Older status/count statements
+below describe historical closure-wave and V8 evidence and do not override this
+current certificate.
+
+## Historical Phase 1 acceptance — V8
+
+[Consolidated acceptance certificate](../architecture/phase1_consolidated_acceptance_v8.md)
+and the requirements matrix recorded the V8 Phase 1 status at synchronized
+baseline `d40745fa0bc1a481ef2d171753e392890b9109e0`.
+**PHASE1_STATUS=OPEN**: 12 requirements; 8 scoped CLOSED_CERTIFIED,
+3 PARTIAL_REAL_GAP, 1 BLOCKED, 0 unclassified. Earlier closure-wave statuses and
+test counts below remain historical evidence.
+
+New HTTP/direct PAPER characterization demonstrates execution without mandatory
+quote/calendar/news authorization; optional lifecycle guard wiring also differs
+by construction path. The V8 large-integration scope stop applies. Next package:
+`PHASE1_RUNTIME_MARKET_RISK_ADMISSION_INTEGRATION`. No production implementation,
+commit/push, Phase 2 readiness or LIVE approval is claimed by this audit. The
+linked certificate contains exact tests, failure attribution and account-isolation
+proof across all 101 direct application bindings and 21 owner domains.
+
+---
+
 > Single Source of Truth for ARMS AI.
 > This document preserves historical intent while distinguishing it from
 > current repository-backed implementation, characterization, and approval
@@ -565,6 +602,10 @@ exposed.
 
 ## 15. CURRENT NEXT ACTION
 
+Proceed to Phase 2 planning: Data and Market Intelligence; keep LIVE disabled.
+
+### Historical Phase 1 closure sequence
+
 Continue Phase 1 Core Reliability gap closure in this order:
 
 ```text
@@ -627,11 +668,10 @@ Blocked capabilities include:
 
 Status:
 
-`HISTORICAL CONSOLIDATION COMPLETE; PHASE 1 CLOSURE WAVE REVIEWED; NOT CLOSED`
+`PHASE 1 CLOSED — V8.1 PAPER SCOPE CERTIFIED; NEXT PHASE 2`
 
-The controlled PAPER product remains a bounded target whose complete end-to-end
-runtime composition, synchronization, operational readiness, and MVP approval
-require additional evidence.
+Phase 1 runtime composition, synchronization and safety evidence is certified
+above. Controlled PAPER MVP/product release remains a separate approval boundary.
 
 The permanent safety principles remain:
 

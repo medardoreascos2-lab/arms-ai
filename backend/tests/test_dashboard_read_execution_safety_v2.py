@@ -17,30 +17,20 @@ def seed_existing_activity(app):
     service = app.state.trade_lifecycle_service_v2
     broker = service.broker_connector_v2
     assert isinstance(broker, PaperBrokerConnectorV2)
-    execution = broker.submit_order(prepared_order={
-        "approved": True, "execution_mode": "PAPER", "decision": "SUBMIT_ORDER",
-        "symbol": "MES", "side": "SELL", "order_type": "MARKET", "quantity": 1,
-        "entry_price": 5100.0, "stop_loss": 5110.0, "take_profit": 5080.0,
-    })
-    assert execution["status"] == "FILLED"
-    position = service.position_manager.open_position(execution=execution)
-    assert position["opened"] is True
-    service.restore_active_position(position=position)
-    app.state.portfolio_manager_v2.add_position(position=position)
-    app.state.trade_journal_v2.record_open_trade({
-        **position, "trade_id": "existing-test-journal",
-    })
-    protection = service.protective_order_registry_v2.create_protection(
-        position_id=position["position_id"], symbol=position["symbol"],
-        direction=position["direction"], quantity=position["quantity"],
-        entry_price=position["entry_price"], stop_price=position["stop_loss"],
-        take_profit_price=position["take_profit"],
-    )
-    service.oco_manager_v2.create_group(
-        position_id=position["position_id"], stop_order_id=protection["stop_order_id"],
-        take_profit_order_id=protection["take_profit_order_id"],
-    )
-    app.state.dashboard_trade_event_publisher_v2.publish_trade_opened(trade=position)
+    from backend.tests.runtime_market_fixture_v81 import submit_with_test_market
+    from backend.tests.test_account_switch_safety_containment_v2 import signal
+    account = app.state.account_state_manager_v2.get_state()
+    result = submit_with_test_market(service,
+        signal={**signal(), "direction": "SHORT", "entry_price": 5100.,
+                "stop_loss": 5110., "take_profit": 5080.},
+        order_type="MARKET", risk_context={
+            "account_balance": app.state.portfolio_manager_v2.get_available_balance(),
+            "risk_percent": app.state.account_config_manager_v2.get_active_account().risk_percent,
+            "point_value": 2., "daily_pnl": account["daily_pnl"],
+            "total_drawdown": account["drawdown"]})
+    assert result["accepted"] is True, result
+    assert result["execution"]["status"] == "FILLED"
+
 
 
 def capture(app):

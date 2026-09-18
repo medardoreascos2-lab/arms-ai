@@ -57,7 +57,7 @@ def _configure_required_environment(
 def _app_tree() -> ast.Module:
     return ast.parse(
         Path(
-            "backend/api/app.py"
+            "backend/services/runtime_admission_v2.py"
         ).read_text(
             encoding="utf-8"
         )

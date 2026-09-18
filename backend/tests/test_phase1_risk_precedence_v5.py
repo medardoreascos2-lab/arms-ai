@@ -13,6 +13,8 @@ from backend.tests.test_dashboard_read_execution_safety_v2 import capture
 
 def submit(h, **override):
     r = h.c.published.runtime
+    from backend.tests.runtime_market_fixture_v81 import publish_test_market
+    publish_test_market(r.trade_lifecycle_service, directory=h.config.parent)
     state = r.account_state_manager_v2.get_state()
     return r.trade_lifecycle_service.submit_signal(
         signal={**signal(), "submission_id": "risk-v5-new"}, order_type="MARKET",

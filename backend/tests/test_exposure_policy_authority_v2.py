@@ -62,7 +62,7 @@ def test_exposure_policy_relational_invariants():
 
 def test_create_app_wires_exposure_policy_from_canonical_settings():
     source = Path(
-        "backend/api/app.py"
+        "backend/services/runtime_admission_v2.py"
     ).read_text(
         encoding="utf-8",
         errors="replace",
@@ -73,13 +73,13 @@ def test_create_app_wires_exposure_policy_from_canonical_settings():
     )
 
     required = (
-        "internal_policy_settings.maximum_total_open_risk",
-        "internal_policy_settings.maximum_symbol_open_risk",
-        "internal_policy_settings.maximum_portfolio_open_risk",
-        "internal_policy_settings.maximum_portfolio_floating_loss",
-        "internal_policy_settings.maximum_portfolio_long_risk",
-        "internal_policy_settings.maximum_portfolio_short_risk",
-        "internal_policy_settings.maximum_portfolio_symbol_risk",
+        "policy.maximum_total_open_risk",
+        "policy.maximum_symbol_open_risk",
+        "policy.maximum_portfolio_open_risk",
+        "policy.maximum_portfolio_floating_loss",
+        "policy.maximum_portfolio_long_risk",
+        "policy.maximum_portfolio_short_risk",
+        "policy.maximum_portfolio_symbol_risk",
     )
 
     for expression in required:
@@ -88,7 +88,7 @@ def test_create_app_wires_exposure_policy_from_canonical_settings():
 
 def test_create_app_removes_seven_exposure_policy_literals():
     compact = Path(
-        "backend/api/app.py"
+        "backend/services/runtime_admission_v2.py"
     ).read_text(
         encoding="utf-8",
         errors="replace",

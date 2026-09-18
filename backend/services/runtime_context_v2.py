@@ -374,6 +374,9 @@ def build_runtime_context(
         trade_journal_v2=trade_journal_v2,
     )
 
+    from backend.services.runtime_admission_v2 import bind_runtime_admission
+    bind_runtime_admission(trade_lifecycle_service, settings=api_settings, policy=resolved_settings)
+
     execution_state_store = ExecutionStateStoreV2(
         trade_lifecycle_service=(
             trade_lifecycle_service

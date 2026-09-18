@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import submit_with_test_market
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
@@ -50,7 +51,7 @@ def test_live_position_monitor_updates_dashboard_realtime():
         .live_position_monitor_v2
     )
 
-    submit_result = service.submit_signal(
+    submit_result = submit_with_test_market(service,
         signal=build_trade_signal(),
         order_type="MARKET",
         risk_context={
@@ -189,7 +190,7 @@ def test_live_position_monitor_closes_trade_realtime():
         .live_position_monitor_v2
     )
 
-    submit_result = service.submit_signal(
+    submit_result = submit_with_test_market(service,
         signal=build_trade_signal(),
         order_type="MARKET",
         risk_context={

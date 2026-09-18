@@ -1,3 +1,4 @@
+from backend.tests.runtime_market_fixture_v81 import submit_with_test_market
 from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
@@ -47,7 +48,7 @@ def test_ai_learning_reads_canonical_closed_trade():
 
     assert len(journal.get_closed_trades()) == 0
 
-    submitted = lifecycle.submit_signal(
+    submitted = submit_with_test_market(lifecycle,
         signal=signal,
         order_type="MARKET",
         risk_context=risk_context,
