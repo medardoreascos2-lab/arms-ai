@@ -108,6 +108,28 @@ class OrderValidationEngineV2:
         market_is_open: bool,
         open_symbols: set[str],
     ) -> dict[str, object]:
+        return self._validate_fields(prepared_order=prepared_order,
+            market_is_open=market_is_open, open_symbols=open_symbols, require_prepared=True)
+
+    def validate_candidate(self, *, signal: dict[str, object], order_type: str,
+                           market_is_open: bool, open_symbols: set[str]) -> dict[str, object]:
+        """Validate proposed fields without constructing an executable order."""
+        direction = str(signal.get("direction", "")).strip().upper()
+        kind = str(order_type).strip().upper()
+        candidate = {
+            "symbol": signal.get("symbol"),
+            "side": {"LONG": "BUY", "SHORT": "SELL"}.get(direction, direction),
+            "order_type": kind, "quantity": signal.get("contracts", 0),
+            "entry_price": signal.get("entry_price", 0),
+            "stop_loss": signal.get("stop_loss", 0),
+            "take_profit": signal.get("take_profit", 0),
+            "limit_price": signal.get("entry_price") if kind == "LIMIT" else None,
+        }
+        return self._validate_fields(prepared_order=candidate,
+            market_is_open=market_is_open, open_symbols=open_symbols, require_prepared=False)
+
+    def _validate_fields(self, *, prepared_order: dict[str, object], market_is_open: bool,
+                         open_symbols: set[str], require_prepared: bool) -> dict[str, object]:
         if not isinstance(
             prepared_order,
             dict,
@@ -201,53 +223,54 @@ class OrderValidationEngineV2:
 
         blocking_reasons: list[str] = []
 
-        if not bool(
-            prepared_order.get(
-                "approved",
-                False,
-            )
-        ):
-            blocking_reasons.append(
-                "prepared_order_not_approved"
-            )
-
-        prepared_status = (
-            str(
+        if require_prepared:
+            if not bool(
                 prepared_order.get(
-                    "status",
-                    "",
+                    "approved",
+                    False,
                 )
-            )
-            .strip()
-            .upper()
-        )
-
-        if (
-            prepared_status
-            != "READY_TO_SUBMIT"
-        ):
-            blocking_reasons.append(
-                "prepared_order_not_ready"
-            )
-
-        prepared_decision = (
-            str(
-                prepared_order.get(
-                    "decision",
-                    "",
+            ):
+                blocking_reasons.append(
+                    "prepared_order_not_approved"
                 )
-            )
-            .strip()
-            .upper()
-        )
 
-        if (
-            prepared_decision
-            != "SUBMIT_ORDER"
-        ):
-            blocking_reasons.append(
-                "prepared_order_not_submittable"
+            prepared_status = (
+                str(
+                    prepared_order.get(
+                        "status",
+                        "",
+                    )
+                )
+                .strip()
+                .upper()
             )
+
+            if (
+                prepared_status
+                != "READY_TO_SUBMIT"
+            ):
+                blocking_reasons.append(
+                    "prepared_order_not_ready"
+                )
+
+            prepared_decision = (
+                str(
+                    prepared_order.get(
+                        "decision",
+                        "",
+                    )
+                )
+                .strip()
+                .upper()
+            )
+
+            if (
+                prepared_decision
+                != "SUBMIT_ORDER"
+            ):
+                blocking_reasons.append(
+                    "prepared_order_not_submittable"
+                )
 
         if not bool(
             market_is_open

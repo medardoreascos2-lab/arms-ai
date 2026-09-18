@@ -693,7 +693,9 @@ class TradeLifecycleServiceV2(
             account_state_manager.ensure_trading_day()
             if isinstance(risk_context, dict):
                 risk_context = dict(risk_context)
-                risk_context["daily_pnl"] = account_state_manager.get_state()["daily_pnl"]
+                account_risk_state = account_state_manager.get_state()
+                risk_context["daily_pnl"] = account_risk_state["daily_pnl"]
+                risk_context["total_drawdown"] = account_risk_state["drawdown"]
         if (
             account_state_manager is not None
             and account_state_manager.get_state()["trading_blocked"]
@@ -1201,15 +1203,109 @@ class TradeLifecycleServiceV2(
             }
 
         # ======================================
-        # 4. PREPARAR ORDEN
+        # FINAL RISK PERMISSION BEFORE EXECUTABLE ORDER PREPARATION
         # ======================================
 
-        prepared_order = (
-            self.execution_manager.prepare_order(
-                signal=working_signal,
-                order_type=order_type,
+        execution_risk_gate_result = None
+
+        if not signal_blocked:
+            if risk_evaluation is None:
+                raise ValueError(
+                    "execution_risk_gate_v1 requiere "
+                    "risk_evaluation. Configure "
+                    "risk_manager_v2 y risk_context."
+                )
+
+            gate_risk_amount = float(
+                risk_evaluation.get(
+                    "actual_risk",
+                    risk_evaluation.get(
+                        "risk_amount",
+                        0.0,
+                    ),
+                )
             )
-        )
+
+            gate_contracts = int(
+                working_signal.get("contracts", 0)
+            )
+
+            gate_direction = (
+                str(
+                    working_signal.get("direction", "")
+                )
+                .strip()
+                .upper()
+            )
+
+            gate_side = (
+                "BUY"
+                if gate_direction
+                in {
+                    "LONG",
+                    "BUY",
+                }
+                else (
+                    "SELL"
+                    if gate_direction
+                    in {
+                        "SHORT",
+                        "SELL",
+                    }
+                    else gate_direction
+                )
+            )
+
+            execution_risk_gate_result = (
+                self.execution_risk_gate_v1
+                .evaluate_trade(
+                    symbol=str(
+                        working_signal.get("symbol", "")
+                    ),
+                    side=gate_side,
+                    contracts=gate_contracts,
+                    risk_amount=gate_risk_amount,
+                )
+            )
+
+            if (
+                execution_risk_gate_result.get(
+                    "execution"
+                )
+                != "APPROVED"
+            ):
+                return {
+                    "accepted": False,
+                    "reason": (
+                        "execution_risk_gate_blocked"
+                    ),
+                    "risk_evaluation": (
+                        risk_evaluation
+                    ),
+                    "exposure_evaluation": (
+                        exposure_evaluation
+                    ),
+                    "portfolio_risk_evaluation": (
+                        portfolio_risk_evaluation
+                    ),
+                    "order_validation": (
+                        order_validation
+                    ),
+                    "execution_risk_gate": (
+                        execution_risk_gate_result
+                    ),
+                    "prepared_order": None,
+                    "execution": None,
+                    "position": None,
+                    "active_position_id": None,
+                    "portfolio_summary": (
+                        self.portfolio_manager_v2
+                        .get_summary()
+                        if self.portfolio_manager_v2
+                        is not None
+                        else None
+                    ),
+                }
 
         # ======================================
         # 4. VALIDACIÓN FINAL DE ORDEN
@@ -1261,10 +1357,9 @@ class TradeLifecycleServiceV2(
 
             order_validation = (
                 self.order_validation_engine_v2
-                .validate(
-                    prepared_order=(
-                        prepared_order
-                    ),
+                .validate_candidate(
+                    signal=working_signal,
+                    order_type=order_type,
                     market_is_open=bool(
                         order_context[
                             "market_is_open"
@@ -1294,9 +1389,7 @@ class TradeLifecycleServiceV2(
                     "order_validation": (
                         order_validation
                     ),
-                    "prepared_order": (
-                        prepared_order
-                    ),
+                    "prepared_order": None,
                     "execution": None,
                     "position": None,
                     "active_position_id": None,
@@ -1309,129 +1402,16 @@ class TradeLifecycleServiceV2(
                 }
 
         # ======================================
-        # 5. BARRERA FINAL DE RIESGO
+        # 5. PREPARAR ORDEN
         # ======================================
 
-        execution_risk_gate_result = None
-
-        if not signal_blocked:
-            if risk_evaluation is None:
-                raise ValueError(
-                    "execution_risk_gate_v1 requiere "
-                    "risk_evaluation. Configure "
-                    "risk_manager_v2 y risk_context."
-                )
-
-            gate_risk_amount = float(
-                risk_evaluation.get(
-                    "actual_risk",
-                    risk_evaluation.get(
-                        "risk_amount",
-                        0.0,
-                    ),
-                )
+        prepared_order = (
+            self.execution_manager.prepare_order(
+                signal=working_signal,
+                order_type=order_type,
             )
+        )
 
-            gate_contracts = int(
-                prepared_order.get(
-                    "contracts",
-                    working_signal.get(
-                        "contracts",
-                        0,
-                    ),
-                )
-            )
-
-            gate_direction = (
-                str(
-                    prepared_order.get(
-                        "direction",
-                        working_signal.get(
-                            "direction",
-                            "",
-                        ),
-                    )
-                )
-                .strip()
-                .upper()
-            )
-
-            gate_side = (
-                "BUY"
-                if gate_direction
-                in {
-                    "LONG",
-                    "BUY",
-                }
-                else (
-                    "SELL"
-                    if gate_direction
-                    in {
-                        "SHORT",
-                        "SELL",
-                    }
-                    else gate_direction
-                )
-            )
-
-            execution_risk_gate_result = (
-                self.execution_risk_gate_v1
-                .evaluate_trade(
-                    symbol=str(
-                        prepared_order.get(
-                            "symbol",
-                            working_signal.get(
-                                "symbol",
-                                "",
-                            ),
-                        )
-                    ),
-                    side=gate_side,
-                    contracts=gate_contracts,
-                    risk_amount=gate_risk_amount,
-                )
-            )
-
-            if (
-                execution_risk_gate_result.get(
-                    "execution"
-                )
-                != "APPROVED"
-            ):
-                return {
-                    "accepted": False,
-                    "reason": (
-                        "execution_risk_gate_blocked"
-                    ),
-                    "risk_evaluation": (
-                        risk_evaluation
-                    ),
-                    "exposure_evaluation": (
-                        exposure_evaluation
-                    ),
-                    "portfolio_risk_evaluation": (
-                        portfolio_risk_evaluation
-                    ),
-                    "order_validation": (
-                        order_validation
-                    ),
-                    "execution_risk_gate": (
-                        execution_risk_gate_result
-                    ),
-                    "prepared_order": (
-                        prepared_order
-                    ),
-                    "execution": None,
-                    "position": None,
-                    "active_position_id": None,
-                    "portfolio_summary": (
-                        self.portfolio_manager_v2
-                        .get_summary()
-                        if self.portfolio_manager_v2
-                        is not None
-                        else None
-                    ),
-                }
 
         # ======================================
         # 6. EJECUTAR ORDEN MEDIANTE BROKER

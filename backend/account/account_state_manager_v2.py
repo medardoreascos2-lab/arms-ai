@@ -208,6 +208,11 @@ class AccountStateManagerV2:
             )
         )
 
+        if not all(isfinite(value) for value in (
+            realized_pnl, unrealized_pnl, total_pnl, account_equity,
+        )):
+            raise ValueError("Portfolio risk inputs must be finite.")
+
         if open_positions < 0:
             raise ValueError(
                 "open_positions no puede ser negativo."
@@ -443,7 +448,7 @@ class AccountStateManagerV2:
             open_risk
         )
 
-        if open_risk < 0:
+        if not isfinite(open_risk) or open_risk < 0:
             raise ValueError(
                 "open_risk no puede ser negativo."
             )
@@ -468,6 +473,9 @@ class AccountStateManagerV2:
         daily_pnl = float(
             daily_pnl
         )
+
+        if not isfinite(daily_pnl):
+            raise ValueError("daily_pnl must be finite.")
 
         self.ensure_trading_day()
         self._preserve_unclassified_block()
