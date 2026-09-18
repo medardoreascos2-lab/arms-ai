@@ -45,7 +45,7 @@ def _paper_execution_calls(
         else:
             continue
 
-        if name == "PaperExecutionEngineV2":
+        if name == "build_runtime_context":
             calls.append(node)
 
     return calls

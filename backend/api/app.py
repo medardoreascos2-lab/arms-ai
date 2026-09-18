@@ -22,12 +22,6 @@ from backend.context.market_context_engine_v2 import (
 )
 from backend.market_analysis.market_regime_engine import MarketRegimeEngine
 from backend.smart_money.smart_money_engine_v2 import SmartMoneyEngineV2
-from backend.account.account_state_manager_v2 import (
-    AccountStateManagerV2,
-)
-from backend.portfolio.portfolio_manager_v2 import (
-    PortfolioManagerV2,
-)
 from backend.journal.trade_journal_v2 import (
     TradeJournalV2,
 )
@@ -44,9 +38,6 @@ from backend.analytics.performance_analytics_v2 import (
 
 from backend.intelligence.trade_learning_service_v2 import (
     TradeLearningServiceV2,
-)
-from backend.analytics.trade_history_manager_v2 import (
-    TradeHistoryManagerV2,
 )
 from backend.api.trade_lifecycle_api_v2 import (
     create_trade_lifecycle_router_v2,
@@ -86,12 +77,6 @@ from backend.signals.signal_generator_v2 import (
 )
 from backend.execution.position_manager_v2 import (
     PositionManagerV2,
-)
-from backend.execution.position_sizing_engine_v2 import (
-    PositionSizingEngineV2,
-)
-from backend.execution.risk_manager_v2 import (
-    RiskManagerV2,
 )
 from backend.execution.exposure_manager_v2 import (
     ExposureManagerV2,
@@ -1426,122 +1411,27 @@ def create_app(
 
     builds_account_runtime = trade_lifecycle_service_v2 is None
     if trade_lifecycle_service_v2 is None:
-        active_starting_balance = float(
-            active_account_profile.account_size
-        )
+        from dataclasses import replace
+        from backend.services.runtime_context_v2 import build_runtime_context
 
-        active_maximum_total_drawdown = float(
-            active_account_profile.max_drawdown
-        )
-
-        account_state_manager_v2 = (
-            AccountStateManagerV2(
-                starting_balance=(
-                    active_starting_balance
-                ),
-                maximum_daily_loss=(
-                    active_maximum_daily_loss
-                ),
-                maximum_total_drawdown=(
-                    active_maximum_total_drawdown
-                ),
-            )
-        )
-
-        portfolio_manager_v2 = (
-            PortfolioManagerV2(
-                starting_balance=(
-                    active_starting_balance
-                ),
-                account_state_manager_v2=(
-                    account_state_manager_v2
-                ),
-            )
-        )
-
-        trade_journal_v2 = (
-            TradeJournalV2(
-                analytics_v2=(
-                    TradeJournalAnalyticsV2()
-                ),
-                breakdown_analytics_v2=(
-                    TradeJournalBreakdownAnalyticsV2()
-                ),
-            )
-        )
-
-        position_sizing_engine_v2 = (
-            PositionSizingEngineV2()
-        )
-
-        active_mini_contract_limit = (
-            active_account_profile
-            .get_contract_limit("MINI")
-        )
-        active_micro_contract_limit = (
-            active_account_profile
-            .get_contract_limit("MICRO")
-        )
-        active_runtime_contract_limit = min(
-            active_mini_contract_limit,
-            active_micro_contract_limit,
-        )
-
-        def resolve_active_contract_limit(
-            symbol: str,
-        ) -> int:
-
-            instrument_profile = (
-                InstrumentProfileEngine()
-                .get_profile(symbol=symbol)
-            )
-
-            return (
-                active_account_profile
-                .get_contract_limit(
-                    instrument_profile["contract_class"]
-                )
-            )
-
-
-
-        if (
-            position_sizing_engine
-            .instrument_profile_engine
-            is None
-        ):
-            position_sizing_engine.instrument_profile_engine = (
-                InstrumentProfileEngine()
-            )
-
-        position_sizing_engine.maximum_contracts = (
-            active_runtime_contract_limit
-        )
-
-        position_sizing_engine.contract_limit_resolver = (
-            resolve_active_contract_limit
-        )
-
-        risk_manager_v2 = RiskManagerV2(
-            position_sizing_engine=(
-                position_sizing_engine_v2
+        runtime_context = build_runtime_context(
+            settings=replace(
+                internal_policy_settings,
+                account_balance=float(active_account_profile.account_size),
+                risk_percent=float(active_account_profile.risk_percent),
             ),
-            maximum_daily_loss=(
-                active_maximum_daily_loss
-            ),
-            maximum_total_drawdown=(
-                active_maximum_total_drawdown
-            ),
-            maximum_contracts=(
-                active_runtime_contract_limit
-            ),
-            maximum_open_positions=(
-                settings.maximum_open_positions
-            ),
-            contract_limit_resolver=(
-                resolve_active_contract_limit
-            ),
+            api_settings=settings,
+            account_manager=account_config_manager_v2,
+            fill_market_orders_immediately=settings.paper_execution_fill_market_orders_immediately,
+            slippage_points=settings.paper_execution_slippage_points,
         )
+        trade_lifecycle_service_v2 = runtime_context.trade_lifecycle_service
+        trade_lifecycle_service_v2.trade_journal_v2.analytics_v2 = TradeJournalAnalyticsV2()
+        trade_lifecycle_service_v2.trade_journal_v2.breakdown_analytics_v2 = TradeJournalBreakdownAnalyticsV2()
+        if position_sizing_engine.instrument_profile_engine is None:
+            position_sizing_engine.instrument_profile_engine = InstrumentProfileEngine()
+        position_sizing_engine.maximum_contracts = runtime_context.execution_manager.maximum_contracts
+        position_sizing_engine.contract_limit_resolver = runtime_context.execution_manager.get_contract_limit
 
         exposure_manager_v2 = ExposureManagerV2(
             maximum_total_open_risk=(
@@ -1555,7 +1445,6 @@ def create_app(
             maximum_total_contracts=None,
             maximum_symbol_contracts=None,
         )
-
         portfolio_risk_engine_v2 = (
             PortfolioRiskEngineV2(
                 maximum_total_open_risk=(
@@ -1580,7 +1469,6 @@ def create_app(
                 ),
             )
         )
-
         order_validation_engine_v2 = (
             OrderValidationEngineV2(
                 minimum_reward_risk_ratio=(
@@ -1601,104 +1489,9 @@ def create_app(
             )
         )
 
-        multi_account_risk_engine_v2 = (
-            MultiAccountRiskEngineV2(
-                account_manager=(
-                    account_config_manager_v2
-                ),
-            )
-        )
-
-        trade_risk_validator_v2 = (
-            TradeRiskValidatorV2(
-                risk_engine=(
-                    multi_account_risk_engine_v2
-                ),
-            )
-        )
-
-        execution_risk_gate_v1 = (
-            ExecutionRiskGateV1(
-                validator=(
-                    trade_risk_validator_v2
-                ),
-                logger=risk_event_logger_v1,
-            )
-        )
-
-        trade_lifecycle_service_v2 = (
-            TradeLifecycleServiceV2(
-                execution_manager=(
-                    ExecutionManagerV2(
-                        execution_mode="PAPER",
-                        maximum_contracts=(
-                            active_runtime_contract_limit
-                        ),
-                        contract_limit_resolver=(
-                            resolve_active_contract_limit
-                        ),
-                    )
-                ),
-                paper_execution_engine=(
-                    PaperExecutionEngineV2(
-                        fill_market_orders_immediately=(
-                            settings.paper_execution_fill_market_orders_immediately
-                        ),
-                        slippage_points=(
-                            settings.paper_execution_slippage_points
-                        ),
-                    )
-                ),
-                position_manager=(
-                    PositionManagerV2(
-                        point_value=float(
-                            instrument_profile_engine.get_profile(
-                                symbol="MNQ",
-                            )["point_value"]
-                        ),
-                        instrument_profile_engine=(
-                            instrument_profile_engine
-                        ),
-                    )
-                ),
-                instrument_profile_engine=(
-                    instrument_profile_engine
-                ),
-                trade_history_manager=(
-                    TradeHistoryManagerV2()
-                ),
-                performance_analytics=(
-                    PerformanceAnalyticsV2(
-                        risk_free_rate=0.0,
-                        trading_days_per_year=252,
-                    )
-                ),
-                risk_manager_v2=(
-                    risk_manager_v2
-                ),
-                order_validation_engine_v2=(
-                    order_validation_engine_v2
-                ),
-                exposure_manager_v2=(
-                    exposure_manager_v2
-                ),
-                portfolio_risk_engine_v2=(
-                    portfolio_risk_engine_v2
-                ),
-                execution_risk_gate_v1=(
-                    execution_risk_gate_v1
-                ),
-                portfolio_manager_v2=(
-                    portfolio_manager_v2
-                ),
-                trade_journal_v2=(
-                    trade_journal_v2
-                ),
-                starting_balance=(
-                    active_starting_balance
-                ),
-            )
-        )
+        trade_lifecycle_service_v2.exposure_manager_v2 = exposure_manager_v2
+        trade_lifecycle_service_v2.portfolio_risk_engine_v2 = portfolio_risk_engine_v2
+        trade_lifecycle_service_v2.order_validation_engine_v2 = order_validation_engine_v2
 
     if trade_lifecycle_service_v2 is None:
         raise RuntimeError(
@@ -2322,7 +2115,7 @@ def create_app(
         runtime_context.account_switch_safety_v2
         if runtime_context is not None else None
     )
-    if builds_account_runtime:
+    if builds_account_runtime and switch_safety is None:
         switch_store = ExecutionStateStoreV2(
             trade_lifecycle_service=trade_lifecycle_service_v2,
             protective_order_registry=trade_lifecycle_service_v2.protective_order_registry_v2,

@@ -163,7 +163,10 @@ def test_backtest_uses_dynamic_point_value_authority() -> None:
 def test_api_app_does_not_hardcode_point_value(
     target_call: str,
 ) -> None:
-    records = _point_value_calls(APP_PATH)
+    # Operational positions moved to the canonical factory; the API's PnL
+    # projection remains local and both must keep dynamic instrument authority.
+    path = RUNTIME_CONTEXT_PATH if target_call == "PositionManagerV2" else APP_PATH
+    records = _point_value_calls(path)
 
     target_records = [
         (line, value)
@@ -172,7 +175,7 @@ def test_api_app_does_not_hardcode_point_value(
     ]
 
     assert target_records, (
-        f"{target_call} debe existir en app.py"
+        f"{target_call} debe existir en {path}"
     )
 
     literal_records = [

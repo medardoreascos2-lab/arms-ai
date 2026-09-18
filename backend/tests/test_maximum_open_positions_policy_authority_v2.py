@@ -111,32 +111,13 @@ def test_account_risk_guard_uses_settings_authority() -> None:
 
 
 def test_live_risk_manager_uses_settings_authority() -> None:
-    source = _source(
-        APP_PATH
-    )
+    calls = _calls_named(_source(APP_PATH), "build_runtime_context")
+    assert len(calls) == 1
+    assert _keyword_expression(calls[0], "api_settings") == "settings"
+    calls = _calls_named(_source(Path("backend/services/runtime_context_v2.py")), "RiskManagerV2")
+    assert len(calls) == 1
+    assert _keyword_expression(calls[0], "maximum_open_positions") == "api_settings.maximum_open_positions"
 
-    calls = _calls_named(
-        source,
-        "RiskManagerV2",
-    )
-
-    matching = []
-
-    for call in calls:
-        expression = _keyword_expression(
-            call,
-            "maximum_open_positions",
-        )
-
-        if expression is not None:
-            matching.append(
-                expression
-            )
-
-    assert (
-        "settings.maximum_open_positions"
-        in matching
-    )
 
 
 def test_app_has_no_literal_maximum_open_positions_authority() -> None:

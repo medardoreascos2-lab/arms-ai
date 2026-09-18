@@ -42,7 +42,7 @@ def _paper_execution_slippage_sources() -> list[str]:
         else:
             continue
 
-        if name != "PaperExecutionEngineV2":
+        if name != "build_runtime_context":
             continue
 
         for keyword in node.keywords:

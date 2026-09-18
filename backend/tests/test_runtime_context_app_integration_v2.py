@@ -103,28 +103,14 @@ def test_create_app_preserves_context_portfolio_dependencies():
     )
 
 
-def test_create_app_without_context_preserves_old_behavior():
+def test_create_app_without_context_builds_canonical_runtime():
     app = create_app()
+    context = app.state.runtime_context_v2
+    assert context is not None
+    assert app.state.trade_lifecycle_service_v2 is context.trade_lifecycle_service
+    assert app.state.execution_manager_v2 is context.execution_manager
+    assert app.state.paper_execution_engine_v2 is context.paper_execution_engine
 
-    assert (
-        app.state.runtime_context_v2
-        is None
-    )
-
-    assert (
-        app.state.trade_lifecycle_service_v2
-        is not None
-    )
-
-    assert (
-        app.state.execution_manager_v2
-        is not None
-    )
-
-    assert (
-        app.state.paper_execution_engine_v2
-        is not None
-    )
 
 
 def test_create_app_rejects_invalid_runtime_context():

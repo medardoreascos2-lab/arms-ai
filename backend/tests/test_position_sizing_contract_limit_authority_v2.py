@@ -48,7 +48,7 @@ def _runtime_limit_assignment() -> ast.Assign:
             if (
                 isinstance(target, ast.Name)
                 and target.id
-                == "active_runtime_contract_limit"
+                == "runtime_context"
             ):
                 matches.append(node)
 
@@ -72,9 +72,8 @@ def _position_sizing_runtime_assignment() -> ast.Assign:
                 == "position_sizing_engine"
                 and target.attr
                 == "maximum_contracts"
-                and isinstance(node.value, ast.Name)
-                and node.value.id
-                == "active_runtime_contract_limit"
+                and ast.unparse(node.value)
+                == "runtime_context.execution_manager.maximum_contracts"
             ):
                 matches.append(node)
 
@@ -148,7 +147,7 @@ def test_runtime_consumers_share_active_contract_limit_authority():
 
     found = set()
 
-    for node in ast.walk(_tree()):
+    for node in ast.walk(ast.parse(Path("backend/services/runtime_context_v2.py").read_text(encoding="utf-8"))):
         if not isinstance(node, ast.Call):
             continue
 
@@ -176,7 +175,7 @@ def test_runtime_consumers_share_active_contract_limit_authority():
 
         assert (
             value.id
-            == "active_runtime_contract_limit"
+            == "resolved_maximum_contracts"
         )
 
         found.add(name)

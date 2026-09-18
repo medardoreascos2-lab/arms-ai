@@ -107,6 +107,7 @@ class RuntimeContextV2:
 def build_runtime_context(
     *,
     settings: ArmsSettings | None = None,
+    api_settings: APISettings | None = None,
     account_manager=None,
     account_id: str | None = None,
     runtime_generation: int = 1,
@@ -123,7 +124,7 @@ def build_runtime_context(
     )
 
     resolved_settings = settings or ArmsSettings()
-    api_settings = APISettings()
+    api_settings = api_settings or APISettings()
 
     from backend.accounts.account_config_manager_v2 import (
         AccountConfigManagerV2,
