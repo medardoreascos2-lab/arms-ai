@@ -1,6 +1,7 @@
 from dataclasses import asdict, is_dataclass
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from backend.api.schemas.market import MarketPriceRequest
 
 
 from backend.intelligence.technical_intelligence_adapter import (
@@ -484,31 +485,18 @@ def execution_pipeline_v3(request: Request):
     "/market-price"
 )
 def market_price_v3(
-    payload: dict,
+    payload: MarketPriceRequest,
     request: Request,
 ):
 
 
 
-    result = (
-        request.app.state
-        .price_feed_service_v2
-        .process_price(
-            symbol=payload.get(
-                "symbol",
-                "NQ",
-            ),
-            current_price=float(
-                payload.get(
-                    "price"
-                )
-            ),
-            source=payload.get(
-                "source",
-                "MANUAL",
-            ),
-        )
+    feed = getattr(request.app.state, "price_feed_service_v2", None)
+    if feed is None:
+        raise HTTPException(status_code=503, detail="price_feed_unavailable")
+    return feed.process_price(
+        symbol=payload.symbol,
+        current_price=payload.price,
+        source=payload.source,
+        timestamp=payload.timestamp,
     )
-
-
-    return result

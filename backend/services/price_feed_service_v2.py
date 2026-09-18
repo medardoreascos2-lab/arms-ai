@@ -151,7 +151,7 @@ class PriceFeedServiceV2:
             current_price
         )
 
-        if normalized_price <= 0:
+        if not isfinite(normalized_price) or normalized_price <= 0:
             raise ValueError(
                 "current_price debe ser "
                 "mayor que cero."

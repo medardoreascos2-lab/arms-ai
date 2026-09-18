@@ -291,7 +291,7 @@ def test_market_webhook_does_not_analyze_before_minimum():
     assert analysis is None
 
 
-def test_webhook_monitors_open_position():
+def test_legacy_owner_rejected_before_webhook_monitors_open_position():
     from datetime import (
         datetime,
         timezone,
@@ -337,6 +337,7 @@ def test_webhook_monitors_open_position():
         )
     )
 
+    before = position_manager.get_open_position(symbol="NQ", timeframe="5m")
     response = client.post(
         "/market/webhook",
         headers={
@@ -360,39 +361,14 @@ def test_webhook_monitors_open_position():
             ).isoformat(),
         },
     )
-
-    assert response.status_code == 201
-
-    body = response.json()
-
-    assert "position_monitor" in body
-    assert (
-        body["position_monitor"]["status"]
-        == "CLOSED"
-    )
-    assert (
-        body["position_monitor"]["close_reason"]
-        == "TAKE_PROFIT"
-    )
-
-    assert (
-        position_manager.get_open_position(
-            symbol="NQ",
-            timeframe="5m",
-        )
-        is None
-    )
-
-    history = trade_history_store.get_history(
-        symbol="NQ",
-        timeframe="5m",
-        limit=10,
-    )
-
-    assert len(history) == 1
+    assert response.status_code == 503
+    assert response.json()["detail"] == "legacy_position_ownership_unavailable"
+    assert position_manager.get_open_position(symbol="NQ", timeframe="5m") == before
+    assert client.app.state.trade_history_store.get_history(symbol="NQ", timeframe="5m", limit=10) == []
+    assert client.app.state.live_candle_store.count(symbol="NQ", timeframe="5m") == 0
 
 
-def test_webhook_keeps_position_open_when_levels_not_reached():
+def test_legacy_owner_rejected_before_webhook_keeps_position_open_when_levels_not_reached():
     from datetime import (
         datetime,
         timezone,
@@ -433,6 +409,7 @@ def test_webhook_keeps_position_open_when_levels_not_reached():
         )
     )
 
+    before = position_manager.get_open_position(symbol="NQ", timeframe="5m")
     response = client.post(
         "/market/webhook",
         headers={
@@ -456,27 +433,14 @@ def test_webhook_keeps_position_open_when_levels_not_reached():
             ).isoformat(),
         },
     )
-
-    assert response.status_code == 201
-
-    body = response.json()
-
-    assert "position_monitor" in body
-    assert (
-        body["position_monitor"]["status"]
-        == "OPEN"
-    )
-
-    assert (
-        position_manager.get_open_position(
-            symbol="NQ",
-            timeframe="5m",
-        )
-        is not None
-    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "legacy_position_ownership_unavailable"
+    assert position_manager.get_open_position(symbol="NQ", timeframe="5m") == before
+    assert client.app.state.trade_history_store.get_history(symbol="NQ", timeframe="5m", limit=10) == []
+    assert client.app.state.live_candle_store.count(symbol="NQ", timeframe="5m") == 0
 
 
-def test_webhook_executes_partial_take_profit():
+def test_legacy_owner_rejected_before_webhook_executes_partial_take_profit():
     from datetime import (
         datetime,
         timezone,
@@ -522,6 +486,7 @@ def test_webhook_executes_partial_take_profit():
         )
     )
 
+    before = position_manager.get_open_position(symbol="NQ", timeframe="5m")
     response = client.post(
         "/market/webhook",
         headers={
@@ -545,56 +510,14 @@ def test_webhook_executes_partial_take_profit():
             ).isoformat(),
         },
     )
-
-    assert response.status_code == 201
-
-    body = response.json()
-
-    management = body["position_monitor"]
-
-    assert (
-        management["partial_take_profit"][
-            "executed"
-        ]
-        is True
-    )
-    assert (
-        management["partial_take_profit"][
-            "contracts_closed"
-        ]
-        == 1
-    )
-    assert (
-        management["partial_take_profit"][
-            "contracts_remaining"
-        ]
-        == 1
-    )
-    assert (
-        management["partial_take_profit"][
-            "realized_pnl"
-        ]
-        == 600.0
-    )
-
-    position = position_manager.get_open_position(
-        symbol="NQ",
-        timeframe="5m",
-    )
-
-    assert position is not None
-    assert position["contracts"] == 1
-
-    history = trade_history_store.get_history(
-        symbol="NQ",
-        timeframe="5m",
-        limit=10,
-    )
-
-    assert history == []
+    assert response.status_code == 503
+    assert response.json()["detail"] == "legacy_position_ownership_unavailable"
+    assert position_manager.get_open_position(symbol="NQ", timeframe="5m") == before
+    assert client.app.state.trade_history_store.get_history(symbol="NQ", timeframe="5m", limit=10) == []
+    assert client.app.state.live_candle_store.count(symbol="NQ", timeframe="5m") == 0
 
 
-def test_webhook_includes_exit_decision_recommendation():
+def test_legacy_owner_rejected_before_webhook_includes_exit_decision_recommendation():
     from datetime import (
         datetime,
         timezone,
@@ -635,6 +558,7 @@ def test_webhook_includes_exit_decision_recommendation():
         )
     )
 
+    before = position_manager.get_open_position(symbol="NQ", timeframe="5m")
     response = client.post(
         "/market/webhook",
         headers={
@@ -660,25 +584,14 @@ def test_webhook_includes_exit_decision_recommendation():
             "adverse_structure": False,
         },
     )
-
-    assert response.status_code == 201
-
-    body = response.json()
-
-    management = body["position_monitor"]
-
-    assert "exit_decision" in management
-    assert (
-        management["exit_decision"]["decision"]
-        == "HOLD"
-    )
-    assert (
-        management["exit_decision"]["reason"]
-        == "Momentum favorable"
-    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "legacy_position_ownership_unavailable"
+    assert position_manager.get_open_position(symbol="NQ", timeframe="5m") == before
+    assert client.app.state.trade_history_store.get_history(symbol="NQ", timeframe="5m", limit=10) == []
+    assert client.app.state.live_candle_store.count(symbol="NQ", timeframe="5m") == 0
 
 
-def test_webhook_returns_exit_recommendation_without_closing():
+def test_legacy_owner_rejected_before_webhook_returns_exit_recommendation_without_closing():
     from datetime import (
         datetime,
         timezone,
@@ -719,6 +632,7 @@ def test_webhook_returns_exit_recommendation_without_closing():
         )
     )
 
+    before = position_manager.get_open_position(symbol="NQ", timeframe="5m")
     response = client.post(
         "/market/webhook",
         headers={
@@ -744,27 +658,14 @@ def test_webhook_returns_exit_recommendation_without_closing():
             "adverse_structure": True,
         },
     )
-
-    assert response.status_code == 201
-
-    body = response.json()
-
-    management = body["position_monitor"]
-
-    assert (
-        management["exit_decision"]["decision"]
-        == "EXIT"
-    )
-
-    position = position_manager.get_open_position(
-        symbol="NQ",
-        timeframe="5m",
-    )
-
-    assert position is not None
+    assert response.status_code == 503
+    assert response.json()["detail"] == "legacy_position_ownership_unavailable"
+    assert position_manager.get_open_position(symbol="NQ", timeframe="5m") == before
+    assert client.app.state.trade_history_store.get_history(symbol="NQ", timeframe="5m", limit=10) == []
+    assert client.app.state.live_candle_store.count(symbol="NQ", timeframe="5m") == 0
 
 
-def test_market_webhook_nq_stop_close_uses_instrument_point_value():
+def test_legacy_owner_rejected_before_market_webhook_nq_stop_close_uses_instrument_point_value():
     from datetime import (
         datetime,
         timezone,
@@ -813,6 +714,7 @@ def test_market_webhook_nq_stop_close_uses_instrument_point_value():
         )
     )
 
+    before = position_manager.get_open_position(symbol="NQ", timeframe="5m")
     response = client.post(
         "/market/webhook",
         headers={
@@ -836,37 +738,11 @@ def test_market_webhook_nq_stop_close_uses_instrument_point_value():
             ).isoformat(),
         },
     )
-
-    assert response.status_code == 201
-
-    body = response.json()
-
-    assert body["position_monitor"]["status"] == "CLOSED"
-    assert (
-        body["position_monitor"]["close_reason"]
-        == "STOP_LOSS"
-    )
-
-    history = trade_history_store.get_history(
-        symbol="NQ",
-        timeframe="5m",
-        limit=10,
-    )
-
-    assert len(history) == 1
-
-    closed_trade = history[0]
-
-    assert closed_trade["symbol"] == "NQ"
-    assert closed_trade["contracts"] == 1
-    assert closed_trade["entry_price"] == 20000.0
-    assert closed_trade["exit_price"] == 19990.0
-    assert closed_trade["pnl_points"] == -10.0
-
-    # Institutional NQ contract:
-    # $20 per point.
-    # -10 points * 1 contract * $20 = -$200.
-    assert closed_trade["pnl"] == -200.0
+    assert response.status_code == 503
+    assert response.json()["detail"] == "legacy_position_ownership_unavailable"
+    assert position_manager.get_open_position(symbol="NQ", timeframe="5m") == before
+    assert client.app.state.trade_history_store.get_history(symbol="NQ", timeframe="5m", limit=10) == []
+    assert client.app.state.live_candle_store.count(symbol="NQ", timeframe="5m") == 0
 
 def test_market_webhook_unsupported_symbol_preserves_manual_point_value_fallback():
     from datetime import (

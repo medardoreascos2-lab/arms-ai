@@ -1,4 +1,5 @@
 from secrets import compare_digest
+from datetime import datetime, timezone
 
 from fastapi import (
     APIRouter,
@@ -25,12 +26,6 @@ from backend.execution.execution_decision_engine import (
 )
 from backend.execution.position_manager import (
     PositionManager,
-)
-from backend.execution.exit_decision_engine import (
-    ExitDecisionEngine,
-)
-from backend.execution.trade_management_engine import (
-    TradeManagementEngine,
 )
 from backend.execution.signal_execution_manager import (
     SignalExecutionManager,
@@ -225,51 +220,12 @@ def receive_market_webhook(
         request
     )
 
+    # A disconnected legacy position cannot be safely settled by this ingress.
+    # Operational prices belong to the canonical feed/lifecycle below.
+    if position_manager.get_open_position(symbol=candle.symbol, timeframe=candle.timeframe) is not None:
+        raise HTTPException(status_code=503, detail="legacy_position_ownership_unavailable")
+
     store.add(candle)
-
-    trade_history_store = (
-        get_trade_history_store(
-            request
-        )
-    )
-
-    trade_management_engine = (
-        TradeManagementEngine(
-            position_manager=position_manager,
-            trade_history_store=(
-                trade_history_store
-            ),
-            point_value=_resolve_trade_management_point_value(candle.symbol),
-            break_even_trigger_points=20.0,
-            break_even_offset_points=0.0,
-            trailing_activation_points=30.0,
-            trailing_distance_points=20.0,
-            partial_trigger_points=30.0,
-            partial_contracts_to_close=1,
-            exit_decision_engine=ExitDecisionEngine(
-                hold_momentum_threshold=0.30,
-                exit_momentum_threshold=-0.30,
-                protect_min_profit_points=10.0,
-            ),
-        )
-    )
-
-    position_monitor_result = (
-        trade_management_engine.evaluate_candle(
-            symbol=candle.symbol,
-            timeframe=candle.timeframe,
-            high=candle.high,
-            low=candle.low,
-            close=candle.close,
-            evaluated_at=candle.timestamp,
-            directional_momentum=(
-                payload.directional_momentum
-            ),
-            adverse_structure=(
-                payload.adverse_structure
-            ),
-        )
-    )
 
     trend_result = (
         request.app.state
@@ -507,15 +463,10 @@ def receive_market_webhook(
         )
     )
 
-    if (
-        isinstance(
-            position_monitor_result,
-            dict,
-        )
-    ):
-        position_monitor_result[
-            "live_position_monitor"
-        ] = monitor_result
+    position_monitor_result = {
+        "status": "PROCESSED" if monitor_result is not None else "UNAVAILABLE",
+        "live_position_monitor": monitor_result,
+    }
 
     return {
         "status": "stored",
@@ -767,7 +718,21 @@ def get_latest_market_analysis(
             ),
         )
 
-    return analysis
+    return {**analysis, "market_data": _market_snapshot_availability(request, symbol)}
+
+
+def _market_snapshot_availability(request: Request, symbol: str) -> dict[str, object]:
+    # Cached analysis/signal values are historical snapshots. Only the existing
+    # runtime spread authority can certify that a supplied L1 quote is current.
+    authority = getattr(request.app.state, "runtime_spread_authority_v2", None)
+    if authority is None:
+        return {"status": "UNAVAILABLE", "snapshot_only": True,
+                "reason": "runtime quote authority is unavailable"}
+    try:
+        authority.get_spread_points(symbol=symbol, now=datetime.now(timezone.utc))
+    except (RuntimeError, ValueError) as exc:
+        return {"status": "UNAVAILABLE", "snapshot_only": True, "reason": str(exc)}
+    return {"status": "AVAILABLE", "snapshot_only": True, "reason": None}
 
 
 def get_execution_decision_engine(
@@ -964,7 +929,7 @@ def get_latest_market_signal(
             ),
         )
 
-    return signal
+    return {**signal, "market_data": _market_snapshot_availability(request, symbol)}
 
 
 @router.get("/signals")

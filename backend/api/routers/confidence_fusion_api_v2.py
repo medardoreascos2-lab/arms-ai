@@ -47,6 +47,9 @@ def confidence_fusion_dashboard():
 
 
     return {
+        "market_data": {
+            "status": "UNAVAILABLE", "source": "DEMONSTRATION", "snapshot_only": True,
+        },
 
 
         "technical_score":

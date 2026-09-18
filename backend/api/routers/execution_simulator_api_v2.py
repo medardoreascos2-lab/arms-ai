@@ -40,6 +40,9 @@ def execution_simulator_dashboard():
 
 
     return {
+        "market_data": {
+            "status": "UNAVAILABLE", "source": "DEMONSTRATION", "snapshot_only": True,
+        },
 
         "status": result.status,
 

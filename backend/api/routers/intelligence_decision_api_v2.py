@@ -113,6 +113,9 @@ def intelligence_decision_dashboard():
 
 
     return {
+        "market_data": {
+            "status": "UNAVAILABLE", "source": "DEMONSTRATION", "snapshot_only": True,
+        },
 
 
         "symbol":

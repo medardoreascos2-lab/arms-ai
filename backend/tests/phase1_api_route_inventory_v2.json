@@ -910,7 +910,7 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "a9eaf6f7365befc3cb5fc967468c1c378eaccb055e201ed642882b3f7fcc4579",
+      "source_sha256": "01f49aa17cd655e2e25d2c9638f2d20b54f694ecfb8d3b99a09bf0ef0b9e4398",
       "state_fields": [],
       "calls": [
         "engine.calculate"
@@ -991,7 +991,7 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "3a37bb686629a5d24ce3c2dba759d49d565526cf56f06c7a98d3ef4fadc9ff33",
+      "source_sha256": "ddacbbc5186b79fb7d4c8230d95dde2ac201582a9381bd91df90b4ee0b02cb3d",
       "state_fields": [],
       "calls": [
         "engine.simulate_execution"
@@ -1016,7 +1016,7 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "43c6e462ca3e1d90b50c4c97eb328cf2cb2195b12bcef621bfe601655b07b7a4",
+      "source_sha256": "0e96ecd4ece561ecbca5665634b6f08ba4cded329bbfacb709597a2480c3fb2e",
       "state_fields": [],
       "calls": [
         "orchestrator.analyze",
@@ -1204,7 +1204,7 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "ad95486890c0d3835cf045eb2438cf607f8a82200164f11bb1b634980d56e26d",
+      "source_sha256": "65ba1303a81ba48dc9691b152d4ccc603ca262d5cbc14f45db905b435c737e3f",
       "state_fields": [],
       "calls": [
         "TradeSetupEngine",
@@ -1824,14 +1824,14 @@
       "transport": "HTTP",
       "canonical_admin_dependency": true,
       "closure_owners": {},
-      "source_sha256": "d0cb21dfca12115d65b73ab76ceaad379d56ff2847a3cecc0d4b0c8d3965bb08",
+      "source_sha256": "3e95b9b77fb1f2463484ac5880988e8b2affd42b4f221cae71b438bb73a68650",
       "state_fields": [
         "price_feed_service_v2"
       ],
       "calls": [
-        "float",
-        "payload.get",
-        "request.app.state.price_feed_service_v2.process_price"
+        "HTTPException",
+        "feed.process_price",
+        "getattr"
       ],
       "classification": "EXECUTION_BOUNDARY",
       "authorization": "ADMIN",
@@ -2023,17 +2023,23 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "a865fb3fcc806a12faf3960a33a74d9fad6e3c6684c9aec0fd2f8d8eae3c9331",
+      "source_sha256": "094e8dd19e1f652d618f53239d1c2770c239e056d4c520927b8e92ca8a998e8f",
       "state_fields": [
-        "live_analysis_store"
+        "live_analysis_store",
+        "runtime_spread_authority_v2"
       ],
       "calls": [
         "HTTPException",
         "Query",
         "RuntimeError",
+        "_market_snapshot_availability",
         "analysis_store.get_latest",
+        "authority.get_spread_points",
+        "datetime.now",
         "get_live_analysis_store",
-        "isinstance"
+        "getattr",
+        "isinstance",
+        "str"
       ],
       "classification": "ACCOUNT_OBSERVATIONAL",
       "authorization": "NONE_JUSTIFIED",
@@ -2055,17 +2061,23 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "eb5e0f4e7da97e180a87265abd2a3ef544bfebd9a9dc78dbf560c727b9eac964",
+      "source_sha256": "d2c7cc906a6f7a25cdc95c1a5281c44ae7e9334f7aecc830fa9dda6c8d585669",
       "state_fields": [
-        "live_signal_store"
+        "live_signal_store",
+        "runtime_spread_authority_v2"
       ],
       "calls": [
         "HTTPException",
         "Query",
         "RuntimeError",
+        "_market_snapshot_availability",
+        "authority.get_spread_points",
+        "datetime.now",
         "get_live_signal_store",
+        "getattr",
         "isinstance",
-        "signal_store.get_latest"
+        "signal_store.get_latest",
+        "str"
       ],
       "classification": "ACCOUNT_OBSERVATIONAL",
       "authorization": "NONE_JUSTIFIED",
@@ -2263,7 +2275,7 @@
       "transport": "HTTP",
       "canonical_admin_dependency": false,
       "closure_owners": {},
-      "source_sha256": "51cee7a39eec626d2a75abfd27c5e2d98076952a7902fcfbad70f4ef1cdd552b",
+      "source_sha256": "233701dbab974482184fd297d0382d7020b8ecd8b715110e8177d9864653b437",
       "state_fields": [
         "account_config_manager_v2",
         "account_risk_guard",
@@ -2301,14 +2313,12 @@
       ],
       "calls": [
         "Candle",
-        "ExitDecisionEngine",
         "HTTPException",
         "Header",
         "InstrumentProfileEngine",
         "InstrumentProfileEngine().get_profile",
         "LiveMarketAnalysisService",
         "RuntimeError",
-        "TradeManagementEngine",
         "_resolve_trade_management_point_value",
         "candle.timestamp.isoformat",
         "compare_digest",
@@ -2329,6 +2339,7 @@
         "market_data_result.get",
         "payload.symbol.strip",
         "payload.timeframe.strip",
+        "position_manager.get_open_position",
         "price_feed_result.get",
         "request.app.state.account_config_manager_v2.get_active_account",
         "request.app.state.market_data_hub_v2.process_market_price",
@@ -2338,14 +2349,13 @@
         "service.can_analyze",
         "store.add",
         "store.count",
-        "str",
-        "trade_management_engine.evaluate_candle"
+        "str"
       ],
       "classification": "EXECUTION_BOUNDARY",
       "authorization": "OTHER_CANONICAL",
       "account_scope": "ACTIVE_RUNTIME",
       "mutation": "EXECUTION",
-      "owner": "LiveMarketAnalysisService -> TradeLifecycleServiceV2; MarketDataHubV2 -> PriceFeedServiceV2 -> lifecycle; legacy TradeManagementEngine compatibility path",
+      "owner": "LiveMarketAnalysisService -> TradeLifecycleServiceV2; MarketDataHubV2 -> PriceFeedServiceV2 -> canonical lifecycle; disconnected legacy positions rejected before writes",
       "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
       "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
       "account_switch_effect": "NEW_PUBLISHED_APPLICATION",

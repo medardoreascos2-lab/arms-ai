@@ -32,6 +32,9 @@ def trade_setup_dashboard():
 
 
     return {
+        "market_data": {
+            "status": "UNAVAILABLE", "source": "DEMONSTRATION", "snapshot_only": True,
+        },
 
         "symbol": setup.symbol,
 

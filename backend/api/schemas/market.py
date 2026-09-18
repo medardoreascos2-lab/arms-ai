@@ -1,7 +1,10 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import (
     BaseModel,
+    AwareDatetime,
+    FiniteFloat,
     Field,
     field_validator,
     model_validator,
@@ -135,3 +138,11 @@ class MarketQuoteRequest(BaseModel):
         gt=0,
     )
     timestamp: datetime
+
+
+class MarketPriceRequest(BaseModel):
+    """An explicit operational observation, never an untimestamped fallback."""
+    symbol: str = Field(min_length=1)
+    price: FiniteFloat = Field(gt=0)
+    timestamp: AwareDatetime
+    source: Literal["TRADINGVIEW", "TRADINGVIEW_WEBHOOK", "BROKER", "MARKET_WEBHOOK"] = "MARKET_WEBHOOK"
