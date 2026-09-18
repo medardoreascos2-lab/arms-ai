@@ -6451,18 +6451,24 @@
       "path": "backend/strategies/parameterized_strategy_runner_v2.py",
       "function": "ParameterizedStrategyRunnerV2.run",
       "input": "self, context",
-      "source_sha256": "5ccb608c27abe9ea302124e7025f6464f63455e783c34d389c0c63dd22f7453b",
+      "source_sha256": "dd2fee9bf7f580c6140fba6ac650013719f138a31ce05c582c8ecf578a22be36",
       "writes": [
         "self.position_state"
       ],
       "calls": [
         "EMAEngine",
+        "SimpleNamespace",
         "TradingDecisionV2",
+        "_estimate_volume_score",
+        "bool",
         "candle.get",
         "context.get",
         "ema_engine.calculate",
         "float",
         "len",
+        "list",
+        "max",
+        "min",
         "self.confluence_engine.evaluate",
         "self.market_structure_engine.analyze",
         "self.position_filter.evaluate",
@@ -6470,7 +6476,8 @@
         "self.signal_controller.evaluate",
         "self.signal_controller.register_trade",
         "self.trade_quality_engine.evaluate",
-        "self.trend_context_engine.analyze"
+        "self.trend_context_engine.analyze",
+        "str"
       ],
       "output_fields": [
         "confluence_score",

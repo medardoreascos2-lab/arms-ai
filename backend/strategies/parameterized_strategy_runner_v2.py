@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from backend.indicators.ema_engine import EMAEngine
 
 from backend.market_structure.market_structure_engine_v3 import (
@@ -34,6 +36,47 @@ from backend.strategies.trading_strategy_v2 import (
     TradingActionV2,
     TradingDecisionV2,
 )
+
+
+def _estimate_volume_score(history) -> float:
+    """Real (non-fabricated) volume score: latest candle vs trailing average.
+
+    Returns a neutral 0.5 when volume data is unavailable instead of
+    inventing a value.
+    """
+
+    volumes: list[float] = []
+
+    for item in history[-20:]:
+        raw_volume = (
+            item.get("volume")
+            if isinstance(item, dict)
+            else getattr(item, "volume", None)
+        )
+
+        if raw_volume is None:
+            continue
+
+        try:
+            volumes.append(float(raw_volume))
+        except (TypeError, ValueError):
+            continue
+
+    if len(volumes) < 2:
+        return 0.5
+
+    average_volume = sum(volumes[:-1]) / len(volumes[:-1])
+
+    if average_volume <= 0:
+        return 0.5
+
+    return max(
+        0.0,
+        min(
+            1.0,
+            volumes[-1] / average_volume / 2.0,
+        ),
+    )
 
 
 class ParameterizedStrategyRunnerV2:
@@ -310,24 +353,59 @@ class ParameterizedStrategyRunnerV2:
         )
 
 
-        momentum = False
+        # Canonical ConfluenceEngineV2 contract (see backend/services/
+        # live_market_analysis_service.py._evaluate_confluence_v2 for the
+        # authoritative live caller); translated here from the real signals
+        # already computed above. Liquidity/FVG/market-regime detection are
+        # not wired into this offline walk-forward runner, so those three
+        # components use an honest neutral 0.5 rather than a fabricated value.
+        trend_score = (
+            1.0
+            if trend_context.allowed_direction in ("LONG", "SHORT")
+            else 0.50
+        )
 
+        structure_score = max(
+            0.0,
+            min(
+                1.0,
+                float(market_structure.score) / 100.0,
+            ),
+        )
 
-        if len(prices) >= 3:
+        ema_alignment_score = 1.0 if ema_alignment else 0.0
 
-            momentum = (
-                entry_price > prices[-3]
-                or entry_price < prices[-3]
-            )
+        probability_score = max(
+            0.0,
+            min(
+                1.0,
+                max(bullish_score, bearish_score) / 100.0,
+            ),
+        )
 
+        volume_score = _estimate_volume_score(history)
 
-        confluence = (
+        confluence_payload = (
             self.confluence_engine.evaluate(
-                trend_context=trend_context,
-                market_structure=market_structure,
-                ema_alignment=ema_alignment,
-                momentum=momentum,
+                trend_score=trend_score,
+                structure_score=structure_score,
+                liquidity_score=0.5,
+                fvg_score=0.5,
+                ema_alignment_score=ema_alignment_score,
+                market_regime_score=0.5,
+                probability_score=probability_score,
+                volume_score=volume_score,
+                risk_approved=True,
+                sizing_approved=True,
+                market_tradable=True,
             )
+        )
+
+        confluence = SimpleNamespace(
+            allowed=bool(confluence_payload["approved"]),
+            score=float(confluence_payload["score"]),
+            grade=str(confluence_payload["grade"]),
+            reasons=list(confluence_payload["blocking_reasons"]),
         )
 
 

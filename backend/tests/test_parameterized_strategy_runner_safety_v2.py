@@ -61,6 +61,7 @@ def install_common_fakes(
             structure="HH_HL",
             bos=True,
             choch=choch,
+            score=100,
         )
     )
 
@@ -72,16 +73,16 @@ def install_common_fakes(
         )
     )
 
+    # Canonical ConfluenceEngineV2.evaluate() contract: a plain dict with
+    # approved/score/grade/blocking_reasons (see confluence_engine_v2.py).
     runner.confluence_engine.evaluate = (
         lambda **kwargs:
-        SimpleNamespace(
-            allowed=True,
-            score=100,
-            grade="A+",
-            reasons=[
-                "TEST A+",
-            ],
-        )
+        {
+            "approved": True,
+            "score": 100,
+            "grade": "A+",
+            "blocking_reasons": [],
+        }
     )
 
     runner.trade_quality_engine.evaluate = (
