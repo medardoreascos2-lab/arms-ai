@@ -933,3 +933,55 @@ credential change, product release or destructive consolidation is authorized.
 **Supersedes:** DEC-0018's current non-closure disposition and V8 scope stop,
 under the explicit V8.1 integration authorization. Retains all historical RED
 observations and prior valid scoped certifications.
+
+
+---
+
+### DEC-0020 — Record Phase 2 MVP integration gaps without reopening Phase 1
+
+**Date:** 2026-09-18
+**Status:** Approved audit reporting under V9; follow-up implementation proposed
+**Area:** PAPER MVP scope, integration and acceptance
+
+**Context**
+
+The synchronized V8.1 baseline `25280bdfbc01156cc027b5dd1955eb20107317a5`
+certifies Phase 1. Actual application probes expose disconnected candle/analysis
+routes and browser mutation/WebSocket authorization. Existing component tests
+and intentionally simulated PAPER fills do not prove operational market input,
+generated account-bound candidates or the complete browser/restart workflow.
+
+**Decision**
+
+Adopt the [V9 inventory and execution plan](../architecture/phase2_mvp_remaining_gap_audit_v9.md):
+30 audited groups, 24 mandatory, 14 certified within their named boundaries;
+58% capability completion; four P0, five P1 and one P2 gaps. Keep all existing
+risk, current certified hours/news and account restrictions. Defer research
+platform expansion, regional overlays, scheduled report delivery, mobile and
+LIVE capabilities beyond this MVP. Configured intelligence checks still apply.
+
+**Reason**
+
+These are cross-module product integration gaps, not small local audit fixes.
+Three packages connect canonical market-to-candidate, authorized browser
+projection, then reproducible operational acceptance. No paid provider has been
+selected; existing HTTP inputs and local replay avoid inventing an external
+credential requirement. Source provenance remains mandatory.
+
+**Consequences**
+
+PHASE1_STATUS=CLOSED; MVP_READY=false. V9 changes tests and documentation only.
+Full backend: 5,514 passed, zero failed, one unchanged skip. Frontend lint/build
+and six tests pass; four pre-existing lint warnings remain. No complete browser
+PAPER smoke or empirical strategy certification is claimed. Implement the first
+named package next under its own defined scope; do not weaken authorization or
+admission to connect the pipeline.
+
+**Supersedes**
+
+Older generic next-action wording only. DEC-0019 Phase 1 closure and its safety
+contracts remain valid. No product release, LIVE or external broker approval.
+
+**Superseded by**
+
+None.

@@ -1,0 +1,1127 @@
+{
+  "PACKAGE": "PHASE2_MVP_REMAINING_GAP_AUDIT",
+  "BASELINE": "25280bdfbc01156cc027b5dd1955eb20107317a5",
+  "PHASE1_STATUS": "CLOSED",
+  "MVP_READY": false,
+  "LIVE_EXECUTION": "NO",
+  "counting_rule": "30 audited capability groups, 24 mandatory; floor(100 * 14 closed / 24 mandatory)=58. Integration bucket combines IMPLEMENTED_NOT_INTEGRATED and IMPLEMENTED_NEEDS_E2E_PROOF. Gap counts count mandatory capability groups, not independent root causes or estimates of effort. Closed means certified component/operational boundary, not the entire market-to-browser product.",
+  "scope_authority": [
+    "docs/master/ARMS_AI_MASTER_ROADMAP.md#12-mvp-beta-and-production-boundaries",
+    "docs/master/ARMS_AI_REQUIREMENTS_MATRIX.md",
+    "docs/architecture/phase1_runtime_market_risk_admission_v81.md"
+  ],
+  "counts": {
+    "TOTAL_MVP_CAPABILITIES": 30,
+    "MANDATORY_MVP_CAPABILITIES": 24,
+    "CLOSED_CERTIFIED": 14,
+    "IMPLEMENTED_NEEDS_INTEGRATION": 4,
+    "PARTIAL": 6,
+    "MISSING": 0,
+    "BLOCKED_EXTERNAL": 0,
+    "POST_MVP": 6,
+    "MVP_COMPLETION_PERCENT": 58,
+    "P0_GAPS": 4,
+    "P1_GAPS": 5,
+    "P2_GAPS": 1
+  },
+  "capabilities": [
+    {
+      "CAPABILITY_ID": "MVP-001",
+      "NAME": "Application startup and PAPER readiness",
+      "OWNER": "create_asgi_app / AccountRuntimeCoordinatorV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [],
+      "EVIDENCE": [
+        "backend/api/asgi.py",
+        "backend/tests/test_asgi_runtime_integration_v2.py"
+      ],
+      "ASSESSMENT": "Real coordinated startup/recovery tested with isolated account configuration; operator setup separately tracked in 023."
+    },
+    {
+      "CAPABILITY_ID": "MVP-002",
+      "NAME": "Account profiles and identity",
+      "OWNER": "AccountConfigManagerV2 / FundingFirmProfile",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-001"
+      ],
+      "EVIDENCE": [
+        "backend/accounts/account_config_manager_v2.py",
+        "backend/tests/test_account_runtime_transition_v2.py"
+      ],
+      "ASSESSMENT": "Canonical account/profile identity; no broker credentials needed for PAPER."
+    },
+    {
+      "CAPABILITY_ID": "MVP-003",
+      "NAME": "Account switching and containment",
+      "OWNER": "AccountRuntimeCoordinatorV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-002"
+      ],
+      "EVIDENCE": [
+        "backend/services/account_runtime_coordinator_v2.py",
+        "backend/tests/test_account_runtime_transition_v2.py"
+      ],
+      "ASSESSMENT": "A/B isolation, retired generations, restart and switch failures certified; browser transport is 018."
+    },
+    {
+      "CAPABILITY_ID": "MVP-004",
+      "NAME": "Quote ingress, availability and freshness",
+      "OWNER": "RuntimeQuoteAuthorityV2 / RuntimeSpreadAuthorityV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-001"
+      ],
+      "EVIDENCE": [
+        "backend/api/routers/market.py",
+        "backend/services/runtime_spread_authority_v2.py",
+        "backend/tests/test_runtime_admission_v81.py"
+      ],
+      "ASSESSMENT": "Authenticated public quote ingress exists; no automatic source is implied. Missing/stale/future quotes fail closed."
+    },
+    {
+      "CAPABILITY_ID": "MVP-005",
+      "NAME": "Operational candle ingestion and feed source",
+      "OWNER": "market.receive_market_webhook / LiveCandleStore",
+      "STATUS": "PARTIAL",
+      "IMPLEMENTATION_STATUS": "PARTIAL",
+      "INTEGRATION_STATUS": "PARTIAL",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "PARTIAL",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P0",
+      "BLOCKER": "Coordinated /market/webhook returns 503 before storing a candle because PositionManagerV2 fails the legacy PositionManager dependency. External provider is a Protocol, not a configured adapter; quotes alone do not populate candles.",
+      "DEPENDENCIES": [
+        "MVP-001",
+        "MVP-004"
+      ],
+      "EVIDENCE": [
+        "backend/api/routers/market.py",
+        "backend/market_data/external_market_data_provider_v2.py"
+      ],
+      "ASSESSMENT": "Coordinated /market/webhook returns 503 before storing a candle because PositionManagerV2 fails the legacy PositionManager dependency. External provider is a Protocol, not a configured adapter; quotes alone do not populate candles."
+    },
+    {
+      "CAPABILITY_ID": "MVP-006",
+      "NAME": "Minimum indicators and market structure stack",
+      "OWNER": "IndicatorStage / SmartMoneyStage / IntelligenceStage",
+      "STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P0",
+      "BLOCKER": "EMA(50), RSI(14), ATR(14), trend, structure, BOS/CHOCH and liquidity exist; public coordinated data path cannot reach them.",
+      "DEPENDENCIES": [
+        "MVP-005"
+      ],
+      "EVIDENCE": [
+        "backend/pipeline/indicator_stage.py",
+        "backend/pipeline/smart_money_stage.py",
+        "backend/pipeline/intelligence_stage.py",
+        "backend/tests/test_indicator_stage.py"
+      ],
+      "ASSESSMENT": "EMA(50), RSI(14), ATR(14), trend, structure, BOS/CHOCH and liquidity exist; public coordinated data path cannot reach them."
+    },
+    {
+      "CAPABILITY_ID": "MVP-007",
+      "NAME": "Confluence, probability and decision evaluation",
+      "OWNER": "LiveMarketAnalysisService / ConfluenceEngineV2 / ProbabilityEngineV2",
+      "STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P0",
+      "BLOCKER": "Real component calculations exist and delegate into v2 plan/validation; coordinated analyze endpoint is unavailable. No profitable-strategy claim follows from component tests.",
+      "DEPENDENCIES": [
+        "MVP-006"
+      ],
+      "EVIDENCE": [
+        "backend/services/live_market_analysis_service.py",
+        "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py"
+      ],
+      "ASSESSMENT": "Real component calculations exist and delegate into v2 plan/validation; coordinated analyze endpoint is unavailable. No profitable-strategy claim follows from component tests."
+    },
+    {
+      "CAPABILITY_ID": "MVP-008",
+      "NAME": "Canonical candidate to account-bound submission",
+      "OWNER": "SignalGeneratorV2 / LiveMarketAnalysisService",
+      "STATUS": "PARTIAL",
+      "IMPLEMENTATION_STATUS": "PARTIAL",
+      "INTEGRATION_STATUS": "PARTIAL",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "PARTIAL",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P0",
+      "BLOCKER": "Analysis builds lifecycle risk_context without required account_id/profile_name; request identity/provenance and command separation need integration. Direct manually supplied valid signals are not generated-market E2E evidence.",
+      "DEPENDENCIES": [
+        "MVP-007",
+        "MVP-009",
+        "MVP-011"
+      ],
+      "EVIDENCE": [
+        "backend/signals/signal_generator_v2.py",
+        "backend/services/live_market_analysis_service.py",
+        "backend/services/account_switch_safety_v2.py"
+      ],
+      "ASSESSMENT": "Analysis builds lifecycle risk_context without required account_id/profile_name; request identity/provenance and command separation need integration. Direct manually supplied valid signals are not generated-market E2E evidence."
+    },
+    {
+      "CAPABILITY_ID": "MVP-009",
+      "NAME": "Certified market-hours and high-impact-news veto",
+      "OWNER": "MarketHoursServiceV2 / EconomicNewsAuthorityV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-001"
+      ],
+      "EVIDENCE": [
+        "backend/services/market_hours_service_v2.py",
+        "backend/services/economic_news_authority_v2.py",
+        "backend/tests/test_runtime_admission_v81.py"
+      ],
+      "ASSESSMENT": "Mandatory fail-closed admission delegates certified providers; regular futures sessions, holidays, news windows and unknown coverage are safety gates."
+    },
+    {
+      "CAPABILITY_ID": "MVP-010",
+      "NAME": "Operational calendar/news inputs and refresh procedure",
+      "OWNER": "CertifiedMarketHoursDataLifecycleV2 / CertifiedEconomicNewsDataLifecycleV2",
+      "STATUS": "PARTIAL",
+      "IMPLEMENTATION_STATUS": "PARTIAL",
+      "INTEGRATION_STATUS": "PARTIAL",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "PARTIAL",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P1",
+      "BLOCKER": "Certified JSON paths are operator supplied; hours refresh exists, news coverage must be renewed and startup configured. Fixture-generated calendars are not operational event evidence. No external vendor is selected.",
+      "DEPENDENCIES": [
+        "MVP-009"
+      ],
+      "EVIDENCE": [
+        "backend/services/certified_market_hours_data_lifecycle_v2.py",
+        "backend/services/certified_economic_news_data_lifecycle_v2.py",
+        "backend/config/api_settings.py"
+      ],
+      "ASSESSMENT": "Certified JSON paths are operator supplied; hours refresh exists, news coverage must be renewed and startup configured. Fixture-generated calendars are not operational event evidence. No external vendor is selected."
+    },
+    {
+      "CAPABILITY_ID": "MVP-011",
+      "NAME": "Account risk, sizing and precedence",
+      "OWNER": "RiskManagerV2 / canonical account and portfolio guards",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-002"
+      ],
+      "EVIDENCE": [
+        "backend/tests/test_phase1_risk_precedence_v5.py",
+        "backend/services/runtime_admission_v2.py"
+      ],
+      "ASSESSMENT": "Loss/drawdown, exposure, sizing and stronger-authority vetoes preserved by Phase 1 full regression."
+    },
+    {
+      "CAPABILITY_ID": "MVP-012",
+      "NAME": "Trade validation and runtime admission",
+      "OWNER": "TradeLifecycleServiceV2.submit_signal",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-004",
+        "MVP-009",
+        "MVP-011"
+      ],
+      "EVIDENCE": [
+        "backend/services/trade_lifecycle_service_v2.py",
+        "backend/tests/test_runtime_admission_v81.py"
+      ],
+      "ASSESSMENT": "HTTP/direct rejection before preparation; valid explicitly supplied PAPER candidates are certified."
+    },
+    {
+      "CAPABILITY_ID": "MVP-013",
+      "NAME": "PAPER order preparation and fills",
+      "OWNER": "ExecutionManagerV2 / PaperBrokerConnectorV2 / PaperExecutionEngineV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-012"
+      ],
+      "EVIDENCE": [
+        "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+        "backend/tests/test_phase1_financial_state_sync_v6.py"
+      ],
+      "ASSESSMENT": "Single operational scope; fills are deliberately simulated, LIVE excluded."
+    },
+    {
+      "CAPABILITY_ID": "MVP-014",
+      "NAME": "Positions, lifecycle and logical protections",
+      "OWNER": "TradeLifecycleServiceV2 / LivePositionMonitorV2 / OCOManagerV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-013"
+      ],
+      "EVIDENCE": [
+        "backend/services/live_position_monitor_v2.py",
+        "backend/tests/test_phase1_financial_state_sync_v6.py",
+        "backend/tests/test_phase1_market_ownership_availability_v4.py"
+      ],
+      "ASSESSMENT": "Explicit price ingress reaches canonical monitor; no physical broker protection is claimed."
+    },
+    {
+      "CAPABILITY_ID": "MVP-015",
+      "NAME": "Balance, equity, PnL and exactly-once financial updates",
+      "OWNER": "PortfolioManagerV2 / AccountStateManagerV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-014"
+      ],
+      "EVIDENCE": [
+        "backend/tests/test_phase1_financial_state_sync_v6.py",
+        "backend/account/account_state_manager_v2.py"
+      ],
+      "ASSESSMENT": "Canonical financial synchronization, duplicate/partial/rollback/recovery behavior certified."
+    },
+    {
+      "CAPABILITY_ID": "MVP-016",
+      "NAME": "Durable journal and trade history",
+      "OWNER": "TradeJournalV2 / TradeHistoryManagerV2 / ExecutionStateStoreV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-015"
+      ],
+      "EVIDENCE": [
+        "backend/journal/trade_journal_v2.py",
+        "backend/tests/test_phase1_financial_state_sync_v6.py"
+      ],
+      "ASSESSMENT": "Canonical journal/history belongs to the execution snapshot; disconnected legacy journal database is not required."
+    },
+    {
+      "CAPABILITY_ID": "MVP-017",
+      "NAME": "Authoritative dashboard backend projections",
+      "OWNER": "DashboardLiveDataServiceV2 / PerformanceDashboardEngineV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-015",
+        "MVP-016"
+      ],
+      "EVIDENCE": [
+        "backend/api/app.py",
+        "backend/tests/test_dashboard_read_execution_safety_v2.py"
+      ],
+      "ASSESSMENT": "Account/risk/position/PnL/journal projections exist and reads do not trade; unavailable intelligence widgets are explicitly disclosed."
+    },
+    {
+      "CAPABILITY_ID": "MVP-018",
+      "NAME": "Browser HTTP authorization and endpoint configuration",
+      "OWNER": "frontend dashboardApi.ts",
+      "STATUS": "PARTIAL",
+      "IMPLEMENTATION_STATUS": "PARTIAL",
+      "INTEGRATION_STATUS": "PARTIAL",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "PARTIAL",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P1",
+      "BLOCKER": "Hardcoded localhost endpoints and no admin header/session support. Public switch-context and dashboard reads work; the protected switch mutation rejects unauthenticated browser calls. Do not solve by weakening backend auth or exposing server secrets.",
+      "DEPENDENCIES": [
+        "MVP-017"
+      ],
+      "EVIDENCE": [
+        "frontend/src/lib/dashboardApi.ts",
+        "backend/api/admin_authorization_dependency_v2.py"
+      ],
+      "ASSESSMENT": "Hardcoded localhost endpoints and no admin header/session support. Public switch-context and dashboard reads work; the protected switch mutation rejects unauthenticated browser calls. Do not solve by weakening backend auth or exposing server secrets."
+    },
+    {
+      "CAPABILITY_ID": "MVP-019",
+      "NAME": "Usable mandatory dashboard views and candidate state",
+      "OWNER": "frontend dashboard-v2/page.tsx and cards",
+      "STATUS": "PARTIAL",
+      "IMPLEMENTATION_STATUS": "PARTIAL",
+      "INTEGRATION_STATUS": "PARTIAL",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "PARTIAL",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P1",
+      "BLOCKER": "Existing account/risk/journal/position cards compile; required candidate/market views and unavailable/error states lack browser-to-runtime acceptance. Advisory getAIDecision submits hardcoded demo metrics.",
+      "DEPENDENCIES": [
+        "MVP-008",
+        "MVP-018"
+      ],
+      "EVIDENCE": [
+        "frontend/src/app/dashboard-v2/page.tsx",
+        "frontend/src/components/dashboard-v2/AccountOverviewCard.tsx",
+        "frontend/src/components/dashboard-v2/TradeJournalCard.tsx"
+      ],
+      "ASSESSMENT": "Existing account/risk/journal/position cards compile; required candidate/market views and unavailable/error states lack browser-to-runtime acceptance. Advisory getAIDecision submits hardcoded demo metrics."
+    },
+    {
+      "CAPABILITY_ID": "MVP-020",
+      "NAME": "Authorized backend WebSocket projection and retirement",
+      "OWNER": "DashboardWebSocketHubV2 / AccountRuntimeApplicationV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-017",
+        "MVP-003"
+      ],
+      "EVIDENCE": [
+        "backend/api/dashboard_websocket_api_v2.py",
+        "backend/tests/test_phase1_websocket_account_isolation_characterization_v2.py"
+      ],
+      "ASSESSMENT": "Snapshot/events, authorization and generation retirement certified; browser handshake is a separate gap."
+    },
+    {
+      "CAPABILITY_ID": "MVP-021",
+      "NAME": "Browser WebSocket authentication and reconnection",
+      "OWNER": "dashboard-v2/page.tsx WebSocket client",
+      "STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P1",
+      "BLOCKER": "Browser opens a bare URL; backend requires custom admin header before accept. A supported browser session/proxy/ticket design is needed; native browser constructor cannot set that header.",
+      "DEPENDENCIES": [
+        "MVP-018",
+        "MVP-020"
+      ],
+      "EVIDENCE": [
+        "frontend/src/app/dashboard-v2/page.tsx",
+        "frontend/src/lib/dashboardApi.ts",
+        "backend/api/dashboard_websocket_api_v2.py"
+      ],
+      "ASSESSMENT": "Browser opens a bare URL; backend requires custom admin header before accept. A supported browser session/proxy/ticket design is needed; native browser constructor cannot set that header."
+    },
+    {
+      "CAPABILITY_ID": "MVP-022",
+      "NAME": "Durability, pending reconciliation and restart recovery",
+      "OWNER": "DurableExecutionStateV2 / StateRecoveryServiceV2",
+      "STATUS": "CLOSED_CERTIFIED",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "CLOSED_CERTIFIED",
+      "TEST_STATUS": "CLOSED_CERTIFIED",
+      "END_TO_END_STATUS": "CLOSED_CERTIFIED",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "NONE",
+      "BLOCKER": "NONE within stated component scope",
+      "DEPENDENCIES": [
+        "MVP-013",
+        "MVP-016"
+      ],
+      "EVIDENCE": [
+        "backend/tests/test_durable_crash_recovery_v2.py",
+        "backend/tests/test_phase1_runtime_execution_ownership_v7.py"
+      ],
+      "ASSESSMENT": "Account namespace, pending recovery, no resubmission and recover-or-block are certified."
+    },
+    {
+      "CAPABILITY_ID": "MVP-023",
+      "NAME": "Reproducible operator startup-to-PAPER acceptance",
+      "OWNER": "ASGI entry point / frontend scripts / operational runbook",
+      "STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "IMPLEMENTATION_STATUS": "CLOSED_CERTIFIED",
+      "INTEGRATION_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P1",
+      "BLOCKER": "Backend/frontend start commands exist, but no current complete public-input/browser/restart smoke. Existing smoke prebuilds signal and lacks current auth/calendar/account setup; generic frontend README is insufficient.",
+      "DEPENDENCIES": [
+        "MVP-005",
+        "MVP-008",
+        "MVP-010",
+        "MVP-019",
+        "MVP-021",
+        "MVP-022"
+      ],
+      "EVIDENCE": [
+        "backend/api/asgi.py",
+        "frontend/package.json",
+        "frontend/README.md",
+        "scripts/live_http_smoke_v2.py"
+      ],
+      "ASSESSMENT": "Backend/frontend start commands exist, but no current complete public-input/browser/restart smoke. Existing smoke prebuilds signal and lacks current auth/calendar/account setup; generic frontend README is insufficient."
+    },
+    {
+      "CAPABILITY_ID": "MVP-024",
+      "NAME": "Candidate and validation provenance before release",
+      "OWNER": "SignalGeneratorV2 / certification dataset adapters",
+      "STATUS": "PARTIAL",
+      "IMPLEMENTATION_STATUS": "PARTIAL",
+      "INTEGRATION_STATUS": "PARTIAL",
+      "TEST_STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "END_TO_END_STATUS": "PARTIAL",
+      "MVP_REQUIRED": "YES",
+      "PRIORITY": "P2",
+      "BLOCKER": "Require chosen candidate/source/time/strategy identity and honest validation claims. Full app walk-forward factories use fixed nq_history.csv; registry certification uses STR-001; nominal real_e2e test uses fake validation pipelines. Do not certify arbitrary dataset/strategy based on those results.",
+      "DEPENDENCIES": [
+        "MVP-008"
+      ],
+      "EVIDENCE": [
+        "backend/backtesting/strategy_certification_pipeline_v2.py",
+        "backend/api/app.py",
+        "backend/tests/test_strategy_certification_pipeline_real_e2e_v2.py"
+      ],
+      "ASSESSMENT": "Require chosen candidate/source/time/strategy identity and honest validation claims. Full app walk-forward factories use fixed nq_history.csv; registry certification uses STR-001; nominal real_e2e test uses fake validation pipelines. Do not certify arbitrary dataset/strategy based on those results."
+    },
+    {
+      "CAPABILITY_ID": "MVP-025",
+      "NAME": "Offline CSV backtesting research",
+      "OWNER": "CSV loader / strategy backtest pipeline",
+      "STATUS": "POST_MVP",
+      "IMPLEMENTATION_STATUS": "POST_MVP",
+      "INTEGRATION_STATUS": "POST_MVP",
+      "TEST_STATUS": "POST_MVP",
+      "END_TO_END_STATUS": "POST_MVP",
+      "MVP_REQUIRED": "NO",
+      "PRIORITY": "POST_MVP",
+      "BLOCKER": "Real CSV replay infrastructure exists with isolated ledgers. Roadmap MVP exit list does not mandate research UI or full historical evaluation; preserve data traceability whenever used.",
+      "DEPENDENCIES": [],
+      "EVIDENCE": [
+        "backend/backtesting/strategy_backtest_factory_v2.py",
+        "backend/tests/test_csv_backtest_lifecycle_e2e_v2.py"
+      ],
+      "ASSESSMENT": "Real CSV replay infrastructure exists with isolated ledgers. Roadmap MVP exit list does not mandate research UI or full historical evaluation; preserve data traceability whenever used."
+    },
+    {
+      "CAPABILITY_ID": "MVP-026",
+      "NAME": "Walk-forward, Monte Carlo and strategy certification activation",
+      "OWNER": "StrategyCertificationPipelineV2 / registry",
+      "STATUS": "POST_MVP",
+      "IMPLEMENTATION_STATUS": "POST_MVP",
+      "INTEGRATION_STATUS": "POST_MVP",
+      "TEST_STATUS": "POST_MVP",
+      "END_TO_END_STATUS": "POST_MVP",
+      "MVP_REQUIRED": "NO",
+      "PRIORITY": "POST_MVP",
+      "BLOCKER": "Research infrastructure is present; no committed MVP exit rule requires certification as an execution activation gate. No evidence supports automatic operational strategy activation; provenance limitation is tracked in 024.",
+      "DEPENDENCIES": [],
+      "EVIDENCE": [
+        "backend/backtesting/strategy_certification_pipeline_v2.py",
+        "backend/backtesting/backtesting_orchestrator_factory_v2.py"
+      ],
+      "ASSESSMENT": "Research infrastructure is present; no committed MVP exit rule requires certification as an execution activation gate. No evidence supports automatic operational strategy activation; provenance limitation is tracked in 024."
+    },
+    {
+      "CAPABILITY_ID": "MVP-027",
+      "NAME": "Automated daily summary delivery",
+      "OWNER": "ReportingStage / journal analytics",
+      "STATUS": "POST_MVP",
+      "IMPLEMENTATION_STATUS": "POST_MVP",
+      "INTEGRATION_STATUS": "POST_MVP",
+      "TEST_STATUS": "POST_MVP",
+      "END_TO_END_STATUS": "POST_MVP",
+      "MVP_REQUIRED": "NO",
+      "PRIORITY": "POST_MVP",
+      "BLOCKER": "On-demand PnL/journal is mandatory (015/016). Scheduled daily delivery is not an explicit MVP exit gate; no scheduling/delivery integration is claimed.",
+      "DEPENDENCIES": [],
+      "EVIDENCE": [
+        "backend/pipeline/reporting_stage.py",
+        "backend/journal/trade_journal_v2.py"
+      ],
+      "ASSESSMENT": "On-demand PnL/journal is mandatory (015/016). Scheduled daily delivery is not an explicit MVP exit gate; no scheduling/delivery integration is claimed."
+    },
+    {
+      "CAPABILITY_ID": "MVP-028",
+      "NAME": "Asia/London/New York session overlays and session extremes",
+      "OWNER": "MarketHoursServiceV2 plus future product analysis",
+      "STATUS": "POST_MVP",
+      "IMPLEMENTATION_STATUS": "POST_MVP",
+      "INTEGRATION_STATUS": "POST_MVP",
+      "TEST_STATUS": "POST_MVP",
+      "END_TO_END_STATUS": "POST_MVP",
+      "MVP_REQUIRED": "NO",
+      "PRIORITY": "POST_MVP",
+      "BLOCKER": "Mandatory exchange hours/news are 009. Named regional sessions/high-low overlays appear in historical vision but are not the minimum MVP gate; no separate operational classifier found in reviewed production sources.",
+      "DEPENDENCIES": [],
+      "EVIDENCE": [
+        "backend/services/market_hours_service_v2.py",
+        "docs/master/ARMS_AI_MASTER_MEMORY.md"
+      ],
+      "ASSESSMENT": "Mandatory exchange hours/news are 009. Named regional sessions/high-low overlays appear in historical vision but are not the minimum MVP gate; no separate operational classifier found in reviewed production sources."
+    },
+    {
+      "CAPABILITY_ID": "MVP-029",
+      "NAME": "Experimental FVG, extra multi-timeframe and adaptive AI features",
+      "OWNER": "Smart-money and intelligence research modules",
+      "STATUS": "POST_MVP",
+      "IMPLEMENTATION_STATUS": "POST_MVP",
+      "INTEGRATION_STATUS": "POST_MVP",
+      "TEST_STATUS": "POST_MVP",
+      "END_TO_END_STATUS": "POST_MVP",
+      "MVP_REQUIRED": "NO",
+      "PRIORITY": "POST_MVP",
+      "BLOCKER": "Retain configured fail-closed intelligence checks, but do not require every experimental indicator or adaptive/external AI feature for the first PAPER candidate.",
+      "DEPENDENCIES": [],
+      "EVIDENCE": [
+        "backend/intelligence/market_structure_intelligence_adapter.py",
+        "docs/master/ARMS_AI_MASTER_ROADMAP.md"
+      ],
+      "ASSESSMENT": "Retain configured fail-closed intelligence checks, but do not require every experimental indicator or adaptive/external AI feature for the first PAPER candidate."
+    },
+    {
+      "CAPABILITY_ID": "MVP-030",
+      "NAME": "Vendor-specific paid feed, LIVE, mobile and commercial expansion",
+      "OWNER": "External provider protocol / future integration packages",
+      "STATUS": "POST_MVP",
+      "IMPLEMENTATION_STATUS": "POST_MVP",
+      "INTEGRATION_STATUS": "POST_MVP",
+      "TEST_STATUS": "POST_MVP",
+      "END_TO_END_STATUS": "POST_MVP",
+      "MVP_REQUIRED": "NO",
+      "PRIORITY": "POST_MVP",
+      "BLOCKER": "No vendor selected or external credentials required by this audit. Existing authenticated ingress is the local boundary; paid adapter credentials would be BLOCKED_EXTERNAL only if that adapter is selected. LIVE remains forbidden.",
+      "DEPENDENCIES": [],
+      "EVIDENCE": [
+        "backend/market_data/external_market_data_provider_v2.py",
+        "docs/master/ARMS_AI_REQUIREMENTS_MATRIX.md"
+      ],
+      "ASSESSMENT": "No vendor selected or external credentials required by this audit. Existing authenticated ingress is the local boundary; paid adapter credentials would be BLOCKED_EXTERNAL only if that adapter is selected. LIVE remains forbidden."
+    }
+  ],
+  "transitions": [
+    {
+      "TRANSITION": "Operator/source -> public bid/ask ingress",
+      "STATUS": "MANUAL_ONLY",
+      "CAPABILITY_ID": "MVP-005",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Authenticated quote -> canonical availability/freshness",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-004",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Public candle ingress -> canonical candle owner",
+      "STATUS": "DISCONNECTED",
+      "CAPABILITY_ID": "MVP-005",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Candle owner -> indicators/structure in coordinated application",
+      "STATUS": "DISCONNECTED",
+      "CAPABILITY_ID": "MVP-006",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Indicators/structure -> intelligence/confluence/probability",
+      "STATUS": "TEST_ONLY",
+      "CAPABILITY_ID": "MVP-007",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Intelligence -> generated canonical candidate",
+      "STATUS": "TEST_ONLY",
+      "CAPABILITY_ID": "MVP-008",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Candidate -> certified session/news veto",
+      "STATUS": "PARTIAL",
+      "CAPABILITY_ID": "MVP-009",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Generated candidate -> account-bound risk context",
+      "STATUS": "DISCONNECTED",
+      "CAPABILITY_ID": "MVP-008",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Manually supplied canonical request -> risk",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-011",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Risk -> validation/runtime admission",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-012",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Admission -> PAPER order -> fill",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-013",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Fill -> position/protection",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-014",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Position -> PnL/account/portfolio",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-015",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Financial state -> journal/history",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-016",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Journal/state -> dashboard backend",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-017",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Dashboard backend -> browser",
+      "STATUS": "PARTIAL",
+      "CAPABILITY_ID": "MVP-018",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "State -> authorized backend WebSocket",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-020",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Backend WebSocket -> browser",
+      "STATUS": "DISCONNECTED",
+      "CAPABILITY_ID": "MVP-021",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Financial state -> durable snapshot",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-022",
+      "MANDATORY": true
+    },
+    {
+      "TRANSITION": "Snapshot -> restart/recovery-or-block",
+      "STATUS": "CONNECTED",
+      "CAPABILITY_ID": "MVP-022",
+      "MANDATORY": true
+    }
+  ],
+  "acceptance_specification": [
+    {
+      "STEP": 1,
+      "CONTRACT": "Application starts",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_asgi_runtime_integration_v2.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Start backend ASGI with isolated account config and explicit policy; start frontend using declared scripts.",
+      "ASSERTIONS": "Health endpoint 200; configuration errors fail startup; no trade on startup."
+    },
+    {
+      "STEP": 2,
+      "CONTRACT": "PAPER runtime ready",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Read startup/current account report.",
+      "ASSERTIONS": "Exactly one published PAPER runtime, current account/profile/generation, no LIVE adapter."
+    },
+    {
+      "STEP": 3,
+      "CONTRACT": "Public market inputs reach canonical owners",
+      "STATUS": "PARTIAL",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase2_mvp_acceptance_v9.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "POST dated bid/ask quote and OHLC candles through authenticated application ingress, including malformed/stale/duplicate/out-of-order negatives.",
+      "ASSERTIONS": "Accepted source reaches the same quote/candle owners used by admission; no synthetic spread or store injection. Current candle 503 is an explicit blocker."
+    },
+    {
+      "STEP": 4,
+      "CONTRACT": "Real intelligence generates/evaluates candidate",
+      "STATUS": "IMPLEMENTED_NOT_INTEGRATED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_indicator_stage.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Run real indicators/structure/confluence/probability/plan over supplied candles through the supported command boundary.",
+      "ASSERTIONS": "Candidate or explicit rejection with source, symbol, timestamps, strategy/config identity; no mocked approval or fabricated confidence."
+    },
+    {
+      "STEP": 5,
+      "CONTRACT": "Unsafe candidate rejected with no side effects",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_runtime_admission_v81.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Exercise missing/stale/news-blocked/account-blocked/risk-rejected candidate variants.",
+      "ASSERTIONS": "Zero prepare/broker/fill/position/protection/financial side effects; stronger veto cannot be overridden."
+    },
+    {
+      "STEP": 6,
+      "CONTRACT": "Generated valid candidate admitted",
+      "STATUS": "IMPLEMENTED_NEEDS_E2E_PROOF",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_runtime_admission_v81.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Supply a genuinely qualifying dated input sequence and certified hours/news coverage.",
+      "ASSERTIONS": "Generated candidate carries canonical account/profile/generation and reaches existing admission; do not replace it with a prebuilt approved signal."
+    },
+    {
+      "STEP": 7,
+      "CONTRACT": "PAPER order/fill produced",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Execute admitted PAPER request once and repeat its identity.",
+      "ASSERTIONS": "One canonical order/fill; duplicate request creates no second fill; PAPER connector only."
+    },
+    {
+      "STEP": 8,
+      "CONTRACT": "Financial state updates exactly once",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Publish operational price through canonical price ingress and exercise exit/partial outcome.",
+      "ASSERTIONS": "Portfolio/account/PnL/protection synchronize exactly once; no direct ledger edits."
+    },
+    {
+      "STEP": 9,
+      "CONTRACT": "Journal updates",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Read journal/history through application API.",
+      "ASSERTIONS": "Records correlate candidate/request/order/fill/position and do not imply execution for a rejected candidate."
+    },
+    {
+      "STEP": 10,
+      "CONTRACT": "Authoritative dashboard projection",
+      "STATUS": "PARTIAL",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase2_mvp_acceptance_v9.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Use the actual browser dashboard under supported authorization.",
+      "ASSERTIONS": "Account, balance/equity, risk, position, candidate, market availability, PnL and journal match canonical API state; empty/blocked data is explicit."
+    },
+    {
+      "STEP": 11,
+      "CONTRACT": "WebSocket reflects state in browser",
+      "STATUS": "PARTIAL",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase1_websocket_account_isolation_characterization_v2.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Subscribe with supported browser authentication; trade/update/switch account.",
+      "ASSERTIONS": "Browser sees matching snapshot/events and retire/reconnect behavior, no stale-account projection and no trading caused by reads."
+    },
+    {
+      "STEP": 12,
+      "CONTRACT": "Restart restores safe durable state",
+      "STATUS": "CLOSED_CERTIFIED",
+      "CURRENT_EXECUTABLE_EVIDENCE": "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+      "RELEASE_GATE": "One public-input scenario with real owners, explicit dated source data, no patched approval, no direct store mutation; correlate candidate/order/fill/journal/dashboard/socket IDs and restart identity. Existing component tests are evidence only, not completion of this integrated scenario.",
+      "ACTION": "Stop/restart against the same isolated durable namespace; include pending/crash cases.",
+      "ASSERTIONS": "Reconstructed identity, positions, journal and financial totals match; no resubmission; unknown/corrupt state blocks; market permission must become fresh again."
+    }
+  ],
+  "packages": [
+    {
+      "PACKAGE_NAME": "PHASE2_CANONICAL_MARKET_TO_CANDIDATE",
+      "OBJECTIVE": "Connect authenticated quote/candle/price ingestion and real minimum intelligence to a traceable account-bound candidate while keeping all existing admission vetoes.",
+      "DEPENDENCIES": [
+        "Phase 1 closed"
+      ],
+      "ESTIMATED_SCOPE": "Cross-module integration, not an audit-local patch",
+      "EXPECTED_FILES_AREAS": [
+        "backend/api/routers/market.py",
+        "backend/services/live_market_analysis_service.py",
+        "backend/signals/signal_generator_v2.py",
+        "backend/services/live_candle_store.py",
+        "backend/market_data",
+        "backend/tests"
+      ],
+      "ACCEPTANCE_GATE": "Public controlled dated inputs produce a real candidate; account/profile/generation and source identity preserved; missing/stale/invalid/duplicate/out-of-order data cannot trade; approved candidate fills exactly once; all Phase 1 contracts and full backend green."
+    },
+    {
+      "PACKAGE_NAME": "PHASE2_AUTHORIZED_PAPER_DASHBOARD",
+      "OBJECTIVE": "Connect required browser account/risk/position/PnL/journal/candidate views and WebSocket through supported authorization.",
+      "DEPENDENCIES": [
+        "PHASE2_CANONICAL_MARKET_TO_CANDIDATE"
+      ],
+      "ESTIMATED_SCOPE": "Backend/browser authentication transport and frontend integration; no redesign",
+      "EXPECTED_FILES_AREAS": [
+        "frontend/src/lib/dashboardApi.ts",
+        "frontend/src/app/dashboard-v2/page.tsx",
+        "frontend/src/components/dashboard-v2",
+        "backend/api/dashboard_websocket_api_v2.py",
+        "backend/security",
+        "browser integration tests"
+      ],
+      "ACCEPTANCE_GATE": "Real browser authenticates without embedding server secrets; HTTP/WS account switch and retirement work; unavailable states remain explicit; reads cannot trade; lint/build/tests and backend all green."
+    },
+    {
+      "PACKAGE_NAME": "PHASE2_PAPER_MVP_OPERATIONAL_ACCEPTANCE",
+      "OBJECTIVE": "Finish certified input maintenance, provenance, reproducible startup and the single public-input/browser/restart acceptance scenario.",
+      "DEPENDENCIES": [
+        "PHASE2_CANONICAL_MARKET_TO_CANDIDATE",
+        "PHASE2_AUTHORIZED_PAPER_DASHBOARD"
+      ],
+      "ESTIMATED_SCOPE": "Operational configuration/runbook, provenance assertions and integrated smoke",
+      "EXPECTED_FILES_AREAS": [
+        "backend/config/api_settings.py",
+        "certified market/news lifecycle configuration",
+        "scripts",
+        "docs",
+        "backend/tests",
+        "frontend integration tests",
+        "validation provenance boundaries"
+      ],
+      "ACCEPTANCE_GATE": "All 12 acceptance steps and mandatory transitions connected with real owners; supplied market inputs traceable and current; news/holiday unknowns deny; crash/restart restores exact financial state; no fake certification claims; zero backend failures and frontend gates green."
+    }
+  ],
+  "test_execution": {
+    "backend_baseline": {
+      "exit_code": 0,
+      "counts": {
+        "passed": 5508,
+        "skipped": 1,
+        "failed": 0
+      },
+      "evidence_file": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-mvp-v9-yv_am1b9\\backend_baseline.json",
+      "sha256": "8b4358fc3e02c90114cda67801d48b7ba9cd580c732e08b33768cfe9687eb736"
+    },
+    "frontend": {
+      "frontend_lint": {
+        "exit_code": 0,
+        "command": [
+          "npm.cmd",
+          "run",
+          "lint"
+        ]
+      },
+      "frontend_build": {
+        "exit_code": 0,
+        "command": [
+          "npm.cmd",
+          "run",
+          "build"
+        ]
+      },
+      "frontend_tests": {
+        "exit_code": 0,
+        "command": [
+          "node",
+          "--test",
+          "src/lib/dashboardApi.test.mjs"
+        ]
+      }
+    },
+    "audit_tests": {
+      "exit_code": 0,
+      "counts": {
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence_file": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-mvp-v9-yv_am1b9\\audit_green.json",
+      "sha256": "bdff5c4b02db9ab371f281d3bcad5eabb417c469fde7dcced60547affcecb081"
+    },
+    "full_backend_final": {
+      "exit_code": 0,
+      "counts": {
+        "passed": 5514,
+        "skipped": 1,
+        "failed": 0
+      },
+      "evidence_file": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-mvp-v9-yv_am1b9\\backend_final.json",
+      "sha256": "ffbfe9cbe8da5511f27db3886172e8b957b124e3213318d4107aca53356fdd72"
+    },
+    "backend_command": "python -c \"import os, pytest; from backend.tests.test_account_switch_safety_containment_v2 import POLICY; os.environ.update(POLICY); raise SystemExit(pytest.main(['-q', '-p', 'no:cacheprovider', '--tb=short', 'backend/tests']))\"",
+    "focused_final": {
+      "exit_code": 0,
+      "counts": {
+        "passed": 60,
+        "failed": 0,
+        "skipped": 0
+      },
+      "modules": [
+        "backend/tests/test_phase2_mvp_acceptance_v9.py",
+        "backend/tests/test_phase1_consolidated_acceptance_v8.py",
+        "backend/tests/test_runtime_admission_v81.py"
+      ],
+      "evidence_file": "C:\\Users\\THECRA~1\\AppData\\Local\\Temp\\arms-mvp-v9-yv_am1b9\\focused_final.json",
+      "sha256": "a5706002adb094eadbea8db9b799581983f842b43765fc4545e37c00fdbdcb14"
+    },
+    "environment_note": "A restricted focused rerun produced 59 fixture setup errors (one manifest test passed); isolated -x reproduction confirmed WinError 5 accessing pytest-of-Thecrazyboss. Identical focused selection with required temporary-directory access passed all 60. Full backend certified run already had required access."
+  },
+  "phase1_contracts": {
+    "RUNTIME_OWNERSHIP": "GREEN",
+    "EXECUTION_OWNERSHIP": "GREEN",
+    "RISK_AUTHORITY": "GREEN",
+    "FINANCIAL_STATE": "GREEN",
+    "FILL_SYNCHRONIZATION": "GREEN",
+    "ACCOUNT_ISOLATION": "GREEN",
+    "MARKET_OWNERSHIP": "GREEN",
+    "MARKET_AVAILABILITY": "GREEN",
+    "API_OWNERSHIP": "GREEN",
+    "API_AUTHORIZATION": "GREEN",
+    "WEBSOCKET_AUTHORIZATION": "GREEN",
+    "STARTUP_RECOVERY": "GREEN",
+    "PENDING_RECONCILIATION": "GREEN",
+    "DURABILITY": "GREEN",
+    "CLI_RUNTIME_EQUIVALENCE": "GREEN",
+    "HTTP_MARKET_ADMISSION": "GREEN",
+    "DIRECT_RUNTIME_RISK_ADMISSION": "GREEN"
+  },
+  "data_sources": [
+    {
+      "SOURCE": "Operational bid/ask",
+      "CLASS": "APPLICATION_INPUT",
+      "OWNER": "/market/quote -> RuntimeQuoteAuthorityV2",
+      "LIMIT": "Caller supplies explicit bid/ask and timestamp; no configured automatic adapter."
+    },
+    {
+      "SOURCE": "Operational last price",
+      "CLASS": "APPLICATION_INPUT",
+      "OWNER": "/api/v3/dashboard/market-price -> PriceFeedServiceV2",
+      "LIMIT": "Current timestamp required; updates canonical monitor, does not create OHLC or bid/ask."
+    },
+    {
+      "SOURCE": "Operational candles",
+      "CLASS": "DISCONNECTED_APPLICATION_INPUT",
+      "OWNER": "/market/webhook -> LiveCandleStore",
+      "LIMIT": "Coordinated application returns legacy_position_manager_unavailable before storage."
+    },
+    {
+      "SOURCE": "External provider",
+      "CLASS": "INTERFACE_ONLY",
+      "OWNER": "ExternalMarketDataProviderV2",
+      "LIMIT": "No concrete production implementation found; contract is last price, not full bid/ask plus OHLC stream."
+    },
+    {
+      "SOURCE": "Certified hours/news",
+      "CLASS": "MANUAL_JSON_CONFIGURATION",
+      "OWNER": "APISettings configured paths / certified lifecycle loaders",
+      "LIMIT": "Actual dated sourced content and maintenance are operator responsibilities; missing/expired data denies admission."
+    },
+    {
+      "SOURCE": "Positive V8.1 market inputs",
+      "CLASS": "EXPLICIT_TEST_FIXTURES",
+      "OWNER": "runtime_market_fixture_v81.py",
+      "LIMIT": "Fixed test clock, test-certified files and explicit quote publication; proves admission, not a connected live feed."
+    },
+    {
+      "SOURCE": "Generated intelligence tests",
+      "CLASS": "MIXED_COMPONENT_AND_TEST_INPUTS",
+      "OWNER": "LiveMarketAnalysisService tests",
+      "LIMIT": "Real calculators plus candle stores/test fixtures; no current complete public-ingress proof."
+    },
+    {
+      "SOURCE": "PAPER fill",
+      "CLASS": "INTENTIONAL_BROKER_SIMULATION",
+      "OWNER": "PaperExecutionEngineV2",
+      "LIMIT": "Permitted PAPER simulation; not real broker execution."
+    },
+    {
+      "SOURCE": "Canonical financial dashboard",
+      "CLASS": "APPLICATION_RUNTIME_STATE",
+      "OWNER": "DashboardLiveDataServiceV2",
+      "LIMIT": "Valid projection once operational records exist; no trading side effects."
+    },
+    {
+      "SOURCE": "Advisory demo intelligence",
+      "CLASS": "HARDCODED_OR_UNAVAILABLE_PROJECTION",
+      "OWNER": "dashboardApi.getAIDecision and legacy intelligence widgets",
+      "LIMIT": "Fixed beta/sharpe/volatility/drawdown inputs and disclosed unavailable/demo payloads are not generated market evidence."
+    },
+    {
+      "SOURCE": "Historical CSV replay",
+      "CLASS": "SUPPLIED_FILE_REPLAY",
+      "OWNER": "CSV loader / strategy backtest pipeline",
+      "LIMIT": "Local replay exists in isolated ledgers; application validation factories still pin a different fixed CSV path."
+    },
+    {
+      "SOURCE": "Certification integration tests",
+      "CLASS": "PARTLY_FAKE_VALIDATION",
+      "OWNER": "test_strategy_certification_pipeline_real_e2e_v2.py",
+      "LIMIT": "FakeWalkForwardPipeline and FakeMonteCarloPipeline; no empirical strategy certification claim."
+    }
+  ]
+}

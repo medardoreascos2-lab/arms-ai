@@ -1,5 +1,28 @@
 # ARMS AI — MASTER MEMORY
 
+## Current Phase 2 MVP audit — V9
+
+[Remaining-gap audit](../architecture/phase2_mvp_remaining_gap_audit_v9.md) and
+[capability inventory](../../backend/tests/phase2_mvp_capability_inventory_v9.json)
+record baseline `25280bdfbc01156cc027b5dd1955eb20107317a5`.
+**PHASE1_STATUS=CLOSED; PAPER MVP not ready.** Thirty capability groups include
+24 mandatory and six post-MVP: 14 certified boundaries, four awaiting integration
+or integrated proof, six partial; 58% mandatory capability completion. There are
+four P0, five P1 and one P2 open groups; zero external blockers currently selected.
+The score measures scoped capability evidence, not engineering effort or product
+E2E readiness. Public candle/analysis ingestion and browser authorization remain
+disconnected; operational inputs and joined acceptance still need proof.
+
+Final backend: **5,514 passed / 0 failed / 1 unchanged skip**. Frontend lint/build
+pass (four existing lint warnings), six frontend tests pass; six new V9 audit
+tests pass. No production behavior changed; no LIVE execution is authorized.
+Phase 1 certification below remains valid and is not reopened by these product
+integration gaps. V9 supersedes older next-action wording with this sequence:
+
+1. `PHASE2_CANONICAL_MARKET_TO_CANDIDATE`
+2. `PHASE2_AUTHORIZED_PAPER_DASHBOARD`
+3. `PHASE2_PAPER_MVP_OPERATIONAL_ACCEPTANCE`
+
 ## Current Phase 1 acceptance — V8.1
 
 [Runtime admission certification](../architecture/phase1_runtime_market_risk_admission_v81.md)
