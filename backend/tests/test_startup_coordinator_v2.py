@@ -53,6 +53,13 @@ class FakeStateRecoveryService:
 
         return self.snapshot_available
 
+    def pending_reconciliation_required(
+        self,
+        *,
+        file_path,
+    ) -> bool:
+        return False
+
     def recover_from(
         self,
         *,
@@ -81,6 +88,13 @@ class FakeStateRecoveryService:
 
         self.last_recovery_report = report
         return dict(report)
+
+    def reconcile_pending_from(self, *, file_path):
+        return {
+            "status": "CONFIRMED_NOT_EXECUTED",
+            "resolved": True,
+            "restored": False,
+        }
 
     def get_last_recovery_report(
         self,

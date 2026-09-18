@@ -167,6 +167,27 @@ class StartupCoordinatorV2:
 
                 return dict(report)
 
+            pending_required = (
+                self.state_recovery_service
+                .pending_reconciliation_required(
+                    file_path=path,
+                )
+            )
+
+            if pending_required:
+                pending_report = (
+                    self.state_recovery_service
+                    .reconcile_pending_from(
+                        file_path=path,
+                    )
+                )
+
+                if not pending_report.get("resolved", False):
+                    raise RuntimeError(
+                        "Pending operation reconciliation did not resolve "
+                        "to a safe startup state."
+                    )
+
             recovery_report = (
                 self.state_recovery_service
                 .recover_from(

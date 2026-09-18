@@ -7,6 +7,10 @@ from typing import Any
 from backend.services.execution_state_store_v2 import (
     ExecutionStateStoreV2,
 )
+from backend.services.durable_execution_state_v2 import (
+    checked_payload,
+    verify,
+)
 from backend.services.durable_execution_state_v2 import evidence_path
 
 
@@ -331,6 +335,78 @@ class StateRecoveryServiceV2:
 
             self._last_recovery_report = report
             raise
+
+    def pending_reconciliation_required(
+        self,
+        *,
+        file_path: str | Path,
+    ) -> bool:
+        """Return whether a verified durable checkpoint requires reconciliation."""
+        path = self._normalize_path(file_path=file_path)
+
+        self.execution_state_store.require_namespace_path(path)
+
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"No existe el archivo: {path}"
+            )
+
+        import json
+
+        try:
+            raw = json.loads(
+                path.read_text(
+                    encoding="utf-8",
+                )
+            )
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                "El archivo de estado no contiene JSON válido."
+            ) from exc
+
+        checked_payload(raw)
+
+        durability = raw.get("durability")
+
+        if not isinstance(durability, dict):
+            raise ValueError(
+                "Invalid durability metadata."
+            )
+
+        phase = durability.get("phase")
+
+        if phase == "COMMITTED":
+            verify(raw)
+
+            if raw.get("pending_operation") is not None:
+                raise ValueError(
+                    "COMMITTED checkpoint contains pending operation evidence."
+                )
+
+            return False
+
+        if phase == "PENDING":
+            if raw.get("pending_operation") is None:
+                raise ValueError(
+                    "PENDING checkpoint is missing pending operation evidence."
+                )
+
+            generation = durability.get("generation")
+
+            if (
+                durability.get("version") != 1
+                or type(generation) is not int
+                or generation < 1
+            ):
+                raise ValueError(
+                    "Invalid PENDING durability metadata."
+                )
+
+            return True
+
+        raise ValueError(
+            f"Unsupported durability phase: {phase!r}."
+        )
 
     def reconcile_pending_from(self, *, file_path: str | Path) -> dict[str, object]:
         """Explicit PAPER-only procedure; ordinary reads/startup never reconcile."""
