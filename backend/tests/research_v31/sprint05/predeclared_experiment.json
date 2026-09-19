@@ -1,0 +1,507 @@
+{
+  "frozen_at_utc": "2026-09-19 16:43:13.378591+00:00",
+  "head": "4cc30787bc618eebbd4fe149c56cb1a35ab30d36",
+  "phase": "BEFORE_ANY_FRESH_PERFORMANCE",
+  "boundaries": [
+    90,
+    80,
+    80.5
+  ],
+  "quality": 85,
+  "parameters": {
+    "ema": 10,
+    "stop_loss": 30,
+    "take_profit": 60
+  },
+  "production_boundary": 90,
+  "calendar": {
+    "path": "<NINJATRADER_TEMPLATE>/CME US Index Futures ETH.xml",
+    "sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
+    "name": "CME US Index Futures ETH",
+    "timezone": "Central Standard Time",
+    "version": "5119",
+    "sessions": [
+      {
+        "BeginDay": "Sunday",
+        "BeginTime": "1700",
+        "EndDay": "Monday",
+        "EndTime": "1600",
+        "TradingDay": "Monday"
+      },
+      {
+        "BeginDay": "Monday",
+        "BeginTime": "1700",
+        "EndDay": "Tuesday",
+        "EndTime": "1600",
+        "TradingDay": "Tuesday"
+      },
+      {
+        "BeginDay": "Tuesday",
+        "BeginTime": "1700",
+        "EndDay": "Wednesday",
+        "EndTime": "1600",
+        "TradingDay": "Wednesday"
+      },
+      {
+        "BeginDay": "Wednesday",
+        "BeginTime": "1700",
+        "EndDay": "Thursday",
+        "EndTime": "1600",
+        "TradingDay": "Thursday"
+      },
+      {
+        "BeginDay": "Thursday",
+        "BeginTime": "1700",
+        "EndDay": "Friday",
+        "EndTime": "1600",
+        "TradingDay": "Friday"
+      }
+    ],
+    "full": {
+      "2022-01-01": "New Year's Day",
+      "2022-12-24": "Christmas Eve",
+      "2022-12-26": "Boxing Day",
+      "2023-01-02": "New Year's Day",
+      "2023-12-24": "Christmas Eve",
+      "2023-12-25": "Christmas Day",
+      "2024-01-01": "New Year's Day",
+      "2024-03-29": "Good Friday",
+      "2025-01-01": "New Year's Day",
+      "2025-04-18": "Good Friday",
+      "2025-12-25": "Christmas Day"
+    },
+    "partial": {
+      "2022-02-21": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "President's Day"
+      },
+      "2022-04-15": {
+        "type": "EARLY_CLOSE",
+        "clock": "815",
+        "description": "Good Friday"
+      },
+      "2022-05-30": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Memorial Day"
+      },
+      "2022-07-04": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Independence Day"
+      },
+      "2022-09-05": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Labor Day"
+      },
+      "2022-11-24": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Thanksgiving Day"
+      },
+      "2022-11-25": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Day after Thanksgiving Day"
+      },
+      "2022-01-17": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Martin Luther King, Jr. Day"
+      },
+      "2022-06-20": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Juneteenth"
+      },
+      "2023-01-16": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Martin Luther King, Jr. Day"
+      },
+      "2023-02-20": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "President's Day"
+      },
+      "2023-04-07": {
+        "type": "EARLY_CLOSE",
+        "clock": "815",
+        "description": "Good Friday"
+      },
+      "2023-05-29": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Memorial Day"
+      },
+      "2023-06-19": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Juneteenth"
+      },
+      "2023-07-03": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Day before Independence Day"
+      },
+      "2023-09-04": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Labor Day"
+      },
+      "2023-11-23": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Thanksgiving Day"
+      },
+      "2023-11-24": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Day after Thanksgiving Day"
+      },
+      "2023-07-04": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Independence Day"
+      },
+      "2024-01-15": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Martin Luther King, Jr. Day"
+      },
+      "2024-02-19": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "President's Day"
+      },
+      "2024-03-28": {
+        "type": "EARLY_CLOSE",
+        "clock": "1600",
+        "description": "Day before Good Friday"
+      },
+      "2024-05-27": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Memorial Day"
+      },
+      "2024-06-19": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Juneteenth"
+      },
+      "2024-07-03": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Day before Independence Day"
+      },
+      "2024-07-04": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Independence Day"
+      },
+      "2024-09-02": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Labor Day"
+      },
+      "2024-11-28": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Thanksgiving Day"
+      },
+      "2024-11-29": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Day after Thanksgiving Day"
+      },
+      "2024-12-24": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Christmas Eve"
+      },
+      "2024-12-25": {
+        "type": "LATE_OPEN",
+        "clock": "1700",
+        "description": "Christmas Day"
+      },
+      "2025-01-09": {
+        "type": "EARLY_CLOSE",
+        "clock": "830",
+        "description": "National Day of Mourning"
+      },
+      "2025-01-20": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Martin Luther King, Jr. Day"
+      },
+      "2025-02-17": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "President's Day"
+      },
+      "2025-04-17": {
+        "type": "EARLY_CLOSE",
+        "clock": "1600",
+        "description": "Day before Good Friday"
+      },
+      "2025-05-26": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Memorial Day"
+      },
+      "2025-06-19": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Juneteenth"
+      },
+      "2025-07-03": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Day before Independence Day"
+      },
+      "2025-07-04": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Independence Day"
+      },
+      "2025-09-01": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Labor Day"
+      },
+      "2025-11-27": {
+        "type": "EARLY_CLOSE",
+        "clock": "1200",
+        "description": "Thanksgiving Day"
+      },
+      "2025-11-28": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Day after Thanksgiving Day"
+      },
+      "2025-12-24": {
+        "type": "EARLY_CLOSE",
+        "clock": "1215",
+        "description": "Christmas Eve"
+      }
+    }
+  },
+  "segments": [
+    {
+      "contract": "JUN22",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_JUN22_1M_20220301_20220630.txt",
+      "source_sha256": "afd354161867b436000a695bbfa72b07124a42729ac686a8042df67636fa4931",
+      "stream": "data\\backtest\\v31_sprint05\\JUN22.jsonl",
+      "stream_sha256": "8626d0ec8f97686cffc76491afee303edb2e753f3a45f47b6f3cff9e1a03b94f",
+      "start_inclusive": "2022-03-06 19:27:00+00:00",
+      "end_exclusive": "2022-06-14 22:00:00+00:00",
+      "observations": 96657,
+      "eligible": 96628,
+      "ineligible": 29,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "SEP22",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_SEP22_1M_20220601_20220930.txt",
+      "source_sha256": "edb66e8692fa791f0d7adaf8b1cebb775d7b0efa66a3090bc641270e8fbae9a3",
+      "stream": "data\\backtest\\v31_sprint05\\SEP22.jsonl",
+      "stream_sha256": "9ce36e2633ca37445f423d45d94f3293210d824e631d25b0711534be44d55ca5",
+      "start_inclusive": "2022-06-14 22:00:00+00:00",
+      "end_exclusive": "2022-09-13 22:00:00+00:00",
+      "observations": 89003,
+      "eligible": 88973,
+      "ineligible": 30,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "DEC22",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_DEC22_1M_20220901_20221231.txt",
+      "source_sha256": "d0a083f921c8473c5bdb4b5875259a86996c4e697affae6d2537ac9cb224a528",
+      "stream": "data\\backtest\\v31_sprint05\\DEC22.jsonl",
+      "stream_sha256": "40dd8cfe3d4a6e10fbc71fccf5de925d5311f8e10780f19f8c71e77cfccbbd19",
+      "start_inclusive": "2022-09-13 22:00:00+00:00",
+      "end_exclusive": "2022-12-13 23:00:00+00:00",
+      "observations": 88613,
+      "eligible": 88589,
+      "ineligible": 24,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "MAR23",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_MAR23_1M_20221201_20230331.txt",
+      "source_sha256": "12e3f4210a90369ca31ee719fcbfbd6f0d82407b336b8f96d56b942735f13827",
+      "stream": "data\\backtest\\v31_sprint05\\MAR23.jsonl",
+      "stream_sha256": "5d5d74b210d0a1ae55b1a18c2733ff58ee57c41f1311796071e0c3f864751c43",
+      "start_inclusive": "2022-12-13 23:00:00+00:00",
+      "end_exclusive": "2023-03-14 22:00:00+00:00",
+      "observations": 86456,
+      "eligible": 86445,
+      "ineligible": 11,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "JUN23",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_JUN23_1M_20230301_20230630.txt",
+      "source_sha256": "90f5523be52bb2343b6e104bac8e8327855ffd82e59ad5b07b7c3375eeb653ac",
+      "stream": "data\\backtest\\v31_sprint05\\JUN23.jsonl",
+      "stream_sha256": "6125bac89335e4598b571f7104b15878009ad0b96cd0ae928699c6446019f15d",
+      "start_inclusive": "2023-03-14 22:00:00+00:00",
+      "end_exclusive": "2023-06-13 22:00:00+00:00",
+      "observations": 88689,
+      "eligible": 88677,
+      "ineligible": 12,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "SEP23",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_SEP23_1M_20230601_20230930.txt",
+      "source_sha256": "3992a05a729fa592e4cc7e0cb04088684e671624a3330590e7518f5faf32b8a7",
+      "stream": "data\\backtest\\v31_sprint05\\SEP23.jsonl",
+      "stream_sha256": "3043add9c3538be7d76d99677d32aeb8f460456e2a81a86d8216739f6f8e9c55",
+      "start_inclusive": "2023-06-13 22:00:00+00:00",
+      "end_exclusive": "2023-09-12 22:00:00+00:00",
+      "observations": 88748,
+      "eligible": 88736,
+      "ineligible": 12,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "DEC23",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_DEC23_1M_20230901_20231231.txt",
+      "source_sha256": "dfc7071f9bda7c07326ec2b1a741b6d1161bddf5940740e3d434939dee960a70",
+      "stream": "data\\backtest\\v31_sprint05\\DEC23.jsonl",
+      "stream_sha256": "f8bf496304100f4516bf56d4dbfdeb05953597ea08872a00f2cc6f6a8a449e78",
+      "start_inclusive": "2023-09-12 22:00:00+00:00",
+      "end_exclusive": "2023-12-12 23:00:00+00:00",
+      "observations": 89234,
+      "eligible": 89226,
+      "ineligible": 8,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "MAR24",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_MAR24_1M_20231201_20240331.txt",
+      "source_sha256": "c2f311de6ff8390987dca55c6356a5cd189520ecf99887fe5d0af3ee4ea19f72",
+      "stream": "data\\backtest\\v31_sprint05\\MAR24.jsonl",
+      "stream_sha256": "8f87ae1d3227ea937e1a417f6a2dd7c31bed9c33687644761437c7f22c34e91f",
+      "start_inclusive": "2023-12-12 23:00:00+00:00",
+      "end_exclusive": "2024-03-12 22:00:00+00:00",
+      "observations": 86465,
+      "eligible": 86428,
+      "ineligible": 37,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "JUN24",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_JUN24_1M_20240301_20240630.txt",
+      "source_sha256": "893c5e1920cfd8ba8c5819ef2200866a0c0d6608f258ed3cf85cae1431c6b0b7",
+      "stream": "data\\backtest\\v31_sprint05\\JUN24.jsonl",
+      "stream_sha256": "4028070aaf5a6eaba0acff33740b16ff1675d2833712a777dde0ba6773924d28",
+      "start_inclusive": "2024-03-12 22:00:00+00:00",
+      "end_exclusive": "2024-06-18 22:00:00+00:00",
+      "observations": 94974,
+      "eligible": 94960,
+      "ineligible": 14,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "SEP24",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_SEP24_1M_20240601_20240930.txt",
+      "source_sha256": "d9f44bd198d84bd35f837e0f1b8ad310dace60d296e226229beaa20a31d2a919",
+      "stream": "data\\backtest\\v31_sprint05\\SEP24.jsonl",
+      "stream_sha256": "b0ca2d6fa831e6e1b4e32d89863678dc67314922a50ec8f4582b52f3c5d6912c",
+      "start_inclusive": "2024-06-18 22:00:00+00:00",
+      "end_exclusive": "2024-09-17 22:00:00+00:00",
+      "observations": 88703,
+      "eligible": 88694,
+      "ineligible": 9,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "DEC24",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_DEC24_1M_20240901_20241231.txt",
+      "source_sha256": "0fa9aa6257e84ece1a1ec5aca2a4d4caef6c42d2d4088e2f2a250cfc6543607c",
+      "stream": "data\\backtest\\v31_sprint05\\DEC24.jsonl",
+      "stream_sha256": "e960cf9bbb2627fa204a4d4753afceaa00a97f51c402b2f1e1b4d996bc557934",
+      "start_inclusive": "2024-09-17 22:00:00+00:00",
+      "end_exclusive": "2024-12-18 23:00:00+00:00",
+      "observations": 90622,
+      "eligible": 90602,
+      "ineligible": 20,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "MAR25",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_MAR25_1M_20241201_20250331.txt",
+      "source_sha256": "879bf5fd199fc61d3cda5cb1649e0425029751c5e51e16174af35d2196721e57",
+      "stream": "data\\backtest\\v31_sprint05\\MAR25.jsonl",
+      "stream_sha256": "88ac7a6db3538bb29f103a279b0e4cc1f452186304d7b5f3ed1d2a257817ff26",
+      "start_inclusive": "2024-12-18 23:00:00+00:00",
+      "end_exclusive": "2025-03-19 22:00:00+00:00",
+      "observations": 85782,
+      "eligible": 85758,
+      "ineligible": 24,
+      "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY"
+    },
+    {
+      "contract": "JUN25",
+      "source_file": "<ARMS_AI_SOURCE_EXPORT>/NQ_JUN25_1M_20250301_20250630.txt",
+      "source_sha256": "42bb9289427a6f7065ea914e590264d61036a1ea28239aa106e4b2bb68e7003d",
+      "stream": "data\\backtest\\v31_sprint05\\JUN25.jsonl",
+      "stream_sha256": "5eedbb9d641e917daa58a224ff1173ecf2be9f59cf8222afbf60acd7f43a31f5",
+      "start_inclusive": "2025-03-19 22:00:00+00:00",
+      "end_exclusive": "2025-06-22 15:52:00+00:00",
+      "observations": 89576,
+      "eligible": 89540,
+      "ineligible": 36,
+      "terminal_reason": "CONTRACT_TERMINATION_OR_DATASET_END"
+    }
+  ],
+  "certification_sha256": "f22e95a4049a9970ac828b53301249585001bf734d8bc03373220a57ed070e80",
+  "policy_sha256": "03b4f63b52d8aee2fe0fd025e38362229c525c1236e0205c99fb0bbfcc173dd6",
+  "research_helper_sha256": "009620c9e39cefd7cd1327158d947f08fe0b6fc50122c920b2bd56fc66ff7f84",
+  "accounting": "Independent simulator SL/TP completed outcomes only; END_OF_DATA censored valuation and lifecycle completions separate. No continuous equity.",
+  "aggregation": "RESEARCH_SUM_OF_INDEPENDENT_EXPERIMENTS",
+  "sample_screen": {
+    "completed_minimum": 30,
+    "segments_with_trades_minimum": 4,
+    "max_positive_pnl_segment_share": 0.5
+  },
+  "classification_rule": "Below sample screen: INSUFFICIENT_EVIDENCE. Otherwise net<=0 or PF<=1: REJECTED_BY_FRESH_DATA. Positive net/PF>1 and positive segment majority and concentration<=.5: SUPPORTED_FOR_FURTHER_RESEARCH, otherwise INSUFFICIENT_EVIDENCE. No production promotion.",
+  "unchanged": [
+    "scores",
+    "weights",
+    "risk",
+    "quality",
+    "SL/TP",
+    "SL-first",
+    "submission safety",
+    "flat semantics",
+    "complete HTF",
+    "strategy logic"
+  ],
+  "risk_configuration": {
+    "signal_risk_context": {
+      "account_balance": 150000.0,
+      "risk_percent": 0.5,
+      "point_value": 20.0,
+      "daily_pnl": 0.0,
+      "total_drawdown": 0.0
+    },
+    "settings": {
+      "maximum_quote_age_seconds": 30.0,
+      "minimum_reward_risk_ratio": 2.0,
+      "minimum_stop_points": 1.0,
+      "maximum_stop_points": 100.0,
+      "maximum_spread_points": 5.0,
+      "minimum_atr_points": 1.0,
+      "minimum_a_plus_probability": 0.8,
+      "minimum_a_plus_confluence_score": 0.8,
+      "maximum_signal_age_seconds": 300,
+      "maximum_open_positions": 1
+    }
+  },
+  "risk_limitations": "Existing historical composition supplies daily_pnl=0 and total_drawdown=0; this is not a continuous account-risk certification. No changes or new overrides."
+}

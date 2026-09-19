@@ -1,0 +1,78 @@
+{
+  "contract": "DEC23",
+  "boundary": 90,
+  "candles": 89234,
+  "eligible": 89226,
+  "ineligible": 8,
+  "eligible_decisions": 89221,
+  "confluence_distribution": {
+    "count": 89216,
+    "mean": 37.973344803622666,
+    "min": 9.64,
+    "percentiles": {
+      "50": 36.65,
+      "75": 43.67,
+      "80": 45.79,
+      "85": 48.2775,
+      "90": 51.41,
+      "95": 57.22,
+      "97": 61.97,
+      "99": 68.45700000000011,
+      "99.5": 71.71925000000003,
+      "100": 86.76
+    },
+    "histogram": {
+      "0-49.99": 78624,
+      "50-59.99": 7052,
+      "60-64.99": 1915,
+      "65-69.99": 986,
+      "70-74.99": 433,
+      "75-79.99": 146,
+      "80-84.99": 59,
+      "85-89.99": 1,
+      "90+": 0
+    }
+  },
+  "a_plus_opportunities": 0,
+  "clustering": {
+    "raw": 0,
+    "consecutive_clusters": 0,
+    "episodes": 0,
+    "dates": 0,
+    "median_episode_spacing_minutes": null,
+    "directions": {},
+    "episode_directions": {}
+  },
+  "actions": {
+    "HOLD": 89221
+  },
+  "plans": 0,
+  "signals": 0,
+  "submissions": 0,
+  "accepted": 0,
+  "rejected": 0,
+  "rejection_reasons": {},
+  "simulated_trades": 0,
+  "completed_trades": 0,
+  "wins": 0,
+  "losses": 0,
+  "breakeven": 0,
+  "win_rate": null,
+  "gross_profit": 0,
+  "gross_loss": 0,
+  "net_pnl": 0,
+  "profit_factor": null,
+  "expectancy": null,
+  "max_drawdown": 0,
+  "censored_valuations": [],
+  "trades": [],
+  "lifecycle_completed_trades": 0,
+  "terminal_unresolved_positions": 0,
+  "terminal_reason": "CONTRACT_SEGMENT_BOUNDARY",
+  "htf_counts": {
+    "15m": 5941,
+    "1h": 1480
+  },
+  "observer_vs_plain_full_comparison": "PASS",
+  "lookahead_assertions": "PASS"
+}

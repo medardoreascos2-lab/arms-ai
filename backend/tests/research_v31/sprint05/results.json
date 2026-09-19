@@ -1,0 +1,415 @@
+{
+  "predeclaration_sha256": "4ecc850f632b73825955f513b37874984ac206b87d0995957027ed9171c20e6e",
+  "aggregates": {
+    "90": {
+      "aggregation": "RESEARCH_SUM_OF_INDEPENDENT_EXPERIMENTS",
+      "completed_trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "breakeven": 0,
+      "win_rate": null,
+      "gross_profit": 0,
+      "gross_loss": 0,
+      "net_pnl": 0,
+      "profit_factor": null,
+      "expectancy": null,
+      "segments": 13,
+      "profitable_segments": 0,
+      "losing_segments": 0,
+      "zero_completed_trade_segments": 13,
+      "median_trades": 0,
+      "median_expectancy": null,
+      "median_PF": null,
+      "max_segment_drawdown": 0,
+      "positive_pnl_concentration": null,
+      "sample_adequate_descriptive_only": false,
+      "classification": "INSUFFICIENT_EVIDENCE",
+      "cohorts": {
+        "direction": {},
+        "regime": {},
+        "session": {},
+        "year": {}
+      },
+      "a_plus_opportunities": 0,
+      "opportunity_episodes": 0,
+      "simulated_trades": 0,
+      "censored_valuations": 0,
+      "terminal_unresolved_positions": 0
+    },
+    "80": {
+      "aggregation": "RESEARCH_SUM_OF_INDEPENDENT_EXPERIMENTS",
+      "completed_trades": 611,
+      "wins": 228,
+      "losses": 383,
+      "breakeven": 0,
+      "win_rate": 0.37315875613747956,
+      "gross_profit": 273600.0,
+      "gross_loss": 229800.0,
+      "net_pnl": 43800.0,
+      "profit_factor": 1.1906005221932114,
+      "expectancy": 71.68576104746317,
+      "segments": 13,
+      "profitable_segments": 10,
+      "losing_segments": 2,
+      "zero_completed_trade_segments": 0,
+      "median_trades": 51,
+      "median_expectancy": 63.1578947368421,
+      "median_PF": 1.1666666666666667,
+      "max_segment_drawdown": 8400.0,
+      "positive_pnl_concentration": 0.2413793103448276,
+      "sample_adequate_descriptive_only": true,
+      "classification": "SUPPORTED_FOR_FURTHER_RESEARCH",
+      "cohorts": {
+        "direction": {
+          "SELL": {
+            "completed_trades": 317,
+            "wins": 130,
+            "losses": 187,
+            "breakeven": 0,
+            "win_rate": 0.41009463722397477,
+            "gross_profit": 156000.0,
+            "gross_loss": 112200.0,
+            "net_pnl": 43800.0,
+            "profit_factor": 1.3903743315508021,
+            "expectancy": 138.17034700315457
+          },
+          "BUY": {
+            "completed_trades": 294,
+            "wins": 98,
+            "losses": 196,
+            "breakeven": 0,
+            "win_rate": 0.3333333333333333,
+            "gross_profit": 117600.0,
+            "gross_loss": 117600.0,
+            "net_pnl": 0.0,
+            "profit_factor": 1.0,
+            "expectancy": 0.0
+          }
+        },
+        "regime": {
+          "RANGE": {
+            "completed_trades": 532,
+            "wins": 198,
+            "losses": 334,
+            "breakeven": 0,
+            "win_rate": 0.37218045112781956,
+            "gross_profit": 237600.0,
+            "gross_loss": 200400.0,
+            "net_pnl": 37200.0,
+            "profit_factor": 1.18562874251497,
+            "expectancy": 69.92481203007519
+          },
+          "HIGH_VOLATILITY": {
+            "completed_trades": 74,
+            "wins": 28,
+            "losses": 46,
+            "breakeven": 0,
+            "win_rate": 0.3783783783783784,
+            "gross_profit": 33600.0,
+            "gross_loss": 27600.0,
+            "net_pnl": 6000.0,
+            "profit_factor": 1.2173913043478262,
+            "expectancy": 81.08108108108108
+          },
+          "TREND_DOWN": {
+            "completed_trades": 3,
+            "wins": 1,
+            "losses": 2,
+            "breakeven": 0,
+            "win_rate": 0.3333333333333333,
+            "gross_profit": 1200.0,
+            "gross_loss": 1200.0,
+            "net_pnl": 0.0,
+            "profit_factor": 1.0,
+            "expectancy": 0.0
+          },
+          "TREND_UP": {
+            "completed_trades": 2,
+            "wins": 1,
+            "losses": 1,
+            "breakeven": 0,
+            "win_rate": 0.5,
+            "gross_profit": 1200.0,
+            "gross_loss": 600.0,
+            "net_pnl": 600.0,
+            "profit_factor": 2.0,
+            "expectancy": 300.0
+          }
+        },
+        "session": {
+          "ETH_OTHER": {
+            "completed_trades": 409,
+            "wins": 145,
+            "losses": 264,
+            "breakeven": 0,
+            "win_rate": 0.3545232273838631,
+            "gross_profit": 174000.0,
+            "gross_loss": 158400.0,
+            "net_pnl": 15600.0,
+            "profit_factor": 1.0984848484848484,
+            "expectancy": 38.141809290953546
+          },
+          "RTH_0830_1500_CT": {
+            "completed_trades": 202,
+            "wins": 83,
+            "losses": 119,
+            "breakeven": 0,
+            "win_rate": 0.41089108910891087,
+            "gross_profit": 99600.0,
+            "gross_loss": 71400.0,
+            "net_pnl": 28200.0,
+            "profit_factor": 1.3949579831932772,
+            "expectancy": 139.6039603960396
+          }
+        },
+        "year": {
+          "2022": {
+            "completed_trades": 180,
+            "wins": 71,
+            "losses": 109,
+            "breakeven": 0,
+            "win_rate": 0.39444444444444443,
+            "gross_profit": 85200.0,
+            "gross_loss": 65400.0,
+            "net_pnl": 19800.0,
+            "profit_factor": 1.3027522935779816,
+            "expectancy": 110.0
+          },
+          "2023": {
+            "completed_trades": 159,
+            "wins": 56,
+            "losses": 103,
+            "breakeven": 0,
+            "win_rate": 0.3522012578616352,
+            "gross_profit": 67200.0,
+            "gross_loss": 61800.0,
+            "net_pnl": 5400.0,
+            "profit_factor": 1.087378640776699,
+            "expectancy": 33.9622641509434
+          },
+          "2024": {
+            "completed_trades": 168,
+            "wins": 58,
+            "losses": 110,
+            "breakeven": 0,
+            "win_rate": 0.34523809523809523,
+            "gross_profit": 69600.0,
+            "gross_loss": 66000.0,
+            "net_pnl": 3600.0,
+            "profit_factor": 1.0545454545454545,
+            "expectancy": 21.428571428571427
+          },
+          "2025": {
+            "completed_trades": 104,
+            "wins": 43,
+            "losses": 61,
+            "breakeven": 0,
+            "win_rate": 0.41346153846153844,
+            "gross_profit": 51600.0,
+            "gross_loss": 36600.0,
+            "net_pnl": 15000.0,
+            "profit_factor": 1.4098360655737705,
+            "expectancy": 144.23076923076923
+          }
+        }
+      },
+      "a_plus_opportunities": 620,
+      "opportunity_episodes": 612,
+      "simulated_trades": 611,
+      "censored_valuations": 0,
+      "terminal_unresolved_positions": 0
+    },
+    "80.5": {
+      "aggregation": "RESEARCH_SUM_OF_INDEPENDENT_EXPERIMENTS",
+      "completed_trades": 569,
+      "wins": 210,
+      "losses": 359,
+      "breakeven": 0,
+      "win_rate": 0.36906854130052724,
+      "gross_profit": 252000.0,
+      "gross_loss": 215400.0,
+      "net_pnl": 36600.0,
+      "profit_factor": 1.16991643454039,
+      "expectancy": 64.32337434094903,
+      "segments": 13,
+      "profitable_segments": 10,
+      "losing_segments": 3,
+      "zero_completed_trade_segments": 0,
+      "median_trades": 45,
+      "median_expectancy": 60.0,
+      "median_PF": 1.1578947368421053,
+      "max_segment_drawdown": 8400.0,
+      "positive_pnl_concentration": 0.25333333333333335,
+      "sample_adequate_descriptive_only": true,
+      "classification": "SUPPORTED_FOR_FURTHER_RESEARCH",
+      "cohorts": {
+        "direction": {
+          "SELL": {
+            "completed_trades": 298,
+            "wins": 123,
+            "losses": 175,
+            "breakeven": 0,
+            "win_rate": 0.412751677852349,
+            "gross_profit": 147600.0,
+            "gross_loss": 105000.0,
+            "net_pnl": 42600.0,
+            "profit_factor": 1.4057142857142857,
+            "expectancy": 142.95302013422818
+          },
+          "BUY": {
+            "completed_trades": 271,
+            "wins": 87,
+            "losses": 184,
+            "breakeven": 0,
+            "win_rate": 0.3210332103321033,
+            "gross_profit": 104400.0,
+            "gross_loss": 110400.0,
+            "net_pnl": -6000.0,
+            "profit_factor": 0.9456521739130435,
+            "expectancy": -22.14022140221402
+          }
+        },
+        "regime": {
+          "RANGE": {
+            "completed_trades": 496,
+            "wins": 183,
+            "losses": 313,
+            "breakeven": 0,
+            "win_rate": 0.3689516129032258,
+            "gross_profit": 219600.0,
+            "gross_loss": 187800.0,
+            "net_pnl": 31800.0,
+            "profit_factor": 1.1693290734824282,
+            "expectancy": 64.11290322580645
+          },
+          "HIGH_VOLATILITY": {
+            "completed_trades": 68,
+            "wins": 25,
+            "losses": 43,
+            "breakeven": 0,
+            "win_rate": 0.36764705882352944,
+            "gross_profit": 30000.0,
+            "gross_loss": 25800.0,
+            "net_pnl": 4200.0,
+            "profit_factor": 1.1627906976744187,
+            "expectancy": 61.76470588235294
+          },
+          "TREND_DOWN": {
+            "completed_trades": 3,
+            "wins": 1,
+            "losses": 2,
+            "breakeven": 0,
+            "win_rate": 0.3333333333333333,
+            "gross_profit": 1200.0,
+            "gross_loss": 1200.0,
+            "net_pnl": 0.0,
+            "profit_factor": 1.0,
+            "expectancy": 0.0
+          },
+          "TREND_UP": {
+            "completed_trades": 2,
+            "wins": 1,
+            "losses": 1,
+            "breakeven": 0,
+            "win_rate": 0.5,
+            "gross_profit": 1200.0,
+            "gross_loss": 600.0,
+            "net_pnl": 600.0,
+            "profit_factor": 2.0,
+            "expectancy": 300.0
+          }
+        },
+        "session": {
+          "ETH_OTHER": {
+            "completed_trades": 384,
+            "wins": 132,
+            "losses": 252,
+            "breakeven": 0,
+            "win_rate": 0.34375,
+            "gross_profit": 158400.0,
+            "gross_loss": 151200.0,
+            "net_pnl": 7200.0,
+            "profit_factor": 1.0476190476190477,
+            "expectancy": 18.75
+          },
+          "RTH_0830_1500_CT": {
+            "completed_trades": 185,
+            "wins": 78,
+            "losses": 107,
+            "breakeven": 0,
+            "win_rate": 0.42162162162162165,
+            "gross_profit": 93600.0,
+            "gross_loss": 64200.0,
+            "net_pnl": 29400.0,
+            "profit_factor": 1.4579439252336448,
+            "expectancy": 158.9189189189189
+          }
+        },
+        "year": {
+          "2022": {
+            "completed_trades": 168,
+            "wins": 66,
+            "losses": 102,
+            "breakeven": 0,
+            "win_rate": 0.39285714285714285,
+            "gross_profit": 79200.0,
+            "gross_loss": 61200.0,
+            "net_pnl": 18000.0,
+            "profit_factor": 1.2941176470588236,
+            "expectancy": 107.14285714285714
+          },
+          "2023": {
+            "completed_trades": 147,
+            "wins": 53,
+            "losses": 94,
+            "breakeven": 0,
+            "win_rate": 0.36054421768707484,
+            "gross_profit": 63600.0,
+            "gross_loss": 56400.0,
+            "net_pnl": 7200.0,
+            "profit_factor": 1.127659574468085,
+            "expectancy": 48.97959183673469
+          },
+          "2024": {
+            "completed_trades": 155,
+            "wins": 53,
+            "losses": 102,
+            "breakeven": 0,
+            "win_rate": 0.3419354838709677,
+            "gross_profit": 63600.0,
+            "gross_loss": 61200.0,
+            "net_pnl": 2400.0,
+            "profit_factor": 1.0392156862745099,
+            "expectancy": 15.483870967741936
+          },
+          "2025": {
+            "completed_trades": 99,
+            "wins": 38,
+            "losses": 61,
+            "breakeven": 0,
+            "win_rate": 0.3838383838383838,
+            "gross_profit": 45600.0,
+            "gross_loss": 36600.0,
+            "net_pnl": 9000.0,
+            "profit_factor": 1.2459016393442623,
+            "expectancy": 90.9090909090909
+          }
+        }
+      },
+      "a_plus_opportunities": 580,
+      "opportunity_episodes": 571,
+      "simulated_trades": 569,
+      "censored_valuations": 0,
+      "terminal_unresolved_positions": 0
+    }
+  },
+  "sensitivity_80_5_minus_80": {
+    "completed_trades": -42,
+    "net_pnl": -7200.0,
+    "a_plus_opportunities": -40
+  },
+  "runs": 39,
+  "production_changed": false,
+  "executed_helper_sha256": "617fbf943f10b88159fb46b646d2491842a12aec3f4d3a1b158277eeb031dff6",
+  "observer_repair_sha256": "5325ef3a0d623478ed17478caee809ee9acca9b99ed58e4626f36c3ea0dac37a"
+}

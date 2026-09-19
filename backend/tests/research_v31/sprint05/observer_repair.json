@@ -1,0 +1,12 @@
+{
+    "reason":  "Reporting-only correction: BacktestSessionV2 appends SimulatedTrade outcomes to submission_results; filter dictionary submission events. Boundaries, scores, policy, risk, source selection, metrics and original predeclaration remain unchanged.",
+    "recorded_at_utc":  "2026-09-19T16:48:50.9199451Z",
+    "predeclaration_sha256":  "4ecc850f632b73825955f513b37874984ac206b87d0995957027ed9171c20e6e",
+    "original_helper_sha256":  "009620c9e39cefd7cd1327158d947f08fe0b6fc50122c920b2bd56fc66ff7f84",
+    "repaired_helper_sha256":  "617fbf943f10b88159fb46b646d2491842a12aec3f4d3a1b158277eeb031dff6",
+    "preserved_completed_outputs":  {
+                                        "JUN22_90.json":  "eb648e683fb11cc10d275129cf0d17360897c714f8c166142bd0ad218a056096"
+                                    },
+    "execution_orchestration":  "Three independent worker processes; one fresh observed/plain composition pair per frozen segment and boundary. No strategy or execution implementation changed.",
+    "regression":  "53 passed; includes actual accepted/rejected mixed session result regression"
+}

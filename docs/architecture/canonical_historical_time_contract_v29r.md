@@ -3,12 +3,53 @@
 This is a **new architectural contract authorized in V29R**, not an inference
 about previous ARMS AI behavior or NinjaTrader export settings.
 
-The source is the NQ 1-minute NinjaTrader historical export. Interpret naive
+The original V29R input is the existing normalized historical CSV. Interpret naive
 timestamps as America/Chicago local wall time at the aggregation boundary.
 Offset-aware timestamps convert to Chicago. Preserve raw CSV timestamps and
 source Candle objects exactly. Ambiguous/nonexistent naive DST labels fail
 closed and require explicit offsets; do not guess a DST fold. Offset-aware
 repeated hours are separate buckets, ordered by their UTC instants.
+
+## V31 native export amendment (Sprint 05, explicit opt-in)
+
+The original CSV convention above is preserved for frozen V30 reproducibility;
+it must not be applied directly to native NinjaTrader export text. Research-grade
+control evidence supports native **UTC end-of-bar** labels for JUN22–JUN25.
+`HistoricalEligibilityV31` parses that source label as UTC, subtracts exactly
+60 elapsed seconds, then converts the open instant to America/Chicago. Availability
+is the original UTC end. Both raw row and source file/hash/row/contract remain in
+the immutable observation. DST conversion never localizes a naive Chicago label.
+Execution Candle timestamps use the resulting explicit Chicago offset, preserving
+UTC ordering through a fold even in legacy datetime comparison consumers.
+
+Source validity, strategy-context eligibility, execution-price eligibility and
+session-accounting eligibility are separate metadata. Valid source observations
+are always retained. The injected, hash-identified CME US Index Futures ETH
+calendar includes explicit full/partial holidays. Reviewed contract termination
+clips eligibility at 08:30 Chicago on the reviewed expiry date; the last interval
+ending at termination is eligible. Dates/contracts outside the reviewed domain
+fail closed. Current template and matched controls provide research-grade evidence,
+not a claim of provider-level or archived-calendar certification.
+
+Under the conservative policy, an interval outside a permitted session or after
+termination is ineligible for all three consumers. Such rows remain in the source
+and research lineage stream; they cannot mark positions, trigger SL/TP, complete
+lifecycle trades, advance cooldown, enter history or contribute HTF OHLCV. The
+single-contract executable view filters them before the existing single-pass
+engine, including its future-price view. This is not price repair or deletion.
+Canonical timestamp gaps still invalidate incomplete HTF buckets; no filling or
+retroactive changes to prior decisions occur. Prior complete bars remain available.
+
+During a temporary closure the position remains unresolved; only the next eligible
+price of the same contract may resume evaluation. A segment/contract boundary
+ends the independent experiment with an explicit unresolved terminal position.
+No forced exit, cross-contract prices, continuous account or spliced equity curve
+is introduced. Existing simulator END_OF_DATA valuations use only the final
+eligible price and are reported separately as censored, never as completed fills.
+Simulator SL/TP completion and authoritative lifecycle completion are reported
+separately, without summing their PnL. All segment/threshold combinations require
+fresh composition and identical risk configuration. Default production/live
+wiring, the original CSV contract and frozen V30 artifacts are unchanged.
 
 `Candle.timestamp` is the interval **open label** under this historical
 contract. A 09:30 1m candle covers [09:30, 09:31) and is complete at 09:31.
@@ -44,7 +85,9 @@ or synthesizing candles. Prior complete history remains available across gaps.
 
 OHLCV is first open, max high, min low, last close, summed volume. Flat minutes
 are real inputs and count toward completeness. No filling, interpolation,
-price mutation, or dropped base candles is permitted. Completed HTF snapshots
+price mutation, or dropped source observations is permitted. The opt-in V31
+eligibility view excludes ineligible observations from aggregation while retaining
+them in source lineage. Completed HTF snapshots
 are detached; future inputs and changes to caller snapshots cannot alter them.
 
 ## Integration and warm-up
