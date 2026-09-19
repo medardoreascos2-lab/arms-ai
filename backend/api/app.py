@@ -855,6 +855,7 @@ def create_app(
     start_backtesting_background_worker=False,
     load_default_strategies=False,
     enable_trading_pipeline_dashboard=False,
+    paper_research_provider_v1=None,
 ) -> FastAPI:
     if settings is None:
         settings = APISettings()
@@ -3072,6 +3073,7 @@ def create_app(
 
     app.include_router(
         create_backtesting_dashboard_router_v2(
+            paper_research_provider=paper_research_provider_v1,
             controller=(
                 app.state
                 .backtesting_controller_v2

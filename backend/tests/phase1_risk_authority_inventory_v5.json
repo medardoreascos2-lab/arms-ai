@@ -4,8 +4,8 @@
   "counting": "Function-level decision/authority inventory, including discovered observational and compatibility candidates. Persistent block writer/clearer counts count direct account-state writers, not callers or ephemeral result reasons. Discovery is repository-wide decision vocabulary plus explicit reviewed boolean/exception/delegation boundaries.",
   "canonical_risk_owner": "RiskManagerV2, composed by TradeLifecycleServiceV2 under AccountStateManagerV2 and runtime admission vetoes",
   "certificate": {
-    "TOTAL_RISK_DECISION_POINTS": 141,
-    "CLASSIFIED_RISK_DECISION_POINTS": 141,
+    "TOTAL_RISK_DECISION_POINTS": 144,
+    "CLASSIFIED_RISK_DECISION_POINTS": 144,
     "UNCLASSIFIED_RISK_DECISION_POINTS": 0,
     "BLOCK_WRITERS": 7,
     "BLOCK_CLEARERS": 4,
@@ -6550,6 +6550,120 @@
         "self.simulator.execute"
       ],
       "output_fields": []
+    },
+    {
+      "id": "backend/backtesting/historical_accounting_v1.py:_HistoricalRiskManager.evaluate",
+      "path": "backend/backtesting/historical_accounting_v1.py",
+      "function": "_HistoricalRiskManager.evaluate",
+      "source_sha256": "282b63e7629d21792e5c829c6dd810b08af41d674b82ea7c5205efe46ebf798d",
+      "inputs": "self, **kwargs",
+      "calls": [
+        "dict",
+        "kwargs.update",
+        "list",
+        "r.risk_context",
+        "r.risk_evaluations.append",
+        "super",
+        "super().evaluate"
+      ],
+      "output_fields": [
+        "approved",
+        "index",
+        "inputs",
+        "reasons"
+      ],
+      "owner": "RiskManagerV2 + AccountStateManagerV2; HistoricalAccountingV1 binding",
+      "classification": "EXECUTION_GUARD",
+      "output": "Existing numeric risk evaluation with current account inputs and explicit execution costs",
+      "can_block": true,
+      "can_unblock": false,
+      "can_size": true,
+      "account_scoped": true,
+      "runtime_scoped": true,
+      "strategy_scoped": false,
+      "execution_scoped": true,
+      "persisted_or_ephemeral": "ISOLATED_HISTORICAL_MEMORY",
+      "callers": [
+        "HistoricalAccountingV1",
+        "_HistoricalSession"
+      ],
+      "caller_evidence": "Explicit opt-in composition; no application or LIVE wiring",
+      "downstream_effect": "Preserve existing risk limits; current account veto remains authoritative",
+      "persistent_block_writer": false,
+      "persistent_block_clearer": false
+    },
+    {
+      "id": "backend/backtesting/historical_accounting_v1.py:_HistoricalRiskAdapter.evaluate",
+      "path": "backend/backtesting/historical_accounting_v1.py",
+      "function": "_HistoricalRiskAdapter.evaluate",
+      "source_sha256": "7eabd4bfe615aef43c38630f22aa63de97a87aa450d63cb048d83fd5778332ed",
+      "inputs": "self, **kwargs",
+      "calls": [
+        "RiskCompatibilityResultV2",
+        "r.account.get_state",
+        "r.risk_context",
+        "r.risk_evaluations.append",
+        "super",
+        "super().evaluate"
+      ],
+      "output_fields": [
+        "approved",
+        "index",
+        "inputs",
+        "reasons"
+      ],
+      "owner": "RiskManagerV2 + AccountStateManagerV2; HistoricalAccountingV1 binding",
+      "classification": "EXECUTION_GUARD",
+      "output": "Existing numeric risk evaluation with current account inputs and explicit execution costs",
+      "can_block": true,
+      "can_unblock": false,
+      "can_size": true,
+      "account_scoped": true,
+      "runtime_scoped": true,
+      "strategy_scoped": false,
+      "execution_scoped": true,
+      "persisted_or_ephemeral": "ISOLATED_HISTORICAL_MEMORY",
+      "callers": [
+        "HistoricalAccountingV1",
+        "_HistoricalSession"
+      ],
+      "caller_evidence": "Explicit opt-in composition; no application or LIVE wiring",
+      "downstream_effect": "Preserve existing risk limits; current account veto remains authoritative",
+      "persistent_block_writer": false,
+      "persistent_block_clearer": false
+    },
+    {
+      "id": "backend/backtesting/historical_accounting_v1.py:HistoricalAccountingV1.capture_state",
+      "path": "backend/backtesting/historical_accounting_v1.py",
+      "function": "HistoricalAccountingV1.capture_state",
+      "source_sha256": "79d741ef50b94f3bbbc872f2c70ca3b75bde007e16536511f844c998607ecfd6",
+      "inputs": "self",
+      "calls": [
+        "self.account.get_state",
+        "self.states.append"
+      ],
+      "output_fields": [
+        "index"
+      ],
+      "owner": "RiskManagerV2 + AccountStateManagerV2; HistoricalAccountingV1 binding",
+      "classification": "OBSERVATIONAL_ONLY",
+      "output": "Historical state observation",
+      "can_block": false,
+      "can_unblock": false,
+      "can_size": false,
+      "account_scoped": true,
+      "runtime_scoped": true,
+      "strategy_scoped": false,
+      "execution_scoped": false,
+      "persisted_or_ephemeral": "ISOLATED_HISTORICAL_MEMORY",
+      "callers": [
+        "HistoricalAccountingV1",
+        "_HistoricalSession"
+      ],
+      "caller_evidence": "Explicit opt-in composition; no application or LIVE wiring",
+      "downstream_effect": "Observe only",
+      "persistent_block_writer": false,
+      "persistent_block_clearer": false
     }
   ],
   "v81_review": {

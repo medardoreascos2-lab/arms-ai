@@ -34,6 +34,7 @@ def create_backtesting_dashboard_router_v2(
     strategy_performance_provider=None,
     strategy_ranking_provider=None,
     strategy_selection_provider=None,
+    paper_research_provider=None,
 ) -> APIRouter:
     """
     Router REST para exponer un resumen operativo
@@ -53,6 +54,9 @@ def create_backtesting_dashboard_router_v2(
         raise TypeError(
             "controller debe implementar status()."
         )
+
+    if paper_research_provider is not None and not callable(getattr(paper_research_provider, "get_snapshot", None)):
+        raise TypeError("paper_research_provider must implement read-only get_snapshot()")
 
     if (
         job_manager is not None
@@ -207,6 +211,8 @@ def create_backtesting_dashboard_router_v2(
             "performance": None,
             "strategy_performance": None,
         }
+        if paper_research_provider is not None:
+            payload["paper_research"] = paper_research_provider.get_snapshot()
 
         if job_manager is not None:
 

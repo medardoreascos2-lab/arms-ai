@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "status": "SPRINT07R_CANONICAL_INTRABAR_IMPLEMENTED_AND_VERIFIED",
+  "source_head": "04ce5cd59601c3660f425492dec9569c94ebb71c",
+  "scope": "Production parameterized historical backtest composition; no live execution",
+  "legacy_ownership_audit": [
+    {
+      "concept": "strategy_intent_and_planned_levels",
+      "writers": ["backend/strategies/parameterized_strategy_runner_v2.py:ParameterizedStrategyRunnerV2.run"],
+      "readers": ["BacktestTradePlanAdapterV2.build_trade_plan", "BacktestSessionV2._execute_trade_if_configured"],
+      "contract": "Entry intent is the completed candle close. SL/TP are strategy distances from that plan price. No fill authority."
+    },
+    {
+      "concept": "requested_quantity_and_plan",
+      "writers": ["backend/execution/position_sizing_engine_v2.py:PositionSizingEngineV2.calculate", "backend/execution/risk_manager_v2.py:RiskManagerV2.evaluate", "backend/backtesting/backtest_session_v2.py:BacktestSessionV2._generate_signal_if_configured", "backend/backtesting/backtest_trade_plan_adapter_v2.py:BacktestTradePlanAdapterV2.build_trade_plan"],
+      "readers": ["SignalGeneratorV2.generate", "TradeLifecycleServiceV2.submit_signal", "BacktestExecutionAdapterV2.execute"],
+      "contract": "Sizing floors monetary budget / stop-distance dollar risk. Lifecycle caps requested contracts. Independent simulation separately evaluates sizing. TradePlan.risk_amount is points times contracts, not authoritative NQ dollar risk."
+    },
+    {
+      "concept": "submission_and_final_authorization",
+      "writers": ["backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal", "backend/execution/execution_risk_gate_v1.py:ExecutionRiskGateV1.evaluate_trade"],
+      "readers": ["BacktestSessionV2.run", "ExecutionManagerV2.prepare_order"],
+      "contract": "Configured submission must explicitly accept before independent simulation. Signal, position, sizing, risk and final execution gates remain authoritative."
+    },
+    {
+      "concept": "executed_entry_and_quantity",
+      "writers": ["backend/execution/paper_execution_engine_v2.py:PaperExecutionEngineV2.execute", "backend/connectors/paper_broker_connector_v2.py:PaperBrokerConnectorV2.submit_order", "backend/execution/position_manager_v2.py:PositionManagerV2.open_position"],
+      "readers": ["TradeLifecycleServiceV2", "PortfolioManagerV2", "TradeJournalV2"],
+      "contract": "PAPER market fill uses plan price plus adverse configured entry slippage. Factory configures 0.25 points. Planned SL/TP remain unchanged. Position manager consumes the actual fill and quantity."
+    },
+    {
+      "concept": "historical_simulator_exit_and_realized_pnl",
+      "writers": ["backend/backtesting/backtest_execution_simulator_v2.py:BacktestExecutionSimulatorV2.simulate"],
+      "readers": ["BacktestSessionV2.simulated_trades", "BacktestEngine.run_single_pass", "StatisticsEngine", "BacktestResult.equity_curve"],
+      "contract": "Separate zero-cost plan-price entry. Future high/low SL/TP trigger, stop first when both touch. Exit at the planned level. Quantity times point value times signed price change. END_OF_DATA uses last-close valuation, separated from completed trades by Sprint 05. No account-risk feedback."
+    },
+    {
+      "concept": "lifecycle_exit_realized_and_unrealized_pnl",
+      "writers": ["backend/backtesting/backtest_session_v2.py:BacktestSessionV2._update_active_position_if_configured", "backend/execution/position_manager_v2.py:PositionManagerV2.update_position", "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.update_position"],
+      "readers": ["TradeHistoryManagerV2.record", "PortfolioManagerV2.close_position", "TradeJournalV2.close_trade", "ParameterizedStrategyRunnerV2.run"],
+      "contract": "Historical session supplies close only. Position manager uses executed entry and current close; crossing the planned stop/target closes at that close. Lifecycle synchronizes PAPER position/protections/OCO and propagates the outcome. Position status feeds the next strategy call before risk evaluation."
+    },
+    {
+      "concept": "portfolio_balance_equity_and_cumulative_pnl",
+      "writers": ["backend/portfolio/portfolio_manager_v2.py:PortfolioManagerV2.add_position", "backend/portfolio/portfolio_manager_v2.py:PortfolioManagerV2.update_position", "backend/portfolio/portfolio_manager_v2.py:PortfolioManagerV2.close_position"],
+      "readers": ["AccountStateManagerV2.update_from_portfolio", "TradeLifecycleServiceV2.submit_signal", "portfolio consumers"],
+      "contract": "Existing reusable authority. Balance is starting balance plus cumulative realized PnL; equity additionally includes open marked PnL. Lifecycle-supplied realized close PnL takes precedence over local fallback calculation. Not wired in current historical factory."
+    },
+    {
+      "concept": "daily_realized_pnl_drawdown_and_risk_state",
+      "writers": ["backend/account/account_state_manager_v2.py:AccountStateManagerV2.update_from_portfolio", "backend/account/account_state_manager_v2.py:AccountStateManagerV2.reset_daily_state"],
+      "readers": ["TradeLifecycleServiceV2.submit_signal", "RiskManagerV2.evaluate", "account/dashboard consumers"],
+      "contract": "Existing reusable authority supports injected clock. Daily PnL adds only changes in cumulative realized PnL. Drawdown uses peak marked equity minus equity, not merely realized balance. Reset uses MarketHoursServiceV2.trading_day_for, retaining cumulative realization baseline. Historical factory currently leaves it disconnected."
+    },
+    {
+      "concept": "risk_inputs_in_current_historical_path",
+      "writers": ["backend/backtesting/strategy_backtest_factory_v2.py:build_strategy_backtest_pipeline", "backend/backtesting/backtest_session_v2.py:BacktestSessionV2._generate_signal_if_configured", "backend/backtesting/backtest_session_v2.py:BacktestSessionV2._execute_trade_if_configured"],
+      "readers": ["RiskCompatibilityAdapterV2.evaluate", "RiskManagerV2.evaluate", "TradeLifecycleServiceV2.submit_signal"],
+      "contract": "Static profile balance and zero daily PnL/drawdown. The lifecycle can override daily PnL/drawdown from a bound account-state manager, but this composition has none. Must be replaced with current canonical state in the new path."
+    },
+    {
+      "concept": "journal_and_trade_history",
+      "writers": ["backend/journal/trade_journal_v2.py:TradeJournalV2.record_open_trade", "backend/journal/trade_journal_v2.py:TradeJournalV2.close_trade", "backend/analytics/trade_history_manager_v2.py:TradeHistoryManagerV2.record"],
+      "readers": ["TradeLifecycleServiceV2.get_trade_history", "PerformanceAnalyticsV2", "journal/dashboard consumers"],
+      "contract": "Lifecycle writes projections of its position outcome. Journal accepts supplied PnL and explicit exit time, but open time currently uses wall clock. Existing historical composition has trade history but no TradeJournalV2. A historical binding must supply deterministic event times and extra provenance/cost/account-after metadata."
+    },
+    {
+      "concept": "paper_connector_account_projection",
+      "writers": ["backend/connectors/paper_broker_connector_v2.py:PaperBrokerConnectorV2.get_account"],
+      "readers": ["broker account consumers"],
+      "contract": "Reports starting balance as balance/equity. Does not realize a cash ledger on close; must not be selected as historical realized-account authority."
+    },
+    {
+      "concept": "historical_clock_eligibility_and_contract_boundary",
+      "writers": ["backend/backtesting/historical_eligibility_v31.py:HistoricalEligibilityV31.observation", "backend/backtesting/historical_eligibility_v31.py:HistoricalEligibilityV31.validate_segment"],
+      "readers": ["HistoricalEligibilityV31.eligible_candles", "ClosedBarAggregatorV1", "historical replay"],
+      "contract": "Frozen native UTC end-time mapping, Chicago session eligibility, per-contract isolation and retained excluded observations. New accounting must consume only eligible chronological prices and never resolve an old contract position with a new contract price."
+    }
+  ],
+  "recommended_existing_owners": {
+    "acceptance_and_close_orchestration": "TradeLifecycleServiceV2",
+    "executed_entry": "PaperExecutionEngineV2 through the isolated PAPER connector",
+    "portfolio": "PortfolioManagerV2",
+    "account_and_risk_state": "AccountStateManagerV2 with an injected historical clock",
+    "journal": "TradeJournalV2 as a projection of one canonical lifecycle outcome",
+    "independent_simulator": "Frozen comparison evidence only; must not independently realize the canonical trade"
+  },
+  "canonical_implementation": {
+    "composition": "backend/backtesting/historical_accounting_v1.py:HistoricalAccountingV1",
+    "strategy_intent": "Unchanged ParameterizedStrategyRunnerV2",
+    "planned_levels": "Unchanged BacktestTradePlanAdapterV2 and SignalGeneratorV2",
+    "acceptance": "Unchanged TradeLifecycleServiceV2 gates and ExecutionRiskGateV1",
+    "entry_fill": "Existing PaperExecutionEngineV2, with explicit historical cost configuration",
+    "exit_trigger_and_fill": "_HistoricalPositionManager.update_position; current eligible candle only; stop before target",
+    "realized_pnl": "_HistoricalPositionManager.update_position; canonical fills times direction/quantity/point value minus explicit fees",
+    "close_orchestration": "Existing TradeLifecycleServiceV2.update_position propagates the supplied canonical outcome",
+    "portfolio_and_balance": "Existing PortfolioManagerV2 and AccountStateManagerV2",
+    "daily_reset": "Existing AccountStateManagerV2 using injected canonical availability clock",
+    "risk_inputs": "_HistoricalRiskManager delegates existing RiskManagerV2 with current account state and explicit cost-inclusive projected stop risk",
+    "journal": "_HistoricalJournal delegates TradeJournalV2 with canonical timestamps; HistoricalAccountingV1.record_close attaches provenance and account-after metadata",
+    "statistical_projection": "_HistoricalSession projects completed canonical outcomes into SimulatedTrade for BacktestEngine; no future-scanning executor",
+    "legacy_composition": "Retained unchanged for frozen evidence and compatibility; not the canonical account-risk research authority",
+    "live_wiring": "NONE"
+  },
+  "certification": {
+    "zero_cost_runs": 39,
+    "cost_runs": 156,
+    "position_feedback_expected": 13151,
+    "risk_feedback_expected": 62613,
+    "unexplained": 0,
+    "6984": "POSITION_FEEDBACK_EXPECTED; same accepted entry, canonical close index 6984; exact counterfactual match",
+    "paper_research": "Explicit PaperResearchSessionV1 boundary 80.5; production remains 90; optional existing dashboard GET projection",
+    "evidence": "backend/tests/research_sprint07r/realism_results.json",
+    "api_witness": "backend/tests/research_sprint07r/paper_mvp_evidence.json"
+  },
+  "resolved_contract": {
+    "question": "Intrabar historical stop/target triggers versus lifecycle close-price triggers",
+    "reason": "Making the simulator's intrabar close authoritative also changes the pre-risk ACTIVE POSITION strategy input. Preserving that input instead retains a position after the intrabar trade has closed. The request calls for both preserved historical stop-first behavior and unchanged pre-risk decisions except risk corrections.",
+    "resolution": "Sprint 07R explicitly authorizes intrabar OHLC exits, stop before target, immediate position-state synchronization and causally explained position/risk feedback differences."
+  },
+  "read_only_probe": {
+    "contract": "JUN22",
+    "boundary": 80,
+    "eligible_prefix_candles": 10000,
+    "decisions_per_run": 9995,
+    "production_files_edited": false,
+    "risk_inputs_changed": false,
+    "decision_differences": 1,
+    "buy_sell_action_differences": 0,
+    "first_difference": {
+      "eligible_index": 6984,
+      "decision_time": "2022-03-14T12:51:00-05:00",
+      "legacy": {"active_position": true, "action": "HOLD", "reason": "ACTIVE POSITION"},
+      "intrabar": {"active_position": false, "action": "HOLD", "reason": "Opposite CHOCH detected"},
+      "stop": 13069.75,
+      "observed_close": 13063.5
+    },
+    "limitation": "Probe changes only in-memory lifecycle marking at observed OHLC triggers. It is not an implemented canonical accounting path or performance certification."
+  }
+}

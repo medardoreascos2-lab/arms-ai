@@ -16,6 +16,7 @@ DELEGATED = {"submit_signal", "close_position", "close_partial", "update_positio
     "record_open_trade", "close_trade", "record_daily_pnl", "update_from_portfolio", "restore_state",
     "record_trade", "save_trade", "process_price"}
 EXPLICIT = {
+ "backend/backtesting/historical_accounting_v1.py": {"update_position", "record_close"},
  "backend/execution/protective_order_registry_v2.py": {"__init__", "create_protection", "complete_protection", "cancel_protection", "remove_protection"},
  "backend/execution/oco_manager_v2.py": {"__init__", "create_group", "cancel_remaining", "cancel_group", "remove_group"},
  "backend/account/account_state_manager_v2.py": {"_record_daily_pnl", "update_open_risk", "ensure_trading_day"},

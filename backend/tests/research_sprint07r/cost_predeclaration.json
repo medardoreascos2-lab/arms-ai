@@ -1,0 +1,125 @@
+{
+  "declared_at_utc": "2026-09-19T18:00:39.737408+00:00",
+  "phase": "BEFORE_COST_REPLAYS",
+  "boundaries": [
+    80,
+    80.5
+  ],
+  "production_control": 90,
+  "production_changed": false,
+  "scenarios": [
+    {
+      "name": "C1_fee2_5",
+      "fee_per_contract_side": 2.5,
+      "slippage_ticks_side": 0,
+      "roundtrip_fee_per_contract": 5.0,
+      "roundtrip_slippage_dollars_per_contract": 0.0
+    },
+    {
+      "name": "C2_fee2_5",
+      "fee_per_contract_side": 2.5,
+      "slippage_ticks_side": 1,
+      "roundtrip_fee_per_contract": 5.0,
+      "roundtrip_slippage_dollars_per_contract": 10.0
+    },
+    {
+      "name": "C3_fee2_5",
+      "fee_per_contract_side": 2.5,
+      "slippage_ticks_side": 2,
+      "roundtrip_fee_per_contract": 5.0,
+      "roundtrip_slippage_dollars_per_contract": 20.0
+    },
+    {
+      "name": "C1_fee5_0",
+      "fee_per_contract_side": 5.0,
+      "slippage_ticks_side": 0,
+      "roundtrip_fee_per_contract": 10.0,
+      "roundtrip_slippage_dollars_per_contract": 0.0
+    },
+    {
+      "name": "C2_fee5_0",
+      "fee_per_contract_side": 5.0,
+      "slippage_ticks_side": 1,
+      "roundtrip_fee_per_contract": 10.0,
+      "roundtrip_slippage_dollars_per_contract": 10.0
+    },
+    {
+      "name": "C3_fee5_0",
+      "fee_per_contract_side": 5.0,
+      "slippage_ticks_side": 2,
+      "roundtrip_fee_per_contract": 10.0,
+      "roundtrip_slippage_dollars_per_contract": 20.0
+    }
+  ],
+  "tick_size": 0.25,
+  "point_value": 20,
+  "fee_evidence": "Illustrative research assumptions, NOT an established broker/exchange fee schedule. Two fee levels and three slippage levels; no privileged winning scenario.",
+  "C0": "Canonical zero-cost independent-segment baseline",
+  "canonical_baseline_hashes": {
+    "backend\\tests\\research_sprint07r\\JUN22_90_C0.json": "2eeed61ed91a23401ee6f2d915fffc7bc1ffdd0b90036858df494a815362071c",
+    "backend\\tests\\research_sprint07r\\JUN22_80_C0.json": "8124df460648c52d9bda9056bc8975cf0e884e847480586311e6cf4d0a60c253",
+    "backend\\tests\\research_sprint07r\\JUN22_80_5_C0.json": "e062b1bf14f20fcc5e944828deb6d793030994780054f247792bd04135a87432",
+    "backend\\tests\\research_sprint07r\\SEP22_90_C0.json": "2085187fda765fea16e62a975c99f6f600e6716c52c9f6acd40f2398cee36c96",
+    "backend\\tests\\research_sprint07r\\SEP22_80_C0.json": "2401543409af5ce6067d956388984e0e403265ae6d031d3259d69bb4b66ac697",
+    "backend\\tests\\research_sprint07r\\SEP22_80_5_C0.json": "9eff4acf33fdd849ae89704e44f65e77b73d2742b78f046b2e7a1be45e973787",
+    "backend\\tests\\research_sprint07r\\DEC22_90_C0.json": "8bcda62d36bb575a7c82cf70d120f91d3ff81ab71c5707eb84cdf7b352eb51cd",
+    "backend\\tests\\research_sprint07r\\DEC22_80_C0.json": "f8ba631e4400311dc8fdbee2e2dae336d54e3b2f15cce40df7883d91fdbb4c1d",
+    "backend\\tests\\research_sprint07r\\DEC22_80_5_C0.json": "9d952ddda0dbda9f3d9263b57bfa54f0600fac4f78f264c09f1d50e8175e5b96",
+    "backend\\tests\\research_sprint07r\\MAR23_90_C0.json": "06891b457859f7573c080e5bc2e2fbd1fdc79020217242b303c28a0a94ffb6af",
+    "backend\\tests\\research_sprint07r\\MAR23_80_C0.json": "c428f7cceb69560c1ce6c2c6f568dd0ce42a9c3269263dd0323ca5ad2367cae6",
+    "backend\\tests\\research_sprint07r\\MAR23_80_5_C0.json": "bbc2eb2487c490c24d6b30b3682f6be4210501f104cb57116a65f8792923d544",
+    "backend\\tests\\research_sprint07r\\JUN23_90_C0.json": "f4b13aecc6d7597db2e5ffc1ec0cf1569608deb7bcfb11045587636e06588e95",
+    "backend\\tests\\research_sprint07r\\JUN23_80_C0.json": "323fdda7ac7b50c7c1190d6a46f97b74d9a4b97dafdeb70af9f502540657f032",
+    "backend\\tests\\research_sprint07r\\JUN23_80_5_C0.json": "a0cb0158b8a8a514e9462bd741249e33add673f6d9fcbfe5e21f634607ea5d02",
+    "backend\\tests\\research_sprint07r\\SEP23_90_C0.json": "a2fb74f68dcd6ac031a451aaba5470df4340b4d014666b72e8c54af24a8addaf",
+    "backend\\tests\\research_sprint07r\\SEP23_80_C0.json": "a4ab99edf1399ccd25449f7ee40f97601e68ff7878831153141cb09d922eb7e8",
+    "backend\\tests\\research_sprint07r\\SEP23_80_5_C0.json": "ca5eb8ec49a0d55b587b7a67bf711dadd7d9668407bf3f6f688439693eee59f5",
+    "backend\\tests\\research_sprint07r\\DEC23_90_C0.json": "58e7157e9049d745f492f5a036be5d392da443b88996f55c770189b9b7f7a0a1",
+    "backend\\tests\\research_sprint07r\\DEC23_80_C0.json": "663756b393ca6f174ce31ccbe957a112a2f8533a5f1b9494481275349154ca6a",
+    "backend\\tests\\research_sprint07r\\DEC23_80_5_C0.json": "602ef181e72fb20a6a46760fcc854242e176f647c7b231ddf3643261c75e18f9",
+    "backend\\tests\\research_sprint07r\\MAR24_90_C0.json": "912fcd1a5a77751f62e7978689027c241037daa39e4857235b18daf276251c4c",
+    "backend\\tests\\research_sprint07r\\MAR24_80_C0.json": "fffd17661ca0fc35c14e274fb89abd6446fd0666cb2aa94b6d74e47b90ae27fb",
+    "backend\\tests\\research_sprint07r\\MAR24_80_5_C0.json": "f46a28c3f1860e4ab87f1b5b6ef7410d06e74c68db9f61c8d9e48b0a53165987",
+    "backend\\tests\\research_sprint07r\\JUN24_90_C0.json": "bf3b4b1aca2ed57ebf22ac88ae6cb1866959ebeeb23e404b604390e9e0f7691d",
+    "backend\\tests\\research_sprint07r\\JUN24_80_C0.json": "d2f66d54c9f5b48eed2cbeb498899a287ef9fad4d36615823af6b1453a8edb35",
+    "backend\\tests\\research_sprint07r\\JUN24_80_5_C0.json": "e6a0205cebaead80a79a6a84ff958081fb9fa3813e4716de2d89e18d388fd586",
+    "backend\\tests\\research_sprint07r\\SEP24_90_C0.json": "adf8ec83b3f4ae122fa8fd9a46e117d3f305a93a59c0d7bdd1d54b8119fc4745",
+    "backend\\tests\\research_sprint07r\\SEP24_80_C0.json": "8e8d92e0e94f8c56354e77a3f6955bca3f1ce36d937607fefffd92f350cb008b",
+    "backend\\tests\\research_sprint07r\\SEP24_80_5_C0.json": "5e271a0320c30bc5bc2b1b837dea74ebe7406216cfbdd50cc0259d5f91656215",
+    "backend\\tests\\research_sprint07r\\DEC24_90_C0.json": "7bdc28b51b4b66806746a31d15ea23495a5e89ef60af15a4b4dfa78f2f534b63",
+    "backend\\tests\\research_sprint07r\\DEC24_80_C0.json": "e7669874756dcbefeda6f4dd6314a237e270d784acd84d4f30a489b8d703e40c",
+    "backend\\tests\\research_sprint07r\\DEC24_80_5_C0.json": "acd2ebc2774398a3bba01d85be99c58fbdc97aba00286c1779a37633fbf18228",
+    "backend\\tests\\research_sprint07r\\MAR25_90_C0.json": "dc5cc3ba38a9e35814542114e82f59a3961c6f0ffcc5a6d86428da8919fb4e20",
+    "backend\\tests\\research_sprint07r\\MAR25_80_C0.json": "302de8e121b6cc85033b7e2a3e75849e3de19072cc772fa22328626aa374ddee",
+    "backend\\tests\\research_sprint07r\\MAR25_80_5_C0.json": "84e7fc70e46a197ee80892ff74bd3866c60e5da6b6c29459e2e3d21410864ab5",
+    "backend\\tests\\research_sprint07r\\JUN25_90_C0.json": "3e9e946b43ac14a8faec6b8dc634f3be222ef505c83a5da5f5ba14e19fdb8ad6",
+    "backend\\tests\\research_sprint07r\\JUN25_80_C0.json": "d8f34993185c9758ee81844264f83a89ff8f47f163ab2744015ad47075535b86",
+    "backend\\tests\\research_sprint07r\\JUN25_80_5_C0.json": "8729876509d5ffb05d924018921ac19aa5e2e12a4a4126c802d56cfc531cd2a4"
+  },
+  "execution_sha256": "cfd9313eb847206742531d91f62205e97bb508afde83dfbcf823e21a60271aef",
+  "research_code_sha256": {
+    "backend/tests/research_historical_accounting_sprint07r.py": "05063f140bc4a8baff1b5eb59156e6dd8e8b078d747a7bd4d26ac8bb978f3c6f",
+    "backend/tests/research_historical_realism_sprint07r.py": "95a4f684c90dec203c1e10cf2a5e80c35a9b40d317f644423982cad4b2adaf52"
+  },
+  "account_profile": {
+    "starting_balance": 150000,
+    "daily_loss_limit": null,
+    "maximum_total_drawdown": 4500.0,
+    "risk_percent": 0.5
+  },
+  "cohorts": {
+    "early_late": "2022-2023 versus 2024-2025 by entry year",
+    "rolling": "Four consecutive independent contract segments, stride one; overlapping descriptive windows",
+    "volatility": "Mean high-low range of available analysis history: <5, 5..<15, >=15 NQ points",
+    "direction": "LONG and SHORT both retained; no strategy changes"
+  },
+  "support_rule": {
+    "minimum_completed": 30,
+    "minimum_active_segments": 4,
+    "positive_expectancy": "Required in C0 and EVERY declared cost scenario",
+    "concentration": "Largest positive contract contribution <=50% of sum of positive contract contributions in EVERY scenario",
+    "risk": "No account hard-limit breach in ANY scenario; risk vetoes remain enforced",
+    "status": "Descriptive PAPER research only; never production-ready"
+  },
+  "accounting": "No cross-contract equity splice. Side/cohort realized drawdowns are descriptive subsets per independent contract, distinct from actual account equity drawdown."
+}
