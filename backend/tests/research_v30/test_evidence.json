@@ -1,0 +1,86 @@
+{
+  "phase": "V30",
+  "branch": "refactor/backend-architecture",
+  "head": "76c1883d5fbe8de314c0272c644f99f352e21b49",
+  "final_command": "py -m pytest backend/tests/test_backtest_single_pass_v27b.py backend/tests/test_backtest_engine.py backend/tests/test_backtest_session_v2.py backend/tests/test_backtest_session_signal_submission_v2.py backend/tests/test_backtest_session_trade_executor_integration_v2.py backend/tests/test_backtest_session_auto_position_updates_v2.py backend/tests/test_backtest_session_multiple_trades_v2.py backend/tests/test_backtest_session_signal_generation_v2.py backend/tests/test_backtest_session_build_report_v2.py backend/tests/test_backtest_pipeline_v2.py backend/tests/test_backtest_pipeline_real_e2e_v2.py backend/tests/test_backtest_runner_v2.py backend/tests/test_backtest_runner_v2_observer.py backend/tests/test_replay_engine_v2.py backend/tests/test_replay_market_data_bridge_v2.py backend/tests/test_csv_replay_runner_integration_v2.py backend/tests/test_phase1_risk_precedence_v5.py::test_risk_inventory_covers_current_decision_and_writer_evidence backend/tests/test_phase1_financial_state_sync_v6.py::test_financial_inventory_matches_reviewed_source_and_ownership backend/tests/test_phase1_runtime_execution_ownership_v7.py::test_inventory_matches_all_reviewed_production_boundaries backend/tests/test_flat_candle_contract_v27c.py backend/tests/test_zero_signal_funnel_v28.py backend/tests/test_parameterized_strategy_runner_safety_v2.py backend/tests/test_trade_quality_engine_v1.py backend/tests/test_confluence_engine_v2.py backend/tests/test_trend_context_engine_v2.py backend/tests/test_signal_controller_v2.py backend/tests/test_backtest_a_plus_policy_settings_authority_v2.py backend/tests/test_closed_bar_aggregation_v29r.py backend/tests/test_research_calibration_v30.py -q",
+  "environment_prefix": "$env:PYTHONDONTWRITEBYTECODE='1'; $env:PYTEST_ADDOPTS='-p no:cacheprovider'; $env:ARMS_MAXIMUM_QUOTE_AGE_SECONDS='30'; $env:ARMS_MINIMUM_REWARD_RISK_RATIO='2'; $env:ARMS_MINIMUM_STOP_POINTS='1'; $env:ARMS_MAXIMUM_STOP_POINTS='100'; $env:ARMS_MAXIMUM_SPREAD_POINTS='5'; $env:ARMS_MINIMUM_ATR_POINTS='1'; $env:ARMS_MINIMUM_A_PLUS_PROBABILITY='0.8'; $env:ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE='0.8'; $env:ARMS_MAXIMUM_SIGNAL_AGE_SECONDS='300'; $env:ARMS_MAXIMUM_OPEN_POSITIONS='1'; ",
+  "test_targets": [
+    "backend/tests/test_backtest_single_pass_v27b.py",
+    "backend/tests/test_backtest_engine.py",
+    "backend/tests/test_backtest_session_v2.py",
+    "backend/tests/test_backtest_session_signal_submission_v2.py",
+    "backend/tests/test_backtest_session_trade_executor_integration_v2.py",
+    "backend/tests/test_backtest_session_auto_position_updates_v2.py",
+    "backend/tests/test_backtest_session_multiple_trades_v2.py",
+    "backend/tests/test_backtest_session_signal_generation_v2.py",
+    "backend/tests/test_backtest_session_build_report_v2.py",
+    "backend/tests/test_backtest_pipeline_v2.py",
+    "backend/tests/test_backtest_pipeline_real_e2e_v2.py",
+    "backend/tests/test_backtest_runner_v2.py",
+    "backend/tests/test_backtest_runner_v2_observer.py",
+    "backend/tests/test_replay_engine_v2.py",
+    "backend/tests/test_replay_market_data_bridge_v2.py",
+    "backend/tests/test_csv_replay_runner_integration_v2.py",
+    "backend/tests/test_phase1_risk_precedence_v5.py::test_risk_inventory_covers_current_decision_and_writer_evidence",
+    "backend/tests/test_phase1_financial_state_sync_v6.py::test_financial_inventory_matches_reviewed_source_and_ownership",
+    "backend/tests/test_phase1_runtime_execution_ownership_v7.py::test_inventory_matches_all_reviewed_production_boundaries",
+    "backend/tests/test_flat_candle_contract_v27c.py",
+    "backend/tests/test_zero_signal_funnel_v28.py",
+    "backend/tests/test_parameterized_strategy_runner_safety_v2.py",
+    "backend/tests/test_trade_quality_engine_v1.py",
+    "backend/tests/test_confluence_engine_v2.py",
+    "backend/tests/test_trend_context_engine_v2.py",
+    "backend/tests/test_signal_controller_v2.py",
+    "backend/tests/test_backtest_a_plus_policy_settings_authority_v2.py",
+    "backend/tests/test_closed_bar_aggregation_v29r.py",
+    "backend/tests/test_research_calibration_v30.py"
+  ],
+  "final_result": {
+    "passed": 250,
+    "failed": 0,
+    "warnings": 1,
+    "warning": "Existing Starlette httpx deprecation",
+    "seconds": 16.45
+  },
+  "new_tests": 24,
+  "prior_verification_runs": [
+    {
+      "target": "V30 tests",
+      "passed": 18
+    },
+    {
+      "target": "focused suite including initial V30 tests",
+      "passed": 244
+    },
+    {
+      "target": "V30 tests with first four constructive maxima",
+      "passed": 22
+    },
+    {
+      "target": "V30 tests with all six constructive maxima",
+      "passed": 24
+    }
+  ],
+  "full_dataset_checks": {
+    "baseline_observed_and_uninstrumented": "PASS",
+    "three_predeclared_replays": "PASS",
+    "repeatability_all_three": "PASS; exact stable replay evidence equality",
+    "observer_vs_uninstrumented_candidates": "PASS; every decision, statistics, full equity state, trade PnL, acceptance sequence and completion count",
+    "dataset_candles": 47178,
+    "htf_15m": 3022,
+    "htf_1h": 717,
+    "flat_candles": 399
+  },
+  "scope": {
+    "tracked_modifications": [],
+    "staged_count": 0,
+    "preserved_existing_untracked_files": 85,
+    "preserved_datasets": 3,
+    "sha256_comparison": "PASS all 88 pre-existing artifact/dataset hashes unchanged",
+    "production_changes": false,
+    "production_thresholds": "A+90, quality85 unchanged",
+    "push": false,
+    "commit": false
+  },
+  "diff_check": "PASS: git diff --check; new files additionally checked separately"
+}

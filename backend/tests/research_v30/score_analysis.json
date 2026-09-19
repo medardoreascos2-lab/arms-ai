@@ -1,0 +1,893 @@
+{
+  "provenance": {
+    "dataset": "data\\backtest\\nq_sep26_1m_certified.csv",
+    "sha256": "793ed9a8f5b013d693bb2925a180de8ba2620c9d09ef702d2ba2819d0bb2b14f",
+    "candles": 47178,
+    "head": "76c1883d5fbe8de314c0272c644f99f352e21b49",
+    "parameters": {
+      "ema": 10,
+      "stop_loss": 30,
+      "take_profit": 60
+    },
+    "helper_sha256": "32b2f451bd7f83fa5f8358a89fa1589e5a6a31f978df2637595425b14e4178aa"
+  },
+  "baseline": {
+    "total_candles": 47178,
+    "warmup_candles": 4,
+    "htf_bars": {
+      "15m": 3022,
+      "1h": 717
+    },
+    "final_candle_excluded": 1,
+    "decision_eligible_candles": 47173,
+    "processed": 47178,
+    "flat_candles": 399,
+    "trend_counts": {
+      "NONE": 38914,
+      "SHORT": 3505,
+      "LONG": 4754
+    },
+    "structure_counts": {
+      "UNKNOWN": 5,
+      "RANGE": 19211,
+      "BULLISH": 14185,
+      "BEARISH": 13772
+    },
+    "liquidity_counts": {
+      "0.5": 43574,
+      "0.0": 3306,
+      "1.0": 288
+    },
+    "fvg_counts": {
+      "NONE": 36466,
+      "BULLISH": 5373,
+      "BEARISH": 5329
+    },
+    "regime_counts": {
+      "HIGH_VOLATILITY": 1568,
+      "RANGE": 35967,
+      "LOW_VOLATILITY": 8943,
+      "NO_TRADE": 658,
+      "TREND_UP": 2,
+      "TREND_DOWN": 30
+    },
+    "detector_not_evaluated": 5,
+    "confluence_evaluated": 47168,
+    "confluence_min": 9.61,
+    "confluence_max": 81.33,
+    "confluence_mean": 40.22632547489824,
+    "confluence_grades": {
+      "C": 46658,
+      "B": 471,
+      "A": 39
+    },
+    "confluence_max_by_regime": {
+      "HIGH_VOLATILITY": 75.55,
+      "LOW_VOLATILITY": 77.94,
+      "NO_TRADE": 65.27,
+      "RANGE": 81.33,
+      "TREND_DOWN": 71.15,
+      "TREND_UP": 71.78
+    },
+    "mapping_reconciliations_passed": 47168,
+    "a_plus_pass": 0,
+    "a_plus_fail": 47168,
+    "quality_scores": {
+      "15": 15894,
+      "35": 9106,
+      "0": 7429,
+      "50": 7798,
+      "25": 3317,
+      "60": 1729,
+      "45": 1895
+    },
+    "pre_controller_counts": {
+      "HOLD": 47173
+    },
+    "controller_evaluated": 0,
+    "cooldown_blocked": 0,
+    "other_controller_blocked": 0,
+    "final_counts": {
+      "HOLD": 47173
+    },
+    "decision_reasons": {
+      "NOT ENOUGH DATA FOR EMA": 5,
+      "No opposite CHOCH": 19211,
+      "Valid market structure": 20528,
+      "Opposite CHOCH detected": 7429
+    },
+    "trade_plans": 0,
+    "signals": 0,
+    "submissions": 0,
+    "accepted": 0,
+    "rejected": 0,
+    "simulated_trades": 0,
+    "completed_lifecycle_trades": 0,
+    "final_equity": 17000.0,
+    "net_profit": 0,
+    "max_drawdown": 0.0,
+    "htf_alias_count": 0,
+    "symbols": [
+      "NQ"
+    ],
+    "timeframes": [
+      "1m"
+    ],
+    "elapsed_instrumented_seconds": 33.718491800013
+  },
+  "observer_transparency": "PASS: complete decisions, statistics, equity state, trades",
+  "distribution": {
+    "count": 47168,
+    "mean": 40.22632547489824,
+    "min": 9.61,
+    "percentiles": {
+      "50": 40.02,
+      "75": 45.82,
+      "80": 47.87,
+      "85": 49.83,
+      "90": 53.45,
+      "95": 60.836500000000015,
+      "97": 64.07,
+      "99": 70.52330000000002,
+      "99.5": 74.14,
+      "100": 81.33
+    },
+    "histogram": {
+      "0-49.99": 40219,
+      "50-59.99": 4399,
+      "60-64.99": 1264,
+      "65-69.99": 776,
+      "70-74.99": 348,
+      "75-79.99": 123,
+      "80-84.99": 39,
+      "85-89.99": 0,
+      "90+": 0
+    }
+  },
+  "direction_distributions": {
+    "LONG": {
+      "count": 4754,
+      "mean": 54.13553218342449,
+      "min": 22.51,
+      "percentiles": {
+        "50": 53.915,
+        "75": 61.76,
+        "80": 63.24,
+        "85": 65.88,
+        "90": 68.16,
+        "95": 71.76,
+        "97": 74.26149999999998,
+        "99": 76.97290000000002,
+        "99.5": 79.5228499999999,
+        "100": 81.33
+      },
+      "histogram": {
+        "0-49.99": 1636,
+        "50-59.99": 1605,
+        "60-64.99": 735,
+        "65-69.99": 460,
+        "70-74.99": 221,
+        "75-79.99": 74,
+        "80-84.99": 23,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    },
+    "NONE": {
+      "count": 38909,
+      "mean": 37.29749620910329,
+      "min": 9.61,
+      "percentiles": {
+        "50": 37.1,
+        "75": 42.52,
+        "80": 43.68,
+        "85": 45.59,
+        "90": 47.49,
+        "95": 49.22,
+        "97": 50.81760000000002,
+        "99": 54.41,
+        "99.5": 54.41,
+        "100": 56.29
+      },
+      "histogram": {
+        "0-49.99": 37362,
+        "50-59.99": 1547,
+        "60-64.99": 0,
+        "65-69.99": 0,
+        "70-74.99": 0,
+        "75-79.99": 0,
+        "80-84.99": 0,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    },
+    "SHORT": {
+      "count": 3505,
+      "mean": 53.873529243937234,
+      "min": 24.13,
+      "percentiles": {
+        "50": 53.52,
+        "75": 61.61,
+        "80": 62.814,
+        "85": 64.664,
+        "90": 67.65,
+        "95": 70.388,
+        "97": 73.3104,
+        "99": 76.47,
+        "99.5": 79.214,
+        "100": 80.88
+      },
+      "histogram": {
+        "0-49.99": 1221,
+        "50-59.99": 1247,
+        "60-64.99": 529,
+        "65-69.99": 316,
+        "70-74.99": 127,
+        "75-79.99": 49,
+        "80-84.99": 16,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    }
+  },
+  "regime_distributions": {
+    "HIGH_VOLATILITY": {
+      "count": 1568,
+      "mean": 42.916728316326534,
+      "min": 24.48,
+      "percentiles": {
+        "50": 42.260000000000005,
+        "75": 47.5725,
+        "80": 48.666,
+        "85": 50.94,
+        "90": 54.406,
+        "95": 62.166000000000004,
+        "97": 64.4196,
+        "99": 69.17259999999997,
+        "99.5": 72.77155,
+        "100": 75.55
+      },
+      "histogram": {
+        "0-49.99": 1296,
+        "50-59.99": 168,
+        "60-64.99": 61,
+        "65-69.99": 29,
+        "70-74.99": 11,
+        "75-79.99": 3,
+        "80-84.99": 0,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    },
+    "LOW_VOLATILITY": {
+      "count": 8943,
+      "mean": 32.562963211450295,
+      "min": 9.61,
+      "percentiles": {
+        "50": 31.65,
+        "75": 37.56,
+        "80": 39.69,
+        "85": 41.604,
+        "90": 45.59,
+        "95": 52.43,
+        "97": 56.5248,
+        "99": 64.41,
+        "99.5": 66.18,
+        "100": 77.94
+      },
+      "histogram": {
+        "0-49.99": 8391,
+        "50-59.99": 393,
+        "60-64.99": 82,
+        "65-69.99": 57,
+        "70-74.99": 18,
+        "75-79.99": 2,
+        "80-84.99": 0,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    },
+    "NO_TRADE": {
+      "count": 658,
+      "mean": 30.8091641337386,
+      "min": 10.41,
+      "percentiles": {
+        "50": 30.335,
+        "75": 34.57,
+        "80": 36.594,
+        "85": 39.90050000000001,
+        "90": 43.779,
+        "95": 51.689,
+        "97": 52.97189999999999,
+        "99": 58.785799999999995,
+        "99.5": 59.58170000000001,
+        "100": 65.27
+      },
+      "histogram": {
+        "0-49.99": 620,
+        "50-59.99": 36,
+        "60-64.99": 1,
+        "65-69.99": 1,
+        "70-74.99": 0,
+        "75-79.99": 0,
+        "80-84.99": 0,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    },
+    "RANGE": {
+      "count": 35967,
+      "mean": 42.17537770734284,
+      "min": 18.06,
+      "percentiles": {
+        "50": 41.18,
+        "75": 47.23,
+        "80": 48.53,
+        "85": 50.88,
+        "90": 54.41,
+        "95": 61.76,
+        "97": 65.74,
+        "99": 71.68699999999983,
+        "99.5": 74.71,
+        "100": 81.33
+      },
+      "histogram": {
+        "0-49.99": 29897,
+        "50-59.99": 3795,
+        "60-64.99": 1117,
+        "65-69.99": 685,
+        "70-74.99": 316,
+        "75-79.99": 118,
+        "80-84.99": 39,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    },
+    "TREND_DOWN": {
+      "count": 30,
+      "mean": 52.3,
+      "min": 34.81,
+      "percentiles": {
+        "50": 50.005,
+        "75": 60.727500000000006,
+        "80": 63.494,
+        "85": 66.0825,
+        "90": 67.55600000000001,
+        "95": 69.009,
+        "97": 70.2191,
+        "99": 70.83970000000001,
+        "99.5": 70.99485,
+        "100": 71.15
+      },
+      "histogram": {
+        "0-49.99": 15,
+        "50-59.99": 6,
+        "60-64.99": 3,
+        "65-69.99": 4,
+        "70-74.99": 2,
+        "75-79.99": 0,
+        "80-84.99": 0,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    },
+    "TREND_UP": {
+      "count": 2,
+      "mean": 64.035,
+      "min": 56.29,
+      "percentiles": {
+        "50": 64.035,
+        "75": 67.9075,
+        "80": 68.682,
+        "85": 69.4565,
+        "90": 70.231,
+        "95": 71.0055,
+        "97": 71.31530000000001,
+        "99": 71.6251,
+        "99.5": 71.70255,
+        "100": 71.78
+      },
+      "histogram": {
+        "0-49.99": 0,
+        "50-59.99": 1,
+        "60-64.99": 0,
+        "65-69.99": 0,
+        "70-74.99": 1,
+        "75-79.99": 0,
+        "80-84.99": 0,
+        "85-89.99": 0,
+        "90+": 0
+      }
+    }
+  },
+  "trending_combined": {
+    "count": 32,
+    "mean": 53.0334375,
+    "min": 34.81,
+    "percentiles": {
+      "50": 53.385000000000005,
+      "75": 61.36,
+      "80": 65.21600000000001,
+      "85": 66.69500000000001,
+      "90": 67.684,
+      "95": 70.5615,
+      "97": 71.1941,
+      "99": 71.5847,
+      "99.5": 71.68235,
+      "100": 71.78
+    },
+    "histogram": {
+      "0-49.99": 15,
+      "50-59.99": 7,
+      "60-64.99": 3,
+      "65-69.99": 4,
+      "70-74.99": 3,
+      "75-79.99": 0,
+      "80-84.99": 0,
+      "85-89.99": 0,
+      "90+": 0
+    }
+  },
+  "sensitivity": [
+    {
+      "threshold": 90,
+      "passing": 0,
+      "percent": 0.0,
+      "directions": {},
+      "regimes": {},
+      "dates": 0,
+      "temporal": {
+        "raw": 0,
+        "consecutive_clusters": 0,
+        "episodes": 0,
+        "dates": 0,
+        "median_episode_spacing_minutes": null,
+        "directions": {},
+        "episode_directions": {}
+      }
+    },
+    {
+      "threshold": 87.5,
+      "passing": 0,
+      "percent": 0.0,
+      "directions": {},
+      "regimes": {},
+      "dates": 0,
+      "temporal": {
+        "raw": 0,
+        "consecutive_clusters": 0,
+        "episodes": 0,
+        "dates": 0,
+        "median_episode_spacing_minutes": null,
+        "directions": {},
+        "episode_directions": {}
+      }
+    },
+    {
+      "threshold": 85,
+      "passing": 0,
+      "percent": 0.0,
+      "directions": {},
+      "regimes": {},
+      "dates": 0,
+      "temporal": {
+        "raw": 0,
+        "consecutive_clusters": 0,
+        "episodes": 0,
+        "dates": 0,
+        "median_episode_spacing_minutes": null,
+        "directions": {},
+        "episode_directions": {}
+      }
+    },
+    {
+      "threshold": 82.5,
+      "passing": 0,
+      "percent": 0.0,
+      "directions": {},
+      "regimes": {},
+      "dates": 0,
+      "temporal": {
+        "raw": 0,
+        "consecutive_clusters": 0,
+        "episodes": 0,
+        "dates": 0,
+        "median_episode_spacing_minutes": null,
+        "directions": {},
+        "episode_directions": {}
+      }
+    },
+    {
+      "threshold": 80,
+      "passing": 39,
+      "percent": 0.08268317503392131,
+      "directions": {
+        "LONG": 23,
+        "SHORT": 16
+      },
+      "regimes": {
+        "RANGE": 39
+      },
+      "dates": 17,
+      "temporal": {
+        "raw": 39,
+        "consecutive_clusters": 32,
+        "episodes": 28,
+        "dates": 17,
+        "median_episode_spacing_minutes": 1268.0,
+        "directions": {
+          "LONG": 23,
+          "SHORT": 16
+        },
+        "episode_directions": {
+          "LONG": 15,
+          "SHORT": 13
+        }
+      }
+    },
+    {
+      "threshold": 77.5,
+      "passing": 73,
+      "percent": 0.15476594301221167,
+      "directions": {
+        "LONG": 43,
+        "SHORT": 30
+      },
+      "regimes": {
+        "RANGE": 72,
+        "LOW_VOLATILITY": 1
+      },
+      "dates": 25,
+      "temporal": {
+        "raw": 73,
+        "consecutive_clusters": 61,
+        "episodes": 51,
+        "dates": 25,
+        "median_episode_spacing_minutes": 604.0,
+        "directions": {
+          "LONG": 43,
+          "SHORT": 30
+        },
+        "episode_directions": {
+          "LONG": 30,
+          "SHORT": 21
+        }
+      }
+    },
+    {
+      "threshold": 75,
+      "passing": 162,
+      "percent": 0.34345318860244234,
+      "directions": {
+        "LONG": 97,
+        "SHORT": 65
+      },
+      "regimes": {
+        "RANGE": 157,
+        "LOW_VOLATILITY": 2,
+        "HIGH_VOLATILITY": 3
+      },
+      "dates": 31,
+      "temporal": {
+        "raw": 162,
+        "consecutive_clusters": 117,
+        "episodes": 86,
+        "dates": 31,
+        "median_episode_spacing_minutes": 264.0,
+        "directions": {
+          "LONG": 97,
+          "SHORT": 65
+        },
+        "episode_directions": {
+          "LONG": 51,
+          "SHORT": 35
+        }
+      }
+    },
+    {
+      "threshold": 72.5,
+      "passing": 328,
+      "percent": 0.6953867028493894,
+      "directions": {
+        "SHORT": 126,
+        "LONG": 202
+      },
+      "regimes": {
+        "RANGE": 317,
+        "HIGH_VOLATILITY": 9,
+        "LOW_VOLATILITY": 2
+      },
+      "dates": 33,
+      "temporal": {
+        "raw": 328,
+        "consecutive_clusters": 224,
+        "episodes": 158,
+        "dates": 33,
+        "median_episode_spacing_minutes": 107.0,
+        "directions": {
+          "SHORT": 126,
+          "LONG": 202
+        },
+        "episode_directions": {
+          "SHORT": 64,
+          "LONG": 94
+        }
+      }
+    },
+    {
+      "threshold": 70,
+      "passing": 510,
+      "percent": 1.0812415196743554,
+      "directions": {
+        "SHORT": 192,
+        "LONG": 318
+      },
+      "regimes": {
+        "RANGE": 473,
+        "LOW_VOLATILITY": 20,
+        "HIGH_VOLATILITY": 14,
+        "TREND_UP": 1,
+        "TREND_DOWN": 2
+      },
+      "dates": 34,
+      "temporal": {
+        "raw": 510,
+        "consecutive_clusters": 307,
+        "episodes": 199,
+        "dates": 34,
+        "median_episode_spacing_minutes": 77.0,
+        "directions": {
+          "SHORT": 192,
+          "LONG": 318
+        },
+        "episode_directions": {
+          "SHORT": 83,
+          "LONG": 116
+        }
+      }
+    },
+    {
+      "threshold": 67.5,
+      "passing": 929,
+      "percent": 1.9695556309362279,
+      "directions": {
+        "SHORT": 372,
+        "LONG": 557
+      },
+      "regimes": {
+        "RANGE": 859,
+        "LOW_VOLATILITY": 32,
+        "HIGH_VOLATILITY": 33,
+        "TREND_UP": 1,
+        "TREND_DOWN": 4
+      },
+      "dates": 34,
+      "temporal": {
+        "raw": 929,
+        "consecutive_clusters": 489,
+        "episodes": 250,
+        "dates": 34,
+        "median_episode_spacing_minutes": 56.0,
+        "directions": {
+          "SHORT": 372,
+          "LONG": 557
+        },
+        "episode_directions": {
+          "SHORT": 107,
+          "LONG": 143
+        }
+      }
+    },
+    {
+      "threshold": 65,
+      "passing": 1286,
+      "percent": 2.726424694708277,
+      "directions": {
+        "SHORT": 508,
+        "LONG": 778
+      },
+      "regimes": {
+        "RANGE": 1158,
+        "LOW_VOLATILITY": 77,
+        "HIGH_VOLATILITY": 43,
+        "NO_TRADE": 1,
+        "TREND_UP": 1,
+        "TREND_DOWN": 6
+      },
+      "dates": 34,
+      "temporal": {
+        "raw": 1286,
+        "consecutive_clusters": 586,
+        "episodes": 275,
+        "dates": 34,
+        "median_episode_spacing_minutes": 48.5,
+        "directions": {
+          "SHORT": 508,
+          "LONG": 778
+        },
+        "episode_directions": {
+          "SHORT": 120,
+          "LONG": 155
+        }
+      }
+    },
+    {
+      "threshold": 60,
+      "passing": 2550,
+      "percent": 5.406207598371777,
+      "directions": {
+        "SHORT": 1037,
+        "LONG": 1513
+      },
+      "regimes": {
+        "RANGE": 2275,
+        "LOW_VOLATILITY": 159,
+        "HIGH_VOLATILITY": 104,
+        "NO_TRADE": 2,
+        "TREND_UP": 1,
+        "TREND_DOWN": 9
+      },
+      "dates": 34,
+      "temporal": {
+        "raw": 2550,
+        "consecutive_clusters": 973,
+        "episodes": 257,
+        "dates": 34,
+        "median_episode_spacing_minutes": 67.0,
+        "directions": {
+          "SHORT": 1037,
+          "LONG": 1513
+        },
+        "episode_directions": {
+          "SHORT": 117,
+          "LONG": 140
+        }
+      }
+    }
+  ],
+  "quality_matrix_fixed_A_plus_90": {
+    "90": {
+      "85": 0,
+      "80": 0,
+      "75": 0,
+      "70": 0,
+      "60": 0
+    },
+    "85": {
+      "85": 0,
+      "80": 0,
+      "75": 0,
+      "70": 0,
+      "60": 0
+    },
+    "80": {
+      "85": 0,
+      "80": 0,
+      "75": 0,
+      "70": 0,
+      "60": 37
+    },
+    "75": {
+      "85": 0,
+      "80": 0,
+      "75": 0,
+      "70": 0,
+      "60": 147
+    },
+    "70": {
+      "85": 0,
+      "80": 0,
+      "75": 0,
+      "70": 0,
+      "60": 372
+    }
+  },
+  "quality_counts": {
+    "15": 15894,
+    "35": 9106,
+    "0": 7429,
+    "50": 7798,
+    "25": 3317,
+    "60": 1729,
+    "45": 1895
+  },
+  "dates": [
+    "2026-08-03",
+    "2026-08-04",
+    "2026-08-05",
+    "2026-08-06",
+    "2026-08-07",
+    "2026-08-10",
+    "2026-08-11",
+    "2026-08-12",
+    "2026-08-13",
+    "2026-08-14",
+    "2026-08-17",
+    "2026-08-18",
+    "2026-08-19",
+    "2026-08-20",
+    "2026-08-21",
+    "2026-08-24",
+    "2026-08-25",
+    "2026-08-26",
+    "2026-08-27",
+    "2026-08-28",
+    "2026-08-31",
+    "2026-09-01",
+    "2026-09-02",
+    "2026-09-03",
+    "2026-09-04",
+    "2026-09-07",
+    "2026-09-08",
+    "2026-09-09",
+    "2026-09-10",
+    "2026-09-11",
+    "2026-09-14",
+    "2026-09-15",
+    "2026-09-16",
+    "2026-09-17",
+    "2026-09-18"
+  ],
+  "component_contributions": {
+    "trend": {
+      "weight": 17.647058823529413,
+      "mean": 10.368507562455106,
+      "empirical_max": 17.647058823529413,
+      "theoretical_max": 17.647058823529413
+    },
+    "structure": {
+      "weight": 17.647058823529413,
+      "mean": 5.8829640234655605,
+      "empirical_max": 13.23529411764706,
+      "theoretical_max": 13.23529411764706
+    },
+    "liquidity": {
+      "weight": 11.764705882352942,
+      "mean": 5.505976135365952,
+      "empirical_max": 11.764705882352942,
+      "theoretical_max": 11.764705882352942
+    },
+    "fvg": {
+      "weight": 11.764705882352942,
+      "mean": 4.791134567802698,
+      "empirical_max": 11.764705882352942,
+      "theoretical_max": 11.764705882352942
+    },
+    "ema_alignment": {
+      "weight": 11.764705882352942,
+      "mean": 1.028114773724958,
+      "empirical_max": 11.764705882352942,
+      "theoretical_max": 11.764705882352942
+    },
+    "market_regime": {
+      "weight": 17.647058823529413,
+      "mean": 7.030223037429966,
+      "empirical_max": 14.181486548107616,
+      "theoretical_max": 17.647058823529413
+    },
+    "volume": {
+      "weight": 11.764705882352942,
+      "mean": 5.619398701052986,
+      "empirical_max": 11.764705882352942,
+      "theoretical_max": 11.764705882352942
+    }
+  },
+  "top_score_row": {
+    "index": 45018,
+    "time": "2026-09-16 16:47:00-05:00",
+    "date": "2026-09-16",
+    "direction": "LONG",
+    "regime": "RANGE",
+    "score": 81.33,
+    "quality": 60,
+    "choch": false,
+    "tradable": true,
+    "trend": 1.0,
+    "structure": 0.75,
+    "liquidity": 1.0,
+    "fvg": 1.0,
+    "ema_alignment": 1.0,
+    "market_regime": 0.5,
+    "volume": 0.5379834254143646
+  }
+}

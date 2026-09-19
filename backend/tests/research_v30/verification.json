@@ -1,0 +1,21 @@
+{
+  "dataset_sha256": "793ed9a8f5b013d693bb2925a180de8ba2620c9d09ef702d2ba2819d0bb2b14f",
+  "helper_sha256": "915099a8bec6f8a9f91e743d5e342074c748ea51a85da40662782ba8ded4b956",
+  "candidate_checks": [
+    {
+      "threshold": 80,
+      "deterministic_replay": "PASS",
+      "observer_vs_plain_full_decisions_statistics_equity_trades_acceptance_completion": "PASS"
+    },
+    {
+      "threshold": 80.5,
+      "deterministic_replay": "PASS",
+      "observer_vs_plain_full_decisions_statistics_equity_trades_acceptance_completion": "PASS"
+    },
+    {
+      "threshold": 81,
+      "deterministic_replay": "PASS",
+      "observer_vs_plain_full_decisions_statistics_equity_trades_acceptance_completion": "PASS"
+    }
+  ]
+}

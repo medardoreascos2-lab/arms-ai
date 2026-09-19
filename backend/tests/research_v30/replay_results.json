@@ -1,0 +1,977 @@
+{
+  "provenance": {
+    "dataset": "data\\backtest\\nq_sep26_1m_certified.csv",
+    "sha256": "793ed9a8f5b013d693bb2925a180de8ba2620c9d09ef702d2ba2819d0bb2b14f",
+    "candles": 47178,
+    "head": "76c1883d5fbe8de314c0272c644f99f352e21b49",
+    "parameters": {
+      "ema": 10,
+      "stop_loss": 30,
+      "take_profit": 60
+    },
+    "helper_sha256": "32b2f451bd7f83fa5f8358a89fa1589e5a6a31f978df2637595425b14e4178aa"
+  },
+  "predeclaration_sha256": "c20cc573f98dbc159f41d2ba35b8fec94667a7b439714d8a111d3c105d26cb73",
+  "results": [
+    {
+      "threshold": 80,
+      "quality_minimum": 85,
+      "signals": 24,
+      "submissions": 24,
+      "accepted": 24,
+      "rejected": 0,
+      "simulated_trades": 24,
+      "completed_lifecycle_trades": 24,
+      "final_counts": {
+        "HOLD": 47149,
+        "BUY": 12,
+        "SELL": 12
+      },
+      "htf_bars": {
+        "15m": 3022,
+        "1h": 717
+      },
+      "rejection_reasons": {},
+      "metrics": {
+        "trades": 24,
+        "win_rate_percent": 29.166666666666668,
+        "net_pnl": -1800.0,
+        "profit_factor": 0.8235294117647058,
+        "profit_factor_note": null,
+        "expectancy": -75.0,
+        "max_drawdown": 4200.0,
+        "trades_per_day": 0.6857142857142857,
+        "long_short": {
+          "BUY": 12,
+          "SELL": 12
+        },
+        "regimes": {
+          "RANGE": 24
+        }
+      },
+      "partitions": {
+        "first_half": {
+          "trades": 14,
+          "win_rate_percent": 28.571428571428573,
+          "net_pnl": -1200.0,
+          "profit_factor": 0.8,
+          "profit_factor_note": null,
+          "expectancy": -85.71428571428571,
+          "max_drawdown": 3600.0,
+          "trades_per_day": 0.7777777777777778,
+          "long_short": {
+            "BUY": 8,
+            "SELL": 6
+          },
+          "regimes": {
+            "RANGE": 14
+          }
+        },
+        "second_half": {
+          "trades": 10,
+          "win_rate_percent": 30.0,
+          "net_pnl": -600.0,
+          "profit_factor": 0.8571428571428571,
+          "profit_factor_note": null,
+          "expectancy": -60.0,
+          "max_drawdown": 3600.0,
+          "trades_per_day": 0.5555555555555556,
+          "long_short": {
+            "SELL": 6,
+            "BUY": 4
+          },
+          "regimes": {
+            "RANGE": 10
+          }
+        },
+        "odd_dates": {
+          "trades": 15,
+          "win_rate_percent": 40.0,
+          "net_pnl": 1800.0,
+          "profit_factor": 1.3333333333333333,
+          "profit_factor_note": null,
+          "expectancy": 120.0,
+          "max_drawdown": 2400.0,
+          "trades_per_day": 0.8333333333333334,
+          "long_short": {
+            "BUY": 9,
+            "SELL": 6
+          },
+          "regimes": {
+            "RANGE": 15
+          }
+        },
+        "even_dates": {
+          "trades": 9,
+          "win_rate_percent": 11.11111111111111,
+          "net_pnl": -3600.0,
+          "profit_factor": 0.25,
+          "profit_factor_note": null,
+          "expectancy": -400.0,
+          "max_drawdown": 3600.0,
+          "trades_per_day": 0.5294117647058824,
+          "long_short": {
+            "BUY": 3,
+            "SELL": 6
+          },
+          "regimes": {
+            "RANGE": 9
+          }
+        }
+      },
+      "trades": [
+        {
+          "index": 1887,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=9"
+          ],
+          "time": "2026-08-04 06:28:00-05:00",
+          "date": "2026-08-04",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 3229,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=99"
+          ],
+          "time": "2026-08-05 05:50:00-05:00",
+          "date": "2026-08-05",
+          "regime": "RANGE",
+          "score": 80.81
+        },
+        {
+          "index": 3663,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=14"
+          ],
+          "time": "2026-08-05 13:04:00-05:00",
+          "date": "2026-08-05",
+          "regime": "RANGE",
+          "score": 80.79
+        },
+        {
+          "index": 4998,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=5"
+          ],
+          "time": "2026-08-06 12:19:00-05:00",
+          "date": "2026-08-06",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 5036,
+          "pnl": 1200.0,
+          "direction": "SELL",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=20"
+          ],
+          "time": "2026-08-06 12:57:00-05:00",
+          "date": "2026-08-06",
+          "regime": "RANGE",
+          "score": 80.47
+        },
+        {
+          "index": 11314,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=8"
+          ],
+          "time": "2026-08-13 02:35:00-05:00",
+          "date": "2026-08-13",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 12307,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=9"
+          ],
+          "time": "2026-08-13 19:08:00-05:00",
+          "date": "2026-08-14",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 15786,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=7"
+          ],
+          "time": "2026-08-18 08:07:00-05:00",
+          "date": "2026-08-18",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 15860,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=111"
+          ],
+          "time": "2026-08-18 09:21:00-05:00",
+          "date": "2026-08-18",
+          "regime": "RANGE",
+          "score": 80.79
+        },
+        {
+          "index": 19140,
+          "pnl": 1200.0,
+          "direction": "SELL",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=10"
+          ],
+          "time": "2026-08-20 18:02:00-05:00",
+          "date": "2026-08-21",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 19864,
+          "pnl": 1200.0,
+          "direction": "BUY",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=57"
+          ],
+          "time": "2026-08-21 07:06:00-05:00",
+          "date": "2026-08-21",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 20016,
+          "pnl": 1200.0,
+          "direction": "BUY",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=109"
+          ],
+          "time": "2026-08-21 09:38:00-05:00",
+          "date": "2026-08-21",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 22624,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=7"
+          ],
+          "time": "2026-08-25 07:06:00-05:00",
+          "date": "2026-08-25",
+          "regime": "RANGE",
+          "score": 80.52
+        },
+        {
+          "index": 22907,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=46"
+          ],
+          "time": "2026-08-25 11:49:00-05:00",
+          "date": "2026-08-25",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 24115,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=125"
+          ],
+          "time": "2026-08-26 08:57:00-05:00",
+          "date": "2026-08-26",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 24839,
+          "pnl": 1200.0,
+          "direction": "BUY",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=1"
+          ],
+          "time": "2026-08-26 21:01:00-05:00",
+          "date": "2026-08-27",
+          "regime": "RANGE",
+          "score": 80.65
+        },
+        {
+          "index": 28095,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=149"
+          ],
+          "time": "2026-08-31 06:17:00-05:00",
+          "date": "2026-08-31",
+          "regime": "RANGE",
+          "score": 80.72
+        },
+        {
+          "index": 35004,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=79"
+          ],
+          "time": "2026-09-07 06:26:00-05:00",
+          "date": "2026-09-07",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 40111,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=43"
+          ],
+          "time": "2026-09-11 03:33:00-05:00",
+          "date": "2026-09-11",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 41790,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=12"
+          ],
+          "time": "2026-09-14 08:32:00-05:00",
+          "date": "2026-09-14",
+          "regime": "RANGE",
+          "score": 80.11
+        },
+        {
+          "index": 42064,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=10"
+          ],
+          "time": "2026-09-14 13:06:00-05:00",
+          "date": "2026-09-14",
+          "regime": "RANGE",
+          "score": 80.49
+        },
+        {
+          "index": 42146,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=8"
+          ],
+          "time": "2026-09-14 14:28:00-05:00",
+          "date": "2026-09-14",
+          "regime": "RANGE",
+          "score": 80.05
+        },
+        {
+          "index": 44911,
+          "pnl": 1200.0,
+          "direction": "BUY",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=49"
+          ],
+          "time": "2026-09-16 15:00:00-05:00",
+          "date": "2026-09-16",
+          "regime": "RANGE",
+          "score": 80.71
+        },
+        {
+          "index": 46522,
+          "pnl": 1200.0,
+          "direction": "SELL",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=63"
+          ],
+          "time": "2026-09-17 19:57:00-05:00",
+          "date": "2026-09-18",
+          "regime": "RANGE",
+          "score": 80.88
+        }
+      ],
+      "adequate_sample_screen": false
+    },
+    {
+      "threshold": 80.5,
+      "quality_minimum": 85,
+      "signals": 21,
+      "submissions": 21,
+      "accepted": 21,
+      "rejected": 0,
+      "simulated_trades": 21,
+      "completed_lifecycle_trades": 21,
+      "final_counts": {
+        "HOLD": 47152,
+        "BUY": 12,
+        "SELL": 9
+      },
+      "htf_bars": {
+        "15m": 3022,
+        "1h": 717
+      },
+      "rejection_reasons": {},
+      "metrics": {
+        "trades": 21,
+        "win_rate_percent": 33.333333333333336,
+        "net_pnl": 0.0,
+        "profit_factor": 1.0,
+        "profit_factor_note": null,
+        "expectancy": 0.0,
+        "max_drawdown": 3600.0,
+        "trades_per_day": 0.6,
+        "long_short": {
+          "BUY": 12,
+          "SELL": 9
+        },
+        "regimes": {
+          "RANGE": 21
+        }
+      },
+      "partitions": {
+        "first_half": {
+          "trades": 14,
+          "win_rate_percent": 28.571428571428573,
+          "net_pnl": -1200.0,
+          "profit_factor": 0.8,
+          "profit_factor_note": null,
+          "expectancy": -85.71428571428571,
+          "max_drawdown": 3600.0,
+          "trades_per_day": 0.7777777777777778,
+          "long_short": {
+            "BUY": 8,
+            "SELL": 6
+          },
+          "regimes": {
+            "RANGE": 14
+          }
+        },
+        "second_half": {
+          "trades": 7,
+          "win_rate_percent": 42.857142857142854,
+          "net_pnl": 1200.0,
+          "profit_factor": 1.5,
+          "profit_factor_note": null,
+          "expectancy": 171.42857142857142,
+          "max_drawdown": 1800.0,
+          "trades_per_day": 0.3888888888888889,
+          "long_short": {
+            "SELL": 3,
+            "BUY": 4
+          },
+          "regimes": {
+            "RANGE": 7
+          }
+        },
+        "odd_dates": {
+          "trades": 12,
+          "win_rate_percent": 50.0,
+          "net_pnl": 3600.0,
+          "profit_factor": 2.0,
+          "profit_factor_note": null,
+          "expectancy": 300.0,
+          "max_drawdown": 1800.0,
+          "trades_per_day": 0.6666666666666666,
+          "long_short": {
+            "BUY": 9,
+            "SELL": 3
+          },
+          "regimes": {
+            "RANGE": 12
+          }
+        },
+        "even_dates": {
+          "trades": 9,
+          "win_rate_percent": 11.11111111111111,
+          "net_pnl": -3600.0,
+          "profit_factor": 0.25,
+          "profit_factor_note": null,
+          "expectancy": -400.0,
+          "max_drawdown": 3600.0,
+          "trades_per_day": 0.5294117647058824,
+          "long_short": {
+            "BUY": 3,
+            "SELL": 6
+          },
+          "regimes": {
+            "RANGE": 9
+          }
+        }
+      },
+      "trades": [
+        {
+          "index": 1887,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=9"
+          ],
+          "time": "2026-08-04 06:28:00-05:00",
+          "date": "2026-08-04",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 3229,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=99"
+          ],
+          "time": "2026-08-05 05:50:00-05:00",
+          "date": "2026-08-05",
+          "regime": "RANGE",
+          "score": 80.81
+        },
+        {
+          "index": 3663,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=14"
+          ],
+          "time": "2026-08-05 13:04:00-05:00",
+          "date": "2026-08-05",
+          "regime": "RANGE",
+          "score": 80.79
+        },
+        {
+          "index": 4998,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=5"
+          ],
+          "time": "2026-08-06 12:19:00-05:00",
+          "date": "2026-08-06",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 5037,
+          "pnl": 1200.0,
+          "direction": "SELL",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=29"
+          ],
+          "time": "2026-08-06 12:58:00-05:00",
+          "date": "2026-08-06",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 11314,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=8"
+          ],
+          "time": "2026-08-13 02:35:00-05:00",
+          "date": "2026-08-13",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 12307,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=9"
+          ],
+          "time": "2026-08-13 19:08:00-05:00",
+          "date": "2026-08-14",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 15786,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=7"
+          ],
+          "time": "2026-08-18 08:07:00-05:00",
+          "date": "2026-08-18",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 15860,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=111"
+          ],
+          "time": "2026-08-18 09:21:00-05:00",
+          "date": "2026-08-18",
+          "regime": "RANGE",
+          "score": 80.79
+        },
+        {
+          "index": 19140,
+          "pnl": 1200.0,
+          "direction": "SELL",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=10"
+          ],
+          "time": "2026-08-20 18:02:00-05:00",
+          "date": "2026-08-21",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 19864,
+          "pnl": 1200.0,
+          "direction": "BUY",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=57"
+          ],
+          "time": "2026-08-21 07:06:00-05:00",
+          "date": "2026-08-21",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 20016,
+          "pnl": 1200.0,
+          "direction": "BUY",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=109"
+          ],
+          "time": "2026-08-21 09:38:00-05:00",
+          "date": "2026-08-21",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 22624,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=7"
+          ],
+          "time": "2026-08-25 07:06:00-05:00",
+          "date": "2026-08-25",
+          "regime": "RANGE",
+          "score": 80.52
+        },
+        {
+          "index": 22907,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=46"
+          ],
+          "time": "2026-08-25 11:49:00-05:00",
+          "date": "2026-08-25",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 24115,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=125"
+          ],
+          "time": "2026-08-26 08:57:00-05:00",
+          "date": "2026-08-26",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 24839,
+          "pnl": 1200.0,
+          "direction": "BUY",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=1"
+          ],
+          "time": "2026-08-26 21:01:00-05:00",
+          "date": "2026-08-27",
+          "regime": "RANGE",
+          "score": 80.65
+        },
+        {
+          "index": 28095,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=149"
+          ],
+          "time": "2026-08-31 06:17:00-05:00",
+          "date": "2026-08-31",
+          "regime": "RANGE",
+          "score": 80.72
+        },
+        {
+          "index": 35004,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=79"
+          ],
+          "time": "2026-09-07 06:26:00-05:00",
+          "date": "2026-09-07",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 40111,
+          "pnl": -600.0,
+          "direction": "SELL",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=43"
+          ],
+          "time": "2026-09-11 03:33:00-05:00",
+          "date": "2026-09-11",
+          "regime": "RANGE",
+          "score": 80.88
+        },
+        {
+          "index": 44911,
+          "pnl": 1200.0,
+          "direction": "BUY",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=49"
+          ],
+          "time": "2026-09-16 15:00:00-05:00",
+          "date": "2026-09-16",
+          "regime": "RANGE",
+          "score": 80.71
+        },
+        {
+          "index": 46522,
+          "pnl": 1200.0,
+          "direction": "SELL",
+          "reasoning": [
+            "TAKE_PROFIT",
+            "RR=2.0",
+            "BARS=63"
+          ],
+          "time": "2026-09-17 19:57:00-05:00",
+          "date": "2026-09-18",
+          "regime": "RANGE",
+          "score": 80.88
+        }
+      ],
+      "adequate_sample_screen": false
+    },
+    {
+      "threshold": 81,
+      "quality_minimum": 85,
+      "signals": 1,
+      "submissions": 1,
+      "accepted": 1,
+      "rejected": 0,
+      "simulated_trades": 1,
+      "completed_lifecycle_trades": 1,
+      "final_counts": {
+        "HOLD": 47172,
+        "BUY": 1
+      },
+      "htf_bars": {
+        "15m": 3022,
+        "1h": 717
+      },
+      "rejection_reasons": {},
+      "metrics": {
+        "trades": 1,
+        "win_rate_percent": 0.0,
+        "net_pnl": -600.0,
+        "profit_factor": 0.0,
+        "profit_factor_note": null,
+        "expectancy": -600.0,
+        "max_drawdown": 600.0,
+        "trades_per_day": 0.02857142857142857,
+        "long_short": {
+          "BUY": 1
+        },
+        "regimes": {
+          "RANGE": 1
+        }
+      },
+      "partitions": {
+        "first_half": {
+          "trades": 0,
+          "win_rate_percent": null,
+          "net_pnl": 0,
+          "profit_factor": null,
+          "profit_factor_note": "no losing trades; undefined",
+          "expectancy": null,
+          "max_drawdown": 0.0,
+          "trades_per_day": 0.0,
+          "long_short": {},
+          "regimes": {}
+        },
+        "second_half": {
+          "trades": 1,
+          "win_rate_percent": 0.0,
+          "net_pnl": -600.0,
+          "profit_factor": 0.0,
+          "profit_factor_note": null,
+          "expectancy": -600.0,
+          "max_drawdown": 600.0,
+          "trades_per_day": 0.05555555555555555,
+          "long_short": {
+            "BUY": 1
+          },
+          "regimes": {
+            "RANGE": 1
+          }
+        },
+        "odd_dates": {
+          "trades": 1,
+          "win_rate_percent": 0.0,
+          "net_pnl": -600.0,
+          "profit_factor": 0.0,
+          "profit_factor_note": null,
+          "expectancy": -600.0,
+          "max_drawdown": 600.0,
+          "trades_per_day": 0.05555555555555555,
+          "long_short": {
+            "BUY": 1
+          },
+          "regimes": {
+            "RANGE": 1
+          }
+        },
+        "even_dates": {
+          "trades": 0,
+          "win_rate_percent": null,
+          "net_pnl": 0,
+          "profit_factor": null,
+          "profit_factor_note": "no losing trades; undefined",
+          "expectancy": null,
+          "max_drawdown": 0.0,
+          "trades_per_day": 0.0,
+          "long_short": {},
+          "regimes": {}
+        }
+      },
+      "trades": [
+        {
+          "index": 45018,
+          "pnl": -600.0,
+          "direction": "BUY",
+          "reasoning": [
+            "STOP_LOSS",
+            "RR=-1.0",
+            "BARS=16"
+          ],
+          "time": "2026-09-16 16:47:00-05:00",
+          "date": "2026-09-16",
+          "regime": "RANGE",
+          "score": 81.33
+        }
+      ],
+      "adequate_sample_screen": false
+    }
+  ]
+}

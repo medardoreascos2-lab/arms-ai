@@ -1,0 +1,110 @@
+{
+  "threshold": 81,
+  "quality_minimum": 85,
+  "signals": 1,
+  "submissions": 1,
+  "accepted": 1,
+  "rejected": 0,
+  "simulated_trades": 1,
+  "completed_lifecycle_trades": 1,
+  "final_counts": {
+    "HOLD": 47172,
+    "BUY": 1
+  },
+  "htf_bars": {
+    "15m": 3022,
+    "1h": 717
+  },
+  "rejection_reasons": {},
+  "metrics": {
+    "trades": 1,
+    "win_rate_percent": 0.0,
+    "net_pnl": -600.0,
+    "profit_factor": 0.0,
+    "profit_factor_note": null,
+    "expectancy": -600.0,
+    "max_drawdown": 600.0,
+    "trades_per_day": 0.02857142857142857,
+    "long_short": {
+      "BUY": 1
+    },
+    "regimes": {
+      "RANGE": 1
+    }
+  },
+  "partitions": {
+    "first_half": {
+      "trades": 0,
+      "win_rate_percent": null,
+      "net_pnl": 0,
+      "profit_factor": null,
+      "profit_factor_note": "no losing trades; undefined",
+      "expectancy": null,
+      "max_drawdown": 0.0,
+      "trades_per_day": 0.0,
+      "long_short": {},
+      "regimes": {}
+    },
+    "second_half": {
+      "trades": 1,
+      "win_rate_percent": 0.0,
+      "net_pnl": -600.0,
+      "profit_factor": 0.0,
+      "profit_factor_note": null,
+      "expectancy": -600.0,
+      "max_drawdown": 600.0,
+      "trades_per_day": 0.05555555555555555,
+      "long_short": {
+        "BUY": 1
+      },
+      "regimes": {
+        "RANGE": 1
+      }
+    },
+    "odd_dates": {
+      "trades": 1,
+      "win_rate_percent": 0.0,
+      "net_pnl": -600.0,
+      "profit_factor": 0.0,
+      "profit_factor_note": null,
+      "expectancy": -600.0,
+      "max_drawdown": 600.0,
+      "trades_per_day": 0.05555555555555555,
+      "long_short": {
+        "BUY": 1
+      },
+      "regimes": {
+        "RANGE": 1
+      }
+    },
+    "even_dates": {
+      "trades": 0,
+      "win_rate_percent": null,
+      "net_pnl": 0,
+      "profit_factor": null,
+      "profit_factor_note": "no losing trades; undefined",
+      "expectancy": null,
+      "max_drawdown": 0.0,
+      "trades_per_day": 0.0,
+      "long_short": {},
+      "regimes": {}
+    }
+  },
+  "trades": [
+    {
+      "index": 45018,
+      "pnl": -600.0,
+      "direction": "BUY",
+      "reasoning": [
+        "STOP_LOSS",
+        "RR=-1.0",
+        "BARS=16"
+      ],
+      "time": "2026-09-16 16:47:00-05:00",
+      "date": "2026-09-16",
+      "regime": "RANGE",
+      "score": 81.33
+    }
+  ],
+  "adequate_sample_screen": false
+}

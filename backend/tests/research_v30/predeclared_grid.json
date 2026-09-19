@@ -1,0 +1,18 @@
+{
+  "phase": "V30 offline research, declared after score analysis and before candidate replay/PnL",
+  "head": "76c1883d5fbe8de314c0272c644f99f352e21b49",
+  "dataset_sha256": "793ed9a8f5b013d693bb2925a180de8ba2620c9d09ef702d2ba2819d0bb2b14f",
+  "a_plus_boundaries": [80, 80.5, 81],
+  "selection_evidence_without_PnL": [
+    {"boundary": 80, "raw_opportunities": 39, "dates": 17, "quality_85_eligible_after_reclassification": 37},
+    {"boundary": 80.5, "raw_opportunities": 35, "dates": 16, "quality_85_eligible_after_reclassification": 33},
+    {"boundary": 81, "raw_opportunities": 1, "dates": 1, "quality_85_eligible_after_reclassification": 1}
+  ],
+  "rationale": "80 is the unchanged downstream numerical admission floor and maximizes available coverage without changing risk/admission rules. 80.5 measures local sensitivity. 81 is an explicitly sparse cliff control. Thresholds below 80 cannot yield additional admitted trades without altering downstream contracts and are excluded. 90 is the already observed production zero-trade control.",
+  "hypothesis": "Change only the A+ classification boundary on one freshly constructed offline engine instance. Preserve numerical score, component weights, confluence approved/status/decision/blocking reasons, quality formula and minimum 85, signal admission .8, lifecycle, position sizing, risk, SL/TP and accounting. This is a coupled classification experiment, not the fixed-grade score-only matrix.",
+  "parameters": {"ema": 10, "stop_loss": 30, "take_profit": 60},
+  "adequate_sample_screen": "Descriptive screening only: at least 30 simulated trades overall AND at least 10 in each first-half, second-half, odd-date and even-date cohort. This is not statistical certification or a production threshold.",
+  "partitions": "Entry decision index <= floor(47178/2) is first half; later is second. Odd/even means ordinal position in sorted canonical trading dates (first date odd), including zero-trade dates. Cohorts come from the continuous run, with existing state retained; each cohort's metrics start its cumulative PnL at zero. Exits may cross cohort boundaries. No state reset, PnL feedback, or holdout claim.",
+  "metric_authority": "Engine independent simulator PnL in decision order; completed lifecycle trade count reported separately. Do not sum the two accounting paths. Drawdown is realized simulator equity drawdown, not mark-to-market risk. Profit factor without losses is undefined/null.",
+  "selection_policy": "No in-sample PnL winner. Insufficient sample, partition sign reversal, concentrated direction/regime or a sharp opportunity cliff prevents endorsement; remaining hypotheses may be proposed only for fresh-data feasibility research."
+}
