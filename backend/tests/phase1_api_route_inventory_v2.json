@@ -237,6 +237,10 @@
             "backtesting_metrics_provider_v2"
           ]
         },
+        "paper_research_provider": {
+          "type": "builtins.NoneType",
+          "state_bindings": []
+        },
         "performance_report_provider": {
           "type": "backend.backtesting.backtesting_performance_report_provider_v2.BacktestingPerformanceReportProviderV2",
           "state_bindings": [
@@ -262,7 +266,7 @@
           ]
         }
       },
-      "source_sha256": "67ffb8ce85ed833e40bfbf9e1795cab79db0e5b890c0b6659a10e1f4ec4e4498",
+      "source_sha256": "13cb4a3d95a4a59c062a6c13f62fc3e48e2be94c8fd743393df2d7c2c3d97bf6",
       "state_fields": [],
       "calls": [
         "all",
@@ -274,6 +278,7 @@
         "len",
         "metrics.keys",
         "metrics_provider.get_metrics",
+        "paper_research_provider.get_snapshot",
         "performance_report_provider.get_report",
         "report.get",
         "strategies.get",

@@ -1,0 +1,294 @@
+{
+  "release": "ARMS AI MVP 1.0",
+  "scope": "Controlled PAPER / certified historical replay only",
+  "expected_parent": "ff12649072d7a2ae3762343b225b8b9a67819d76",
+  "branch": "refactor/backend-architecture",
+  "release_rule": "Technical gates plus exactly one local certification commit; no tag or push. This file does not assert automatic recovery or LIVE certification.",
+  "requirement_matrix": "docs/architecture/mvp_1_0_sprint09.md",
+  "production_modules_changed": [],
+  "behavior_change": "None. One read-only API inventory evidence row refreshed; frontend heading exposes semantic release identity.",
+  "policy": {
+    "production_confluence": 90,
+    "paper_confluence": 80.5,
+    "quality": 85,
+    "fees_per_contract_side": 5,
+    "adverse_slippage_ticks_side": 2,
+    "strategy_version_changed": false,
+    "risk_policy_changed": false,
+    "sl_tp_changed": false,
+    "scores_changed": false,
+    "live_authority": false
+  },
+  "startup": {
+    "backend": "Unchanged backend.api.paper_rc_app_v1.main in fresh child processes; explicit JUN22 manifest/config/new account policy",
+    "frontend": "Fresh Next production server via node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000 (same command as npm start)",
+    "credentials": "Ephemeral random child-process administrative token, never persisted",
+    "initial_health": "PROCESS_HEALTHY",
+    "initial_readiness": false,
+    "first_observation": "OUTSIDE_AUTHORIZED_SESSION excluded; no eligible clock or readiness",
+    "second_observation": "Eligible; enabled and authority gates pass",
+    "configuration_hash": "6b12ad1af10739606a8ea8c00fbfb74f535044cb07cb7f3115bbcaec1b5918d4"
+  },
+  "positive_smoke": {
+    "artifact": "backend/tests/paper_mvp_process_sprint09.json",
+    "source": "Certified JUN22 real strategy; no test strategy substituted",
+    "accepted": 1,
+    "completed": 1,
+    "journal_completed": 1,
+    "net_pnl": -630,
+    "balance": 149370,
+    "equity": 149370,
+    "drawdown": 660,
+    "expected": "First frozen conservative-cost Sprint07R trade; exact 17 canonical fields",
+    "api_read_rounds": 25,
+    "read_only_durable_state_unchanged": true
+  },
+  "negative_safety": {
+    "invalid_configuration": "test_paper_runtime_sprint08::test_mode_and_identity_are_explicit; loader hash mismatch and frozen config tests",
+    "paper_disabled": "test_paper_runtime_sprint08::test_nonexecution_paths[disable]",
+    "emergency_block": "test_nonexecution_paths[emergency_block]; test_emergency_block_still_allows_canonical_exit",
+    "stale_data": "test_bad_input_latches_fail_closed[stale]",
+    "out_of_order": "test_bad_input_latches_fail_closed[order]",
+    "duplicate_input": "test_duplicate_threads_are_serialized; identical completed input no-op in full soak",
+    "rejected_submission": "test_nonexecution_paths[rejected]; full V27 acceptance/malformed acceptance regressions",
+    "risk_veto": "test_actual_losses_trigger_existing_projected_drawdown_veto; test_risk_block_preserves_exit_of_already_authorized_position",
+    "recovery_required": "Actual subprocess crash boundaries plus flat/completed CLI restarts and pending-event test",
+    "ineligible_observations": "test_anomaly_never_marks_closes_or_enters; real source row 1 remains nonexecuting",
+    "invariant": "Zero unauthorized new entries. Canonical management of authorized open positions remains active on eligible bars."
+  },
+  "shutdown": {
+    "backend": "All four process-smoke CLI children exit 0 after authenticated shutdown and SIGINT; post-stop step/enable rejected; repeated shutdown no-op",
+    "frontend": {
+      "status": "PASS",
+      "process_exit_code": 143,
+      "signal": "SIGTERM",
+      "next_graceful_cleanup": true,
+      "http_status": 200,
+      "release_heading_present": true,
+      "port_released": true
+    },
+    "listeners_after_cleanup": "No listeners on 8000 or 3000",
+    "orphan_execution_tasks": false
+  },
+  "recovery": {
+    "flat": "PASS; evidence preserved; no fresh operational runtime",
+    "ambiguous": "PASS; pending event/crash boundaries fail closed",
+    "completed": "PASS; -630 PnL and one journal completion preserved",
+    "resume_supported": false,
+    "valid_new_runtime": "Explicit separately identified new isolated account; not recovery or continuation"
+  },
+  "browser_acceptance": {
+    "tool": "Computer-use browser API, Chrome",
+    "url": "http://localhost:3000/paper-rc",
+    "actions": "Read-only open, reload, accessibility tree and screenshot; no credential entered or execution control clicked",
+    "visible_release": "ARMS AI MVP 1.0 — Controlled PAPER Replay",
+    "mode": "PAPER_RESEARCH",
+    "status": "PAPER READY",
+    "balance": 149370,
+    "equity": 149370,
+    "daily_pnl": -630,
+    "drawdown": 660,
+    "risk_blocked": false,
+    "decision": "HOLD",
+    "reason": "Opposite CHOCH detected",
+    "confluence": 51.18,
+    "quality": 0,
+    "paper_threshold": 80.5,
+    "quality_threshold": 85,
+    "active_positions": [],
+    "latest_trade": "SHORT / STOP_LOSS / net -630",
+    "journal_completed": 1,
+    "journal_total": 1,
+    "configuration_hash": "6b12ad1af10739606a8ea8c00fbfb74f535044cb07cb7f3115bbcaec1b5918d4",
+    "read_side_effects": false
+  },
+  "soak": {
+    "artifact": "backend/tests/paper_mvp_soak_sprint09.json",
+    "observations": 96657,
+    "eligible_candles": 96628,
+    "excluded": 29,
+    "trading_days": 71,
+    "completed_trades": 31,
+    "wins": 13,
+    "losses": 18,
+    "net_pnl": 3870,
+    "max_analysis_history": 50,
+    "max_diagnostic_history": 0,
+    "ledger_parity": "EXACT",
+    "account_parity": "EXACT",
+    "journal_parity": "EXACT",
+    "elapsed_seconds": 348.827,
+    "process_exit_code": 0
+  },
+  "duplicates": 0,
+  "duplicate_pnl": 0,
+  "account_drift": 0,
+  "journal_mismatch": 0,
+  "unexplained_differences": 0,
+  "test_environment": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTEST_ADDOPTS": "-p no:cacheprovider",
+    "ARMS_MAXIMUM_QUOTE_AGE_SECONDS": "30",
+    "ARMS_MINIMUM_REWARD_RISK_RATIO": "2",
+    "ARMS_MINIMUM_STOP_POINTS": "1",
+    "ARMS_MAXIMUM_STOP_POINTS": "100",
+    "ARMS_MAXIMUM_SPREAD_POINTS": "5",
+    "ARMS_MINIMUM_ATR_POINTS": "1",
+    "ARMS_MINIMUM_A_PLUS_PROBABILITY": "0.8",
+    "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE": "0.8",
+    "ARMS_MAXIMUM_SIGNAL_AGE_SECONDS": "300",
+    "ARMS_MAXIMUM_OPEN_POSITIONS": "1"
+  },
+  "preliminary_findings": [
+    "Initial complete backend run: 6073 passed, 1 skipped, 1 stale API evidence failure in 537.96s.",
+    "Source/Git proof: ecd3ded added optional paper_research_provider.get_snapshot to the general read-only dashboard. Refreshed only that row's closure entry, call and AST hash. Other 94 route rows and all classifications/certificate unchanged.",
+    "First process-smoke attempt incorrectly expected an excluded source row to establish readiness; corrected test assertion only.",
+    "Second process-smoke attempt held an idle HTTP connection across browser inspection; corrected test driver to close it before pause. Production transport unchanged.",
+    "Final process-smoke attempt passed through canonical trade, read safety, shutdown and both restarts.",
+    "6 new release tests passed; post-inventory-repair API/runtime suite: 61 passed; legacy inventory check: 71 passed; skip diagnosis suite: 12 passed, 1 expected skip.",
+    "Initial frontend terminal interrupt did not stop its owned server; PowerShell Stop-Process errored. Verified PID was terminated, then a fresh CLI startup and installed Next SIGTERM cleanup were independently certified: expected exit 143 and released port. A test-launcher syntax typo was corrected before the successful run."
+  ],
+  "frontend": {
+    "commands": [
+      "npm.cmd run lint",
+      "node --test src/lib/*.test.mjs",
+      "npm.cmd run build"
+    ],
+    "lint": "PASS",
+    "passed": 26,
+    "failed": 0,
+    "production_build": "PASS",
+    "framework": "Next.js 16.2.10; existing configured fonts; no dependency changes"
+  },
+  "preservation": {
+    "protected_files_checked": 429,
+    "changed": [],
+    "preexisting_untracked_count": 109,
+    "source_exports_changed": false,
+    "control_exports_changed": false,
+    "datasets_changed": false,
+    "v30_changed": false,
+    "v31_changed": false,
+    "sprint07r_evidence_changed": false,
+    "sprint08_evidence_changed": false,
+    "only_intentional_sprint08_ui_change": "Release heading",
+    "batches": [
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 35,
+        "changed": []
+      },
+      {
+        "count": 9,
+        "changed": []
+      }
+    ],
+    "source_and_control_export_paths": 22,
+    "ignored_data_backtest_files": 16
+  },
+  "commit_scope": [
+    "backend/tests/phase1_api_route_inventory_v2.json",
+    "backend/tests/research_release_sprint09.py",
+    "backend/tests/test_mvp_release_sprint09.py",
+    "backend/tests/paper_mvp_process_sprint09.json",
+    "backend/tests/paper_mvp_soak_sprint09.json",
+    "backend/tests/paper_mvp_certification_sprint09.json",
+    "docs/architecture/mvp_1_0_sprint09.md",
+    "frontend/src/app/paper-rc/page.tsx"
+  ],
+  "intended_commit_message": "chore(release): certify ARMS AI MVP 1.0 paper runtime",
+  "deferred": [
+    "Operational strategy/HTF/cursor reconstruction and reconciled resume",
+    "Current-market feed/calendar certification",
+    "LIVE and broker certification",
+    "Multi-account continuous PAPER operation",
+    "Retention/compaction and hardware power-loss durability",
+    "PAPER websocket push"
+  ],
+  "directional_limitation": "Historical SHORT materially stronger; LONG remains enabled research, not silently removed.",
+  "commands": [
+    "py -m pytest backend/tests -q --tb=short",
+    "py -m pytest backend/tests/test_mvp_release_sprint09.py -q --tb=short",
+    "py -m pytest backend/tests/test_phase1_api_route_account_scope_contract_v2.py -q --tb=short -x",
+    "py -m pytest backend/tests/test_phase1_api_route_account_scope_contract_v2.py::test_route_manifest_exhaustively_matches_registered_application -vv --tb=long",
+    "py -m pytest backend/tests/test_phase1_api_route_account_scope_contract_v2.py backend/tests/test_phase1_api_ownership_characterization_v2.py backend/tests/test_paper_runtime_sprint08.py backend/tests/test_mvp_release_sprint09.py -q --tb=short -rs",
+    "py -m pytest backend/tests/test_legacy_state_inventory_v2.py -q -rs",
+    "py -m pytest backend/tests/test_phase1_risk_authority_integration_v2.py -q -rs",
+    "py -m pytest backend/tests -q --tb=short -rs --durations=5",
+    "py -m backend.tests.research_release_sprint09 backend/tests/paper_mvp_process_sprint09.json --browser-pause",
+    "py -m backend.tests.research_release_sprint09 frontend-shutdown",
+    "py -m backend.tests.research_paper_rc_sprint08 backend/tests/paper_mvp_soak_sprint09.json",
+    "npm.cmd run lint",
+    "node --test src/lib/*.test.mjs",
+    "npm.cmd run build",
+    "git diff --check"
+  ],
+  "technical_gates": "PASS",
+  "final_backend": {
+    "command": "py -m pytest backend/tests -q --tb=short -rs --durations=5",
+    "passed": 6080,
+    "failed": 0,
+    "skipped": 1,
+    "seconds": 505.84,
+    "warning": "Existing FastAPI/Starlette httpx deprecation; no dependency changes",
+    "skip": "Compatibility route is not registered: /api/v2/trades/submit",
+    "all_sprint08_128_test_modules_included": true,
+    "includes_preserved_untracked_diagnostic_tests": true
+  },
+  "working_file_sha256_pre_commit": {
+    "backend/tests/phase1_api_route_inventory_v2.json": "a653cbe6a755024f3efc87e0ad0390f5d3aa8e29474e68374bc3246bb7e679b4",
+    "frontend/src/app/paper-rc/page.tsx": "386c396be966bad812c3af68c1c2454937a3d19926123705cf3935ad49ca0e40",
+    "backend/tests/paper_mvp_soak_sprint09.json": "5e35d5fcb0707f985781048a0364de82c0fd8d758972b4b22cb91ec872add95c",
+    "docs/architecture/mvp_1_0_sprint09.md": "338291b3e2d52ab23e6ea1980370c3b5ffe71bfd3f57d3043610e092baf70886",
+    "backend/tests/test_mvp_release_sprint09.py": "66886ada05225a62564abee07834dd69025ed4cfa13e7e70d1f864f9689e3d6a",
+    "backend/tests/research_release_sprint09.py": "931d861d6d7ed6fe237b8dbcf0a0cea8e6a702b0325df283583e203d6e5c144e",
+    "backend/tests/paper_mvp_process_sprint09.json": "b9137cdbf2fca2ce33562dc5cf5dbb056c81122c287146c90c8624a709913a43"
+  },
+  "final_diff_check": "PASS",
+  "pre_commit_staged_count": 0,
+  "blockers": [],
+  "certification_condition": "MVP_1_0_CERTIFIED becomes YES only after the single local certification commit succeeds; verify parent, exact eight-file scope and empty index through Git."
+}

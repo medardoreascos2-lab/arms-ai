@@ -60,7 +60,7 @@ export default function PaperRcPage() {
   }
 
   return <main className="p-6 space-y-4">
-    <h1 className="text-2xl font-bold">ARMS AI — PAPER RC</h1>
+    <h1 className="text-2xl font-bold">ARMS AI MVP 1.0 — Controlled PAPER Replay</h1>
     <p>Certified historical replay • Research only • No live trading certification</p>
     <p>Restart requires reconciliation. Persisted evidence is not an operationally restored account.</p>
     <label>Administrative PAPER credential <input type="password" autoComplete="off"
