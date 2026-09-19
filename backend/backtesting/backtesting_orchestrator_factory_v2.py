@@ -85,6 +85,7 @@ def create_backtesting_orchestrator_v2(
     collector=None,
     minimum_trades: int = 10,
     registry_service=None,
+    backtest_engine=None,
 ) -> BacktestingOrchestratorV2:
     """
     Construye el orquestador institucional completo.
@@ -126,10 +127,34 @@ def create_backtesting_orchestrator_v2(
             "monte_carlo_pipeline debe implementar run()."
         )
 
-    backtest_engine = build_backtest_engine(
-        settings=settings,
-        collector=collector,
-    )
+    if backtest_engine is None:
+        backtest_engine = build_backtest_engine(
+            settings=settings,
+            collector=collector,
+        )
+
+    if not callable(
+        getattr(
+            backtest_engine,
+            "run",
+            None,
+        )
+    ):
+        raise TypeError(
+            "backtest_engine debe implementar run()."
+        )
+
+    if not callable(
+        getattr(
+            backtest_engine,
+            "run_from_csv",
+            None,
+        )
+    ):
+        raise TypeError(
+            "backtest_engine debe implementar "
+            "run_from_csv()."
+        )
 
     score_engine = BacktestCompositeScoreV2(
         minimum_trades=minimum_trades,

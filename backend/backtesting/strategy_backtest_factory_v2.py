@@ -232,18 +232,21 @@ def build_strategy_backtest_pipeline(
     csv_path,
     settings,
 ) -> BacktestPipelineV2:
+    """Build with an explicit CSV, or defer data to run(candles=...).
 
-    loader = CsvCandleLoaderV2(
-        csv_path=csv_path,
-        symbol="NQ",
-        timeframe="1m",
-    )
+    csv_path=None leaves replay unloaded; it never substitutes market data.
+    The engine adapter loads each requested historical window before replay.
+    """
 
     replay_engine = ReplayEngineV2()
 
-    replay_engine.load(
-        loader.load()
-    )
+    if csv_path is not None:
+        loader = CsvCandleLoaderV2(
+            csv_path=csv_path,
+            symbol="NQ",
+            timeframe="1m",
+        )
+        replay_engine.load(loader.load())
 
     runner = BacktestRunnerV2(
         replay_engine_v2=replay_engine,
@@ -285,12 +288,25 @@ def build_strategy_backtest_pipeline(
     }
 
     session = BacktestSessionV2(
+        analysis_window=50,
         backtest_runner_v2=runner,
         strategy_runner_v2=(
             ParameterizedStrategyRunnerV2(
                 ema=int(
                     parameters["ema"]
-                )
+                ),
+                stop_loss=float(
+                    parameters.get(
+                        "stop_loss",
+                        50.0,
+                    )
+                ),
+                take_profit=float(
+                    parameters.get(
+                        "take_profit",
+                        100.0,
+                    )
+                ),
             )
         ),
 

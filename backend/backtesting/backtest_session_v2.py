@@ -64,6 +64,7 @@ class BacktestSessionV2:
         signal_order_type: str = "MARKET",
         signal_risk_context=None,
         signal_order_context=None,
+        analysis_window: int = 50,
     ) -> None:
 
         if not callable(
@@ -213,6 +214,15 @@ class BacktestSessionV2:
             signal_order_context
         )
 
+        self.analysis_window = int(
+            analysis_window
+        )
+
+        if self.analysis_window <= 0:
+            raise ValueError(
+                "analysis_window debe ser mayor que cero."
+            )
+
         self.decisions: list[
             TradingDecisionV2
         ] = []
@@ -275,9 +285,25 @@ class BacktestSessionV2:
                 normalized_candle
             )
 
+            analysis_history = (
+                self.candle_history[
+                    -self.analysis_window:
+                ]
+            )
+
             context = {
                 "candle": normalized_candle,
-                "history": self.candle_history,
+                "history": analysis_history,
+                "history_15m": analysis_history,
+                "history_1h": analysis_history,
+
+                # Monotonic candle clock for stateful strategy controls.
+                #
+                # This must remain independent from any bounded analytical
+                # history window.  SignalControllerV2 cooldown is expressed
+                # in bars, so its clock must advance once per market candle.
+                "signal_index": len(self.candle_history),
+
                 "publish_result": publish_result,
 
                 "active_position_id": (
@@ -487,9 +513,91 @@ class BacktestSessionV2:
                 "para generar señales."
             )
 
+        trade_plan_decision = decision
+
+        # The canonical strategy runner intentionally does not own position
+        # sizing.  When contracts are absent, resolve the requested backtest
+        # quantity through the session's existing risk authority before
+        # building the TradePlan.  The downstream lifecycle still applies
+        # its own authoritative risk cap to the submitted signal.
+        if decision.metadata.get("contracts") is None:
+            price = float(
+                candle.get(
+                    "close",
+                    0.0,
+                )
+            )
+
+            if price <= 0:
+                raise ValueError(
+                    "candle debe contener close válido "
+                    "para evaluar sizing."
+                )
+
+            stop_loss = decision.metadata.get(
+                "stop_loss"
+            )
+
+            if stop_loss is None:
+                raise ValueError(
+                    "La decisión debe contener stop_loss "
+                    "para evaluar sizing."
+                )
+
+            profile = (
+                self.account_config.get_active_account()
+            )
+
+            point_value = float(
+                InstrumentProfileEngine()
+                .get_profile(
+                    symbol=symbol
+                )["point_value"]
+            )
+
+            risk_result = (
+                self.risk_pipeline.evaluate(
+                    account_balance=float(
+                        profile.account_size
+                    ),
+                    risk_percent=float(
+                        profile.risk_percent
+                    ),
+                    stop_points=abs(
+                        price - float(stop_loss)
+                    ),
+                    point_value=point_value,
+                    daily_pnl=0.0,
+                    total_drawdown=0.0,
+                    open_positions=(
+                        1
+                        if self.active_position_id
+                        else 0
+                    ),
+                    symbol=symbol,
+                )
+            )
+
+            if not risk_result.allowed:
+                return
+
+            trade_plan_decision = TradingDecisionV2(
+                action=decision.action,
+                confidence=decision.confidence,
+                reason=decision.reason,
+                metadata={
+                    **dict(
+                        decision.metadata
+                    ),
+                    "contracts": int(
+                        risk_result.contracts
+                    ),
+                },
+            )
+
         trade_plan = (
             self.backtest_trade_plan_adapter_v2.build_trade_plan(
-                decision=decision,
+                decision=trade_plan_decision,
                 candle=candle,
             )
         )

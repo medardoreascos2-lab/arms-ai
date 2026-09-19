@@ -1540,9 +1540,7 @@ def create_app(
                                 lambda parameters: (
                                     build_strategy_backtest_pipeline(
                                         parameters,
-                                        csv_path=Path(
-                                            "data/backtest/nq_history.csv"
-                                        ),
+                                        csv_path=None,
                                         settings=settings,
                                     )
                                 )
@@ -1555,9 +1553,7 @@ def create_app(
                         ParameterEvaluator(
                             engine_factory=(
                                 ParameterBacktestEngineFactoryV2(
-                                    csv_path=Path(
-                                        "data/backtest/nq_history.csv"
-                                    ),
+                                    csv_path=None,
                                     settings=settings,
                                 )
                             )
@@ -1590,6 +1586,21 @@ def create_app(
 
 
 
+    # Each backtest receives its dataset from the request or walk-forward
+    # window. Constructing the application must not load a local market CSV.
+    certification_backtest_engine_v2 = (
+        ParameterBacktestEngineFactoryV2(
+            csv_path=None,
+            settings=settings,
+        )(
+            {
+                "ema": 10,
+                "stop_loss": 30,
+                "take_profit": 60,
+            }
+        )
+    )
+
     app.state.backtesting_orchestrator_v2 = (
         create_backtesting_orchestrator_v2(
             walk_forward_pipeline=(
@@ -1603,6 +1614,9 @@ def create_app(
             registry_service=(
                 app.state
                 .strategy_certification_registry_service_v2
+            ),
+            backtest_engine=(
+                certification_backtest_engine_v2
             ),
         )
     )

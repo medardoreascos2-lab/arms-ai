@@ -95,6 +95,28 @@ def test_backtesting_endpoint_is_registered():
     )
 
 
+def test_app_backtest_uses_supplied_candles_without_local_csv(monkeypatch):
+    from backend.backtesting.csv_candle_loader_v2 import CsvCandleLoaderV2
+    from backend.tests.test_backtest_engine import build_candles
+
+    def unexpected_csv_load(self):
+        raise AssertionError("Application composition must not load a local CSV")
+
+    monkeypatch.setattr(CsvCandleLoaderV2, "load", unexpected_csv_load)
+    app = create_app()
+    engine = app.state.backtesting_orchestrator_v2.backtest_engine
+    session = engine.pipeline.pipeline.backtest_session_v2
+    assert session.backtest_runner_v2.replay_engine_v2.total() == 0
+
+    candles = build_candles(6)
+    result = engine.run(candles=candles)
+
+    assert result.total_candles == 6
+    assert session.strategy_runner_v2.calls == 5
+    assert session.candle_history[-1]["timestamp"] == candles[-2].timestamp
+    assert result.trades == []
+
+
 def test_default_orchestrator_is_configured():
 
     app = create_app()

@@ -374,19 +374,17 @@ def test_app_parameter_factory_propagates_settings_static() -> None:
         if name == "ParameterBacktestEngineFactoryV2":
             calls.append(node)
 
-    assert len(calls) == 1
+    # Walk-forward testing and certification each own a parameter factory.
+    assert len(calls) == 2
 
-    keyword_values = {
-        keyword.arg:
-            ast.unparse(keyword.value)
-        for keyword in calls[0].keywords
-        if keyword.arg is not None
-    }
-
-    assert (
-        keyword_values.get("settings")
-        == "settings"
-    )
+    for call in calls:
+        keyword_values = {
+            keyword.arg: ast.unparse(keyword.value)
+            for keyword in call.keywords
+            if keyword.arg is not None
+        }
+        assert keyword_values.get("settings") == "settings"
+        assert keyword_values.get("csv_path") == "None"
 
 
 def test_backtest_factory_has_no_a_plus_threshold_literals() -> None:
