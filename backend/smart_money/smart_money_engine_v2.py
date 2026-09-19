@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from math import isfinite
+
 
 class SmartMoneyEngineV2:
     """
@@ -686,6 +688,12 @@ class SmartMoneyEngineV2:
         third_high: float,
         third_low: float,
     ) -> dict[str, object]:
+        """Flat candles are valid data but do not qualify this FVG pattern.
+
+        Preserve the existing positive-range requirement for all three pattern
+        candles, returning NONE rather than rejecting a valid zero-range candle.
+        Validate every price/range first so a flat neighbour cannot mask bad data.
+        """
         prices = {
             "first_high": float(
                 first_high
@@ -708,9 +716,9 @@ class SmartMoneyEngineV2:
         }
 
         for field_name, value in prices.items():
-            if value <= 0:
+            if not isfinite(value) or value <= 0:
                 raise ValueError(
-                    f"{field_name} debe ser "
+                    f"{field_name} debe ser finito y "
                     "mayor que cero."
                 )
 
@@ -741,19 +749,26 @@ class SmartMoneyEngineV2:
             low_name,
             low_value,
         ) in candle_ranges:
-            if high_value <= low_value:
+            if high_value < low_value:
                 raise ValueError(
-                    f"{high_name} debe ser mayor "
+                    f"{high_name} debe ser mayor o igual "
                     f"que {low_name}."
                 )
 
+        has_flat_candle = any(
+            high_value == low_value
+            for _, high_value, _, low_value in candle_ranges
+        )
+
         bullish_fvg = (
-            prices["third_low"]
+            not has_flat_candle
+            and prices["third_low"]
             > prices["first_high"]
         )
 
         bearish_fvg = (
-            prices["third_high"]
+            not has_flat_candle
+            and prices["third_high"]
             < prices["first_low"]
         )
 

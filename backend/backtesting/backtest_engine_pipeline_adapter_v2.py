@@ -179,3 +179,39 @@ class BacktestEnginePipelineAdapterV2:
 
 
         return context
+
+    def run_single_pass(self, *, candles, minimum_candles):
+        """Replay one chronological Candle snapshot through a fresh session.
+
+        Historical analysis and lifecycle marking remain session-owned. Future
+        outcome data is passed only to the executor by the session, never added
+        to strategy context. Unsorted/duplicate timestamps fail before replay.
+        """
+        snapshot = tuple(candles)
+        if not snapshot:
+            raise ValueError("Single-pass execution requires candles.")
+        if not all(isinstance(candle, Candle) for candle in snapshot):
+            raise TypeError("Single-pass execution requires Candle instances.")
+        if any(
+            snapshot[index].timestamp <= snapshot[index - 1].timestamp
+            for index in range(1, len(snapshot))
+        ):
+            raise ValueError("Single-pass candles must be strictly chronological.")
+        if minimum_candles <= 0:
+            raise ValueError("minimum_candles must be positive.")
+
+        session = self.pipeline.backtest_session_v2
+        if session._has_run:
+            raise RuntimeError("Single-pass execution requires a fresh session.")
+        session.backtest_runner_v2.replay_engine_v2.load(snapshot)
+        session.run(
+            execution_candles=snapshot,
+            minimum_candles=minimum_candles,
+        )
+        return {
+            "trade_plans": session.trade_plans,
+            "simulated_trades": session.simulated_trades,
+            "signals": session.signals,
+            "submission_results": session.submission_results,
+            "decisions": session.decisions,
+        }

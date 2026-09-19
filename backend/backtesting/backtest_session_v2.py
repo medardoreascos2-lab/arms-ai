@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from collections.abc import Sequence
 
 from backend.models.candle import Candle
 
@@ -37,6 +38,23 @@ from backend.services.signal_submission_target_v2 import (
 from backend.instruments.instrument_profile_engine import (
     InstrumentProfileEngine,
 )
+
+class _CandleView(Sequence):
+    """Read-only indexing view; slicing never copies the underlying candles."""
+
+    def __init__(self, candles, indices=None):
+        self._candles = candles
+        self._indices = range(len(candles)) if indices is None else indices
+
+    def __len__(self):
+        return len(self._indices)
+
+    def __getitem__(self, index):
+        selected = self._indices[index]
+        if isinstance(index, slice):
+            return _CandleView(self._candles, selected)
+        return self._candles[selected]
+
 
 class BacktestSessionV2:
     """
@@ -251,13 +269,27 @@ class BacktestSessionV2:
         self.candle_history: list[dict[str, object]] = []
 
         self.future_candles = []
+        self._has_run = False
 
-    def run(self) -> int:
+    def run(self, *, execution_candles=None, minimum_candles: int = 1) -> int:
         """
         Ejecuta la sesión completa de backtesting.
 
         Devuelve la cantidad de velas procesadas.
+
+        execution_candles selects the explicit single-pass mode. Its chronological
+        snapshot must match the loaded replay (the production adapter ensures this).
+        Warm-up builds history only; the final candle updates positions only.
+        A fresh composition is required because strategies/lifecycles own state
+        which cannot safely be reset by clearing the session's output lists.
         """
+
+        if execution_candles is not None:
+            if self._has_run:
+                raise RuntimeError("Single-pass execution requires a fresh session.")
+            if minimum_candles <= 0:
+                raise ValueError("minimum_candles must be positive.")
+        self._has_run = True
 
         self.decisions.clear()
         self.trade_plans.clear()
@@ -284,6 +316,12 @@ class BacktestSessionV2:
             self.candle_history.append(
                 normalized_candle
             )
+
+            if execution_candles is not None and (
+                len(self.candle_history) < minimum_candles
+                or len(self.candle_history) == len(execution_candles)
+            ):
+                return
 
             analysis_history = (
                 self.candle_history[
@@ -353,6 +391,12 @@ class BacktestSessionV2:
                 and submission_result.get("accepted") is True
             ):
                 return
+
+            if execution_candles is not None:
+                self.future_candles = _CandleView(
+                    execution_candles,
+                    range(len(self.candle_history), len(execution_candles)),
+                )
 
             self._execute_trade_if_configured(
                 decision=decision,

@@ -136,6 +136,49 @@ class BacktestEngine:
 
         return result
 
+    def run_single_pass(self, candles: list[Candle]) -> BacktestResult:
+        """Explicit production replay; legacy run() keeps its growing windows.
+
+        Plan authorization counters retain their existing meaning and are not
+        lifecycle acceptance counts. The session's simulated trade stream remains
+        the result/equity PnL source; completed lifecycle trades are separate.
+        Each output is accounted once, after chronological strategy processing,
+        so future-resolved PnL cannot affect earlier decisions or risk state.
+        Construct a fresh pipeline/session for every dataset run.
+        """
+        from backend.backtesting.backtest_engine_pipeline_adapter_v2 import (
+            BacktestEnginePipelineAdapterV2,
+        )
+
+        if not isinstance(self.pipeline, BacktestEnginePipelineAdapterV2):
+            raise TypeError("run_single_pass requires BacktestEnginePipelineAdapterV2.")
+        context = self.pipeline.run_single_pass(
+            candles=candles, minimum_candles=self.minimum_candles,
+        )
+        result = BacktestResult(
+            total_candles=len(candles), initial_balance=self.initial_balance,
+        )
+        for plan in context["trade_plans"]:
+            result.total_signals += 1
+            if plan.authorized:
+                result.authorized_trades += 1
+            else:
+                result.blocked_signals += 1
+
+        pnls = []
+        metrics = MetricsEngine()
+        for trade in context["simulated_trades"]:
+            if trade is None:
+                continue
+            result.trades.append(trade)
+            pnl = float(trade.pnl)
+            pnls.append(pnl)
+            metrics.register_trade(pnl)
+            result.equity_curve.add_trade(pnl=pnl)
+        result.statistics = self.statistics_engine.calculate(pnls)
+        result.metrics = metrics.report()
+        return result
+
     def run_from_csv(
         self,
         file_path: str | Path,

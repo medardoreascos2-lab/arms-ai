@@ -713,7 +713,7 @@
       "path": "backend/backtesting/backtest_session_v2.py",
       "function": "BacktestSessionV2.__init__",
       "input": "self, *, backtest_runner_v2, strategy_runner_v2, trade_executor_v2=None, backtest_trade_plan_adapter_v2=None, signal_generator_v2=None, signal_submission_target_v2=None, signal_order_type: str='MARKET', signal_risk_context=None, signal_order_context=None, analysis_window: int=50",
-      "source_sha256": "0d405f48cbd0a0079c4557fa3cd361f5548ab365893ebe65f10d663d041715a1",
+      "source_sha256": "973bde9e9487b9d623fe871f8d04b74f6ac4c16143eb3544d3353faeeb98ba39",
       "writes": [
         "self.active_position_id",
         "self.candle_history",
@@ -760,8 +760,8 @@
       "id": "backend/backtesting/backtest_session_v2.py:BacktestSessionV2.run",
       "path": "backend/backtesting/backtest_session_v2.py",
       "function": "BacktestSessionV2.run",
-      "input": "self",
-      "source_sha256": "4b5b1bcf3da7123f389927021b4edc2010a008ae9c84f7d3a0d0eef7e35167e7",
+      "input": "self, *, execution_candles=None, minimum_candles: int=1",
+      "source_sha256": "4a8a8c63fe5d5059ebb040f1b0c33245ffc8093d9f793a8d1c411d984332f147",
       "writes": [
         "self.active_position_id",
         "self.candle_history",
@@ -769,10 +769,14 @@
         "self.simulated_trades"
       ],
       "calls": [
+        "RuntimeError",
         "TypeError",
+        "ValueError",
+        "_CandleView",
         "int",
         "isinstance",
         "len",
+        "range",
         "self._execute_trade_if_configured",
         "self._generate_signal_if_configured",
         "self._normalize_candle",
