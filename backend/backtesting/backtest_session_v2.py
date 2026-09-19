@@ -341,10 +341,18 @@ class BacktestSessionV2:
             ):
                 return
 
-            self._generate_signal_if_configured(
+            submission_result = self._generate_signal_if_configured(
                 decision=decision,
                 candle=normalized_candle,
             )
+
+            # A configured submission target is authoritative for this decision.
+            # Missing or malformed acceptance must never reach the simulator.
+            if self.signal_submission_target_v2 is not None and not (
+                isinstance(submission_result, dict)
+                and submission_result.get("accepted") is True
+            ):
+                return
 
             self._execute_trade_if_configured(
                 decision=decision,
@@ -477,7 +485,7 @@ class BacktestSessionV2:
         *,
         decision: TradingDecisionV2,
         candle: dict[str, Any],
-    ) -> None:
+    ) -> dict[str, Any] | None:
 
         if (
             self.backtest_trade_plan_adapter_v2
@@ -702,6 +710,8 @@ class BacktestSessionV2:
                     self.active_position_id = str(
                         active_position_id
                     ).strip()
+
+            return submission_result
 
     def _update_active_position_if_configured(
         self,

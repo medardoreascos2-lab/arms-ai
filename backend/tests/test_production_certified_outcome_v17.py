@@ -1,4 +1,4 @@
-"""V17 detector and legacy simulator regressions on synthetic candle fixtures.
+"""V17 detector and submission safety regressions on synthetic candle fixtures.
 
 Exercises ParameterizedStrategyRunnerV2 and the same parameterized engine
 factory used by application certification. Real liquidity/FVG/market-regime
@@ -6,9 +6,10 @@ detectors evaluate deterministic trending and contrasting choppy fixtures;
 no detector score is set directly.
 
 The real production engines compute every score; the candles are generated
-test data, not recorded NQ market history. Legacy simulator trade counts do
-not prove lifecycle acceptance or certification. The separate V27 submission
-authorization defect remains unresolved and is not an accepted safety contract.
+test data, not recorded NQ market history. Signal opportunities, lifecycle
+acceptances, independent simulator outcomes, and completed lifecycle trades
+are distinct. Independent simulation requires acceptance of that same signal;
+its future-candle PnL does not establish a completed lifecycle trade.
 """
 
 from __future__ import annotations
@@ -516,11 +517,12 @@ def _write_relative_volatility_ten_trade_csv(
     return len(dataset)
 
 
-def test_production_pipeline_materializes_at_least_ten_real_trades(
+def test_production_pipeline_executes_only_lifecycle_accepted_signals(
     tmp_path,
     api_settings,
+    monkeypatch,
 ):
-    """Characterize V17 legacy simulator output, not authorized PAPER fills."""
+    """Trace each real submission through the independent adapter/simulator."""
 
     csv_path = (
         tmp_path
@@ -554,63 +556,81 @@ def test_production_pipeline_materializes_at_least_ten_real_trades(
         }
     )
 
-    result = engine.run(
-        candles=items
-    )
+    session = engine.pipeline.pipeline.backtest_session_v2
+    lifecycle = session.signal_submission_target_v2
+    executor = session.trade_executor_v2
+    submit_signal = lifecycle.submit_signal
+    execute = executor.execute
+    simulate = executor.simulator.simulate
+    submissions = []
 
-    trades = list(
-        result.trades
-        or []
-    )
+    def observe_submission(**kwargs):
+        submission = submit_signal(**kwargs)
+        submissions.append({
+            "signal": kwargs["signal"],
+            "result": submission,
+            "executor_calls": 0,
+            "simulator_calls": 0,
+            "trade": None,
+        })
+        return submission
 
-    trade_pnls = [
-        float(trade.pnl)
-        for trade in trades
-        if isinstance(
-            getattr(
-                trade,
-                "pnl",
-                None,
-            ),
-            (int, float),
-        )
-    ]
+    def observe_execution(**kwargs):
+        # Fail at the execution boundary if any later rejection is bypassed.
+        current = submissions[-1]
+        assert current["result"].get("accepted") is True
+        current["executor_calls"] += 1
+        trade = execute(**kwargs)
+        current["trade"] = trade
+        return trade
 
+    def observe_simulation(**kwargs):
+        current = submissions[-1]
+        assert current["result"].get("accepted") is True
+        assert current["executor_calls"] == 1
+        current["simulator_calls"] += 1
+        return simulate(**kwargs)
+
+    # Observation only: retain the production strategy, risk decisions, lifecycle,
+    # execution adapter, simulator, and all their actual return values.
+    monkeypatch.setattr(lifecycle, "submit_signal", observe_submission)
+    monkeypatch.setattr(executor, "execute", observe_execution)
+    monkeypatch.setattr(executor.simulator, "simulate", observe_simulation)
+
+    result = engine.run(candles=items)
+
+    # Signal/plan opportunities are not lifecycle acceptances. Keep the original
+    # detector opportunity assertions; authorized_trades counts plan authorization.
     assert result.total_signals >= 10
     assert result.authorized_trades >= 10
-    assert len(trades) >= 10
-    assert len(trade_pnls) >= 10
+    assert len(submissions) >= 10
+    assert all(record["signal"]["approved"] is True for record in submissions)
 
-    # These are computed simulator outcomes, not injected scores. The engine's
-    # authorized_trades field counts plan authorization, not submission acceptance.
-    assert all(
-        trade.status in {
-            "WIN",
-            "LOSS",
-            "BREAKEVEN",
-        }
-        for trade in trades[:10]
-    )
+    accepted = [r for r in submissions if r["result"].get("accepted") is True]
+    rejected = [r for r in submissions if r["result"].get("accepted") is not True]
+    # The first accepted position remains open in this growing-window fixture.
+    # Later opportunities are rejected by the existing lifecycle position guard.
+    assert len(accepted) == 1
+    assert rejected
+    assert all(r["result"]["reason"] == "position_already_open" for r in rejected)
+    for record in submissions:
+        expected_calls = 1 if record["result"].get("accepted") is True else 0
+        assert record["executor_calls"] == expected_calls
+        assert record["simulator_calls"] == expected_calls
+    assert all(record["trade"] is None for record in rejected)
 
-    print(
-        "V17_PERMANENT_TOTAL_SIGNALS",
-        result.total_signals,
-    )
+    # Only accepted submissions contribute real simulator outcomes and numeric
+    # PnL to the engine result. Do not invent trades to satisfy an opportunity count.
+    trades = list(result.trades or [])
+    assert len(trades) == len(accepted)
+    assert all(trade is record["trade"] for trade, record in zip(trades, accepted))
+    assert all(isinstance(trade.pnl, (int, float)) for trade in trades)
+    assert all(trade.status in {"WIN", "LOSS", "BREAKEVEN"} for trade in trades)
 
-    print(
-        "V17_PERMANENT_AUTHORIZED_TRADES",
-        result.authorized_trades,
-    )
-
-    print(
-        "V17_PERMANENT_TRADE_COUNT",
-        len(trades),
-    )
-
-    print(
-        "V17_PERMANENT_NUMERIC_PNL_COUNT",
-        len(trade_pnls),
-    )
+    # A resolved future-candle simulation is not a completed lifecycle trade.
+    # Account/PnL authority and growing-window position lifecycle are unchanged.
+    assert len(lifecycle.get_active_positions()) == 1
+    assert lifecycle.get_trade_history() == []
 
 
 def test_factory_accepts_execution_time_data_without_preloading_csv(

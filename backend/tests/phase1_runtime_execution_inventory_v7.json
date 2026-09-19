@@ -1536,7 +1536,7 @@
       "id": "backend/backtesting/backtest_session_v2.py:BacktestSessionV2._generate_signal_if_configured",
       "path": "backend/backtesting/backtest_session_v2.py",
       "function": "BacktestSessionV2._generate_signal_if_configured",
-      "source_sha256": "c1162a0ec1b6f81f0193307cbfce05b16d7fa60a44f7bea09a17b03f827d988b",
+      "source_sha256": "11d2099c6a56d355d0a33677588db6490b152f5b41ae3e3ba91cbc0bd6bfa090",
       "calls": [
         "InstrumentProfileEngine",
         "InstrumentProfileEngine().get_profile",

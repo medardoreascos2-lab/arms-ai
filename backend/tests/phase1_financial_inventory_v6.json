@@ -761,7 +761,7 @@
       "path": "backend/backtesting/backtest_session_v2.py",
       "function": "BacktestSessionV2.run",
       "input": "self",
-      "source_sha256": "88a7ecb657c6d95f6b961fc8a70c764a87c2cac77e2d81c6e789991cd93dd62c",
+      "source_sha256": "4b5b1bcf3da7123f389927021b4edc2010a008ae9c84f7d3a0d0eef7e35167e7",
       "writes": [
         "self.active_position_id",
         "self.candle_history",
@@ -787,7 +787,8 @@
         "self.simulated_trades.clear",
         "self.strategy_runner_v2.run",
         "self.submission_results.clear",
-        "self.trade_plans.clear"
+        "self.trade_plans.clear",
+        "submission_result.get"
       ],
       "output_fields": [
         "active_position_id",
@@ -824,7 +825,7 @@
       "path": "backend/backtesting/backtest_session_v2.py",
       "function": "BacktestSessionV2._generate_signal_if_configured",
       "input": "self, *, decision: TradingDecisionV2, candle: dict[str, Any]",
-      "source_sha256": "c1162a0ec1b6f81f0193307cbfce05b16d7fa60a44f7bea09a17b03f827d988b",
+      "source_sha256": "11d2099c6a56d355d0a33677588db6490b152f5b41ae3e3ba91cbc0bd6bfa090",
       "writes": [
         "self.active_position_id",
         "self.simulated_trades"
