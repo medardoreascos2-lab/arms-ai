@@ -1041,6 +1041,99 @@
       "test_or_production": "PRODUCTION_SOURCE_RESEARCH_OPT_IN",
       "canonical_or_legacy": "CANONICAL_HISTORICAL_OPT_IN",
       "unsafe_duplicate": false
+    },
+    {
+      "id": "backend/api/paper_rc_app_v1.py:main",
+      "path": "backend/api/paper_rc_app_v1.py",
+      "function": "main",
+      "source_sha256": "f80fea4fffd8cdcfccf8c74694a58ff17de50d2db80aa64f79e55bb150485636",
+      "calls": [
+        "APISettings",
+        "PaperResearchConfigV1.load",
+        "PaperRuntimeV1",
+        "argparse.ArgumentParser",
+        "create_paper_rc_app_v1",
+        "load_certified_replay",
+        "os.environ.get",
+        "parser.add_argument",
+        "parser.error",
+        "parser.parse_args",
+        "uvicorn.run"
+      ],
+      "construction_calls": [
+        "PaperRuntimeV1",
+        "create_paper_rc_app_v1"
+      ],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "ISOLATED_PAPER_RC_COMPOSITION",
+      "caller": "Explicit opt-in CLI or factory",
+      "account_scope": "New isolated PAPER account; existing namespace recovery blocked",
+      "runtime_generation": "Single process namespace, no automatic operational restart",
+      "services_created": [
+        "PaperRuntimeV1",
+        "create_paper_rc_app_v1"
+      ],
+      "execution_owner": "TradeLifecycleServiceV2 and canonical historical intrabar position manager",
+      "risk_owner": "RiskManagerV2 + AccountStateManagerV2 + ExecutionRiskGateV1",
+      "financial_owner": "PortfolioManagerV2 + AccountStateManagerV2 + TradeJournalV2",
+      "market_owner": "HistoricalEligibilityV31 + ClosedBarAggregatorV1",
+      "startup_or_runtime": "Explicit opt-in startup",
+      "test_or_production": "PRODUCTION_SOURCE_PAPER_REPLAY_OPT_IN",
+      "canonical_or_legacy": "CANONICAL_HISTORICAL_DELEGATE",
+      "downstream_effect": "Construct unchanged certified PAPER authority once; no default app or live broker connection",
+      "unsafe_duplicate": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.__init__",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1.__init__",
+      "source_sha256": "88198487f0a5a17579272562e3687c01b1e9f1b23d5d11577498ff148e08e47c",
+      "calls": [
+        "ClosedBarAggregatorV1",
+        "OperatingModeV1",
+        "PaperResearchSessionV1",
+        "Path",
+        "RLock",
+        "ValueError",
+        "_encode",
+        "_encode({'account_config': r.config_hash, 'paper': asdict(config), 'mode': mode, 'clock': 'CERTIFIED_REPLAY', 'effective_policy': self._policy_identity, 'maximum_quote_age_seconds': self._max_age, 'input': [(x.source_sha256, x.source_row, x.raw_row) for x in self._rows]}).encode",
+        "asdict",
+        "self._authority_bindings",
+        "self._db.close",
+        "self._db.execute",
+        "self._db.executescript",
+        "self._observe_strategy",
+        "self._path.open",
+        "self._path.parent.mkdir",
+        "self._policy_settings",
+        "self._publish",
+        "self._recover_evidence",
+        "self._save",
+        "sha256",
+        "sha256(_encode({'account_config': r.config_hash, 'paper': asdict(config), 'mode': mode, 'clock': 'CERTIFIED_REPLAY', 'effective_policy': self._policy_identity, 'maximum_quote_age_seconds': self._max_age, 'input': [(x.source_sha256, x.source_row, x.raw_row) for x in self._rows]}).encode()).hexdigest",
+        "sqlite3.connect",
+        "tuple"
+      ],
+      "construction_calls": [
+        "PaperResearchSessionV1"
+      ],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "ISOLATED_PAPER_RC_COMPOSITION",
+      "caller": "Explicit opt-in CLI or factory",
+      "account_scope": "New isolated PAPER account; existing namespace recovery blocked",
+      "runtime_generation": "Single process namespace, no automatic operational restart",
+      "services_created": [
+        "PaperResearchSessionV1"
+      ],
+      "execution_owner": "TradeLifecycleServiceV2 and canonical historical intrabar position manager",
+      "risk_owner": "RiskManagerV2 + AccountStateManagerV2 + ExecutionRiskGateV1",
+      "financial_owner": "PortfolioManagerV2 + AccountStateManagerV2 + TradeJournalV2",
+      "market_owner": "HistoricalEligibilityV31 + ClosedBarAggregatorV1",
+      "startup_or_runtime": "Explicit opt-in startup",
+      "test_or_production": "PRODUCTION_SOURCE_PAPER_REPLAY_OPT_IN",
+      "canonical_or_legacy": "CANONICAL_HISTORICAL_DELEGATE",
+      "downstream_effect": "Construct unchanged certified PAPER authority once; no default app or live broker connection",
+      "unsafe_duplicate": false
     }
   ],
   "execution_points": [
@@ -5095,18 +5188,322 @@
       ],
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/api/paper_rc_app_v1.py:create_paper_rc_app_v1",
+      "path": "backend/api/paper_rc_app_v1.py",
+      "function": "create_paper_rc_app_v1",
+      "source_sha256": "e73b2f65ac191028440039535fbeb6c575e36e258a5b7e4f78462b30f08488e0",
+      "calls": [
+        "AdminAuthorizationV2",
+        "Depends",
+        "FastAPI",
+        "HTTPException",
+        "OperatingModeV1",
+        "ValueError",
+        "app.add_middleware",
+        "app.get",
+        "app.post",
+        "configuration_id.encode",
+        "configuration_id.strip",
+        "isinstance",
+        "runtime.control",
+        "runtime.get_snapshot",
+        "runtime.shutdown",
+        "runtime.step",
+        "sha256",
+        "sha256(configuration_id.encode()).hexdigest",
+        "snapshot",
+        "str",
+        "type"
+      ],
+      "execution_calls": [],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.__init__",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1.__init__",
+      "source_sha256": "88198487f0a5a17579272562e3687c01b1e9f1b23d5d11577498ff148e08e47c",
+      "calls": [
+        "ClosedBarAggregatorV1",
+        "OperatingModeV1",
+        "PaperResearchSessionV1",
+        "Path",
+        "RLock",
+        "ValueError",
+        "_encode",
+        "_encode({'account_config': r.config_hash, 'paper': asdict(config), 'mode': mode, 'clock': 'CERTIFIED_REPLAY', 'effective_policy': self._policy_identity, 'maximum_quote_age_seconds': self._max_age, 'input': [(x.source_sha256, x.source_row, x.raw_row) for x in self._rows]}).encode",
+        "asdict",
+        "self._authority_bindings",
+        "self._db.close",
+        "self._db.execute",
+        "self._db.executescript",
+        "self._observe_strategy",
+        "self._path.open",
+        "self._path.parent.mkdir",
+        "self._policy_settings",
+        "self._publish",
+        "self._recover_evidence",
+        "self._save",
+        "sha256",
+        "sha256(_encode({'account_config': r.config_hash, 'paper': asdict(config), 'mode': mode, 'clock': 'CERTIFIED_REPLAY', 'effective_policy': self._policy_identity, 'maximum_quote_age_seconds': self._max_age, 'input': [(x.source_sha256, x.source_row, x.raw_row) for x in self._rows]}).encode()).hexdigest",
+        "sqlite3.connect",
+        "tuple"
+      ],
+      "execution_calls": [
+        "execute"
+      ],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1._recover_evidence",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1._recover_evidence",
+      "source_sha256": "d624030b17e91840b09d1397585502b744abf2c7781e76a77f11c618114a5778",
+      "calls": [
+        "ValueError",
+        "closing",
+        "db.execute",
+        "db.execute(\"SELECT count(*) FROM events WHERE phase='INFLIGHT'\").fetchone",
+        "db.execute('SELECT payload,digest FROM checkpoint WHERE id=1').fetchone",
+        "json.loads",
+        "payload.encode",
+        "self._path.resolve",
+        "self._path.resolve().as_uri",
+        "self._snapshot.update",
+        "sha256",
+        "sha256(payload.encode()).hexdigest",
+        "sqlite3.connect"
+      ],
+      "execution_calls": [
+        "execute"
+      ],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1._save",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1._save",
+      "source_sha256": "06048d5e0d13ffdf7527a734e5557cff8025d433bb7798c075fb84ca8f8a20fc",
+      "calls": [
+        "_encode",
+        "payload.encode",
+        "self._db.commit",
+        "self._db.execute",
+        "sha256",
+        "sha256(payload.encode()).hexdigest"
+      ],
+      "execution_calls": [
+        "execute"
+      ],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.control",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1.control",
+      "source_sha256": "0b2c2e38211c752290b21bc5be4e49d5a5f37fa189439f69fc3c89d734f05d15",
+      "calls": [
+        "RuntimeError",
+        "ValueError",
+        "self._publish",
+        "self._save",
+        "self.get_snapshot"
+      ],
+      "execution_calls": [],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.step",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1.step",
+      "source_sha256": "6ae6ea71948e905e53d2cb5b39732e1a36ea7baf25fb5f0a95d5b6f2c01cef5c",
+      "calls": [
+        "RuntimeError",
+        "len",
+        "self.ingest"
+      ],
+      "execution_calls": [],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.ingest",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1.ingest",
+      "source_sha256": "396582a0019a7b8d8703a3c2d827225c0394e160638115feed8a1afd80884934",
+      "calls": [
+        "(received_at.astimezone(timezone.utc) - observation.available_at).total_seconds",
+        "RuntimeError",
+        "ValueError",
+        "_encode",
+        "len",
+        "received_at.astimezone",
+        "repr",
+        "repr(observation).encode",
+        "self._authority_reasons",
+        "self._db.commit",
+        "self._db.execute",
+        "self._db.execute('SELECT phase FROM events WHERE fingerprint=?', (fingerprint,)).fetchone",
+        "self._db.rollback",
+        "self._process",
+        "self._publish",
+        "self._save",
+        "self.get_snapshot",
+        "sha256",
+        "sha256(repr(observation).encode()).hexdigest",
+        "str",
+        "type"
+      ],
+      "execution_calls": [
+        "execute"
+      ],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1._process",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1._process",
+      "source_sha256": "ce4ff8992221bd77a58bebd2c57714693213b1447a7a7aec5fbdc55247e67c29",
+      "calls": [
+        "TypeError",
+        "any",
+        "dict.fromkeys",
+        "getattr",
+        "getattr(s, name).clear",
+        "int",
+        "isinstance",
+        "len",
+        "list",
+        "observation.candle",
+        "r.risk_evaluations.clear",
+        "r.states.clear",
+        "s._generate_signal_if_configured",
+        "s._normalize_candle",
+        "s._update_active_position_if_configured",
+        "s.candle_history.append",
+        "s.strategy_runner_v2.run",
+        "self._htf.history",
+        "self._htf.update_completed",
+        "self._reasons"
+      ],
+      "execution_calls": [],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.shutdown",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1.shutdown",
+      "source_sha256": "9e708d322b7e8f23df94f441eb1ce2f20865b30977b013dea313454404350a49",
+      "calls": [
+        "self._db.close",
+        "self._publish",
+        "self._save"
+      ],
+      "execution_calls": [],
+      "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit authenticated RC POST or serialized runtime operation"
+      ],
+      "downstream_effects": [
+        "SQL execute calls persist/read evidence, not orders; _process delegates unchanged canonical session hooks",
+        "Pending event durable before mutation; existing namespaces require reconciliation; no alternate fills or PnL"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
     }
   ],
   "certificate": {
-    "TOTAL_RUNTIME_BUILDERS": 21,
-    "CLASSIFIED_RUNTIME_BUILDERS": 21,
+    "TOTAL_RUNTIME_BUILDERS": 23,
+    "CLASSIFIED_RUNTIME_BUILDERS": 23,
     "UNCLASSIFIED_RUNTIME_BUILDERS": 0,
     "UNSAFE_DUPLICATE_RUNTIME_BUILDERS": 0,
     "CANONICAL_RUNTIME_OWNER": "backend.services.runtime_context_v2.build_runtime_context",
     "CANONICAL_EXECUTION_OWNER": "TradeLifecycleServiceV2",
     "CANONICAL_ORDER_LIFECYCLE_OWNER": "TradeLifecycleServiceV2",
-    "TOTAL_EXECUTION_DECISION_POINTS": 112,
-    "CLASSIFIED_EXECUTION_DECISION_POINTS": 112,
+    "TOTAL_EXECUTION_DECISION_POINTS": 121,
+    "CLASSIFIED_EXECUTION_DECISION_POINTS": 121,
     "UNCLASSIFIED_EXECUTION_DECISION_POINTS": 0,
     "DIRECT_BROKER_BYPASS": 0,
     "UNAUTHORIZED_EXECUTION_ENTRY": 0,

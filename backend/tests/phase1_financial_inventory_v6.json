@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 141,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 141,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 142,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 142,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -6835,6 +6835,69 @@
         "AccountStateManagerV2",
         "TradeJournalV2",
         "BacktestEngine result projection"
+      ]
+    },
+    {
+      "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1._process",
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "function": "PaperRuntimeV1._process",
+      "input": "self, observation",
+      "source_sha256": "ce4ff8992221bd77a58bebd2c57714693213b1447a7a7aec5fbdc55247e67c29",
+      "writes": [],
+      "calls": [
+        "TypeError",
+        "any",
+        "dict.fromkeys",
+        "getattr",
+        "getattr(s, name).clear",
+        "int",
+        "isinstance",
+        "len",
+        "list",
+        "observation.candle",
+        "r.risk_evaluations.clear",
+        "r.states.clear",
+        "s._generate_signal_if_configured",
+        "s._normalize_candle",
+        "s._update_active_position_if_configured",
+        "s.candle_history.append",
+        "s.strategy_runner_v2.run",
+        "self._htf.history",
+        "self._htf.update_completed",
+        "self._reasons"
+      ],
+      "output_fields": [
+        "active_position_id",
+        "candle",
+        "decision_time",
+        "has_active_position",
+        "history",
+        "history_15m",
+        "history_1h",
+        "publish_result",
+        "signal_index"
+      ],
+      "owner": "HistoricalAccountingV1 / TradeLifecycleServiceV2 canonical financial delegation",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Incremental eligible observation passed to certified position update and gated submission",
+      "mutates_fill_state": true,
+      "mutates_position_state": true,
+      "mutates_portfolio": true,
+      "mutates_account_pnl": true,
+      "mutates_journal": true,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "PaperRuntimeV1.ingest"
+      ],
+      "caller_evidence": "Durable INFLIGHT precedes this callback; no independent simulator",
+      "downstream_consumers": [
+        "PortfolioManagerV2",
+        "AccountStateManagerV2",
+        "TradeJournalV2",
+        "Detached PAPER RC snapshot"
       ]
     }
   ],
