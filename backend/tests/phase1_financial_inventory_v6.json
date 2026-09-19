@@ -761,7 +761,7 @@
       "path": "backend/backtesting/backtest_session_v2.py",
       "function": "BacktestSessionV2.run",
       "input": "self, *, execution_candles=None, minimum_candles: int=1",
-      "source_sha256": "4a8a8c63fe5d5059ebb040f1b0c33245ffc8093d9f793a8d1c411d984332f147",
+      "source_sha256": "f02138349ab419cdc1f229606be9a9480c449d5d734acd2584ce101a3f863dfb",
       "writes": [
         "self.active_position_id",
         "self.candle_history",
@@ -769,10 +769,13 @@
         "self.simulated_trades"
       ],
       "calls": [
+        "ClosedBarAggregatorV1",
         "RuntimeError",
         "TypeError",
         "ValueError",
         "_CandleView",
+        "htf.history",
+        "htf.update_completed",
         "int",
         "isinstance",
         "len",

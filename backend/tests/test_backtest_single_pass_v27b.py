@@ -248,7 +248,12 @@ def test_equivalence_with_direct_sequential_session_for_common_decisions():
     reference.future_candles = data[1:]
     reference.run()
     assert session.decisions == reference.decisions[:-1]
-    assert strategy.contexts == reference_strategy.contexts[:-1]
+    # V29R intentionally replaces only the single-pass HTF aliases and adds
+    # an explicit completion clock. Base/execution context remains equivalent.
+    common = lambda c: {k: v for k, v in c.items()
+                        if k not in {"history_15m", "history_1h", "decision_time"}}
+    assert [common(c) for c in strategy.contexts] == [common(c) for c in reference_strategy.contexts[:-1]]
+    assert all(c["history_15m"] == c["history_1h"] == [] for c in strategy.contexts)
     assert session.trade_plans == reference.trade_plans
     assert [asdict(t) for t in result.trades] == [asdict(t) for t in reference.simulated_trades]
     assert session.submission_results == reference.submission_results
@@ -307,6 +312,10 @@ def test_real_production_strategy_and_lifecycle_on_deterministic_fixture(tmp_pat
     assert indices == list(range(5, len(data)))
     assert all(len(c.args[0]["history"]) <= 50 for c in strategy.run.call_args_list)
     accepted = [s for s in session.submission_results if isinstance(s, dict) and s.get("accepted") is True]
-    assert accepted
+    # This 350-minute fixture cannot meet the structure consumer's ten
+    # completed hourly bars. The old trades depended on falsely aliased HTFs.
+    assert all(len(c.args[0]["history_1h"]) < 10 for c in strategy.run.call_args_list)
+    assert all(d.action is TradingActionV2.HOLD for d in session.decisions)
+    assert session.signals == session.submission_results == accepted == []
     assert len(result.trades) == len(accepted)
     assert result.statistics.total_trades == len(result.equity_curve.points) == len(accepted)

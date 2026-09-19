@@ -1,0 +1,2357 @@
+{
+  "total_candles": 47178,
+  "warmup_candles": 4,
+  "htf_bars": {
+    "15m": 3022,
+    "1h": 717
+  },
+  "final_candle_excluded": 1,
+  "decision_eligible_candles": 47173,
+  "processed": 47178,
+  "flat_candles": 399,
+  "trend_counts": {
+    "NONE": 38914,
+    "SHORT": 3505,
+    "LONG": 4754
+  },
+  "structure_counts": {
+    "UNKNOWN": 5,
+    "RANGE": 19211,
+    "BULLISH": 14185,
+    "BEARISH": 13772
+  },
+  "liquidity_counts": {
+    "0.5": 43574,
+    "0.0": 3306,
+    "1.0": 288
+  },
+  "fvg_counts": {
+    "NONE": 36466,
+    "BULLISH": 5373,
+    "BEARISH": 5329
+  },
+  "regime_counts": {
+    "HIGH_VOLATILITY": 1568,
+    "RANGE": 35967,
+    "LOW_VOLATILITY": 8943,
+    "NO_TRADE": 658,
+    "TREND_UP": 2,
+    "TREND_DOWN": 30
+  },
+  "detector_not_evaluated": 5,
+  "confluence_evaluated": 47168,
+  "confluence_min": 9.61,
+  "confluence_max": 81.33,
+  "confluence_mean": 40.22632547489824,
+  "confluence_grades": {
+    "C": 46658,
+    "B": 471,
+    "A": 39
+  },
+  "confluence_max_by_regime": {
+    "HIGH_VOLATILITY": 75.55,
+    "LOW_VOLATILITY": 77.94,
+    "NO_TRADE": 65.27,
+    "RANGE": 81.33,
+    "TREND_DOWN": 71.15,
+    "TREND_UP": 71.78
+  },
+  "mapping_reconciliations_passed": 47168,
+  "a_plus_pass": 0,
+  "a_plus_fail": 47168,
+  "quality_scores": {
+    "15": 15894,
+    "35": 9106,
+    "0": 7429,
+    "50": 7798,
+    "25": 3317,
+    "60": 1729,
+    "45": 1895
+  },
+  "pre_controller_counts": {
+    "HOLD": 47173
+  },
+  "controller_evaluated": 0,
+  "cooldown_blocked": 0,
+  "other_controller_blocked": 0,
+  "final_counts": {
+    "HOLD": 47173
+  },
+  "decision_reasons": {
+    "NOT ENOUGH DATA FOR EMA": 5,
+    "No opposite CHOCH": 19211,
+    "Valid market structure": 20528,
+    "Opposite CHOCH detected": 7429
+  },
+  "trade_plans": 0,
+  "signals": 0,
+  "submissions": 0,
+  "accepted": 0,
+  "rejected": 0,
+  "simulated_trades": 0,
+  "completed_lifecycle_trades": 0,
+  "final_equity": 17000.0,
+  "net_profit": 0,
+  "max_drawdown": 0.0,
+  "htf_alias_count": 0,
+  "symbols": [
+    "NQ"
+  ],
+  "timeframes": [
+    "1m"
+  ],
+  "elapsed_instrumented_seconds": 35.02282610000111,
+  "top_20": [
+    {
+      "index": 45018,
+      "timestamp": "2026-09-16 16:46:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29179.25,
+        "swing_low": 29172.0,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": true,
+        "equal_lows": true,
+        "sweep_detected": "S\u00cd",
+        "sweep_direction": "ALCISTA",
+        "liquidity_level": 29173.0,
+        "sweep_index": 0
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29174.75,
+        "gap_high": 29175.25,
+        "gap_size": 0.5,
+        "first_high": 29174.75,
+        "first_low": 29172.5,
+        "second_high": 29181.25,
+        "second_low": 29174.5,
+        "third_high": 29184.5,
+        "third_low": 29175.25
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.8486293206197855,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": -0.15137067938021453,
+        "volatility_score": 0.21500697273608796,
+        "compression_score": 0.7448979591836735
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 1.0,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 0.5379834254143646,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 81.33,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 11.76,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 6.33
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 1887,
+      "timestamp": "2026-08-04 06:27:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 100
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29095.25,
+        "swing_low": 29082.0,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29086.25,
+        "gap_high": 29089.75,
+        "gap_size": 3.5,
+        "first_high": 29086.25,
+        "first_low": 29082.0,
+        "second_high": 29093.5,
+        "second_low": 29085.0,
+        "third_high": 29098.75,
+        "third_low": 29089.75
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.8333333333333334,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.16666666666666666,
+        "volatility_score": 0.2605641118427163,
+        "compression_score": 0.6044444444444445
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 3232,
+      "timestamp": "2026-08-05 05:52:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29944.75,
+        "swing_low": 29940.75,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29952.5,
+        "gap_high": 29953.75,
+        "gap_size": 1.25,
+        "first_high": 29952.5,
+        "first_low": 29948.25,
+        "second_high": 29954.0,
+        "second_low": 29950.0,
+        "third_high": 29968.0,
+        "third_low": 29953.75
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.7135842880523732,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.2864157119476268,
+        "volatility_score": 0.20911277391769106,
+        "compression_score": 0.3842592592592593
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 3236,
+      "timestamp": "2026-08-05 05:56:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29968.0,
+        "swing_low": 29961.0,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29967.5,
+        "gap_high": 29975.5,
+        "gap_size": 8.0,
+        "first_high": 29967.5,
+        "first_low": 29961.0,
+        "second_high": 29977.25,
+        "second_low": 29965.5,
+        "third_high": 29980.75,
+        "third_low": 29975.5
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.6907894736842105,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.3092105263157895,
+        "volatility_score": 0.2099195592257058,
+        "compression_score": 0.34426229508196726
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 4998,
+      "timestamp": "2026-08-06 12:18:00",
+      "trend": {
+        "trend_1h": "BEARISH",
+        "trend_15m": "BEARISH",
+        "structure_1h": "LH_LL",
+        "structure_15m": "LH_LL",
+        "aligned": true,
+        "allowed_direction": "SHORT",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BEARISH",
+        "structure": "LH_LL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29430.0,
+        "swing_low": 29406.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BEARISH",
+        "gap_low": 29403.5,
+        "gap_high": 29412.25,
+        "gap_size": 8.75,
+        "first_high": 29419.0,
+        "first_low": 29412.25,
+        "second_high": 29419.25,
+        "second_low": 29400.5,
+        "third_high": 29403.5,
+        "third_low": 29394.5
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.7879282218597063,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": -0.21207177814029363,
+        "volatility_score": 0.4619704311769282,
+        "compression_score": 0.6147540983606558
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 5037,
+      "timestamp": "2026-08-06 12:57:00",
+      "trend": {
+        "trend_1h": "BEARISH",
+        "trend_15m": "BEARISH",
+        "structure_1h": "LH_LL",
+        "structure_15m": "LH_LL",
+        "aligned": true,
+        "allowed_direction": "SHORT",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BEARISH",
+        "structure": "LH_LL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29428.5,
+        "swing_low": 29416.0,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BEARISH",
+        "gap_low": 29404.0,
+        "gap_high": 29417.0,
+        "gap_size": 13.0,
+        "first_high": 29426.5,
+        "first_low": 29417.0,
+        "second_high": 29422.0,
+        "second_low": 29402.25,
+        "third_high": 29404.0,
+        "third_low": 29390.75
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.8387650085763293,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": -0.16123499142367068,
+        "volatility_score": 0.41065815062132227,
+        "compression_score": 0.36184210526315785
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 11314,
+      "timestamp": "2026-08-13 02:34:00",
+      "trend": {
+        "trend_1h": "BEARISH",
+        "trend_15m": "BEARISH",
+        "structure_1h": "LH_LL",
+        "structure_15m": "LH_LL",
+        "aligned": true,
+        "allowed_direction": "SHORT",
+        "score": 60
+      },
+      "structure": {
+        "trend": "BEARISH",
+        "structure": "LH_LL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29869.25,
+        "swing_low": 29849.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": true,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BEARISH",
+        "gap_low": 29846.25,
+        "gap_high": 29851.25,
+        "gap_size": 5.0,
+        "first_high": 29856.0,
+        "first_low": 29851.25,
+        "second_high": 29855.75,
+        "second_low": 29842.0,
+        "third_high": 29846.25,
+        "third_low": 29834.25
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.9984732824427481,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": -0.0015267175572519084,
+        "volatility_score": 0.21235443965642123,
+        "compression_score": 0.18497109826589597
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 12307,
+      "timestamp": "2026-08-13 19:07:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 60
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 30245.75,
+        "swing_low": 30242.0,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": true,
+        "equal_lows": true,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 30252.25,
+        "gap_high": 30254.5,
+        "gap_size": 2.25,
+        "first_high": 30252.25,
+        "first_low": 30243.0,
+        "second_high": 30255.25,
+        "second_low": 30240.0,
+        "third_high": 30265.75,
+        "third_low": 30254.5
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.6844207723035952,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.3155792276964048,
+        "volatility_score": 0.25774777742172483,
+        "compression_score": 0.6548672566371682
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 15786,
+      "timestamp": "2026-08-18 08:06:00",
+      "trend": {
+        "trend_1h": "BEARISH",
+        "trend_15m": "BEARISH",
+        "structure_1h": "LH_LL",
+        "structure_15m": "LH_LL",
+        "aligned": true,
+        "allowed_direction": "SHORT",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BEARISH",
+        "structure": "LH_LL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29814.25,
+        "swing_low": 29776.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BEARISH",
+        "gap_low": 29763.0,
+        "gap_high": 29773.5,
+        "gap_size": 10.5,
+        "first_high": 29782.75,
+        "first_low": 29773.5,
+        "second_high": 29777.0,
+        "second_low": 29762.0,
+        "third_high": 29763.0,
+        "third_low": 29747.25
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.5825771324863884,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": -0.41742286751361163,
+        "volatility_score": 0.33285299260985907,
+        "compression_score": 0.37854251012145745
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 19140,
+      "timestamp": "2026-08-20 18:01:00",
+      "trend": {
+        "trend_1h": "BEARISH",
+        "trend_15m": "BEARISH",
+        "structure_1h": "LH_LL",
+        "structure_15m": "LH_LL",
+        "aligned": true,
+        "allowed_direction": "SHORT",
+        "score": 60
+      },
+      "structure": {
+        "trend": "BEARISH",
+        "structure": "LH_LL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29310.0,
+        "swing_low": 29294.5,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BEARISH",
+        "gap_low": 29293.0,
+        "gap_high": 29293.5,
+        "gap_size": 0.5,
+        "first_high": 29310.0,
+        "first_low": 29293.5,
+        "second_high": 29299.0,
+        "second_low": 29290.5,
+        "third_high": 29293.0,
+        "third_low": 29277.25
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.7148760330578512,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": -0.28512396694214875,
+        "volatility_score": 0.3567635962589472,
+        "compression_score": 0.3701298701298701
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 19864,
+      "timestamp": "2026-08-21 07:05:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 100
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29391.5,
+        "swing_low": 29380.0,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": true,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29395.0,
+        "gap_high": 29401.0,
+        "gap_size": 6.0,
+        "first_high": 29395.0,
+        "first_low": 29390.0,
+        "second_high": 29403.25,
+        "second_low": 29393.25,
+        "third_high": 29404.75,
+        "third_low": 29401.0
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.8105726872246696,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.1894273127753304,
+        "volatility_score": 0.21902263489165014,
+        "compression_score": 0.30573248407643316
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 19866,
+      "timestamp": "2026-08-21 07:07:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 100
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29391.5,
+        "swing_low": 29380.0,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": true,
+        "equal_lows": true,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29404.75,
+        "gap_high": 29405.5,
+        "gap_size": 0.75,
+        "first_high": 29404.75,
+        "first_low": 29401.0,
+        "second_high": 29410.5,
+        "second_low": 29402.5,
+        "third_high": 29419.5,
+        "third_low": 29405.5
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.760806916426513,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.23919308357348704,
+        "volatility_score": 0.22649863905119022,
+        "compression_score": 0.2685185185185185
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 19876,
+      "timestamp": "2026-08-21 07:17:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 100
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29429.0,
+        "swing_low": 29406.5,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": true,
+        "equal_lows": true,
+        "sweep_detected": "S\u00cd",
+        "sweep_direction": "ALCISTA",
+        "liquidity_level": 29410.25,
+        "sweep_index": 0
+      },
+      "fvg": {
+        "fvg": false,
+        "direction": "NONE",
+        "gap_low": null,
+        "gap_high": null,
+        "gap_size": 0.0,
+        "first_high": 29429.0,
+        "first_low": 29414.0,
+        "second_high": 29428.0,
+        "second_low": 29421.25,
+        "third_high": 29433.25,
+        "third_low": 29414.25
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.7766990291262136,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.22330097087378642,
+        "volatility_score": 0.2493939098551593,
+        "compression_score": 0.6051660516605166
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 1.0,
+        "fvg_score": 0.5,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 0.9,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 11.76,
+          "fvg": 5.88,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 20016,
+      "timestamp": "2026-08-21 09:37:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29445.5,
+        "swing_low": 29440.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29443.25,
+        "gap_high": 29453.0,
+        "gap_size": 9.75,
+        "first_high": 29443.25,
+        "first_low": 29440.25,
+        "second_high": 29457.0,
+        "second_low": 29441.25,
+        "third_high": 29466.0,
+        "third_low": 29453.0
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.9414893617021276,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.05851063829787234,
+        "volatility_score": 0.2662852628429144,
+        "compression_score": 0.3526785714285714
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 20017,
+      "timestamp": "2026-08-21 09:38:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29445.5,
+        "swing_low": 29440.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29457.0,
+        "gap_high": 29462.0,
+        "gap_size": 5.0,
+        "first_high": 29457.0,
+        "first_low": 29441.25,
+        "second_high": 29466.0,
+        "second_low": 29453.0,
+        "third_high": 29466.5,
+        "third_low": 29462.0
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.9317269076305221,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.06827309236947791,
+        "volatility_score": 0.2654341104399498,
+        "compression_score": 0.34375
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 22907,
+      "timestamp": "2026-08-25 11:48:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 80
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29362.25,
+        "swing_low": 29355.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": true,
+        "equal_lows": true,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29363.25,
+        "gap_high": 29363.5,
+        "gap_size": 0.25,
+        "first_high": 29363.25,
+        "first_low": 29355.25,
+        "second_high": 29365.25,
+        "second_low": 29357.75,
+        "third_high": 29376.25,
+        "third_low": 29363.5
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.9295454545454546,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.07045454545454545,
+        "volatility_score": 0.30244049887858465,
+        "compression_score": 0.6401384083044983
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 24115,
+      "timestamp": "2026-08-26 08:56:00",
+      "trend": {
+        "trend_1h": "BEARISH",
+        "trend_15m": "BEARISH",
+        "structure_1h": "LH_LL",
+        "structure_15m": "LH_LL",
+        "aligned": true,
+        "allowed_direction": "SHORT",
+        "score": 60
+      },
+      "structure": {
+        "trend": "BEARISH",
+        "structure": "LH_LL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29235.75,
+        "swing_low": 29228.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BEARISH",
+        "gap_low": 29226.0,
+        "gap_high": 29232.25,
+        "gap_size": 6.25,
+        "first_high": 29234.25,
+        "first_low": 29232.25,
+        "second_high": 29234.0,
+        "second_low": 29223.75,
+        "third_high": 29226.0,
+        "third_low": 29214.0
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.9865229110512129,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": -0.013477088948787063,
+        "volatility_score": 0.3096767129100116,
+        "compression_score": 0.6098484848484849
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 24840,
+      "timestamp": "2026-08-26 22:01:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 100
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29398.25,
+        "swing_low": 29384.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29423.0,
+        "gap_high": 29499.25,
+        "gap_size": 76.25,
+        "first_high": 29423.0,
+        "first_low": 29404.0,
+        "second_high": 29437.75,
+        "second_low": 29418.0,
+        "third_high": 29546.5,
+        "third_low": 29499.25
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.6172465960665658,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.3827534039334342,
+        "volatility_score": 0.5469965766733548,
+        "compression_score": 0.33757338551859095
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 24841,
+      "timestamp": "2026-08-26 22:02:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 100
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29398.25,
+        "swing_low": 29384.25,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29437.75,
+        "gap_high": 29544.0,
+        "gap_size": 106.25,
+        "first_high": 29437.75,
+        "first_low": 29418.0,
+        "second_high": 29546.5,
+        "second_low": 29499.25,
+        "third_high": 29582.25,
+        "third_low": 29544.0
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.6056407718951015,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.39435922810489854,
+        "volatility_score": 0.5687153758331722,
+        "compression_score": 0.3004291845493562
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    },
+    {
+      "index": 35004,
+      "timestamp": "2026-09-07 06:25:00",
+      "trend": {
+        "trend_1h": "BULLISH",
+        "trend_15m": "BULLISH",
+        "structure_1h": "HH_HL",
+        "structure_15m": "HH_HL",
+        "aligned": true,
+        "allowed_direction": "LONG",
+        "score": 100
+      },
+      "structure": {
+        "trend": "BULLISH",
+        "structure": "HH_HL",
+        "bos": true,
+        "choch": false,
+        "swing_high": 29645.75,
+        "swing_low": 29636.0,
+        "score": 75
+      },
+      "liquidity": {
+        "tolerance": 1.0,
+        "lookback": 5,
+        "equal_highs": false,
+        "equal_lows": false,
+        "sweep_detected": "NO",
+        "sweep_direction": "NINGUNA",
+        "liquidity_level": null,
+        "sweep_index": null
+      },
+      "fvg": {
+        "fvg": true,
+        "direction": "BULLISH",
+        "gap_low": 29643.75,
+        "gap_high": 29650.25,
+        "gap_size": 6.5,
+        "first_high": 29643.75,
+        "first_low": 29640.75,
+        "second_high": 29653.5,
+        "second_low": 29641.75,
+        "third_high": 29655.0,
+        "third_low": 29650.25
+      },
+      "regime": {
+        "regime": "RANGE",
+        "tradable": true,
+        "direction": "NEUTRAL",
+        "confidence": 0.8408262454434994,
+        "risk_multiplier": 0.75
+      },
+      "regime_inputs": {
+        "directional_strength": 0.1591737545565006,
+        "volatility_score": 0.22462770194553583,
+        "compression_score": 0.5408163265306123
+      },
+      "confluence_inputs": {
+        "trend_score": 1.0,
+        "structure_score": 0.75,
+        "liquidity_score": 0.5,
+        "fvg_score": 1.0,
+        "ema_alignment_score": 1.0,
+        "market_regime_score": 0.5,
+        "probability_score": 1.0,
+        "volume_score": 1.0,
+        "risk_approved": true,
+        "sizing_approved": true,
+        "market_tradable": true
+      },
+      "confluence": {
+        "approved": true,
+        "status": "APPROVED",
+        "decision": "EXECUTE",
+        "score": 80.88,
+        "grade": "A",
+        "contributions": {
+          "trend": 17.65,
+          "structure": 13.24,
+          "liquidity": 5.88,
+          "fvg": 11.76,
+          "ema_alignment": 11.76,
+          "market_regime": 8.82,
+          "volume": 11.76
+        },
+        "weights": {
+          "trend": 17.647058823529413,
+          "structure": 17.647058823529413,
+          "liquidity": 11.764705882352942,
+          "fvg": 11.764705882352942,
+          "ema_alignment": 11.764705882352942,
+          "market_regime": 17.647058823529413,
+          "volume": 11.764705882352942
+        },
+        "blocking_reasons": []
+      },
+      "quality": {
+        "score": 60,
+        "approved": false,
+        "reasons": [
+          "Valid market structure",
+          "Break Of Structure",
+          "No opposite CHOCH",
+          "HTF aligned"
+        ]
+      },
+      "required_confluence": 90,
+      "required_quality": 85,
+      "blocking_reasons": [
+        "confluence_below_A_plus_90",
+        "trade_quality_below_85_or_CHOCH_veto"
+      ]
+    }
+  ],
+  "uninstrumented_seconds": 17.702127099968493,
+  "observer_transparency": "PASS: all decisions, statistics, equity, trade count",
+  "dataset": "data\\backtest\\nq_sep26_1m_certified.csv",
+  "sha256": "793ed9a8f5b013d693bb2925a180de8ba2620c9d09ef702d2ba2819d0bb2b14f",
+  "parameters": {
+    "ema": 10,
+    "stop_loss": 30,
+    "take_profit": 60
+  },
+  "minimum_probability": 0.8,
+  "minimum_confluence": 0.8
+}

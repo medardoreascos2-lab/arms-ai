@@ -4,6 +4,7 @@ from typing import Any
 from collections.abc import Sequence
 
 from backend.models.candle import Candle
+from backend.backtesting.closed_bar_aggregator_v1 import ClosedBarAggregatorV1
 
 from backend.backtesting.backtest_execution_simulator_v2 import (
     BacktestExecutionSimulatorV2,
@@ -300,6 +301,10 @@ class BacktestSessionV2:
         self.active_position_id = None
         self.candle_history.clear()
 
+        # The V29R contract applies to the explicit single-pass historical path.
+        htf = ClosedBarAggregatorV1(history_limit=self.analysis_window) if execution_candles is not None else None
+        self.htf_aggregator = htf
+
         def on_candle(
                 candle: Any,
                 publish_result: Any,
@@ -316,6 +321,9 @@ class BacktestSessionV2:
             self.candle_history.append(
                 normalized_candle
             )
+
+            if htf is not None:
+                htf.update_completed(candle)
 
             if execution_candles is not None and (
                 len(self.candle_history) < minimum_candles
@@ -353,6 +361,11 @@ class BacktestSessionV2:
                     is not None
                 ),
             }
+
+            if htf is not None:
+                context["history_15m"] = [self._normalize_candle(bar) for bar in htf.history("15m")]
+                context["history_1h"] = [self._normalize_candle(bar) for bar in htf.history("1h")]
+                context["decision_time"] = htf.available_at
 
             decision = (
                 self.strategy_runner_v2.run(
