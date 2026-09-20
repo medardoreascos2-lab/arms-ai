@@ -41,6 +41,12 @@ def test_bounded_market_and_boundary_capture(api_settings,tmp_path,purpose):
     assert report["htf"] == {"15m":4,"1h":1}
     assert report["broker_order_calls"] == report["account_drift"] == report["completed_trades"] == report["journal_completed"] == 0
     assert report["sim_execution_authority"] == "DISABLED"
+    original_snapshot = r.get_snapshot
+    r.get_snapshot = lambda: {**original_snapshot(), "latest_decision": None}
+    assert capture.report()["observed_market_milestones_complete"]
+    if purpose == "daily_boundary":
+        r.get_snapshot = lambda: {**original_snapshot(), "htf_current_session": {"15m":0,"1h":0}}
+        assert not capture.report()["observed_market_milestones_complete"]
     capture.close()
 
 

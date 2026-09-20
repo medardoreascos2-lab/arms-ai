@@ -7207,7 +7207,7 @@
       "id": "backend/backtesting/current_paper_runtime_v1.py:CurrentPaperServiceV1.get_snapshot",
       "path": "backend/backtesting/current_paper_runtime_v1.py",
       "function": "CurrentPaperServiceV1.get_snapshot",
-      "source_sha256": "680610f04473412830b7832dfc925e382d2a6a014d587809fc02bf7e98281b82",
+      "source_sha256": "2a1f64b3e5ff08af631d047fe971793432d630bd584c6653180157c9070e8bf7",
       "inputs": "self",
       "calls": [
         "SessionStateAuthorityV1",

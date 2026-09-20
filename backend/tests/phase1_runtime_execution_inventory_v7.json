@@ -1208,7 +1208,7 @@
       "id": "backend/market_data/native_certification_v1.py:main",
       "path": "backend/market_data/native_certification_v1.py",
       "function": "main",
-      "source_sha256": "c9e83962f5f744b41dd78ceaf6c065d726cdd8eb800cd255adedbe417f00050a",
+      "source_sha256": "4866b76539eefd5c7dea5bdb74b326367391558109f3348fa06b58c3e74b39b3",
       "calls": [
         "APISettings",
         "CertifiedCalendarSnapshotV2",
@@ -1253,6 +1253,7 @@
         "time.monotonic",
         "time.sleep",
         "tuple",
+        "validate_native_spec",
         "wall_time.fromisoformat"
       ],
       "construction_calls": [

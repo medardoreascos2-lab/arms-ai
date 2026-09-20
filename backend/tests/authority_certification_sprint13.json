@@ -1,0 +1,123 @@
+{
+  "schema": "arms.sprint13-offline-certification.v1",
+  "baseline": "0a1753a2d602fcad2898d1869c6a2c0ac99a137e",
+  "status": "OFFLINE_MILESTONE_PASS_NATIVE_AUTHORITY_BLOCKERS_REMAIN",
+  "backend_distinct_tests_passed": 958,
+  "backend_runs": [
+    {
+      "artifact": "regression.xml",
+      "passed": 951,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "artifact": "final-scoped.xml",
+      "passed": 154,
+      "failures": 0,
+      "skipped": 0
+    }
+  ],
+  "test_modules": [
+    "backend/tests/test_current_paper_sprint10.py",
+    "backend/tests/test_historical_accounting_sprint07r.py",
+    "backend/tests/test_historical_research_sprint07r.py",
+    "backend/tests/test_mvp_release_sprint09.py",
+    "backend/tests/test_native_certification_sprint12.py",
+    "backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py",
+    "backend/tests/test_ninjatrader_connection_observer_sprint11s.py",
+    "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+    "backend/tests/test_ninjatrader_market_sprint11.py",
+    "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+    "backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py",
+    "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py",
+    "backend/tests/test_paper_research_sprint07r.py",
+    "backend/tests/test_paper_runtime_sprint08.py",
+    "backend/tests/test_session_lifecycle_sprint12.py",
+    "backend/tests/test_sim_readiness_sprint12.py",
+    "backend/tests/test_backtest_engine.py",
+    "backend/tests/test_backtest_single_pass_v27b.py",
+    "backend/tests/test_closed_bar_aggregation_v29r.py",
+    "backend/tests/test_production_certified_outcome_v17.py",
+    "backend/tests/test_real_market_structure_detectors_v17.py",
+    "backend/tests/test_certified_market_calendar_v2.py",
+    "backend/tests/test_market_hours_service_v2.py",
+    "backend/tests/test_special_hours_snapshot_v2.py",
+    "backend/tests/test_market_hours_special_hours_integration_v2.py",
+    "backend/tests/test_certified_market_hours_runtime_provider_v2.py",
+    "backend/tests/test_phase1_risk_precedence_v5.py",
+    "backend/tests/test_phase1_financial_state_sync_v6.py",
+    "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+    "backend/tests/test_native_calendar_collector_sprint13.py",
+    "backend/tests/test_native_calendar_sprint13.py",
+    "backend/tests/test_sim_binding_sprint13.py"
+  ],
+  "frontend": {
+    "tests": 30,
+    "failures": 0,
+    "lint": "PASS",
+    "build": "PASS",
+    "commands": [
+      "node --test src/lib/*.test.mjs",
+      "npm run lint",
+      "npm run build"
+    ]
+  },
+  "native_compilation": {
+    "status": "PASS",
+    "assembly": "NinjaTrader.Core 8.1.8.2 + installed Gui/Custom",
+    "source": "integrations/ninjatrader/ArmsCalendarEvidenceV1.cs",
+    "performed_native_activation": false,
+    "deterministic_collector_cases": 4
+  },
+  "source_hash_basis": "UTF-8 repository text normalized to LF, verified against staged Git blobs before commit",
+  "source_sha256": {
+    "backend/backtesting/current_paper_runtime_v1.py": "d1b98067a82228b76b801d603656deb9bc791b5f0f3e61373960234720d0f156",
+    "backend/market_data/native_calendar_review_v1.py": "29bebc3448a95d42c55f2f34485179da139e6d7e283dfeac079d160d10017a69",
+    "backend/market_data/native_certification_v1.py": "ae1c3e22d16d2afcfcb9c570bb342fddcd3bf8a708775fed1cf8bbc44215ff96",
+    "backend/market_data/sim_binding_contract_v1.py": "ed31e44b0852a9b679bd7aae9096a4a3afcf6e66f31452d6c241514e2af6e9b2",
+    "backend/tests/account_authority_sprint13.json": "e5a89fe7c73a22a1b61004c2933dc72e0890b8511b44450cc9727d3969eca0fc",
+    "backend/tests/native_authority_sprint13.json": "241dec5a79f15f34362b87ce723380570b4a19a01153c4019a5bff035f761ae0",
+    "backend/tests/native_capture_spec_sprint13.json": "83ef0b3cb237fd5a9ab123edecfc85a9273e159a0033d0c19ce61ebc8ff573b1",
+    "backend/tests/native_test_plans_sprint13.json": "3646fe8c35ff9d67eaffb44addf65b080062c6bbbac1479d444b3f0f5a41a40a",
+    "backend/tests/phase1_risk_authority_inventory_v5.json": "03cc28b9a3f2339bc1e77e041032cf8e679b597578c435ff283738fc70eb105b",
+    "backend/tests/phase1_runtime_execution_inventory_v7.json": "bfca37b36df1cad56561bd9e46e91fcd31c15d5962ee55496a97e783ab1daea4",
+    "backend/tests/private_sim_allowlist_schema_sprint13.json": "d8c1cd7d5db52a1cedcc3d840165160e918adc73eac41ee55c313c24cae6c23f",
+    "backend/tests/test_native_calendar_collector_sprint13.py": "4d077e6fc1a60101d879f9d034267957e224988ebe57ac9b16f95d94e4d1930c",
+    "backend/tests/test_native_calendar_sprint13.py": "bc9d16e107089074405aebc1610c39c946eb7bacc789f6ceb772985215d09723",
+    "backend/tests/test_native_certification_sprint12.py": "0dd4daa146f18d18714b7c13467fe42ef70d1be5884d0ffedde9f3c031487a36",
+    "backend/tests/test_sim_binding_sprint13.py": "709225a5ead1761ad53c1992d41c3357edc93dd03fcd5f61214d70c3534da969",
+    "docs/architecture/native_calendar_sim_authority_sprint13.md": "486afeb2f712b2292fbdd140168044b1de593dbcec6e1ed94732c93c9b071a84",
+    "frontend/src/lib/paperRcProjection.test.mjs": "c32313471822141875f1c051f1e6411ac3c981d826a2b3b7edd780916a088016",
+    "frontend/src/lib/paperRcProjection.ts": "0f9b1510e795598cd0071e85efbe44d46d3d38f6c3a6466a51a80a4db04314f0",
+    "integrations/ninjatrader/ArmsCalendarEvidenceV1.cs": "473a9255350945a038dda280faf72951faf28d0837964e9172bb68f43a3556a1"
+  },
+  "preserved": {
+    "unrelated_untracked": 109,
+    "datasets": 16,
+    "native_evidence_files": 10,
+    "sha256_checks": 135
+  },
+  "privacy": {
+    "personal_path_findings": 0,
+    "credential_findings": 0,
+    "account_identifiers_captured": 0,
+    "account_instances_accessed": 0,
+    "review": "Targeted searches plus manual field/source review; metadata property names are not identifiers"
+  },
+  "thresholds": {
+    "production": 90,
+    "paper": 80.5,
+    "quality": 85
+  },
+  "broker_order_calls": 0,
+  "account_mutations": 0,
+  "external_sim_order_authority": false,
+  "live_authority": false,
+  "blockers": [
+    "Loaded native calendar/SessionIterator evidence pending",
+    "No accepted authoritative native account proof; discovery not implemented",
+    "Holiday civil-date projection withheld pending native comparison",
+    "Continuous weekly capture exceeds current bounded harness"
+  ],
+  "next_action": "One read-only ArmsCalendarEvidenceV1 activation; no accounts or exporter retest"
+}

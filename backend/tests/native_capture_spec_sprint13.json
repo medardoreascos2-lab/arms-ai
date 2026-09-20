@@ -1,0 +1,42 @@
+{
+  "schema": "arms.native-capture-spec.sprint13.v1",
+  "status": "ORDINARY_LOCAL_TEMPLATE_REVIEWED_NATIVE_BINDING_PENDING",
+  "calendar_evidence_file": "<NINJATRADER_TEMPLATE>/CME US Index Futures ETH.xml",
+  "calendar_evidence_sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
+  "provider_enum": "Provider31",
+  "expiry": "2026-12-01",
+  "contract": {
+    "provider": "Provider31",
+    "contract": "NQ DEC26",
+    "instrument": "NQ",
+    "source_timezone": "UTC",
+    "bar_label": "CLOSE",
+    "trading_hours_template": "CME US Index Futures ETH",
+    "tick_size": 0.25,
+    "point_value": 20,
+    "fixture": false,
+    "valid_from": "2026-09-21T00:00:00+00:00",
+    "valid_until": "2026-09-28T00:00:00+00:00"
+  },
+  "covered_dates": [
+    "2026-09-19",
+    "2026-09-20",
+    "2026-09-21",
+    "2026-09-22",
+    "2026-09-23",
+    "2026-09-24",
+    "2026-09-25",
+    "2026-09-26",
+    "2026-09-27",
+    "2026-09-28"
+  ],
+  "closed_dates": [],
+  "special_hours": [],
+  "source_limitations": [
+    "Exact local template only; loaded Bars hash absent",
+    "No automatic date extension or contract rollover",
+    "Expiry is month metadata, not last trade date"
+  ],
+  "unknown_policy": "FAIL_CLOSED",
+  "order_authority": false
+}

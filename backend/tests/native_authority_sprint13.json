@@ -1,0 +1,280 @@
+{
+  "schema": "arms.native-authority.sprint13.v1",
+  "CALENDAR_SOURCE": "INSTALLED_TEMPLATE_NOT_EXCHANGE_CERTIFICATION",
+  "source_reference": "<NINJATRADER_TEMPLATE>/CME US Index Futures ETH.xml",
+  "source_sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
+  "template_version": "5119",
+  "TEMPLATE_IDENTITY": "CME US Index Futures ETH",
+  "TEMPLATE_TIMEZONE": "Central Standard Time",
+  "NORMAL_WEEKLY_SESSIONS": [
+    {
+      "BeginDay": "Sunday",
+      "BeginTime": "1700",
+      "EndDay": "Monday",
+      "EndTime": "1600",
+      "TradingDay": "Monday"
+    },
+    {
+      "BeginDay": "Monday",
+      "BeginTime": "1700",
+      "EndDay": "Tuesday",
+      "EndTime": "1600",
+      "TradingDay": "Tuesday"
+    },
+    {
+      "BeginDay": "Tuesday",
+      "BeginTime": "1700",
+      "EndDay": "Wednesday",
+      "EndTime": "1600",
+      "TradingDay": "Wednesday"
+    },
+    {
+      "BeginDay": "Wednesday",
+      "BeginTime": "1700",
+      "EndDay": "Thursday",
+      "EndTime": "1600",
+      "TradingDay": "Thursday"
+    },
+    {
+      "BeginDay": "Thursday",
+      "BeginTime": "1700",
+      "EndDay": "Friday",
+      "EndTime": "1600",
+      "TradingDay": "Friday"
+    }
+  ],
+  "HOLIDAY_SOURCE": "HolidaysSerializable: trading-date EOD sessions, not civil-day closure",
+  "EARLY_CLOSE_SOURCE": "PartialHolidaysSerializable: modify trading-date EOD end",
+  "exceptions_2026": [
+    {
+      "kind": "HolidaysSerializable",
+      "Date": "2026-01-01T00:00:00",
+      "Description": "New Year's Day"
+    },
+    {
+      "kind": "HolidaysSerializable",
+      "Date": "2026-12-25T00:00:00",
+      "Description": "Christmas Day"
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Monday",
+        "EndTime": "1200",
+        "TradingDay": "Monday"
+      },
+      "Date": "2026-01-19T00:00:00",
+      "Description": "Martin Luther King, Jr. Day",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Monday",
+        "EndTime": "1200",
+        "TradingDay": "Monday"
+      },
+      "Date": "2026-02-16T00:00:00",
+      "Description": "President's Day",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Thursday",
+        "EndTime": "1600",
+        "TradingDay": "Thursday"
+      },
+      "Date": "2026-04-02T00:00:00",
+      "Description": "Day before Good Friday",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Monday",
+        "EndTime": "1200",
+        "TradingDay": "Monday"
+      },
+      "Date": "2026-05-25T00:00:00",
+      "Description": "Memorial Day",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Friday",
+        "EndTime": "1200",
+        "TradingDay": "Friday"
+      },
+      "Date": "2026-06-19T00:00:00",
+      "Description": "Juneteenth",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Friday",
+        "EndTime": "1200",
+        "TradingDay": "Friday"
+      },
+      "Date": "2026-07-03T00:00:00",
+      "Description": "Independence Day",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Monday",
+        "EndTime": "1200",
+        "TradingDay": "Monday"
+      },
+      "Date": "2026-09-07T00:00:00",
+      "Description": "Labor Day",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Thursday",
+        "EndTime": "1200",
+        "TradingDay": "Thursday"
+      },
+      "Date": "2026-11-26T00:00:00",
+      "Description": "Thanksgiving Day",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Friday",
+        "EndTime": "1215",
+        "TradingDay": "Friday"
+      },
+      "Date": "2026-11-27T00:00:00",
+      "Description": "Day after Thanksgiving Day",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Thursday",
+        "EndTime": "1215",
+        "TradingDay": "Thursday"
+      },
+      "Date": "2026-12-24T00:00:00",
+      "Description": "Christmas Eve",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "Constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Friday",
+        "EndTime": "815",
+        "TradingDay": "Friday"
+      },
+      "Date": "2026-04-03T00:00:00",
+      "Description": "Good Friday",
+      "IsEarlyEnd": "true",
+      "IsLateBegin": "false",
+      "Sessions": null
+    }
+  ],
+  "DST_AUTHORITY": "Windows Central Standard Time; runtime America/Chicago; UTC conversion must agree for capture dates",
+  "TRADING_DATE_AUTHORITY": "Bars-bound SessionIterator.ActualTradingDayExchange; ordinary ETH starts prior civil day at 17:00",
+  "UNCERTAINTIES": [
+    "Loaded Bars.TradingHours identity has no hash in current native protocol",
+    "Native SessionIterator exception projection not yet captured",
+    "Month expiry metadata is not a final trading date",
+    "No provider market-data source ownership certificate beyond pinned Provider31 object"
+  ],
+  "native_calendar_certified": false,
+  "docs": [
+    "https://ninjatrader.com/fr/support/helpGuides/nt8/using_the_trading_hours_window.htm",
+    "https://docs.ninjatrader.com/ninjascript/sessioniterator",
+    "https://docs.ninjatrader.com/ninjascript/gettradingday",
+    "https://ninjatrader.com/support/helpGuides/nt8/actualtradingdayexchange.htm"
+  ],
+  "instrument_definition": {
+    "name": "NQ",
+    "tick_size": 0.25,
+    "point_value": 20.0,
+    "default_trading_hours": "CME US Index Futures ETH",
+    "version": 8591,
+    "instrument_type": 0,
+    "instrument_type_authority": "Installed NinjaTrader.Cbi.InstrumentType.Future=0; stock row excluded"
+  },
+  "dst_offset_checks": [
+    {
+      "utc": "2026-03-08T07:59:00+00:00",
+      "windows_offset_minutes": -360
+    },
+    {
+      "utc": "2026-03-08T08:00:00+00:00",
+      "windows_offset_minutes": -300
+    },
+    {
+      "utc": "2026-09-21T00:00:00+00:00",
+      "windows_offset_minutes": -300
+    },
+    {
+      "utc": "2026-09-28T00:00:00+00:00",
+      "windows_offset_minutes": -300
+    },
+    {
+      "utc": "2026-11-01T06:59:00+00:00",
+      "windows_offset_minutes": -300
+    },
+    {
+      "utc": "2026-11-01T07:00:00+00:00",
+      "windows_offset_minutes": -360
+    },
+    {
+      "utc": "2026-11-26T18:00:00+00:00",
+      "windows_offset_minutes": -360
+    }
+  ],
+  "dst_offset_result": "WINDOWS_CENTRAL_AND_IANA_CHICAGO_AGREE_AT_REVIEWED_2026_PROBES; native iterator still pending"
+}

@@ -23,6 +23,18 @@ test('session and provider are independent projections; missing SIM authority is
   assert.equal(JSON.stringify(input),before);
 });
 
+test('SIM discovery projects safe status fields without account identifiers', () => {
+  const input = {sim_discovery_status:'NOT_IMPLEMENTED_AUTHORITY_UNPROVEN',
+    sim_classification_status:'UNKNOWN',sim_binding_status:'NOT_CONFIGURED',sim_execution_authority:'DISABLED',
+    account_id:'SYNTHETIC_PRIVATE_IDENTIFIER'};
+  const rows = Object.fromEntries(exports.currentPaperRows(input));
+  assert.equal(rows['SIM CLASSIFICATION STATUS'],'UNKNOWN');
+  assert.equal(rows['SIM BINDING STATUS'],'NOT_CONFIGURED');
+  assert.equal(rows['SIM DISCOVERY STATUS'],'NOT_IMPLEMENTED_AUTHORITY_UNPROVEN');
+  assert.equal(rows['SIM EXECUTION AUTHORITY'],'DISABLED');
+  assert.equal(JSON.stringify(rows).includes('SYNTHETIC_PRIVATE_IDENTIFIER'),false);
+});
+
 test('PAPER card uses canonical values without recomputing account or score', () => {
   const input = { mode:'PAPER_RESEARCH', paper_ready:false, account_overview:{balance:151170,equity:151000,daily_pnl:1170},
     strategy_evidence:{confluence:{score:81.33},quality:{score:85}}, configuration:{boundary:80.5,quality:85},

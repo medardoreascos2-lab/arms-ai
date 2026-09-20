@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Future private single-account binding; NOT an activation file",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "account_ref",
+    "connection_ref",
+    "provider",
+    "label_digest",
+    "installation_ref",
+    "proof_contract",
+    "enabled",
+    "configuration_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": "arms.private-sim-binding.v1"
+    },
+    "account_ref": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "connection_ref": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "label_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "installation_ref": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "configuration_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proof_contract": {
+      "const": "UNRESOLVED_NATIVE_PROOF"
+    },
+    "enabled": {
+      "const": false
+    }
+  },
+  "$comment": "No native proof is registered. Store only outside Git under private .arms-dev with owner-only ACL. Account/connection/label references must be domain-separated HMACs keyed per installation. An unkeyed digest does not hide a low-entropy account name. Hash canonical reviewed configuration; never treat self-reported hash as attestation. Revalidate one pinned object, provider, connection, configuration, label and freshness on each observation. Any change revokes; no auto-rebind."
+}

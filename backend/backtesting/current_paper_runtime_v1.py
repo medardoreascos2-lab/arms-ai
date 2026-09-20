@@ -157,6 +157,9 @@ class CurrentPaperServiceV1:
                 fresh=snapshot["data_freshness"] == "FRESH", recovery_clear=not snapshot["recovery_required"],
                 risk_ready=not reasons, enabled=not reasons)
             snapshot["sim_eligibility_status"] = "UNKNOWN_ACCOUNT_INELIGIBLE"
+            snapshot["sim_discovery_status"] = "NOT_IMPLEMENTED_AUTHORITY_UNPROVEN"
+            snapshot["sim_classification_status"] = "UNKNOWN"
+            snapshot["sim_binding_status"] = "NOT_CONFIGURED"
             snapshot["sim_execution_authority"] = "DISABLED"
             snapshot["htf_current_session"] = {
                 tf: sum(bar.timestamp >= session.segment_start for bar in self._runtime._htf.history(tf))

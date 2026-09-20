@@ -99,8 +99,10 @@ class NativeCertificationCaptureV1:
             raise ValueError(self.fault) from None
 
     def report(self):
+        from backend.market_data.native_calendar_review_v1 import ordinary_calendar_context
         snapshot = self.reader.get_snapshot()
         htf = snapshot.get("htf_emitted", {})
+        required_htf = snapshot.get("htf_current_session", {}) if self.purpose == "daily_boundary" else htf
         closed = snapshot["market_data"]["closed_candles"]
         states = [s["state"] for s in self.states]
         boundary = False
@@ -111,16 +113,20 @@ class NativeCertificationCaptureV1:
         hb = self.frame_times.get("HEARTBEAT")
         heartbeat_span = (_utc(hb[1])-_utc(hb[0])).total_seconds() if hb else 0
         milestones = dict(forming_1m=self.frames["FORMING"] > 0, closed_1m=closed >= 2,
-            htf_15m=htf.get("15m",0) > 0, htf_1h=htf.get("1h",0) > 0,
+            htf_15m=required_htf.get("15m",0) > 0, htf_1h=required_htf.get("1h",0) > 0,
             strategy_evaluated=snapshot.get("latest_decision") is not None,
             transport_30_seconds=heartbeat_span >= 30,
             daily_boundary=boundary and self.closed_heartbeats >= 2)
-        required = [v for k,v in milestones.items() if k != "daily_boundary" or self.purpose == "daily_boundary"]
+        # Transport/calendar certification cannot depend on a profitable signal
+        # or enough strategy history. Strategy evaluation is observational only.
+        required = [v for k,v in milestones.items() if k != "strategy_evaluated"
+                    and (k != "daily_boundary" or self.purpose == "daily_boundary")]
         return dict(schema="arms.native-certification.v1", purpose=self.purpose,
             evidence_kind="SYNTHETIC_OFFLINE" if self.reader.service.gate.contract.fixture else "NATIVE_CURRENT",
             status="FAIL_CLOSED" if self.fault or self.account_drift or "UNKNOWN" in states else "PENDING_NATIVE_CERTIFICATION",
             observed_market_milestones_complete=all(required), milestones=milestones,
             session=self.reader.session, source_prefix_sha256=self._digest.hexdigest(),
+            calendar_context=ordinary_calendar_context(self.reader.service.gate.market_hours,self.reader.service.gate.clock()),
             frame_counts=dict(self.frames), frame_times=self.frame_times, states=self.states, trace=self.trace,
             closed_session_heartbeats=self.closed_heartbeats, heartbeat_span_seconds=heartbeat_span,
             canonical_candles=closed, htf=htf, account_drift=int(self.account_drift),
@@ -162,11 +168,20 @@ def certify_startup(sidecar, session, hello_time, provider):
         previous = current
         if p.get("decision") not in {"CONTINUE","WAIT_STARTUP_ALIGNMENT"}:
             raise ValueError("native revocation")
+        callback_status = (p.get("callback_price_status"),p.get("callback_connection_status"))
+        if any(s not in {"Connecting","Connected"} for s in callback_status):
+            raise ValueError("callback loss or unknown state")
         prior_status = (p.get("callback_previous_price_status"), p.get("callback_previous_connection_status"))
         if any(s not in {"Disconnected","Connecting","Connected"} for s in prior_status):
             raise ValueError("prior continuity unknown or lost")
         if current > hello_time and (p["decision"] != "CONTINUE" or prior_status != ("Connected","Connected")):
             raise ValueError("post-admission continuity unproven")
+        if p["decision"] == "CONTINUE" and callback_status != ("Connected","Connected"):
+            raise ValueError("callback decision contradicts state")
+        if p["decision"] == "WAIT_STARTUP_ALIGNMENT":
+            if callback_status == ("Connected","Connected") or "Connected" in prior_status:
+                raise ValueError("invalid startup quarantine")
+            aligned = None  # A later transition invalidates an earlier alignment.
         if _utc(row["event_time"]) <= hello_time and p["decision"] == "CONTINUE":
             if p["callback_price_status"] != "Connected" or p["callback_connection_status"] != "Connected":
                 raise ValueError("alignment invalid")
@@ -200,8 +215,13 @@ def main():
     from backend.config.api_settings import APISettings
     spec = json.loads(Path(args.spec).read_text(encoding="utf-8"), object_pairs_hook=_object)
     source = Path(spec["calendar_evidence_file"])
-    if sha256(source.read_bytes()).hexdigest() != spec["calendar_evidence_sha256"]:
-        parser.error("reviewed calendar evidence changed")
+    from backend.market_data.native_calendar_review_v1 import validate_native_spec
+    try:
+        calendar_review = validate_native_spec(spec,source.read_bytes(),datetime.now(timezone.utc))
+    except (ValueError, KeyError, TypeError):
+        parser.error("native feed/calendar specification is not certified for this capture")
+    if calendar_review["loaded_native_calendar"] != "PASS":
+        parser.error("loaded native calendar binding pending; collect ArmsCalendarEvidenceV1 metadata first")
     contract = CurrentFeedContractV1(**{**spec["contract"], "valid_from":_utc(spec["contract"]["valid_from"]),
         "valid_until":_utc(spec["contract"]["valid_until"])})
     if contract.fixture:
@@ -250,6 +270,17 @@ def main():
             report["startup"] = "UNPROVEN"
             report["status"] = "FAIL_CLOSED"
         report["calendar_evidence_sha256"] = spec["calendar_evidence_sha256"]
+        report["calendar_review"] = calendar_review
+        try:
+            if sha256(source.read_bytes()).hexdigest() != spec["calendar_evidence_sha256"]:
+                report["status"] = "FAIL_CLOSED"
+                report["fault"] = "CALENDAR_CHANGED_DURING_CAPTURE"
+        except OSError:
+            report["status"] = "FAIL_CLOSED"
+            report["fault"] = "CALENDAR_UNAVAILABLE_AFTER_CAPTURE"
+        # A matching on-disk template cannot prove Bars loaded identical rules.
+        if report["status"] == "PASS_BOUNDED_OBSERVATION_ONLY":
+            report["status"] = "PENDING_NATIVE_CALENDAR_BINDING"
         capture.close()
         with Path(args.output).open("x",encoding="utf-8") as output:
             json.dump(report,output,indent=2,allow_nan=False)

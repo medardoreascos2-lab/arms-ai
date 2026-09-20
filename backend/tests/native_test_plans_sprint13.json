@@ -1,0 +1,175 @@
+{
+  "schema": "arms.native-test-plans.sprint13.v1",
+  "timezone": "America/Chicago",
+  "plans": [
+    {
+      "required_evidence": [
+        "Fresh UUID; no session merging",
+        "Loaded Bars calendar identity and iterator UTC intervals/trading dates",
+        "Startup sidecar alignment then independent READY/HELLO",
+        "Heartbeat continuity, max reader age 15 seconds",
+        "Valid forming and closed OHLCV, UTC close labels, tick and integer volume checks",
+        "Canonical unique chronological closes; no closed-session candle fabrication",
+        "Complete 15m and 1h bars after fresh observations",
+        "Zero broker calls, fills, account drift, journal writes and external authority"
+      ],
+      "pass_criteria": [
+        "All required observations and identity checks pass",
+        "No signal/profitability requirement",
+        "No UNKNOWN calendar state"
+      ],
+      "fail_criteria": [
+        "Provider loss or unknown calendar",
+        "Identity/hash drift",
+        "Malformed, stale, duplicate or out-of-order evidence",
+        "Any execution side effect"
+      ],
+      "inconclusive_criteria": [
+        "Capture window incomplete",
+        "No qualifying market observations",
+        "Loaded calendar binding absent"
+      ],
+      "activation": "Start bounded harness BEFORE one fresh exporter activation; never replay prior evidence",
+      "native_status": "PENDING",
+      "simulation_authority": "DISABLED",
+      "purpose": "market_open",
+      "start_window": "Any covered ordinary OPEN interval with at least 125 minutes before close",
+      "required_duration_seconds": 7500,
+      "expected_transitions": [
+        "REOPENING",
+        "OPEN"
+      ],
+      "status": "BLOCKED_LOADED_CALENDAR_BINDING"
+    },
+    {
+      "required_evidence": [
+        "Fresh UUID; no session merging",
+        "Loaded Bars calendar identity and iterator UTC intervals/trading dates",
+        "Startup sidecar alignment then independent READY/HELLO",
+        "Heartbeat continuity, max reader age 15 seconds",
+        "Valid forming and closed OHLCV, UTC close labels, tick and integer volume checks",
+        "Canonical unique chronological closes; no closed-session candle fabrication",
+        "Complete 15m and 1h bars after fresh observations",
+        "Zero broker calls, fills, account drift, journal writes and external authority"
+      ],
+      "pass_criteria": [
+        "All required observations and identity checks pass",
+        "No signal/profitability requirement",
+        "No UNKNOWN calendar state"
+      ],
+      "fail_criteria": [
+        "Provider loss or unknown calendar",
+        "Identity/hash drift",
+        "Malformed, stale, duplicate or out-of-order evidence",
+        "Any execution side effect"
+      ],
+      "inconclusive_criteria": [
+        "Capture window incomplete",
+        "No qualifying market observations",
+        "Loaded calendar binding absent"
+      ],
+      "activation": "Start bounded harness BEFORE one fresh exporter activation; never replay prior evidence",
+      "native_status": "PENDING",
+      "simulation_authority": "DISABLED",
+      "purpose": "daily_boundary",
+      "start_window": "Covered Monday-Thursday 15:45 America/Chicago",
+      "required_duration_seconds": 8700,
+      "expected_transitions": [
+        "OPEN",
+        "DAILY_MAINTENANCE",
+        "REOPENING",
+        "OPEN"
+      ],
+      "status": "BLOCKED_LOADED_CALENDAR_BINDING"
+    },
+    {
+      "required_evidence": [
+        "Fresh UUID; no session merging",
+        "Loaded Bars calendar identity and iterator UTC intervals/trading dates",
+        "Startup sidecar alignment then independent READY/HELLO",
+        "Heartbeat continuity, max reader age 15 seconds",
+        "Valid forming and closed OHLCV, UTC close labels, tick and integer volume checks",
+        "Canonical unique chronological closes; no closed-session candle fabrication",
+        "Complete 15m and 1h bars after fresh observations",
+        "Zero broker calls, fills, account drift, journal writes and external authority"
+      ],
+      "pass_criteria": [
+        "All required observations and identity checks pass",
+        "No signal/profitability requirement",
+        "No UNKNOWN calendar state"
+      ],
+      "fail_criteria": [
+        "Provider loss or unknown calendar",
+        "Identity/hash drift",
+        "Malformed, stale, duplicate or out-of-order evidence",
+        "Any execution side effect"
+      ],
+      "inconclusive_criteria": [
+        "Capture window incomplete",
+        "No qualifying market observations",
+        "Loaded calendar binding absent"
+      ],
+      "activation": "Start bounded harness BEFORE one fresh exporter activation; never replay prior evidence",
+      "native_status": "PENDING",
+      "simulation_authority": "DISABLED",
+      "purpose": "weekly_boundary",
+      "start_window": "Covered Friday 15:45 America/Chicago through Sunday 19:10",
+      "required_duration_seconds": 185100,
+      "expected_transitions": [
+        "OPEN",
+        "WEEKEND_CLOSED",
+        "REOPENING",
+        "OPEN"
+      ],
+      "status": "DESIGN_ONLY_EXCEEDS_BOUNDED_HARNESS"
+    },
+    {
+      "required_evidence": [
+        "Fresh UUID; no session merging",
+        "Loaded Bars calendar identity and iterator UTC intervals/trading dates",
+        "Startup sidecar alignment then independent READY/HELLO",
+        "Heartbeat continuity, max reader age 15 seconds",
+        "Valid forming and closed OHLCV, UTC close labels, tick and integer volume checks",
+        "Canonical unique chronological closes; no closed-session candle fabrication",
+        "Complete 15m and 1h bars after fresh observations",
+        "Zero broker calls, fills, account drift, journal writes and external authority"
+      ],
+      "pass_criteria": [
+        "All required observations and identity checks pass",
+        "No signal/profitability requirement",
+        "No UNKNOWN calendar state"
+      ],
+      "fail_criteria": [
+        "Provider loss or unknown calendar",
+        "Identity/hash drift",
+        "Malformed, stale, duplicate or out-of-order evidence",
+        "Any execution side effect"
+      ],
+      "inconclusive_criteria": [
+        "Capture window incomplete",
+        "No qualifying market observations",
+        "Loaded calendar binding absent"
+      ],
+      "activation": "Start bounded harness BEFORE one fresh exporter activation; never replay prior evidence",
+      "native_status": "PENDING",
+      "simulation_authority": "DISABLED",
+      "purpose": "holiday_boundary",
+      "start_window": "Native iterator verified qualifying holiday/early close before NQ DEC26 expiry; do not infer from template name",
+      "required_duration_seconds": null,
+      "expected_transitions": [
+        "OPEN",
+        "EARLY_CLOSE_OR_HOLIDAY_CLOSED",
+        "REOPENING",
+        "OPEN"
+      ],
+      "status": "BLOCKED_NATIVE_EXCEPTION_MAPPING"
+    }
+  ],
+  "weekly_constraint": "No silent concatenation of captures; continuous weekend proof requires separately reviewed bounded long-run recorder and resource limits",
+  "holiday_candidate": {
+    "trading_date": "2026-11-26",
+    "end_local": "12:00",
+    "source": "Installed template metadata only; not yet executable capture specification"
+  },
+  "disconnect_test": "A deliberate provider disconnect is a separate future operator-authorized test, never performed by this harness"
+}
