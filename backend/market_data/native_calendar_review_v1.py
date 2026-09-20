@@ -1,7 +1,7 @@
 """Narrow, hash-bound ordinary ETH capture specification. No guessed holidays.
 
-This validates the local template file, not the template loaded in native Bars.
-Native SessionIterator/loaded-template evidence remains a separate prerequisite.
+The static XML hash and separately reviewed native snapshot must both match.
+The snapshot is not continuous attestation of later native configuration.
 """
 from datetime import date, datetime, time, timedelta
 from hashlib import sha256
@@ -13,7 +13,7 @@ TEMPLATE = "CME US Index Futures ETH"
 TEMPLATE_SHA256 = "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620"
 
 
-def validate_native_spec(spec, template_bytes, now):
+def validate_native_spec(spec, template_bytes, now, *, loaded_calendar_bytes=None):
     """Return reviewed ordinary dates; reject any unsupported holiday mapping."""
     now = instant(now)
     if sha256(template_bytes).hexdigest() != TEMPLATE_SHA256 or spec.get("calendar_evidence_sha256") != TEMPLATE_SHA256:
@@ -51,8 +51,15 @@ def validate_native_spec(spec, template_bytes, now):
             affected.update(trading_day+timedelta(days=i) for i in (-1,0,1))
     if affected.intersection(days):
         raise ValueError("NATIVE_EXCEPTION_MAPPING_REQUIRED")
+    binding = None
+    if loaded_calendar_bytes is not None:
+        from backend.market_data.loaded_calendar_binding_v1 import NATIVE_SHA256, verify_loaded_binding
+        if spec.get("loaded_calendar_evidence_sha256") != NATIVE_SHA256:
+            raise ValueError("LOADED_CALENDAR_BINDING_MISMATCH")
+        binding = verify_loaded_binding(loaded_calendar_bytes,template_bytes)
     return dict(status="LOCAL_TEMPLATE_BOUND_ORDINARY_DATES_ONLY", template_sha256=TEMPLATE_SHA256,
-                loaded_native_calendar="PENDING_NATIVE_BINDING", covered_dates=[d.isoformat() for d in days])
+                loaded_native_calendar="PASS" if binding else "PENDING_NATIVE_BINDING",
+                native_binding=binding,covered_dates=[d.isoformat() for d in days])
 
 
 def ordinary_calendar_context(hours, now):

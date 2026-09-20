@@ -1,6 +1,6 @@
 {
   "schema": "arms.native-capture-spec.sprint13.v1",
-  "status": "ORDINARY_LOCAL_TEMPLATE_REVIEWED_NATIVE_BINDING_PENDING",
+  "status": "ORDINARY_LOCAL_AND_LOADED_NATIVE_CALENDAR_BOUND",
   "calendar_evidence_file": "<NINJATRADER_TEMPLATE>/CME US Index Futures ETH.xml",
   "calendar_evidence_sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
   "provider_enum": "Provider31",
@@ -33,10 +33,12 @@
   "closed_dates": [],
   "special_hours": [],
   "source_limitations": [
-    "Exact local template only; loaded Bars hash absent",
+    "Loaded snapshot semantically matched; no native XML byte hash or continuous attestation",
     "No automatic date extension or contract rollover",
     "Expiry is month metadata, not last trade date"
   ],
   "unknown_policy": "FAIL_CLOSED",
-  "order_authority": false
+  "order_authority": false,
+  "loaded_calendar_evidence_file": "<NATIVE_CALENDAR_EVIDENCE>/6741b746-6f31-4d26-86b2-524a901bc256.calendar.jsonl",
+  "loaded_calendar_evidence_sha256": "c7d1d601d758ee98e2aa314384ef997f388d1c3e454d205e71dbfa9795f04cf8"
 }

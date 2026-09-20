@@ -106,7 +106,7 @@ def test_cli_cannot_watch_or_initialize_runtime_without_loaded_calendar(tmp_path
     from backend.market_data.native_certification_v1 import main
     template=tmp_path/'synthetic.xml'; template.write_text('synthetic')
     spec=tmp_path/'spec.json'; spec.write_text(json.dumps({'calendar_evidence_file':str(template)}))
-    monkeypatch.setattr(review,'validate_native_spec',lambda *args: {'loaded_native_calendar':'PENDING_NATIVE_BINDING'})
+    monkeypatch.setattr(review,'validate_native_spec',lambda *args,**kwargs: {'loaded_native_calendar':'PENDING_NATIVE_BINDING'})
     monkeypatch.setattr('sys.argv',['capture','--spec',str(spec),'--directory',str(tmp_path/'does-not-exist'),
         '--state',str(tmp_path/'state.sqlite'),'--output',str(tmp_path/'report.json'),'--purpose','market_open'])
     with pytest.raises(SystemExit) as error: main()

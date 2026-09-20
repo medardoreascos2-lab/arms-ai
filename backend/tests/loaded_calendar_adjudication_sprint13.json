@@ -1,0 +1,847 @@
+{
+  "schema": "arms.loaded-calendar-adjudication.sprint13.v1",
+  "artifact": "6741b746-6f31-4d26-86b2-524a901bc256.calendar.jsonl",
+  "raw_native_sha256": "c7d1d601d758ee98e2aa314384ef997f388d1c3e454d205e71dbfa9795f04cf8",
+  "static_template_sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
+  "classification": {
+    "STATIC_TEMPLATE_MATCH": "PASS_HASH_VERSION_AND_DEFINITIONS",
+    "LOADED_NATIVE_MATCH": "PASS_ORDINARY_WEEKLY_AND_13_ITERATOR_PROBES",
+    "NATIVE_ONLY_INFORMATION": [
+      "UTC boundary Kind despite Eastern system timezone",
+      "ActualTradingDayExchange for each probe"
+    ],
+    "UNAVAILABLE_NATIVE_INFORMATION": [
+      "Loaded XML byte hash",
+      "GetNextSession return Boolean",
+      "Spring DST probe",
+      "Continuous calendar identity after capture",
+      "All-day runtime holiday admission"
+    ],
+    "MISMATCH": []
+  },
+  "scope": "Ordinary finite September 21-28 capture specification only; no execution grant",
+  "result": {
+    "status": "LOADED_NATIVE_MATCH",
+    "weekly_sessions": 5,
+    "iterator_samples": 13,
+    "full_holiday_dates": 31,
+    "partial_holiday_dates": 112,
+    "partial_constraints_2026": 11,
+    "ordinary_binding": "PASS",
+    "holiday_runtime_admission": "BLOCKED_UNSUPPORTED_CIVIL_DATE_PROJECTION",
+    "timestamp_semantics": "OBSERVED_UTC_NOT_PC_LOCAL",
+    "spring_dst_native": "NOT_SAMPLED",
+    "direct_loaded_xml_hash": "NOT_EXPOSED",
+    "get_next_session_return_value": "NOT_CAPTURED",
+    "native_sha256": "c7d1d601d758ee98e2aa314384ef997f388d1c3e454d205e71dbfa9795f04cf8",
+    "session": "6741b746-6f31-4d26-86b2-524a901bc256",
+    "capture_timestamp": "2026-09-20T06:03:11.4179026Z"
+  },
+  "static_reference": {
+    "name": "CME US Index Futures ETH",
+    "version": 5119,
+    "timezone": "Central Standard Time",
+    "sessions": [
+      {
+        "begin_day": "Sunday",
+        "begin_time": 1700,
+        "end_day": "Monday",
+        "end_time": 1600,
+        "trading_day": "Monday"
+      },
+      {
+        "begin_day": "Monday",
+        "begin_time": 1700,
+        "end_day": "Tuesday",
+        "end_time": 1600,
+        "trading_day": "Tuesday"
+      },
+      {
+        "begin_day": "Tuesday",
+        "begin_time": 1700,
+        "end_day": "Wednesday",
+        "end_time": 1600,
+        "trading_day": "Wednesday"
+      },
+      {
+        "begin_day": "Wednesday",
+        "begin_time": 1700,
+        "end_day": "Thursday",
+        "end_time": 1600,
+        "trading_day": "Thursday"
+      },
+      {
+        "begin_day": "Thursday",
+        "begin_time": 1700,
+        "end_day": "Friday",
+        "end_time": 1600,
+        "trading_day": "Friday"
+      }
+    ],
+    "holiday_dates": [
+      "2015-12-25",
+      "2016-01-01",
+      "2016-03-25",
+      "2016-12-26",
+      "2017-01-02",
+      "2017-04-14",
+      "2017-12-25",
+      "2018-01-01",
+      "2018-03-30",
+      "2018-12-25",
+      "2019-01-01",
+      "2019-04-19",
+      "2019-12-25",
+      "2020-01-01",
+      "2020-04-10",
+      "2020-12-25",
+      "2021-01-01",
+      "2021-12-24",
+      "2022-01-01",
+      "2022-12-24",
+      "2022-12-26",
+      "2023-01-02",
+      "2023-12-24",
+      "2023-12-25",
+      "2024-01-01",
+      "2024-03-29",
+      "2025-01-01",
+      "2025-04-18",
+      "2025-12-25",
+      "2026-01-01",
+      "2026-12-25"
+    ],
+    "partial_holiday_dates": [
+      "2015-01-19",
+      "2015-02-16",
+      "2015-04-03",
+      "2015-05-25",
+      "2015-07-03",
+      "2015-09-07",
+      "2015-11-26",
+      "2015-11-27",
+      "2015-12-24",
+      "2016-01-18",
+      "2016-02-15",
+      "2016-05-30",
+      "2016-07-04",
+      "2016-09-05",
+      "2016-11-24",
+      "2016-11-25",
+      "2017-01-16",
+      "2017-02-20",
+      "2017-05-29",
+      "2017-07-03",
+      "2017-07-04",
+      "2017-09-04",
+      "2017-11-23",
+      "2017-11-24",
+      "2018-01-15",
+      "2018-02-19",
+      "2018-05-28",
+      "2018-07-03",
+      "2018-07-04",
+      "2018-09-03",
+      "2018-11-22",
+      "2018-11-23",
+      "2018-12-24",
+      "2019-01-21",
+      "2019-02-18",
+      "2019-05-27",
+      "2019-07-03",
+      "2019-07-04",
+      "2019-09-02",
+      "2019-11-28",
+      "2019-11-29",
+      "2019-12-24",
+      "2020-01-20",
+      "2020-02-17",
+      "2020-05-25",
+      "2020-07-03",
+      "2020-09-07",
+      "2020-11-26",
+      "2020-11-27",
+      "2020-12-24",
+      "2021-01-18",
+      "2021-02-15",
+      "2021-04-02",
+      "2021-05-31",
+      "2021-07-05",
+      "2021-09-06",
+      "2021-11-25",
+      "2021-11-26",
+      "2022-01-17",
+      "2022-02-21",
+      "2022-04-15",
+      "2022-05-30",
+      "2022-06-20",
+      "2022-07-04",
+      "2022-09-05",
+      "2022-11-24",
+      "2022-11-25",
+      "2023-01-16",
+      "2023-02-20",
+      "2023-04-07",
+      "2023-05-29",
+      "2023-06-19",
+      "2023-07-03",
+      "2023-07-04",
+      "2023-09-04",
+      "2023-11-23",
+      "2023-11-24",
+      "2024-01-15",
+      "2024-02-19",
+      "2024-03-28",
+      "2024-05-27",
+      "2024-06-19",
+      "2024-07-03",
+      "2024-07-04",
+      "2024-09-02",
+      "2024-11-28",
+      "2024-11-29",
+      "2024-12-24",
+      "2024-12-25",
+      "2025-01-09",
+      "2025-01-20",
+      "2025-02-17",
+      "2025-04-17",
+      "2025-05-26",
+      "2025-06-19",
+      "2025-07-03",
+      "2025-07-04",
+      "2025-09-01",
+      "2025-11-27",
+      "2025-11-28",
+      "2025-12-24",
+      "2026-01-19",
+      "2026-02-16",
+      "2026-04-02",
+      "2026-04-03",
+      "2026-05-25",
+      "2026-06-19",
+      "2026-07-03",
+      "2026-09-07",
+      "2026-11-26",
+      "2026-11-27",
+      "2026-12-24"
+    ],
+    "partial_holidays_2026": [
+      {
+        "date": "2026-01-19",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Monday",
+          "end_time": 1200,
+          "trading_day": "Monday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-02-16",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Monday",
+          "end_time": 1200,
+          "trading_day": "Monday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-04-02",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Thursday",
+          "end_time": 1600,
+          "trading_day": "Thursday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-04-03",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Friday",
+          "end_time": 815,
+          "trading_day": "Friday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-05-25",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Monday",
+          "end_time": 1200,
+          "trading_day": "Monday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-06-19",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Friday",
+          "end_time": 1200,
+          "trading_day": "Friday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-07-03",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Friday",
+          "end_time": 1200,
+          "trading_day": "Friday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-09-07",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Monday",
+          "end_time": 1200,
+          "trading_day": "Monday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-11-26",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Thursday",
+          "end_time": 1200,
+          "trading_day": "Thursday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-11-27",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Friday",
+          "end_time": 1215,
+          "trading_day": "Friday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-12-24",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Thursday",
+          "end_time": 1215,
+          "trading_day": "Thursday"
+        },
+        "sessions": []
+      }
+    ]
+  },
+  "native_record": {
+    "schema": "arms.nt.calendar-evidence.v1",
+    "session": "6741b746-6f31-4d26-86b2-524a901bc256",
+    "event_time": "2026-09-20T06:03:11.4179026Z",
+    "observation_only": true,
+    "contract": "NQ DEC26",
+    "expiry_month": "2026-12-01",
+    "instrument": "NQ",
+    "tick_size": 0.25,
+    "point_value": 20,
+    "bars_type": "Minute",
+    "bars_value": 1,
+    "application_timezone": "UTC",
+    "system_timezone": "Eastern Standard Time",
+    "template": "CME US Index Futures ETH",
+    "template_version": 5119,
+    "template_timezone": "Central Standard Time",
+    "sessions": [
+      {
+        "begin_day": "Sunday",
+        "begin_time": 1700,
+        "end_day": "Monday",
+        "end_time": 1600,
+        "trading_day": "Monday"
+      },
+      {
+        "begin_day": "Monday",
+        "begin_time": 1700,
+        "end_day": "Tuesday",
+        "end_time": 1600,
+        "trading_day": "Tuesday"
+      },
+      {
+        "begin_day": "Tuesday",
+        "begin_time": 1700,
+        "end_day": "Wednesday",
+        "end_time": 1600,
+        "trading_day": "Wednesday"
+      },
+      {
+        "begin_day": "Wednesday",
+        "begin_time": 1700,
+        "end_day": "Thursday",
+        "end_time": 1600,
+        "trading_day": "Thursday"
+      },
+      {
+        "begin_day": "Thursday",
+        "begin_time": 1700,
+        "end_day": "Friday",
+        "end_time": 1600,
+        "trading_day": "Friday"
+      }
+    ],
+    "holiday_dates": [
+      "2015-12-25",
+      "2016-01-01",
+      "2016-03-25",
+      "2016-12-26",
+      "2017-01-02",
+      "2017-04-14",
+      "2017-12-25",
+      "2018-01-01",
+      "2018-03-30",
+      "2018-12-25",
+      "2019-01-01",
+      "2019-04-19",
+      "2019-12-25",
+      "2020-01-01",
+      "2020-04-10",
+      "2020-12-25",
+      "2021-01-01",
+      "2021-12-24",
+      "2022-01-01",
+      "2022-12-24",
+      "2022-12-26",
+      "2023-01-02",
+      "2023-12-24",
+      "2023-12-25",
+      "2024-01-01",
+      "2024-03-29",
+      "2025-01-01",
+      "2025-04-18",
+      "2025-12-25",
+      "2026-01-01",
+      "2026-12-25"
+    ],
+    "partial_holiday_dates": [
+      "2015-01-19",
+      "2015-02-16",
+      "2015-04-03",
+      "2015-05-25",
+      "2015-07-03",
+      "2015-09-07",
+      "2015-11-26",
+      "2015-11-27",
+      "2015-12-24",
+      "2016-01-18",
+      "2016-02-15",
+      "2016-05-30",
+      "2016-07-04",
+      "2016-09-05",
+      "2016-11-24",
+      "2016-11-25",
+      "2017-01-16",
+      "2017-02-20",
+      "2017-05-29",
+      "2017-07-03",
+      "2017-07-04",
+      "2017-09-04",
+      "2017-11-23",
+      "2017-11-24",
+      "2018-01-15",
+      "2018-02-19",
+      "2018-05-28",
+      "2018-07-03",
+      "2018-07-04",
+      "2018-09-03",
+      "2018-11-22",
+      "2018-11-23",
+      "2018-12-24",
+      "2019-01-21",
+      "2019-02-18",
+      "2019-05-27",
+      "2019-07-03",
+      "2019-07-04",
+      "2019-09-02",
+      "2019-11-28",
+      "2019-11-29",
+      "2019-12-24",
+      "2020-01-20",
+      "2020-02-17",
+      "2020-05-25",
+      "2020-07-03",
+      "2020-09-07",
+      "2020-11-26",
+      "2020-11-27",
+      "2020-12-24",
+      "2021-01-18",
+      "2021-02-15",
+      "2021-04-02",
+      "2021-05-31",
+      "2021-07-05",
+      "2021-09-06",
+      "2021-11-25",
+      "2021-11-26",
+      "2022-01-17",
+      "2022-02-21",
+      "2022-04-15",
+      "2022-05-30",
+      "2022-06-20",
+      "2022-07-04",
+      "2022-09-05",
+      "2022-11-24",
+      "2022-11-25",
+      "2023-01-16",
+      "2023-02-20",
+      "2023-04-07",
+      "2023-05-29",
+      "2023-06-19",
+      "2023-07-03",
+      "2023-07-04",
+      "2023-09-04",
+      "2023-11-23",
+      "2023-11-24",
+      "2024-01-15",
+      "2024-02-19",
+      "2024-03-28",
+      "2024-05-27",
+      "2024-06-19",
+      "2024-07-03",
+      "2024-07-04",
+      "2024-09-02",
+      "2024-11-28",
+      "2024-11-29",
+      "2024-12-24",
+      "2024-12-25",
+      "2025-01-09",
+      "2025-01-20",
+      "2025-02-17",
+      "2025-04-17",
+      "2025-05-26",
+      "2025-06-19",
+      "2025-07-03",
+      "2025-07-04",
+      "2025-09-01",
+      "2025-11-27",
+      "2025-11-28",
+      "2025-12-24",
+      "2026-01-19",
+      "2026-02-16",
+      "2026-04-02",
+      "2026-04-03",
+      "2026-05-25",
+      "2026-06-19",
+      "2026-07-03",
+      "2026-09-07",
+      "2026-11-26",
+      "2026-11-27",
+      "2026-12-24"
+    ],
+    "partial_holidays_2026": [
+      {
+        "date": "2026-01-19",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Monday",
+          "end_time": 1200,
+          "trading_day": "Monday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-02-16",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Monday",
+          "end_time": 1200,
+          "trading_day": "Monday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-04-02",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Thursday",
+          "end_time": 1600,
+          "trading_day": "Thursday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-04-03",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Friday",
+          "end_time": 815,
+          "trading_day": "Friday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-05-25",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Monday",
+          "end_time": 1200,
+          "trading_day": "Monday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-06-19",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Friday",
+          "end_time": 1200,
+          "trading_day": "Friday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-07-03",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Friday",
+          "end_time": 1200,
+          "trading_day": "Friday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-09-07",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Monday",
+          "end_time": 1200,
+          "trading_day": "Monday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-11-26",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Thursday",
+          "end_time": 1200,
+          "trading_day": "Thursday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-11-27",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Friday",
+          "end_time": 1215,
+          "trading_day": "Friday"
+        },
+        "sessions": []
+      },
+      {
+        "date": "2026-12-24",
+        "early_end": true,
+        "late_begin": false,
+        "constraint": {
+          "begin_day": "Sunday",
+          "begin_time": 0,
+          "end_day": "Thursday",
+          "end_time": 1215,
+          "trading_day": "Thursday"
+        },
+        "sessions": []
+      }
+    ],
+    "samples": [
+      {
+        "query_configured_time": "2026-09-21T20:45:00",
+        "includes_end": true,
+        "begin": "2026-09-20T22:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-09-21T21:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-09-21"
+      },
+      {
+        "query_configured_time": "2026-09-21T21:00:00",
+        "includes_end": true,
+        "begin": "2026-09-20T22:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-09-21T21:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-09-21"
+      },
+      {
+        "query_configured_time": "2026-09-21T22:00:00",
+        "includes_end": true,
+        "begin": "2026-09-21T22:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-09-22T21:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-09-22"
+      },
+      {
+        "query_configured_time": "2026-09-25T21:00:00",
+        "includes_end": true,
+        "begin": "2026-09-24T22:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-09-25T21:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-09-25"
+      },
+      {
+        "query_configured_time": "2026-09-27T22:00:00",
+        "includes_end": true,
+        "begin": "2026-09-27T22:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-09-28T21:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-09-28"
+      },
+      {
+        "query_configured_time": "2026-10-30T21:00:00",
+        "includes_end": true,
+        "begin": "2026-10-29T22:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-10-30T21:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-10-30"
+      },
+      {
+        "query_configured_time": "2026-11-02T22:00:00",
+        "includes_end": true,
+        "begin": "2026-11-01T23:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-11-02T22:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-11-02"
+      },
+      {
+        "query_configured_time": "2026-11-25T23:00:00",
+        "includes_end": true,
+        "begin": "2026-11-25T23:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-11-26T18:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-11-26"
+      },
+      {
+        "query_configured_time": "2026-11-26T18:00:00",
+        "includes_end": true,
+        "begin": "2026-11-25T23:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-11-26T18:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-11-26"
+      },
+      {
+        "query_configured_time": "2026-11-26T23:00:00",
+        "includes_end": true,
+        "begin": "2026-11-26T23:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-11-27T18:15:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-11-27"
+      },
+      {
+        "query_configured_time": "2026-11-27T18:15:00",
+        "includes_end": true,
+        "begin": "2026-11-26T23:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-11-27T18:15:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-11-27"
+      },
+      {
+        "query_configured_time": "2026-12-24T18:15:00",
+        "includes_end": true,
+        "begin": "2026-12-23T23:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-12-24T18:15:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-12-24"
+      },
+      {
+        "query_configured_time": "2026-12-25T12:00:00",
+        "includes_end": true,
+        "begin": "2026-12-27T23:00:00.0000000Z",
+        "begin_kind": "Utc",
+        "end": "2026-12-28T22:00:00.0000000Z",
+        "end_kind": "Utc",
+        "trading_day": "2026-12-28"
+      }
+    ],
+    "completion": "COMPLETE_METADATA_ONLY",
+    "native_certification": "PENDING_REVIEW"
+  },
+  "boundary_interpretation": "includes_end=true assigns the close-label to the ending session; it does not declare the next forming interval open",
+  "docs": [
+    "https://docs.ninjatrader.com/ninjascript/getnextsession",
+    "https://docs.ninjatrader.com/ninjascript/timezoneinfo"
+  ]
+}

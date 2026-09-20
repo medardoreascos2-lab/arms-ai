@@ -215,10 +215,12 @@ def main():
     from backend.config.api_settings import APISettings
     spec = json.loads(Path(args.spec).read_text(encoding="utf-8"), object_pairs_hook=_object)
     source = Path(spec["calendar_evidence_file"])
+    loaded_source = Path(spec["loaded_calendar_evidence_file"]) if spec.get("loaded_calendar_evidence_file") else None
     from backend.market_data.native_calendar_review_v1 import validate_native_spec
     try:
-        calendar_review = validate_native_spec(spec,source.read_bytes(),datetime.now(timezone.utc))
-    except (ValueError, KeyError, TypeError):
+        calendar_review = validate_native_spec(spec,source.read_bytes(),datetime.now(timezone.utc),
+            loaded_calendar_bytes=loaded_source.read_bytes() if loaded_source else None)
+    except (ValueError, KeyError, TypeError, OSError):
         parser.error("native feed/calendar specification is not certified for this capture")
     if calendar_review["loaded_native_calendar"] != "PASS":
         parser.error("loaded native calendar binding pending; collect ArmsCalendarEvidenceV1 metadata first")
@@ -275,12 +277,12 @@ def main():
             if sha256(source.read_bytes()).hexdigest() != spec["calendar_evidence_sha256"]:
                 report["status"] = "FAIL_CLOSED"
                 report["fault"] = "CALENDAR_CHANGED_DURING_CAPTURE"
+            if loaded_source is None or sha256(loaded_source.read_bytes()).hexdigest() != spec["loaded_calendar_evidence_sha256"]:
+                report["status"] = "FAIL_CLOSED"
+                report["fault"] = "LOADED_CALENDAR_EVIDENCE_CHANGED_DURING_CAPTURE"
         except OSError:
             report["status"] = "FAIL_CLOSED"
             report["fault"] = "CALENDAR_UNAVAILABLE_AFTER_CAPTURE"
-        # A matching on-disk template cannot prove Bars loaded identical rules.
-        if report["status"] == "PASS_BOUNDED_OBSERVATION_ONLY":
-            report["status"] = "PENDING_NATIVE_CALENDAR_BINDING"
         capture.close()
         with Path(args.output).open("x",encoding="utf-8") as output:
             json.dump(report,output,indent=2,allow_nan=False)

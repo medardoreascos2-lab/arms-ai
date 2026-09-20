@@ -1,5 +1,10 @@
 # Sprint 13: offline authority review and remaining native proof
 
+The subsequent [loaded-calendar adjudication](loaded_calendar_adjudication_sprint13.md)
+clears the ordinary native calendar binding after the operator's one-shot
+capture. The original offline findings below retain their historical context;
+use the adjudication for current test readiness and instructions.
+
 Baseline: `0a1753a2d602fcad2898d1869c6a2c0ac99a137e`. Research and
 read-only certification only. Production 90, PAPER 80.5, quality 85 remain
 unchanged. No account enumeration, broker calls, account mutation or orders.

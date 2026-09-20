@@ -39,7 +39,7 @@
         "REOPENING",
         "OPEN"
       ],
-      "status": "BLOCKED_LOADED_CALENDAR_BINDING"
+      "status": "READY_FOR_NATIVE_TEST_WITH_BOUND_ORDINARY_CALENDAR"
     },
     {
       "required_evidence": [
@@ -80,7 +80,7 @@
         "REOPENING",
         "OPEN"
       ],
-      "status": "BLOCKED_LOADED_CALENDAR_BINDING"
+      "status": "READY_FOR_NATIVE_TEST_WITH_BOUND_ORDINARY_CALENDAR"
     },
     {
       "required_evidence": [
