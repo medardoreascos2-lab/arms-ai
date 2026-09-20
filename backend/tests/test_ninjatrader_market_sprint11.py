@@ -1,6 +1,6 @@
 """Synthetic protocol conformance, not native feed/account certification."""
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 from unittest.mock import Mock
@@ -18,8 +18,8 @@ from backend.tests.test_paper_runtime_sprint08 import witness, fill_count
 SESSION = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 
 
-def setup(tmp_path):
-    g, clock = gate(label="CLOSE")
+def setup(tmp_path, start=START):
+    g, clock = gate(start=start, label="CLOSE")
     g = type(g)(contract=replace(g.contract, provider="NINJATRADER:SYNTHETIC_FIXTURE"),
         market_hours=g.market_hours, maximum_age_seconds=g.maximum_age, clock=g.clock)
     s = CurrentPaperServiceV1(gate=g, config=config(), settings=APISettings(),
@@ -78,6 +78,33 @@ def test_connection_sidecar_cannot_refresh_or_admit_market_data(api_settings, tm
     assert r.sequence == 0 and r.candle_sequence == 0
     assert r.service._runtime is None and r.service.gate.closed_count == 0
     assert r.get_snapshot()["external_order_authority"] is False
+    r.close()
+
+
+@pytest.mark.parametrize("disconnected", [False, True])
+def test_closed_market_transport_without_candles(api_settings, tmp_path, disconnected):
+    # Explicit synthetic Saturday; no native clock substitution or captured-file replay.
+    r, clock = setup(tmp_path, start=datetime(2026, 9, 19, 22, tzinfo=timezone.utc))
+    hours = r.service.gate.market_hours.get_market_hours_service()
+    assert hours.is_market_open(symbol="NQ", timestamp=clock[0]) is False
+    send(r, hello(r, clock))
+    started = clock[0]
+    for sequence in range(1, 5):
+        clock[0] += timedelta(seconds=5)
+        snapshot = send(r, frame(clock, sequence))
+        assert snapshot["provider_transport"]["connected"] is True
+        assert snapshot["external_order_authority"] is False
+        assert snapshot["paper_ready"] is False
+    assert (clock[0] - started).total_seconds() == 20
+    assert r.candle_sequence == r.service.gate.closed_count == 0
+    assert r.service._runtime is None
+    if disconnected:
+        with pytest.raises(ValueError):
+            send(r, frame(clock, 5, "DISCONNECTED", {"connected": False}))
+        assert r.get_snapshot()["provider_transport"]["connected"] is False
+        with pytest.raises(RuntimeError):
+            send(r, frame(clock, 6))
+        assert r.service._runtime is None
     r.close()
 
 

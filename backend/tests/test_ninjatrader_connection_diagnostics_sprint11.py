@@ -22,7 +22,7 @@ def native_callback_harness(tmp_path_factory):
     methods = "\n".join(_method(source, signature) for signature in (
         "protected override void OnConnectionStatusUpdate(", "private static string StatusName(",
         "private static string ProviderName(", "private static string ConnectionDecision(",
-        "private void Emit(", "private static string ErrorCode(", "private void Stop("))
+        "private void Heartbeat(", "private void Emit(", "private static string ErrorCode(", "private void Stop("))
     harness = r'''
 using System;
 using System.IO;
@@ -75,7 +75,11 @@ public class CallbackHarness : Indicator {
         public event EventHandler Tick;
         public void Stop() { throw new IOException("PRIVATE_SENTINEL"); }
     }
-    private void Heartbeat(object sender, EventArgs args) {}
+    // Only source health is doubled; actual heartbeat/admission logic is extracted.
+    private bool SafeSource() {
+        return source != null && source.PriceStatus == ConnectionStatus.Connected
+            && source.Options != null && source.Options.Provider.ToString() == ExpectedProvider;
+    }
     private void Print(string text) {}
 ''' + methods + r'''
     public static void Main(string[] args) {
@@ -118,6 +122,21 @@ public class CallbackHarness : Indicator {
             case "diagnostic_io_failure": h.connectionWriter.Dispose(); break;
             case "inactive": h.writer.Dispose(); h.writer = null; h.source = null; break;
             case "rapid_ordering": break;
+            case "startup_disconnected_connecting_connected":
+                update.PriceStatus = update.Status = h.source.price = h.source.Status = ConnectionStatus.Disconnected; break;
+            case "startup_connecting_connected":
+                update.PriceStatus = update.Status = h.source.price = h.source.Status = ConnectionStatus.Connecting; break;
+            case "observed_native_startup":
+            case "rapid_superseded_startup":
+                update.PreviousPriceStatus = update.PreviousStatus = ConnectionStatus.Disconnected;
+                update.PriceStatus = update.Status = ConnectionStatus.Connecting; break;
+            case "connected_to_connecting": update.PriceStatus = update.Status = ConnectionStatus.Connecting; break;
+            case "rapid_ordered_connected": update.PreviousPriceStatus = update.PreviousStatus = ConnectionStatus.Connecting; break;
+            case "connected_to_lost": break;
+            case "closed_market_connected": break;
+            case "closed_market_disconnected":
+                update.PriceStatus = update.Status = h.source.price = h.source.Status = ConnectionStatus.Disconnected; break;
+            case "heartbeat_current_disconnect": break;
             default: throw new Exception("Unknown test case");
         }
         h.OnConnectionStatusUpdate(update);
@@ -127,6 +146,27 @@ public class CallbackHarness : Indicator {
             h.OnConnectionStatusUpdate(update);
             update.PriceStatus = ConnectionStatus.Connected;
             h.OnConnectionStatusUpdate(update);
+        }
+        if (args[0] == "startup_disconnected_connecting_connected") {
+            update.PreviousPriceStatus = update.PreviousStatus = ConnectionStatus.Disconnected;
+            update.PriceStatus = update.Status = h.source.price = h.source.Status = ConnectionStatus.Connecting;
+            h.OnConnectionStatusUpdate(update);
+        }
+        if (args[0].StartsWith("startup_") || args[0] == "rapid_superseded_startup"
+            || args[0] == "rapid_ordered_connected") {
+            update.PreviousPriceStatus = update.PreviousStatus = update.PriceStatus;
+            update.PriceStatus = update.Status = h.source.price = h.source.Status = ConnectionStatus.Connected;
+            h.OnConnectionStatusUpdate(update);
+        }
+        if (args[0] == "connected_to_lost") {
+            update.PreviousPriceStatus = update.PreviousStatus = ConnectionStatus.Connected;
+            update.PriceStatus = update.Status = h.source.price = h.source.Status = ConnectionStatus.ConnectionLost;
+            h.OnConnectionStatusUpdate(update);
+        }
+        if (args[0] == "heartbeat_current_disconnect") h.source.price = ConnectionStatus.Disconnected;
+        if (args[0].StartsWith("closed_market_") || args[0] == "heartbeat_current_disconnect") {
+            // Controlled timer invocations, no fabricated ticks or wall-clock soak claim.
+            for (int tick = 0; tick < 4; tick++) h.Heartbeat(null, EventArgs.Empty);
         }
         bool failedBeforeCleanup = h.failed;
         bool writersClosedByStop = h.writer == null && h.connectionWriter == null;
@@ -228,3 +268,38 @@ def test_actual_native_callback_adjudication(native_callback_harness, case, deci
         assert diagnostics[0]["payload"]["same_source"] is False
     if case == "rapid_ordering":
         assert diagnostics[0]["payload"]["decision"] == "CONTINUE"
+
+
+@pytest.mark.parametrize("case,decisions,stop,heartbeats", [
+    ("startup_disconnected_connecting_connected", ["STOP_CONFIRMED_PRICE_CONNECTION_LOST"], "STOP_CONFIRMED_PRICE_CONNECTION_LOST", 0),
+    ("startup_connecting_connected", ["STOP_CONFIRMED_PRICE_CONNECTION_LOST"], "STOP_CONFIRMED_PRICE_CONNECTION_LOST", 0),
+    ("observed_native_startup", ["STOP_CONTRADICTORY_CONNECTION_STATE"], "STOP_CONTRADICTORY_CONNECTION_STATE", 0),
+    ("rapid_superseded_startup", ["STOP_CONTRADICTORY_CONNECTION_STATE"], "STOP_CONTRADICTORY_CONNECTION_STATE", 0),
+    ("connected_to_connecting", ["STOP_CONTRADICTORY_CONNECTION_STATE"], "STOP_CONTRADICTORY_CONNECTION_STATE", 0),
+    ("rapid_ordered_connected", ["CONTINUE", "CONTINUE"], None, 0),
+    ("connected_to_lost", ["CONTINUE", "STOP_CONFIRMED_PRICE_CONNECTION_LOST"], "STOP_CONFIRMED_PRICE_CONNECTION_LOST", 0),
+    ("closed_market_connected", ["CONTINUE"], None, 4),
+    ("closed_market_disconnected", ["STOP_CONFIRMED_PRICE_CONNECTION_LOST"], "STOP_CONFIRMED_PRICE_CONNECTION_LOST", 0),
+    ("heartbeat_current_disconnect", ["CONTINUE"], "HEARTBEAT_SOURCE_VALIDATION_FAILED", 0),
+])
+def test_startup_sequences_and_no_tick_heartbeat(native_callback_harness, case, decisions, stop, heartbeats):
+    result = subprocess.run([str(native_callback_harness), case], capture_output=True, text=True)
+    assert result.returncode == 0, "Isolated native sequence harness failed"
+    observation = json.loads(result.stdout)
+    assert "PRIVATE_SENTINEL" not in result.stdout
+    diagnostics = [json.loads(line) for line in observation["diagnostics"].splitlines()]
+    market = [json.loads(line) for line in observation["market"].splitlines()]
+    assert [row["payload"]["decision"] for row in diagnostics] == decisions
+    assert [row["kind"] for row in market] == ["HELLO"] + ["HEARTBEAT"] * heartbeats + (["DISCONNECTED"] if stop else [])
+    assert observation["failed"] is (stop is not None)
+    assert observation["writers_closed"] is (stop is not None)
+    assert [row["sequence"] for row in market] == list(range(len(market)))
+    if stop:
+        assert market[-1]["payload"]["reason"] == stop
+    if case == "observed_native_startup":
+        p = diagnostics[0]["payload"]
+        assert p["callback_price_status"] == p["callback_connection_status"] == "Connecting"
+        assert p["callback_previous_price_status"] == p["callback_previous_connection_status"] == "Disconnected"
+        assert p["source_price_status"] == p["source_price_status_after"] == "Connected"
+        assert p["source_connection_status"] == p["source_connection_status_after"] == "Connected"
+        assert p["same_source"] and p["source_snapshot_stable"]

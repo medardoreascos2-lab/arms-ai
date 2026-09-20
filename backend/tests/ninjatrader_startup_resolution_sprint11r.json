@@ -1,0 +1,77 @@
+{
+  "status": "RESEARCH_AND_REGRESSION_COMPLETE_SAFE_SUPERSESSION_NOT_PROVEN",
+  "start_head": "f465f29952580e8d060716f80ef4d3b4b73f2ad1",
+  "production_changed": false,
+  "native_exporter_changed": false,
+  "superseded_transition_proven": false,
+  "ignore_exception_enabled": false,
+  "observed_session": "a6b344ee-83ff-46eb-8a72-5100980b549c",
+  "observed_callback": {
+    "price": "Connecting",
+    "previous_price": "Disconnected",
+    "adapter": "Connecting",
+    "previous_adapter": "Disconnected",
+    "source_price_samples": ["Connected", "Connected"],
+    "source_adapter_samples": ["Connected", "Connected"],
+    "same_source": true,
+    "provider": "Provider31",
+    "decision": "STOP_CONTRADICTORY_CONNECTION_STATE"
+  },
+  "research": {
+    "connection_specific_ordering_guarantee_established": false,
+    "current_samples_atomic": false,
+    "callback_entry_time_is_provider_event_origin_time": false,
+    "order_event_documentation_applied_to_connections": false,
+    "installed_core_xml_checked": true,
+    "sources": [
+      "https://docs.ninjatrader.com/ninjascript/onconnectionstatusupdate",
+      "https://docs.ninjatrader.com/ninjascript/connectionstatuseventargs",
+      "https://docs.ninjatrader.com/ninjascript/connection_class",
+      "https://ninjatrader.com/support/helpGuides/nt8/multi-threading.htm"
+    ],
+    "conclusion": "Delayed startup is compatible with evidence but not uniquely established. Order-specific sequence guarantees cannot justify ignoring connection events."
+  },
+  "state_model": {
+    "effective_states": ["DORMANT", "ACTIVE", "STOPPED"],
+    "observation_classes": ["CURRENT_DISCONNECTION", "CONNECTION_IN_PROGRESS", "SUPERSESSION_CANDIDATE_UNPROVEN", "CONTRADICTORY_OR_UNSTABLE", "CONNECTED_AGREEMENT", "UNKNOWN"],
+    "policy": "Retain existing terminal fail latch. No unsafe/unknown observation or later healthy callback restores admission.",
+    "heartbeat_policy": "Existing timer schedules after SafeSource, not after a proved startup callback drain. Queued action checks latch/writer; each heartbeat revalidates source. No scheduling redesign.",
+    "closed_market_policy": "Healthy transport needs no candles. Candle/strategy/account readiness remains separate."
+  },
+  "verification": {
+    "command": "py -m pytest backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py backend/tests/test_ninjatrader_market_sprint11.py backend/tests/test_current_paper_sprint10.py backend/tests/test_paper_runtime_sprint08.py backend/tests/test_mvp_release_sprint09.py -q --tb=short",
+    "passed": 163,
+    "failed": 0,
+    "skipped": 0,
+    "new_tests": 18,
+    "suite_counts": {
+      "startup_dispatcher_heartbeat": 6,
+      "connection_callback_and_sequences": 38,
+      "stop_cleanup": 1,
+      "sprint11_reader": 47,
+      "sprint10_current_market": 36,
+      "mvp_runtime_and_release": 35
+    },
+    "native_compilation": "PASS against installed NinjaTrader assemblies; no native deployment",
+    "native_harness_scope": "Actual startup, callback, decision, heartbeat and stop methods; deterministic chart/dispatcher/timer/source doubles; no NinjaTrader process invoked",
+    "simulated_closed_market_seconds": 20,
+    "simulated_closed_market_heartbeats": 4,
+    "simulated_closed_market_candles": 0,
+    "native_wall_clock_milestone_claimed": false,
+    "diff_check": "PASS",
+    "original_evidence_datasets_and_unrelated_files_preserved": true
+  },
+  "production_threshold": 90,
+  "paper_threshold": 80.5,
+  "quality_threshold": 85,
+  "broker_order_calls": 0,
+  "sim_order_authority": false,
+  "live_authority": false,
+  "push_performed": false,
+  "human_activation_requested": false,
+  "new_evidence_required": "Version-specific connection initialization/delivery/generation contract, or a separately reviewed bounded observation-only trace covering pre-admission and post-stop callbacks plus native global/indicator event correlation. Matching reads or later Connected alone cannot prove supersession.",
+  "ready_for_fresh_native_diagnostic": false,
+  "ready_for_market_open_certification": false,
+  "ready_for_external_sim_account_test": false,
+  "ready_for_next_phase2_sprint": false
+}
