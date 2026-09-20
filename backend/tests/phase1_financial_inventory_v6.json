@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 145,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 145,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 146,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 146,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -7008,6 +7008,59 @@
         "AccountStateManagerV2",
         "TradeLifecycleServiceV2",
         "Current PAPER snapshot"
+      ]
+    },
+    {
+      "id": "backend/market_data/ninjatrader_market_reader_v1.py:NinjaTraderMarketReaderV1._frame",
+      "path": "backend/market_data/ninjatrader_market_reader_v1.py",
+      "function": "NinjaTraderMarketReaderV1._frame",
+      "input": "self, raw",
+      "source_sha256": "7c8e4e6e7c721d5e805712c9f1a72b8a0e2b602cc916664d5bf0a835b570fde8",
+      "writes": [],
+      "calls": [
+        "(_ for _ in ()).throw",
+        "(now - emitted).total_seconds",
+        "CurrentMarketEventV1",
+        "UUID",
+        "ValueError",
+        "_utc",
+        "any",
+        "dict",
+        "instant",
+        "isinstance",
+        "json.loads",
+        "raw.decode",
+        "self.service.connection",
+        "self.service.control",
+        "self.service.gate.clock",
+        "self.service.ingest",
+        "set",
+        "str",
+        "type"
+      ],
+      "output_fields": [
+        "connected"
+      ],
+      "owner": "CurrentPaperServiceV1 / existing canonical PAPER accounting",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Admitted closed observations update existing isolated account chronology; entries disabled",
+      "mutates_fill_state": false,
+      "mutates_position_state": false,
+      "mutates_portfolio": false,
+      "mutates_account_pnl": true,
+      "mutates_journal": false,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "NinjaTraderMarketReaderV1.poll"
+      ],
+      "caller_evidence": "test_ninjatrader_market_sprint11.py",
+      "downstream_consumers": [
+        "Canonical account trading-day synchronization",
+        "Durable event evidence",
+        "Read-only dashboard"
       ]
     }
   ],

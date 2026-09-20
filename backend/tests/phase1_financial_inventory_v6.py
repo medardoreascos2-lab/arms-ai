@@ -16,6 +16,7 @@ DELEGATED = {"submit_signal", "close_position", "close_partial", "update_positio
     "record_open_trade", "close_trade", "record_daily_pnl", "update_from_portfolio", "restore_state",
     "record_trade", "save_trade", "process_price"}
 EXPLICIT = {
+ "backend/market_data/ninjatrader_market_reader_v1.py": {"_frame"},
  "backend/backtesting/current_paper_runtime_v1.py": {"ingest", "record_close", "advance"},
  "backend/backtesting/paper_runtime_v1.py": {"_process"},
  "backend/backtesting/historical_accounting_v1.py": {"update_position", "record_close"},

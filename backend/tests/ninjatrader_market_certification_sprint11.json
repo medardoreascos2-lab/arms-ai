@@ -1,0 +1,108 @@
+{
+  "status": "OFFLINE_MARKET_BOUNDARY_PASS_NATIVE_ACTIVATION_BLOCKED",
+  "start_head": "c1f6ce6ec78f305f467594a23628b167b3e1fdb5",
+  "scope": "Read-only market ingress only; SIM account discovery and order integration gated on real-provider smoke",
+  "installed_ninjatrader_version": "8.1.8.2",
+  "native_compile": "PASS against installed Core, Gui, Custom and framework assemblies; no deployment or native invocation",
+  "native_timestamp_observation_certified": false,
+  "current_contract": "NOT_CONFIRMED",
+  "real_provider_smoke": "NOT_RUN_OPERATOR_CONFIGURATION_REQUIRED",
+  "external_sim_account_discovery": "NOT_RUN_MARKET_SMOKE_GATE",
+  "external_sim_execution_authority": false,
+  "live_execution_authority": false,
+  "local_paper_entries": "DISABLED_IN_READ_ONLY_SMOKE",
+  "production_threshold": 90,
+  "paper_threshold": 80.5,
+  "quality_threshold": 85,
+  "frozen_research_results_changed": false,
+  "backend_command": "py -m pytest backend/tests -q",
+  "backend": {
+    "tests": 6166,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "passed": 6165,
+    "seconds": 521.848
+  },
+  "focused_command": "py -m pytest backend/tests/test_ninjatrader_market_sprint11.py backend/tests/test_current_paper_sprint10.py backend/tests/test_phase1_financial_state_sync_v6.py backend/tests/test_phase1_risk_precedence_v5.py backend/tests/test_phase1_runtime_execution_ownership_v7.py -q",
+  "focused": {
+    "tests": 185,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 185,
+    "seconds": 28.8
+  },
+  "final_adapter_command": "py -m pytest backend/tests/test_ninjatrader_market_sprint11.py -q",
+  "final_adapter": {
+    "tests": 39,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 39,
+    "seconds": 3.393
+  },
+  "test_environment_reference": "backend/tests/paper_rc_certification_sprint08.json:test_environment",
+  "private_source_mapping": "ARMS_AI_PRIVATE_PATH_MAP supplied locally, never embedded",
+  "frontend": {
+    "lint": "PASS",
+    "tests_passed": 28,
+    "build": "PASS",
+    "source_changed": false,
+    "commands": [
+      "npm.cmd run lint",
+      "node --test src/lib/*.test.mjs",
+      "npm.cmd run build"
+    ]
+  },
+  "offline_observation": {
+    "kind": "EXPLICIT_SYNTHETIC_FIXTURE_NOT_NATIVE_MARKET_PERFORMANCE",
+    "closed_candles": 120,
+    "completed_15m": 8,
+    "completed_1h": 2,
+    "duplicate_canonical_candles": 0,
+    "simulated_fills": 0,
+    "completed_trades": 0,
+    "journal_completed": 0,
+    "external_orders": 0,
+    "account_drift": 0,
+    "unexplained_differences": 0
+  },
+  "fault_contract": "Malformed, stale, repeated, noncontiguous, changed-session or disconnected stream latches recovery; no automatic reconnect",
+  "source_hash_normalization": "UTF-8 text with LF newlines",
+  "source_sha256": {
+    "backend/api/ninjatrader_market_app_v1.py": "ac7fd11848c41998360fe15029fd8960c06518cb03b170b695a2dbb312bb2fa1",
+    "backend/market_data/ninjatrader_market_reader_v1.py": "d41bd9d0e20dd886b19ec2169744b34d2a4689f4b3641d700449fe5398b1764a",
+    "backend/tests/test_ninjatrader_market_sprint11.py": "6fa6226d8e10c8c1942f5e7bf1bfec843ef19971a67ad72a451c0b3d43032bd0",
+    "backend/tests/phase1_financial_inventory_v6.py": "491da49f0b71bb87c15b167f71d3cc794d4d1b00d52e4ac889f52a45ed1a1afd",
+    "backend/tests/phase1_financial_inventory_v6.json": "212c81d1987c80cc2048af8a12cd14f825ad410829489838e1b8f1369e382ec6",
+    "backend/tests/phase1_risk_authority_inventory_v5.py": "bbf9b260c5c18f2d01fd0e182c8827016242624d05939a4d8bc5530c2a96208f",
+    "backend/tests/phase1_risk_authority_inventory_v5.json": "60cce4cfc9bb315c1c5e06d656d7e2c9508029e37a396adaa71189c3a64cb86f",
+    "backend/tests/phase1_runtime_execution_inventory_v7.py": "381cbbdf1ff6d4cecd141c8632b7343a0ef6e4c361f5ced46b720ecf13a2ddfd",
+    "backend/tests/phase1_runtime_execution_inventory_v7.json": "299bcae6a72db223254f1fc7b4dea4a1e45c62efd780053061c38b4b0ace7c7e",
+    "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs": "c78393c2ca13794ae0ce37e98df8168da2ab5ed0b15f28ace72d861b6813e58a",
+    "docs/architecture/ninjatrader_market_sprint11.md": "ed4d34d668f07c4836f32b05c1c7ea4e6debfa4adc0390272daf9721b3e97d77"
+  },
+  "baseline_files_checked": 1779,
+  "preexisting_untracked_preserved": 109,
+  "existing_files_changed": [
+    "backend/tests/phase1_financial_inventory_v6.json",
+    "backend/tests/phase1_financial_inventory_v6.py",
+    "backend/tests/phase1_risk_authority_inventory_v5.json",
+    "backend/tests/phase1_risk_authority_inventory_v5.py",
+    "backend/tests/phase1_runtime_execution_inventory_v7.json",
+    "backend/tests/phase1_runtime_execution_inventory_v7.py"
+  ],
+  "ownership_review": "Only new boundaries added: six risk, one financial delegate, four runtime execution points; existing rows unchanged",
+  "frozen_sprint10_note": "Original certificate preserved as historical evidence; its six inventory source hashes are superseded by the newly reviewed inventory rows here. Runtime, frontend and research sources remain identical.",
+  "diff_check": "PASS",
+  "push_performed": false,
+  "human_runbook": "docs/architecture/ninjatrader_market_sprint11.md",
+  "remaining_gates": [
+    "Native install/configuration and current certified calendar",
+    "Read-only native timestamp/contract/HTF/strategy/dashboard smoke and bounded soak",
+    "Strong SIM account-type discovery",
+    "Separate SIM authority/idempotency/lifecycle and safety tests",
+    "Controlled external SIM smoke"
+  ]
+}
