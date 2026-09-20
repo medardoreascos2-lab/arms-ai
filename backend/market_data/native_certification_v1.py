@@ -224,7 +224,10 @@ def main():
         parser.error("native feed/calendar specification is not certified for this capture")
     if calendar_review["loaded_native_calendar"] != "PASS":
         parser.error("loaded native calendar binding pending; collect ArmsCalendarEvidenceV1 metadata first")
-    contract = CurrentFeedContractV1(**{**spec["contract"], "valid_from":_utc(spec["contract"]["valid_from"]),
+    # The reviewed native enum stays unqualified in HELLO/spec metadata; the
+    # canonical reader requires its adapter namespace on the internal contract.
+    contract = CurrentFeedContractV1(**{**spec["contract"], "provider":"NINJATRADER:" + spec["provider_enum"],
+        "valid_from":_utc(spec["contract"]["valid_from"]),
         "valid_until":_utc(spec["contract"]["valid_until"])})
     if contract.fixture:
         parser.error("native capture cannot use a fixture contract")
@@ -233,7 +236,24 @@ def main():
         frozenset(date.fromisoformat(d) for d in spec["closed_dates"])),
         special_hours_snapshot=CertifiedSpecialHoursSnapshotV2(tuple(CertifiedSpecialHoursWindowV2(
             date.fromisoformat(w["date"]),wall_time.fromisoformat(w["open"]),wall_time.fromisoformat(w["close"])) for w in spec["special_hours"])))
+    from backend.market_data.native_calendar_review_v1 import ordinary_calendar_context
+    now = datetime.now(timezone.utc)
+    runway = args.seconds + args.activation_seconds
+    if not contract.valid_from <= now < contract.valid_until or (contract.valid_until-now).total_seconds() <= runway:
+        parser.error("full activation and capture must fit the reviewed window")
+    if args.purpose == "market_open":
+        context = ordinary_calendar_context(hours, now)
+        if (context["state"] != "OPEN" or not context["next_boundary"]
+                or (_utc(context["next_boundary"])-now).total_seconds() <= runway):
+            parser.error("market-open capture requires a complete ordinary open interval")
+    # Reject missing local risk configuration before asking for native activation.
+    try:
+        settings = APISettings()
+    except ValueError:
+        parser.error("required local risk settings are missing or invalid")
     directory = Path(args.directory)
+    if not directory.is_dir():
+        parser.error("existing private evidence directory required")
     existing = set(directory.glob("*.jsonl"))
     deadline = time.monotonic()+args.activation_seconds
     market = None
@@ -247,7 +267,6 @@ def main():
         time.sleep(.25)
     if market is None:
         parser.error("bounded activation window expired")
-    settings = APISettings()
     gate = CurrentCandleAuthorityV1(contract=contract, market_hours=hours,
         maximum_age_seconds=settings.maximum_quote_age_seconds,clock=lambda:datetime.now(timezone.utc))
     service = CurrentPaperServiceV1(gate=gate,config=PaperResearchConfigV1.load("backend/config/paper_research_sprint07r.json"),
