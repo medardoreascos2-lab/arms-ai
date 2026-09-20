@@ -1,0 +1,178 @@
+{
+  "evidence_kind": "INSTALLED_TEMPLATE_METADATA_NOT_EXCHANGE_OR_NATIVE_SESSION_CERTIFICATION",
+  "template": "CME US Index Futures ETH",
+  "timezone": "Central Standard Time",
+  "source_reference": "<NINJATRADER_TEMPLATE>/CME US Index Futures ETH.xml",
+  "source_sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
+  "exceptions_2026": [
+    {
+      "kind": "HolidaysSerializable",
+      "date": "2026-01-01",
+      "description": "New Year's Day",
+      "constraint": null
+    },
+    {
+      "kind": "HolidaysSerializable",
+      "date": "2026-12-25",
+      "description": "Christmas Day",
+      "constraint": null
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-01-19",
+      "description": "Martin Luther King, Jr. Day",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Monday",
+        "EndTime": "1200",
+        "TradingDay": "Monday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-02-16",
+      "description": "President's Day",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Monday",
+        "EndTime": "1200",
+        "TradingDay": "Monday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-04-02",
+      "description": "Day before Good Friday",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Thursday",
+        "EndTime": "1600",
+        "TradingDay": "Thursday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-05-25",
+      "description": "Memorial Day",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Monday",
+        "EndTime": "1200",
+        "TradingDay": "Monday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-06-19",
+      "description": "Juneteenth",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Friday",
+        "EndTime": "1200",
+        "TradingDay": "Friday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-07-03",
+      "description": "Independence Day",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Friday",
+        "EndTime": "1200",
+        "TradingDay": "Friday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-09-07",
+      "description": "Labor Day",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Monday",
+        "EndTime": "1200",
+        "TradingDay": "Monday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-11-26",
+      "description": "Thanksgiving Day",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Thursday",
+        "EndTime": "1200",
+        "TradingDay": "Thursday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-11-27",
+      "description": "Day after Thanksgiving Day",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Friday",
+        "EndTime": "1215",
+        "TradingDay": "Friday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-12-24",
+      "description": "Christmas Eve",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Thursday",
+        "EndTime": "1215",
+        "TradingDay": "Thursday"
+      }
+    },
+    {
+      "kind": "PartialHolidaysSerializable",
+      "date": "2026-04-03",
+      "description": "Good Friday",
+      "constraint": {
+        "BeginDay": "Sunday",
+        "BeginTime": "0",
+        "EndDay": "Friday",
+        "EndTime": "815",
+        "TradingDay": "Friday"
+      }
+    }
+  ],
+  "interpretation": "Preserve native trading-day constraints. No automatic conversion to civil-date coverage. Absent exception is not independently certified holiday completeness.",
+  "account_metadata": {
+    "assembly": "NinjaTrader.Core",
+    "version": "8.1.8.2",
+    "sha256": "89d30ce74dfb21c26c0819db1f5979799b152d522bbfbc436a3b2cfb495b9408",
+    "public_account_classification_candidates": [
+      "Provider",
+      "Connection",
+      "AccountStatus"
+    ],
+    "provider_enum_candidate": "Simulator",
+    "account_status_enum": [
+      "Disabled",
+      "Enabled",
+      "LiquidationOnly",
+      "Excluded"
+    ],
+    "explicit_simulation_boolean_found": false,
+    "account_instances_accessed": 0,
+    "conclusion": "Provider.Simulator is a candidate, not yet a vendor-validated binding/classification contract. No SIM eligibility granted.",
+    "docs": [
+      "https://docs.ninjatrader.com/ninjascript/account_class",
+      "https://ninjatrader.com/support/helpguides/nt8/trading_in_simulation.htm"
+    ]
+  }
+}

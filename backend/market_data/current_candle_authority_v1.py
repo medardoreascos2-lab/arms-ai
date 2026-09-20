@@ -163,6 +163,10 @@ class CurrentCandleAuthorityV1:
 
     def reasons(self):
         reasons = []
+        from backend.market_data.session_state_v1 import SessionStateAuthorityV1
+        session = SessionStateAuthorityV1(self.market_hours).resolve(self.clock(), last_closed=self.last_closed)
+        if session.state != "OPEN":
+            reasons.append("SESSION_" + session.state)
         if self.fault:
             reasons.extend((self.fault, "RECOVERY_REQUIRED"))
         if not self.connected:
@@ -241,6 +245,12 @@ class CurrentCandleAuthorityV1:
             self.fail("INVALID_CANDLE")
         if event.timeframe != "1m" or event.quality_flags:
             self.fail("INVALID_CANDLE")
+        if event.kind != "CLOSED_CANONICAL_CANDLE" and not self._open(emitted):
+            self.fail("MARKET_HOURS_UNCERTIFIED_OR_CLOSED")
+        if event.kind != "CLOSED_CANONICAL_CANDLE":
+            forming_start = label if c.bar_label == "OPEN" else label - MINUTE
+            if not 0 <= (emitted-forming_start).total_seconds() <= 60 + self.maximum_age:
+                self.fail("STALE_DATA")
         self.last_sequence, self.last_event_time, self.last_received = event.sequence, emitted, received
         self._seen[key] = fingerprint
         if len(self._seen) > 2048:

@@ -4,8 +4,8 @@
   "counting": "Function-level decision/authority inventory, including discovered observational and compatibility candidates. Persistent block writer/clearer counts count direct account-state writers, not callers or ephemeral result reasons. Discovery is repository-wide decision vocabulary plus explicit reviewed boolean/exception/delegation boundaries.",
   "canonical_risk_owner": "RiskManagerV2, composed by TradeLifecycleServiceV2 under AccountStateManagerV2 and runtime admission vetoes",
   "certificate": {
-    "TOTAL_RISK_DECISION_POINTS": 180,
-    "CLASSIFIED_RISK_DECISION_POINTS": 180,
+    "TOTAL_RISK_DECISION_POINTS": 181,
+    "CLASSIFIED_RISK_DECISION_POINTS": 181,
     "UNCLASSIFIED_RISK_DECISION_POINTS": 0,
     "BLOCK_WRITERS": 7,
     "BLOCK_CLEARERS": 4,
@@ -7207,20 +7207,28 @@
       "id": "backend/backtesting/current_paper_runtime_v1.py:CurrentPaperServiceV1.get_snapshot",
       "path": "backend/backtesting/current_paper_runtime_v1.py",
       "function": "CurrentPaperServiceV1.get_snapshot",
-      "source_sha256": "d2293dc0d31d8d97f5e969212cb3a6e85ccea3ba8c4863b1a89d2ed7f3d5e4d4",
+      "source_sha256": "680610f04473412830b7832dfc925e382d2a6a014d587809fc02bf7e98281b82",
       "inputs": "self",
       "calls": [
+        "SessionStateAuthorityV1",
+        "SessionStateAuthorityV1(g.market_hours).resolve",
         "deepcopy",
         "dict",
         "dict.fromkeys",
         "g.age_seconds",
+        "g.clock",
         "g.last_closed.isoformat",
         "g.last_event_time.isoformat",
         "g.last_received.isoformat",
         "g.reasons",
+        "hasattr",
         "list",
+        "readiness_matrix",
+        "self._runtime._htf.history",
         "self._runtime.get_snapshot",
-        "snapshot.update"
+        "session.snapshot",
+        "snapshot.update",
+        "sum"
       ],
       "output_fields": [],
       "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
@@ -7367,9 +7375,11 @@
       "id": "backend/backtesting/current_paper_runtime_v1.py:_CurrentRuntimeV1._can_analyze",
       "path": "backend/backtesting/current_paper_runtime_v1.py",
       "function": "_CurrentRuntimeV1._can_analyze",
-      "source_sha256": "1a1074136c7eea060c2c6a39b2a9a2fd65d670218775f268f069184557a50f14",
+      "source_sha256": "1c1388611690eaec8d50e437cdd73cadda6a06ab921ee9a4fec9fddc72b11e6e",
       "inputs": "self",
-      "calls": [],
+      "calls": [
+        "self.gate.reasons"
+      ],
       "output_fields": [],
       "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
       "classification": "RUNTIME_SAFETY_AUTHORITY",
@@ -7528,9 +7538,10 @@
       "id": "backend/market_data/current_candle_authority_v1.py:CurrentCandleAuthorityV1.admit",
       "path": "backend/market_data/current_candle_authority_v1.py",
       "function": "CurrentCandleAuthorityV1.admit",
-      "source_sha256": "a81eb2c928c72b7f97a6e6b6d6714090ad25d711032cb2ab1e0da1eac6d8fd62",
+      "source_sha256": "ec8e1616f6eee619c47fdee03ce3813c7dfa26dfae21af393fc8fea3655dd177",
       "inputs": "self, event",
       "calls": [
+        "(emitted - forming_start).total_seconds",
         "(now - closed).total_seconds",
         "(now - received).total_seconds",
         "(received - emitted).total_seconds",
@@ -7652,12 +7663,15 @@
       "id": "backend/market_data/current_candle_authority_v1.py:CurrentCandleAuthorityV1.reasons",
       "path": "backend/market_data/current_candle_authority_v1.py",
       "function": "CurrentCandleAuthorityV1.reasons",
-      "source_sha256": "26b7e07f219a67c655a21a29157cfc2c791af7a1b80ee8829b65fd3ffc834814",
+      "source_sha256": "ba9183ccfb74730d5fc7ad597a785e63b7e64c2522dc4b60b97178bf2d4065ec",
       "inputs": "self",
       "calls": [
+        "SessionStateAuthorityV1",
+        "SessionStateAuthorityV1(self.market_hours).resolve",
         "reasons.append",
         "reasons.extend",
-        "self.age_seconds"
+        "self.age_seconds",
+        "self.clock"
       ],
       "output_fields": [],
       "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
@@ -7933,7 +7947,7 @@
       "id": "backend/market_data/ninjatrader_market_reader_v1.py:NinjaTraderMarketReaderV1.get_snapshot",
       "path": "backend/market_data/ninjatrader_market_reader_v1.py",
       "function": "NinjaTraderMarketReaderV1.get_snapshot",
-      "source_sha256": "0114078525f6e92026f7f70029117174f789390724107eb3b11d42b3c910ca1e",
+      "source_sha256": "206c81a9443481d3d3e5eb88c7f67a43b63a00a0a7f912e9e275b777de9c805c",
       "inputs": "self",
       "calls": [
         "(instant(self.service.gate.clock()) - self.last_received).total_seconds",
@@ -7943,7 +7957,8 @@
         "list",
         "self.service.gate.clock",
         "self.service.get_snapshot",
-        "snap.update"
+        "snap.update",
+        "snap['session_readiness'].update"
       ],
       "output_fields": [],
       "owner": "NinjaTrader transport veto -> CurrentCandleAuthorityV1 -> disabled CurrentPaperServiceV1",
@@ -8005,6 +8020,35 @@
       ],
       "caller_evidence": "test_ninjatrader_market_sprint11.py",
       "downstream_effect": "Closed candles delegate existing validation/accounting with entries disabled; no account risk clearing",
+      "persistent_block_writer": false,
+      "persistent_block_clearer": false
+    },
+    {
+      "id": "backend/market_data/session_state_v1.py:readiness_matrix",
+      "path": "backend/market_data/session_state_v1.py",
+      "function": "readiness_matrix",
+      "source_sha256": "773049a7218abe28bb8017c4afd77240ab7fe8bc8ecf445cc284c682f62905cc",
+      "inputs": "session, provider, *, fresh, recovery_clear, risk_ready=False, enabled=False",
+      "calls": [
+        "dict"
+      ],
+      "output_fields": [],
+      "owner": "SessionStateAuthorityV1 / existing current PAPER gates",
+      "classification": "OBSERVATIONAL_ONLY",
+      "output": "Pure provider/session readiness projection; external SIM authority remains disabled",
+      "can_block": false,
+      "can_unblock": false,
+      "can_size": false,
+      "account_scoped": false,
+      "runtime_scoped": true,
+      "strategy_scoped": false,
+      "execution_scoped": false,
+      "persisted_or_ephemeral": "Ephemeral projection; no state mutation",
+      "callers": [
+        "CurrentPaperServiceV1.get_snapshot"
+      ],
+      "caller_evidence": "test_session_lifecycle_sprint12.py",
+      "downstream_effect": "Dashboard readiness only; no account or order access",
       "persistent_block_writer": false,
       "persistent_block_clearer": false
     }

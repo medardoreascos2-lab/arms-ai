@@ -1,0 +1,148 @@
+{
+  "schema": "arms.offline-session-certification.sprint12.v1",
+  "status": "OFFLINE_SCOPED_PASS_NATIVE_PENDING",
+  "start_head": "7ecaa2cc8c05023d2b7f46dccee820103b343035",
+  "evidence_kind": "SYNTHETIC_OFFLINE_TESTS_AND_READ_ONLY_METADATA_AUDIT",
+  "tests": {
+    "runs": [
+      {
+        "private_report": "final.xml",
+        "passed": 900,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "private_report": "final-followup.xml",
+        "passed": 227,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "private_report": "final-harness.xml",
+        "passed": 126,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "private_report": "final-bounded.xml",
+        "passed": 17,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "distinct_passed": 903,
+    "failed": 0,
+    "modules": [
+      "backend/tests/test_backtest_engine.py",
+      "backend/tests/test_backtest_single_pass_v27b.py",
+      "backend/tests/test_certified_market_calendar_v2.py",
+      "backend/tests/test_certified_market_hours_runtime_provider_v2.py",
+      "backend/tests/test_closed_bar_aggregation_v29r.py",
+      "backend/tests/test_current_paper_sprint10.py",
+      "backend/tests/test_historical_accounting_sprint07r.py",
+      "backend/tests/test_historical_research_sprint07r.py",
+      "backend/tests/test_market_hours_service_v2.py",
+      "backend/tests/test_market_hours_special_hours_integration_v2.py",
+      "backend/tests/test_mvp_release_sprint09.py",
+      "backend/tests/test_native_certification_sprint12.py",
+      "backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py",
+      "backend/tests/test_ninjatrader_connection_observer_sprint11s.py",
+      "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+      "backend/tests/test_ninjatrader_market_sprint11.py",
+      "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+      "backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py",
+      "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py",
+      "backend/tests/test_paper_research_sprint07r.py",
+      "backend/tests/test_paper_runtime_sprint08.py",
+      "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "backend/tests/test_phase1_risk_precedence_v5.py",
+      "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+      "backend/tests/test_production_certified_outcome_v17.py",
+      "backend/tests/test_real_market_structure_detectors_v17.py",
+      "backend/tests/test_session_lifecycle_sprint12.py",
+      "backend/tests/test_sim_readiness_sprint12.py",
+      "backend/tests/test_special_hours_snapshot_v2.py"
+    ],
+    "command": "py -m pytest <modules> -q; targeted follow-ups supersede changed harness cases",
+    "environment_reference": "backend/tests/paper_rc_certification_sprint08.json:test_environment",
+    "private_mapping": "ARMS_AI_PRIVATE_PATH_MAP supplied privately for frozen historical evidence reads",
+    "warning": "Existing Starlette httpx deprecation",
+    "initial_attempts": "Missing required test environment/private map; two inventory failures resolved by narrow reviewed evidence updates"
+  },
+  "frontend": {
+    "lint": "PASS",
+    "tests_passed": 29,
+    "tests_failed": 0,
+    "build": "PASS",
+    "commands": [
+      "npm.cmd run lint",
+      "node --test src/lib/*.test.mjs",
+      "npm.cmd run build"
+    ],
+    "build_note": "Initial sandbox font download failed; unchanged build passed with network permission"
+  },
+  "invariants": {
+    "scope": "Deterministic synthetic lifecycle/accounting witnesses; not native account or exchange certification",
+    "duplicate_canonical_candles": 0,
+    "duplicate_execution": 0,
+    "duplicate_pnl": 0,
+    "account_drift": 0,
+    "journal_mismatch": 0,
+    "unexplained_differences": 0,
+    "external_broker_order_calls": 0,
+    "actual_account_accesses": 0,
+    "sim_order_authority": false,
+    "live_authority": false,
+    "production_threshold": 90,
+    "paper_threshold": 80.5,
+    "quality_threshold": 85,
+    "exporter_startup_changed": false,
+    "thresholds_changed": false,
+    "production_scores_injected": false
+  },
+  "preservation": {
+    "protected_file_hashes_verified": 176,
+    "protected_datasets_verified": 16,
+    "mismatches": 0,
+    "unrelated_untracked_preserved": 109,
+    "prior_native_evidence_unchanged": true,
+    "v30_v31_unchanged": true
+  },
+  "pending_native": [
+    "closed 1m",
+    "complete native 15m/1h",
+    "daily close/reopen",
+    "weekly close/reopen",
+    "holiday/early-close mapping and behavior",
+    "provider disconnect/reconnect"
+  ],
+  "limitations": [
+    "No actual SIM account classified. Provider.Simulator metadata is a candidate awaiting authoritative binding semantics.",
+    "Native capture requires a private explicitly reviewed current feed/calendar spec; absent dates fail closed.",
+    "Installed template trading-day exceptions are retained as metadata, not automatically converted to civil-date coverage.",
+    "Protocol has no raw tick record. First event/FORMING is observable; raw tick certification is not claimed.",
+    "Native freshness may reject a delayed pre-close bar at reopen; no speculative exporter change made."
+  ],
+  "source_sha256": {
+    "backend/backtesting/current_paper_runtime_v1.py": "de65acd9c987f838db144b92f784aea3e1a8f4d3e8992c0d43b3f34b828b25f5",
+    "backend/market_data/current_candle_authority_v1.py": "4493962d6059698bfd41c7add6a34813c0785dd0e1e2d97a621d8ed627390c8d",
+    "backend/market_data/native_certification_v1.py": "c8dc8441fee377a9370e9cfa814ff141e6af05e2c91be3468c36c249d67222ef",
+    "backend/market_data/ninjatrader_market_reader_v1.py": "86127012c4aea2fc455b51dc1cbf05f7facac21618a84507965e5056e8f77524",
+    "backend/market_data/session_state_v1.py": "114433652aeca0e8bbf3151f9a9575344f3924f510663b6db9ecf2c335843047",
+    "backend/market_data/sim_readiness_v1.py": "ab950dfb59ead3ebb189db0bef8ee11bec56948d74f1ffae60d0710cfa4437df",
+    "backend/tests/phase1_risk_authority_inventory_v5.json": "e67d4127fb73d4e4df560b0a3abd6d43f938b18c9c7f22ec207f11393f175ff6",
+    "backend/tests/phase1_runtime_execution_inventory_v7.json": "b13fa8c8111c51793792c0f390468f3106da313cce3f8cbb9d1dbb212b2680aa",
+    "backend/tests/session_source_evidence_sprint12.json": "ad197d0fad67c92ca06057cc0e1f65950a7b942d19c00cdab2c54689312b8792",
+    "backend/tests/test_native_certification_sprint12.py": "34c4b6676d18edafb536bc7193a9ce3a90f38f8400b8a56bc9f5ce3b0bfd6d6e",
+    "backend/tests/test_session_lifecycle_sprint12.py": "85c832720870c5cda3f4b900256c5e0564e488f2311fc92a1ae68bacd6ff2e69",
+    "backend/tests/test_sim_readiness_sprint12.py": "9fc7224b716874afad50d24ac71f11367756afe6bb1ea78b2de224d5b3b85d65",
+    "docs/architecture/session_lifecycle_sim_preparation_sprint12.md": "b310860eda9cb0f4398e1e3a9c28021e57ef1544d9edbbd8c9ac10bf56d73f8b",
+    "frontend/src/lib/paperRcProjection.test.mjs": "5fa0c4e75d2ca4f7ff86ba60e6e78ba02321faaad71544845e0ca9119379ff8d",
+    "frontend/src/lib/paperRcProjection.ts": "2fd25fb6b68b93216cf699b7eee23c533bc695865a335588d67e50b206575b71"
+  },
+  "source_hash_basis": "SHA256 of staged Git blob bytes (LF-normalized repository text); original external source hashes remain unchanged"
+}

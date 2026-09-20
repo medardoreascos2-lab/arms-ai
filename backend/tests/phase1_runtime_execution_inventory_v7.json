@@ -1203,6 +1203,81 @@
       "canonical_or_legacy": "CANONICAL_HISTORICAL_DELEGATE",
       "downstream_effect": "Reuses certified canonical PAPER authorities; no LIVE orders or automatic provider discovery",
       "unsafe_duplicate": false
+    },
+    {
+      "id": "backend/market_data/native_certification_v1.py:main",
+      "path": "backend/market_data/native_certification_v1.py",
+      "function": "main",
+      "source_sha256": "c9e83962f5f744b41dd78ceaf6c065d726cdd8eb800cd255adedbe417f00050a",
+      "calls": [
+        "APISettings",
+        "CertifiedCalendarSnapshotV2",
+        "CertifiedMarketHoursRuntimeProviderV2",
+        "CertifiedSpecialHoursSnapshotV2",
+        "CertifiedSpecialHoursWindowV2",
+        "CurrentCandleAuthorityV1",
+        "CurrentFeedContractV1",
+        "CurrentPaperServiceV1",
+        "NativeCertificationCaptureV1",
+        "NinjaTraderMarketReaderV1",
+        "PaperResearchConfigV1.load",
+        "Path",
+        "Path(args.output).exists",
+        "Path(args.output).open",
+        "Path(args.spec).read_text",
+        "Path(args.state).exists",
+        "_utc",
+        "argparse.ArgumentParser",
+        "candidates[0].stat",
+        "capture.close",
+        "capture.poll",
+        "capture.report",
+        "certify_startup",
+        "date.fromisoformat",
+        "datetime.now",
+        "directory.glob",
+        "frozenset",
+        "json.dump",
+        "json.loads",
+        "len",
+        "market.with_suffix",
+        "p.name.count",
+        "parser.add_argument",
+        "parser.error",
+        "parser.parse_args",
+        "print",
+        "set",
+        "sha256",
+        "sha256(source.read_bytes()).hexdigest",
+        "source.read_bytes",
+        "time.monotonic",
+        "time.sleep",
+        "tuple",
+        "wall_time.fromisoformat"
+      ],
+      "construction_calls": [
+        "CurrentPaperServiceV1"
+      ],
+      "owner": "Explicit bounded read-only native capture -> NinjaTraderMarketReaderV1",
+      "classification": "ISOLATED_READ_ONLY_CERTIFICATION_COMPOSITION",
+      "caller": "Explicit CLI invocation with reviewed private spec",
+      "account_scope": "New isolated PAPER account; existing namespace recovery blocked",
+      "runtime_generation": "Single process namespace, no automatic operational restart",
+      "services_created": [
+        "CurrentCandleAuthorityV1",
+        "CurrentPaperServiceV1",
+        "NinjaTraderMarketReaderV1",
+        "NativeCertificationCaptureV1"
+      ],
+      "execution_owner": "TradeLifecycleServiceV2 and canonical historical intrabar position manager",
+      "risk_owner": "RiskManagerV2 + AccountStateManagerV2 + ExecutionRiskGateV1",
+      "financial_owner": "PortfolioManagerV2 + AccountStateManagerV2 + TradeJournalV2",
+      "market_owner": "CurrentCandleAuthorityV1 + certified market hours + ClosedBarAggregatorV1",
+      "startup_or_runtime": "Explicit opt-in startup",
+      "test_or_production": "PRODUCTION_SOURCE_READ_ONLY_CERTIFICATION_OPT_IN",
+      "canonical_or_legacy": "CANONICAL_HISTORICAL_DELEGATE",
+      "downstream_effect": "One bounded current session, disabled entries, no external order path or account discovery",
+      "unsafe_duplicate": false
     }
   ],
   "execution_points": [
@@ -5792,18 +5867,123 @@
       ],
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/market_data/sim_readiness_v1.py:OfflineOrderJournalV1.__init__",
+      "path": "backend/market_data/sim_readiness_v1.py",
+      "function": "OfflineOrderJournalV1.__init__",
+      "source_sha256": "4e61068e93fc31fb2c570ea132c709aa13dc1b826ab121e641fc56a5ca9346aa",
+      "calls": [
+        "self.db.execute",
+        "self.db.execute(\"SELECT 1 FROM intents WHERE state IN ('PENDING','ACK')\").fetchone",
+        "self.db.executescript",
+        "sqlite3.connect"
+      ],
+      "execution_calls": [
+        "execute"
+      ],
+      "owner": "OfflineOrderJournalV1 synthetic idempotency evidence only",
+      "classification": "OFFLINE_SQLITE_EVIDENCE_NOT_ORDER_EXECUTION",
+      "callers": [
+        "Offline deterministic tests only; no native adapter"
+      ],
+      "downstream_effects": [
+        "SQLite execute is SQL, not order execution",
+        "No quantities, prices, account handles, dispatcher, PnL or broker interface"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/market_data/sim_readiness_v1.py:OfflineOrderJournalV1.ambiguous_reconnect",
+      "path": "backend/market_data/sim_readiness_v1.py",
+      "function": "OfflineOrderJournalV1.ambiguous_reconnect",
+      "source_sha256": "37e88787a4d7138426d1d1df37ab09d2e36135fe7adf843d8b2ea0fd7dcd118a",
+      "calls": [
+        "self.db.execute"
+      ],
+      "execution_calls": [
+        "execute"
+      ],
+      "owner": "OfflineOrderJournalV1 synthetic idempotency evidence only",
+      "classification": "OFFLINE_SQLITE_EVIDENCE_NOT_ORDER_EXECUTION",
+      "callers": [
+        "Offline deterministic tests only; no native adapter"
+      ],
+      "downstream_effects": [
+        "SQLite execute is SQL, not order execution",
+        "No quantities, prices, account handles, dispatcher, PnL or broker interface"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/market_data/sim_readiness_v1.py:OfflineOrderJournalV1.record",
+      "path": "backend/market_data/sim_readiness_v1.py",
+      "function": "OfflineOrderJournalV1.record",
+      "source_sha256": "86dff0cfa3c2cc821ba3e770ed79df799da50bd8ddf1747266ee0990ed00c2b6",
+      "calls": [
+        "RuntimeError",
+        "ValueError",
+        "any",
+        "isinstance",
+        "len",
+        "self.db.execute",
+        "self.db.execute('SELECT identity,kind FROM events WHERE event_id=?', (event_id,)).fetchone",
+        "self.db.execute('SELECT state FROM intents WHERE identity=?', (identity,)).fetchone",
+        "type"
+      ],
+      "execution_calls": [
+        "execute"
+      ],
+      "owner": "OfflineOrderJournalV1 synthetic idempotency evidence only",
+      "classification": "OFFLINE_SQLITE_EVIDENCE_NOT_ORDER_EXECUTION",
+      "callers": [
+        "Offline deterministic tests only; no native adapter"
+      ],
+      "downstream_effects": [
+        "SQLite execute is SQL, not order execution",
+        "No quantities, prices, account handles, dispatcher, PnL or broker interface"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/market_data/sim_readiness_v1.py:OfflineOrderJournalV1.recovery_required",
+      "path": "backend/market_data/sim_readiness_v1.py",
+      "function": "OfflineOrderJournalV1.recovery_required",
+      "source_sha256": "c5b41b94c8c9f66af9dc35df665ffc1d6b5dd69393ff80f9c790978cfa5d3b9c",
+      "calls": [
+        "bool",
+        "self.db.execute",
+        "self.db.execute('SELECT recovery FROM control').fetchone"
+      ],
+      "execution_calls": [
+        "execute"
+      ],
+      "owner": "OfflineOrderJournalV1 synthetic idempotency evidence only",
+      "classification": "OFFLINE_SQLITE_EVIDENCE_NOT_ORDER_EXECUTION",
+      "callers": [
+        "Offline deterministic tests only; no native adapter"
+      ],
+      "downstream_effects": [
+        "SQLite execute is SQL, not order execution",
+        "No quantities, prices, account handles, dispatcher, PnL or broker interface"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
     }
   ],
   "certificate": {
-    "TOTAL_RUNTIME_BUILDERS": 25,
-    "CLASSIFIED_RUNTIME_BUILDERS": 25,
+    "TOTAL_RUNTIME_BUILDERS": 26,
+    "CLASSIFIED_RUNTIME_BUILDERS": 26,
     "UNCLASSIFIED_RUNTIME_BUILDERS": 0,
     "UNSAFE_DUPLICATE_RUNTIME_BUILDERS": 0,
     "CANONICAL_RUNTIME_OWNER": "backend.services.runtime_context_v2.build_runtime_context",
     "CANONICAL_EXECUTION_OWNER": "TradeLifecycleServiceV2",
     "CANONICAL_ORDER_LIFECYCLE_OWNER": "TradeLifecycleServiceV2",
-    "TOTAL_EXECUTION_DECISION_POINTS": 129,
-    "CLASSIFIED_EXECUTION_DECISION_POINTS": 129,
+    "TOTAL_EXECUTION_DECISION_POINTS": 133,
+    "CLASSIFIED_EXECUTION_DECISION_POINTS": 133,
     "UNCLASSIFIED_EXECUTION_DECISION_POINTS": 0,
     "DIRECT_BROKER_BYPASS": 0,
     "UNAUTHORIZED_EXECUTION_ENTRY": 0,

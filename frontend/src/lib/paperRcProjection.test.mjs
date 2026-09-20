@@ -9,6 +9,20 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('./paperRcProjecti
   compilerOptions: { module: ts.ModuleKind.CommonJS },
 }).outputText, { exports });
 
+test('session and provider are independent projections; missing SIM authority is not enabled', () => {
+  const input = {session_state:{state:'WEEKEND_CLOSED',reason:'WEEKEND_CLOSED'},
+    provider_state:'CONNECTED',data_freshness:'STALE_OR_MISSING',sim_execution_authority:'DISABLED',
+    sim_eligibility_status:'UNKNOWN_ACCOUNT_INELIGIBLE'};
+  const before = JSON.stringify(input);
+  const rows = Object.fromEntries(exports.currentPaperRows(input));
+  assert.equal(rows['MARKET SESSION STATE'],'WEEKEND_CLOSED');
+  assert.equal(rows['PROVIDER STATE'],'CONNECTED');
+  assert.equal(rows['SIM EXECUTION AUTHORITY'],'DISABLED');
+  assert.equal(rows['PAPER STATUS'],'BLOCKED');
+  assert.equal(Object.fromEntries(exports.currentPaperRows({}))['SIM EXECUTION AUTHORITY'],undefined);
+  assert.equal(JSON.stringify(input),before);
+});
+
 test('PAPER card uses canonical values without recomputing account or score', () => {
   const input = { mode:'PAPER_RESEARCH', paper_ready:false, account_overview:{balance:151170,equity:151000,daily_pnl:1170},
     strategy_evidence:{confluence:{score:81.33},quality:{score:85}}, configuration:{boundary:80.5,quality:85},

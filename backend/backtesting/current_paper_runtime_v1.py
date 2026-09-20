@@ -11,6 +11,7 @@ from backend.backtesting.historical_accounting_v1 import HistoricalAccountingV1
 from backend.backtesting.paper_research_v1 import PaperResearchSessionV1
 from backend.backtesting.paper_runtime_v1 import PaperRuntimeV1
 from backend.market_data.current_candle_authority_v1 import CurrentCandleAuthorityV1
+from backend.market_data.session_state_v1 import SessionStateAuthorityV1, readiness_matrix
 
 
 class _CurrentAccountingV1(HistoricalAccountingV1):
@@ -65,7 +66,7 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
             raise ValueError("unadmitted current observation")
 
     def _can_analyze(self):
-        return self._paper.runtime.index >= self._paper.runtime.engine.minimum_candles
+        return self._paper.runtime.index >= self._paper.runtime.engine.minimum_candles and not self.gate.reasons()
 
     def _reasons(self):
         return list(dict.fromkeys(super()._reasons() + self.gate.reasons()))
@@ -147,6 +148,20 @@ class CurrentPaperServiceV1:
                     last_received_time=g.last_received.isoformat() if g.last_received else None,
                     last_closed_1m_time=g.last_closed.isoformat() if g.last_closed else None,
                     data_age_seconds=g.age_seconds()))
+            session = SessionStateAuthorityV1(g.market_hours).resolve(g.clock(), last_closed=g.last_closed)
+            age = g.age_seconds()
+            snapshot["session_state"] = session.snapshot()
+            snapshot["provider_state"] = "CONNECTED" if g.connected else "DISCONNECTED"
+            snapshot["data_freshness"] = "FRESH" if age is not None and 0 <= age <= g.maximum_age else "STALE_OR_MISSING"
+            snapshot["session_readiness"] = readiness_matrix(session, snapshot["provider_state"],
+                fresh=snapshot["data_freshness"] == "FRESH", recovery_clear=not snapshot["recovery_required"],
+                risk_ready=not reasons, enabled=not reasons)
+            snapshot["sim_eligibility_status"] = "UNKNOWN_ACCOUNT_INELIGIBLE"
+            snapshot["sim_execution_authority"] = "DISABLED"
+            snapshot["htf_current_session"] = {
+                tf: sum(bar.timestamp >= session.segment_start for bar in self._runtime._htf.history(tf))
+                if session.segment_start and self._runtime and hasattr(self._runtime, "_htf") else 0
+                for tf in ("15m", "1h")}
             return deepcopy(snapshot)
 
     def control(self, command):

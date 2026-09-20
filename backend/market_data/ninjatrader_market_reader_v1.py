@@ -185,6 +185,12 @@ class NinjaTraderMarketReaderV1:
                 sequence=self.sequence, expiry=self.expiry, heartbeat_age_seconds=age,
                 source_timezone="UTC", native_observation_certified=False)
             snap["market_data"]["connected"] = connected
+            snap["provider_state"] = "CONNECTED" if connected else "DISCONNECTED"
+            snap["session_readiness"]["new_entry_admission"] = False
+            if not connected:
+                snap["session_readiness"].update(market_data_admission=False, strategy_admission=False,
+                    readiness_status="BLOCKED", reason_code="PROVIDER_NOT_CONNECTED",
+                    position_management="PRESERVE_STATE_NO_SYNTHETIC_FILL")
             return snap
 
     def close(self):

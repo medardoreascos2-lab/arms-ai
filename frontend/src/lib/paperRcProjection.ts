@@ -41,10 +41,17 @@ export function paperRcRows(snapshot: JsonObject): [string, JsonValue | undefine
 /** Current-feed mode is explicit; no balance/score/time inference on the client. */
 export function currentPaperRows(snapshot: JsonObject): [string, JsonValue | undefined][] {
   const market = object(snapshot.market_data);
+  const session = object(snapshot.session_state);
   return paperRcRows(snapshot).map(([label, value]): [string, JsonValue | undefined] =>
     label === "PAPER STATUS" ? [label, snapshot.mode === "CURRENT_MARKET_PAPER" &&
       snapshot.paper_ready === true ? "PAPER READY" : "BLOCKED"] : [label, value]).concat([
     ["EXECUTION KIND", snapshot.execution_kind],
+    ["MARKET SESSION STATE", session.state], ["SESSION REASON", session.reason],
+    ["PROVIDER STATE", snapshot.provider_state], ["DATA FRESHNESS", snapshot.data_freshness],
+    ["SESSION READINESS", snapshot.session_readiness],
+    ["CURRENT SESSION COMPLETE 15M / 1H BARS", snapshot.htf_current_session],
+    ["SIM ELIGIBILITY STATUS", snapshot.sim_eligibility_status],
+    ["SIM EXECUTION AUTHORITY", snapshot.sim_execution_authority],
     ["MARKET DATA PROVIDER", market.provider], ["CONNECTION", market.connected],
     ["CURRENT CONTRACT", market.contract], ["INSTRUMENT", market.instrument],
     ["TICK SIZE", market.tick_size], ["POINT VALUE", market.point_value],
