@@ -18,6 +18,8 @@ namespace NinjaTrader.NinjaScript.Indicators
     {
         private readonly object sync = new object();
         private StreamWriter writer;
+        private StreamWriter connectionWriter;
+        private long connectionSequence;
         private DispatcherTimer timer;
         private string session, contract, template, expiry;
         private long sequence;
@@ -66,6 +68,11 @@ namespace NinjaTrader.NinjaScript.Indicators
                             FileMode.CreateNew, FileAccess.Write, FileShare.Read);
                         writer = new StreamWriter(file, new UTF8Encoding(false));
                         writer.AutoFlush = true;
+                        startupStage = "CONNECTION_DIAGNOSTIC_OPEN";
+                        connectionWriter = new StreamWriter(new FileStream(
+                            Path.Combine(OutputDirectory, session + ".connection.jsonl"),
+                            FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false));
+                        connectionWriter.AutoFlush = true;
                         firstRealtimeBar = -1;
                         startupStage = "HELLO_WRITE";
                         Emit("HELLO", new { provider = ExpectedProvider, contract = contract, expiry = expiry,
@@ -178,11 +185,81 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         protected override void OnConnectionStatusUpdate(ConnectionStatusEventArgs update)
         {
+            var received = DateTime.UtcNow.ToString("o");
             lock (sync)
             {
-                if (writer != null && !failed && update.Connection == source
-                    && update.PriceStatus != ConnectionStatus.Connected) Stop("PRICE_CONNECTION_LOST");
+                // No active stream exists before HELLO or after the fail latch.
+                if (writer == null || failed) return;
+                try
+                {
+                    // Copy scalar event values synchronously; never queue provider objects.
+                    var callback = Object.ReferenceEquals(update, null) ? null : update.Connection;
+                    var selected = source;
+                    var price = callback == null ? "UNKNOWN" : StatusName(update.PriceStatus);
+                    var previousPrice = callback == null ? "UNKNOWN" : StatusName(update.PreviousPriceStatus);
+                    var status = callback == null ? "UNKNOWN" : StatusName(update.Status);
+                    var previousStatus = callback == null ? "UNKNOWN" : StatusName(update.PreviousStatus);
+                    var currentPrice = selected == null ? "UNKNOWN" : StatusName(selected.PriceStatus);
+                    var currentStatus = selected == null ? "UNKNOWN" : StatusName(selected.Status);
+                    var callbackProvider = ProviderName(callback);
+                    var selectedProvider = ProviderName(selected);
+                    var currentPriceAfter = selected == null ? "UNKNOWN" : StatusName(selected.PriceStatus);
+                    var currentStatusAfter = selected == null ? "UNKNOWN" : StatusName(selected.Status);
+                    var same = callback != null && Object.ReferenceEquals(callback, selected);
+                    var stable = Object.ReferenceEquals(source, selected)
+                        && currentPrice == currentPriceAfter && currentStatus == currentStatusAfter;
+                    var decision = ConnectionDecision(same, stable, price, previousPrice, status,
+                        previousStatus, currentPrice, currentStatus, currentPriceAfter,
+                        callbackProvider, selectedProvider, ExpectedProvider);
+                    connectionWriter.WriteLine(new JavaScriptSerializer().Serialize(new {
+                        schema = "arms.nt.connection-diagnostic.v1", session = session,
+                        sequence = connectionSequence++, event_time = DateTime.UtcNow.ToString("o"),
+                        callback_received_time = received, market_next_sequence = sequence,
+                        kind = "CONNECTION_STATUS", payload = new {
+                            callback_price_status = price, callback_previous_price_status = previousPrice,
+                            callback_connection_status = status, callback_previous_connection_status = previousStatus,
+                            source_price_status = currentPrice, source_connection_status = currentStatus,
+                            source_price_status_after = currentPriceAfter, source_connection_status_after = currentStatusAfter,
+                            same_source = same, source_present = selected != null, callback_present = callback != null,
+                            source_snapshot_stable = stable, callback_provider = callbackProvider,
+                            source_provider = selectedProvider, decision = decision } }));
+                    if (decision != "CONTINUE") Stop(decision);
+                }
+                catch (Exception error) { Stop("STOP_CONNECTION_DIAGNOSTIC_FAILED", ErrorCode(error)); }
             }
+        }
+
+        private static string StatusName(ConnectionStatus value)
+        {
+            return Enum.IsDefined(typeof(ConnectionStatus), value) ? value.ToString() : "UNKNOWN";
+        }
+
+        private static string ProviderName(Connection connection)
+        {
+            if (connection == null || connection.Options == null) return "UNKNOWN";
+            var provider = connection.Options.Provider;
+            return Enum.IsDefined(provider.GetType(), provider) ? provider.ToString() : "UNKNOWN";
+        }
+
+        private static string ConnectionDecision(bool same, bool stable, string price, string previousPrice,
+            string status, string previousStatus, string currentPrice, string currentStatus,
+            string currentPriceAfter, string callbackProvider, string selectedProvider, string expectedProvider)
+        {
+            // Current non-connected price state is a veto, not proof of a physical outage.
+            if ((currentPrice != "UNKNOWN" && currentPrice != "Connected")
+                || (currentPriceAfter != "UNKNOWN" && currentPriceAfter != "Connected"))
+                return "STOP_CONFIRMED_PRICE_CONNECTION_LOST";
+            if (new[] { price, previousPrice, status, previousStatus, currentPrice, currentStatus,
+                currentPriceAfter, callbackProvider, selectedProvider }.Contains("UNKNOWN"))
+                return "STOP_UNKNOWN_CONNECTION_STATE";
+            if (!same || callbackProvider != selectedProvider || selectedProvider != expectedProvider)
+                return "STOP_CONNECTION_IDENTITY_MISMATCH";
+            if (!stable) return "STOP_UNSTABLE_CONNECTION_STATE";
+            // No documented stale-startup exception: contradictory snapshots fail closed.
+            // Status is adapter/order connectivity, not SIM or order authority.
+            if (price != currentPrice || status != currentStatus)
+                return "STOP_CONTRADICTORY_CONNECTION_STATE";
+            return "CONTINUE";
         }
 
         // Fixed categories only. Never serialize Message, StackTrace, connection
@@ -212,6 +289,11 @@ namespace NinjaTrader.NinjaScript.Indicators
                 try { Emit("DISCONNECTED", new { connected = false, reason = reason, error_code = errorCode }); } catch { }
                 try { writer.Dispose(); } catch { }
                 writer = null;
+            }
+            if (connectionWriter != null)
+            {
+                try { connectionWriter.Dispose(); } catch { }
+                connectionWriter = null;
             }
             // No native error strings, account identifiers or personal paths logged.
         }

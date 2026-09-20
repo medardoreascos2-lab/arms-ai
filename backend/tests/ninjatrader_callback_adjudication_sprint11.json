@@ -1,0 +1,92 @@
+{
+  "status": "OFFLINE_ADJUDICATION_VERIFIED_NATIVE_ACTIVATION_REQUIRED",
+  "start_head": "9e20882121f463b1f99d12e3f65922364fd7f47a",
+  "observed_native_session": {
+    "file": "f2114ad1-f464-4096-bc02-78729a6d8b15.jsonl",
+    "sha256": "172f7802d5531b337b822dc059261bc5fe1f3b40000458de47aeba77d0778c90",
+    "bytes": 674,
+    "provider": "Provider31",
+    "contract": "NQ DEC26",
+    "hello_time": "2026-09-20T02:33:09.9018584Z",
+    "stop_time": "2026-09-20T02:33:09.9026088Z",
+    "stop_reason": "PRICE_CONNECTION_LOST",
+    "error_code": "NONE",
+    "heartbeat_count": 0,
+    "forming_count": 0,
+    "closed_count": 0,
+    "exact_old_predicate": "active writer, not failed, update.Connection == source, update.PriceStatus != Connected",
+    "physical_disconnect_proven": false,
+    "startup_callback_order_proven": false,
+    "root_cause_limit": "Old record lacks callback enum values, previous states and simultaneous current-source state. Cannot distinguish initial/delayed callback from a current loss retrospectively.",
+    "prior_log_audit": "Latest matching native connection record was Connected at 01:38:50 UTC; no corresponding new physical disconnect was found at stop time. Absence of a log entry is not proof of current health."
+  },
+  "event_contract_sources": [
+    "https://docs.ninjatrader.com/ninjascript/onconnectionstatusupdate",
+    "https://docs.ninjatrader.com/ninjascript/connectionstatuseventargs",
+    "https://docs.ninjatrader.com/ninjascript/connection_class"
+  ],
+  "event_semantics": "New/previous event price and adapter states; current Connection properties are separately sampled. No documented atomic ordering or safe stale-startup exception was established.",
+  "transient_callback_policy": "NO IGNORE_TRANSIENT exception. Callback/current contradictions stop.",
+  "current_state_authority": "A known current non-Connected PriceStatus in either immediate sample vetoes continuation, even if the callback says Connected. This does not certify a physical outage.",
+  "continue_policy": "Active stream, same source/provider, known states, stable current Connected price and matching callback/current price and adapter states. Previous Disconnected -> Connected may continue when current state agrees.",
+  "adapter_policy": "Matching non-Connected adapter Status does not override healthy price status or imply order/account authority. Conflicting adapter observations fail closed.",
+  "unknown_identity_and_io_policy": "Unknown/null/unstable state, identity mismatch or diagnostic failure stops and latches. No callback can revive a stopped session.",
+  "snapshot_limit": "The indicator lock is not a provider-state lock. Double sampling detects observed changes; it does not prove an atomic snapshot or event creation time.",
+  "diagnostics": {
+    "market_schema": "arms.nt.market.v1 UNCHANGED",
+    "sidecar_schema": "arms.nt.connection-diagnostic.v1",
+    "sidecar_name": "<session>.connection.jsonl",
+    "session_relationship": "Same UUID as one market file; separate diagnostic sequence. Two files do not mean two market sessions.",
+    "fields": [
+      "callback_price_status", "callback_previous_price_status", "callback_connection_status",
+      "callback_previous_connection_status", "source_price_status", "source_connection_status",
+      "source_price_status_after", "source_connection_status_after", "same_source",
+      "source_present", "callback_present", "source_snapshot_stable", "callback_provider",
+      "source_provider", "decision"
+    ],
+    "timestamps": "UTC callback entry and serialization time; not provider event creation time",
+    "lifecycle": "CreateNew, UTF-8, autoflush, read sharing; both writers close on stop. Empty sidecar is possible if no active callback occurred.",
+    "privacy": "Enum names/fixed categories only. No provider NativeError, connection names, account identifiers, paths, credentials or exception text.",
+    "reader_admission": "Sidecar is never consumed as market input and cannot refresh freshness or advance market/candle sequence.",
+    "inactive_callbacks": "No active writer or failed latch: return without admission. Pre-stream callbacks are not persisted."
+  },
+  "verification": {
+    "commands": [
+      "py -m pytest backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py backend/tests/test_ninjatrader_market_sprint11.py backend/tests/test_current_paper_sprint10.py backend/tests/test_paper_runtime_sprint08.py backend/tests/test_mvp_release_sprint09.py -q --tb=short",
+      "py -m pytest backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py -q --tb=short"
+    ],
+    "first_combined_run_passed": 142,
+    "final_callback_suite_passed": 28,
+    "final_distinct_tests_passed": 145,
+    "failures": 0,
+    "skips": 0,
+    "suite_counts": {
+      "native_callback": 28,
+      "native_stop": 1,
+      "sprint11_reader": 45,
+      "sprint10_current_market": 36,
+      "mvp_runtime_and_release": 35
+    },
+    "coverage": "Actual native callback, adjudicator, enum sanitizers, serialization and stop methods executed with isolated deterministic doubles; required eight callback combinations, unknown enum/provider/source states, changing snapshots, diagnostic I/O failure, latch persistence, privacy and cleanup. Sidecar cannot sustain reader freshness.",
+    "native_compilation": "PASS: .NET Framework compiler against installed NinjaTrader.Core, NinjaTrader.Gui and NinjaTrader.Custom assemblies. Output is private and ignored. No native deployment.",
+    "diff_check": "PASS",
+    "previous_jsonl_and_unrelated_files_hash_verification": "PASS",
+    "full_backend_and_frontend": "Not rerun; no Python production or frontend changes. Required focused suites passed."
+  },
+  "production_threshold": 90,
+  "paper_threshold": 80.5,
+  "quality_threshold": 85,
+  "broker_order_calls": 0,
+  "native_sessions_merged": false,
+  "native_application_modified": false,
+  "real_provider_smoke": "BLOCKED_PENDING_FRESH_NATIVE_EVIDENCE",
+  "closed_1m_native": "NOT_OBSERVED",
+  "heartbeat_native": "NOT_OBSERVED",
+  "sim_account_discovery": "NOT_RUN_PREREQUISITE_UNMET",
+  "sim_order_authority": false,
+  "live_authority": false,
+  "push_performed": false,
+  "human_action": "Replace/compile updated indicator and create exactly one fresh Provider31 / NQ DEC26 / Minute 1 / UTC / CME US Index Futures ETH session in the existing repository .arms-dev/ninjatrader-current directory. Preserve old files; no account/order configuration.",
+  "ready_for_fresh_native_diagnostic": true,
+  "ready_for_external_sim_account_test": false
+}

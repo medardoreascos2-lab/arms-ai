@@ -201,3 +201,91 @@ strategy evaluation and dashboard equivalence must still pass during a verified
 open session before account discovery. Do not inspect/select an account or submit
 an order as part of these diagnostic steps. See the separate sanitized native
 activation evidence JSON; the original offline certificate remains historical.
+
+## Connection callback adjudication, 2026-09-20 UTC
+
+The third native session, `f2114ad1-f464-4096-bc02-78729a6d8b15`, contains HELLO
+then `PRICE_CONNECTION_LOST` / `NONE` approximately 0.75 ms later. At commit
+`9e20882121f463b1f99d12e3f65922364fd7f47a`, that reason proves only that an active
+callback matched the selected connection and its `PriceStatus` was not Connected.
+It does **not** prove a physical disconnect. That file has no contemporaneous
+current-source/previous-status observations. The earlier read-only log audit
+found no corresponding physical disconnect record. A delayed initial callback,
+a transition and a real loss cannot be distinguished retrospectively.
+
+NinjaTrader documents [event arguments](https://docs.ninjatrader.com/ninjascript/connectionstatuseventargs)
+as the new and previous connection/price states, with a multithreading caution.
+The [callback contract](https://docs.ninjatrader.com/ninjascript/onconnectionstatusupdate)
+distinguishes price connectivity from adapter/order `Status`. The
+[Connection API](https://docs.ninjatrader.com/ninjascript/connection_class) exposes
+the current object state. These references do not establish a safe startup
+exception or atomic ordering between callback delivery and those object reads.
+Therefore no `IGNORE_TRANSIENT` exception is enabled. Capturing scalar values
+synchronously avoids deferred provider-object serialization; two immediate
+source samples can detect changes, but do not establish an atomic provider lock
+or prove a historical callback. `sync` serializes this indicator only.
+
+| Active-stream observation | Decision |
+| --- | --- |
+| Same source/provider, known states, stable current Connected price, callback matches current states | CONTINUE |
+| Previous Disconnected -> new Connected, with matching healthy current state | CONTINUE; previous state is context only |
+| Callback Disconnected/Connecting, current price Connected | STOP_CONTRADICTORY_CONNECTION_STATE |
+| Either current price sample is a known non-Connected state | STOP_CONFIRMED_PRICE_CONNECTION_LOST |
+| Foreign connection or provider mismatch | STOP_CONNECTION_IDENTITY_MISMATCH |
+| Null source/event/connection/options or unknown enum | STOP_UNKNOWN_CONNECTION_STATE |
+| Source samples change without the current-price veto above | STOP_UNSTABLE_CONNECTION_STATE |
+| Callback/current adapter statuses conflict | STOP_CONTRADICTORY_CONNECTION_STATE |
+| Both adapter statuses Disconnected but both price statuses Connected | CONTINUE; no order/account authority inferred |
+| Diagnostic read/write failure | STOP_CONNECTION_DIAGNOSTIC_FAILED |
+
+The current-price veto has precedence over other classifications. Its word
+"confirmed" means a non-connected API value was observed, not that a physical
+network outage was proved. Every STOP latches; later Connected callbacks cannot
+restart that session. Callbacks before an active writer or after the latch do
+not admit data or create a new session. Initial pre-stream callbacks are not
+persisted; this instrument targets the active callback that stopped the observed
+session. No delay, retry or timer redesign was introduced.
+
+Each new session now owns **two files with the same UUID**:
+
+- `<session>.jsonl`: unchanged `arms.nt.market.v1` market stream.
+- `<session>.connection.jsonl`: `arms.nt.connection-diagnostic.v1` sidecar with
+  its own sequence, UTC callback-entry and serialization timestamps, market-next
+  sequence, six requested status values, second current-source samples, identity
+  equality/presence, provider enums and decision. It may be empty if no active
+  callback occurs. This is not another market session or an input to the reader.
+
+Both files use CreateNew, UTF-8, autoflush and read sharing, and close on STOP.
+Sidecar creation failure blocks startup; diagnostic failure stops the market
+stream. Only enum names/fixed categories are serialized, never native error
+text, connection names, account identifiers or paths. The unchanged reader
+consumes one explicitly selected market file; sidecar traffic cannot refresh
+freshness, advance candles, create fills or grant authority. All three original
+market files and previous certificates are retained unchanged.
+
+The isolated regression harness compiles and executes the actual C# callback,
+decision, enum redaction and cleanup methods with connection doubles, including
+rapid callbacks and write failures. Assembly compilation verifies real native
+API member types; neither result proves how the running provider delivers its
+initial callback. That remains the next native observation.
+
+### One fresh diagnostic activation
+
+Do not configure any account or order capability. The repository exporter has
+been compiled against the installed assemblies, but has not been installed into
+the running application by automation.
+
+| WINDOW | MENU | FIELD | VALUE | BUTTON |
+| --- | --- | --- | --- | --- |
+| NinjaTrader Control Center | New > NinjaScript Editor > Indicators > ArmsReadOnlyMarketV1 | User-authored source | Replace with repository `integrations/ninjatrader/ArmsReadOnlyMarketV1.cs`; do not duplicate the generated NinjaScript wrapper | F5 / Compile |
+| Existing NQ DEC26 chart | Right-click > Indicators | Old ArmsReadOnlyMarketV1 instance | Remove; preserve every existing JSONL file | Remove, OK |
+| Chart | Right-click > Data Series | Instrument / Type / Value / Trading hours | NQ DEC26 / Minute / 1 / CME US Index Futures ETH; application UTC remains required | OK |
+| Chart | Right-click > Indicators > ArmsReadOnlyMarketV1 | Expected provider enum / Private output directory | Provider31 / `C:\Development\ARMS-AI\.arms-dev\ninjatrader-current` | Add, OK |
+
+The actual existing directory is the repository's `.arms-dev` subdirectory;
+`ARMS-AI.arms-dev` without the separator is not the evidence directory. Leave this
+one new instance open for at least fifteen seconds. Inspect the new market file
+and matching sidecar directly; do not concatenate sessions. Heartbeats alone
+will not certify closed 1m/HTF operation, particularly outside market hours.
+SIM discovery remains deferred until real-provider smoke passes; SIM orders and
+LIVE authority remain disabled.

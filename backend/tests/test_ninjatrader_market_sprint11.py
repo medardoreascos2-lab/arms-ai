@@ -61,6 +61,26 @@ def tick_to(r, clock, target):
         send(r, frame(clock, r.sequence+1))
 
 
+def test_connection_sidecar_cannot_refresh_or_admit_market_data(api_settings, tmp_path):
+    r, clock = setup(tmp_path)
+    send(r, hello(r, clock))
+    diagnostic = r.path.with_name(r.path.stem + ".connection.jsonl")
+    for seq in range(4):
+        clock[0] += timedelta(seconds=5)
+        diagnostic.write_text(json.dumps(dict(schema="arms.nt.connection-diagnostic.v1",
+            session=SESSION, sequence=seq, event_time=clock[0].isoformat(),
+            kind="CONNECTION_STATUS", payload={"decision": "CONTINUE"})) + "\n")
+        if seq < 3:
+            r.poll()
+        else:
+            with pytest.raises(ValueError):
+                r.poll()
+    assert r.sequence == 0 and r.candle_sequence == 0
+    assert r.service._runtime is None and r.service.gate.closed_count == 0
+    assert r.get_snapshot()["external_order_authority"] is False
+    r.close()
+
+
 def test_closed_only_htf_strategy_dashboard_zero_execution(api_settings, tmp_path, monkeypatch):
     r, clock = setup(tmp_path)
     send(r, hello(r, clock))

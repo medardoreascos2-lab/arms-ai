@@ -36,6 +36,7 @@ using System.Text;
 using System.Web.Script.Serialization;
 public class StopHarness {
     private StreamWriter writer;
+    private StreamWriter connectionWriter;
     private FaultTimer timer;
     private bool failed;
     private long sequence;
@@ -56,10 +57,11 @@ public class StopHarness {
         for (int index = 0; index < errors.Length; index++) {
             var h = new StopHarness();
             h.writer = new StreamWriter(Path.Combine(args[0], index + ".jsonl"), false, new UTF8Encoding(false));
+            h.connectionWriter = new StreamWriter(Path.Combine(args[0], index + ".connection.jsonl"));
             h.timer = new FaultTimer(); h.printFails = true;
             h.Stop("STARTUP_HEARTBEAT_SCHEDULE_FAILED", ErrorCode(errors[index]));
             h.Stop("TERMINATED");
-            if (!h.failed || h.writer != null || h.timer != null || h.sequence != 1)
+            if (!h.failed || h.writer != null || h.connectionWriter != null || h.timer != null || h.sequence != 1)
                 throw new Exception("stop did not contain or close exactly once");
         }
         var early = new StopHarness();
