@@ -37,3 +37,22 @@ export function paperRcRows(snapshot: JsonObject): [string, JsonValue | undefine
     ["JOURNAL COMPLETED", snapshot.journal_completed], ["JOURNAL TOTAL", snapshot.journal_total],
   ];
 }
+
+/** Current-feed mode is explicit; no balance/score/time inference on the client. */
+export function currentPaperRows(snapshot: JsonObject): [string, JsonValue | undefined][] {
+  const market = object(snapshot.market_data);
+  return paperRcRows(snapshot).map(([label, value]): [string, JsonValue | undefined] =>
+    label === "PAPER STATUS" ? [label, snapshot.mode === "CURRENT_MARKET_PAPER" &&
+      snapshot.paper_ready === true ? "PAPER READY" : "BLOCKED"] : [label, value]).concat([
+    ["EXECUTION KIND", snapshot.execution_kind],
+    ["MARKET DATA PROVIDER", market.provider], ["CONNECTION", market.connected],
+    ["CURRENT CONTRACT", market.contract], ["INSTRUMENT", market.instrument],
+    ["TICK SIZE", market.tick_size], ["POINT VALUE", market.point_value],
+    ["TRADING HOURS", market.trading_hours_template], ["SOURCE TIMEZONE", market.source_timezone],
+    ["BAR LABEL", market.bar_label], ["SYNTHETIC FIXTURE", market.fixture],
+    ["FEED STATUS", market.status], ["FEED VERSION", market.version],
+    ["LAST RAW EVENT TIME", market.last_raw_event_time],
+    ["LAST CLOSED 1M TIME", market.last_closed_1m_time], ["DATA AGE SECONDS", market.data_age_seconds],
+    ["RECOVERY REQUIRED", snapshot.recovery_required], ["FEED CONTRACT", snapshot.feed_contract_sha256],
+  ]);
+}

@@ -9,6 +9,8 @@ VOCABULARY = {"BLOCKED", "BLOCK", "APPROVED", "ALLOW_TRADE", "BLOCK_TRADE",
               "DO_NOT_EXECUTE", "risk_approved", "sizing_approved", "EXECUTE"}
 # These owners decide through booleans/exceptions/delegation rather than result vocabulary.
 EXPLICIT = {
+ "backend/market_data/current_candle_authority_v1.py": {"__init__", "__post_init__", "admit", "fail", "connection", "reasons", "validate_segment", "_gap_proven_closed"},
+ "backend/backtesting/current_paper_runtime_v1.py": {"__init__", "advance", "_next_observation", "_validate_observation", "_can_analyze", "_reasons", "connection", "ingest", "control", "shutdown"},
  "backend/backtesting/paper_runtime_v1.py": {"__init__", "_authority_reasons", "_recover_evidence", "control", "ingest", "shutdown"},
  "backend/execution/execution_pipeline_v2.py": {"execute"},
  "backend/services/runtime_admission_v2.py": {"bind_runtime_admission", "validate_market", "require_execution_scope", "_execution_scope"},

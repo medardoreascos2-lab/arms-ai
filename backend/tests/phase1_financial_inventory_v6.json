@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 142,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 142,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 145,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 145,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -6842,7 +6842,7 @@
       "path": "backend/backtesting/paper_runtime_v1.py",
       "function": "PaperRuntimeV1._process",
       "input": "self, observation",
-      "source_sha256": "ce4ff8992221bd77a58bebd2c57714693213b1447a7a7aec5fbdc55247e67c29",
+      "source_sha256": "5c0607d56b2ff18e2a060b645652f726a9037816373a9aab8e30ac2b982c8f3e",
       "writes": [],
       "calls": [
         "TypeError",
@@ -6852,7 +6852,6 @@
         "getattr(s, name).clear",
         "int",
         "isinstance",
-        "len",
         "list",
         "observation.candle",
         "r.risk_evaluations.clear",
@@ -6862,6 +6861,7 @@
         "s._update_active_position_if_configured",
         "s.candle_history.append",
         "s.strategy_runner_v2.run",
+        "self._can_analyze",
         "self._htf.history",
         "self._htf.update_completed",
         "self._reasons"
@@ -6898,6 +6898,116 @@
         "AccountStateManagerV2",
         "TradeJournalV2",
         "Detached PAPER RC snapshot"
+      ]
+    },
+    {
+      "id": "backend/backtesting/current_paper_runtime_v1.py:CurrentPaperServiceV1.ingest",
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "function": "CurrentPaperServiceV1.ingest",
+      "input": "self, event",
+      "source_sha256": "663d119434a981786e4950116fb73a0a4f0d0ce2e5dd479f2d421e5db2667b6b",
+      "writes": [],
+      "calls": [
+        "RuntimeError",
+        "_CurrentRuntimeV1",
+        "self._runtime.ingest",
+        "self.gate.admit",
+        "self.get_snapshot"
+      ],
+      "output_fields": [],
+      "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Validated closed observation delegates canonical PAPER fills, exits, account and journal",
+      "mutates_fill_state": true,
+      "mutates_position_state": true,
+      "mutates_portfolio": true,
+      "mutates_account_pnl": true,
+      "mutates_journal": true,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "Explicit provider event delivery"
+      ],
+      "caller_evidence": "Admission before durable inherited ingest; exactly one canonical accounting path",
+      "downstream_consumers": [
+        "PortfolioManagerV2",
+        "AccountStateManagerV2",
+        "TradeJournalV2",
+        "Detached PAPER RC snapshot"
+      ]
+    },
+    {
+      "id": "backend/backtesting/current_paper_runtime_v1.py:_CurrentAccountingV1.record_close",
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "function": "_CurrentAccountingV1.record_close",
+      "input": "self, position",
+      "source_sha256": "a7929be4089cdc9511a1ade26d7b6a57a384a4e41c334afc326ac247ec492242",
+      "writes": [],
+      "calls": [
+        "self.completed[-1].update",
+        "super",
+        "super().record_close"
+      ],
+      "output_fields": [],
+      "owner": "HistoricalAccountingV1.record_close / TradeJournalV2; current evidence labeling only",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Canonical completed record and explicit SIMULATED/PAPER provider label",
+      "mutates_fill_state": false,
+      "mutates_position_state": false,
+      "mutates_portfolio": false,
+      "mutates_account_pnl": false,
+      "mutates_journal": true,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "Inherited canonical _HistoricalSession close notification"
+      ],
+      "caller_evidence": "test_current_paper_sprint10.py persisted journal assertions",
+      "downstream_consumers": [
+        "PaperRuntimeV1 durable journal",
+        "Detached current PAPER snapshot"
+      ]
+    },
+    {
+      "id": "backend/backtesting/current_paper_runtime_v1.py:_CurrentAccountingV1.advance",
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "function": "_CurrentAccountingV1.advance",
+      "input": "self, candle",
+      "source_sha256": "8dd0b4af62a38bd672bf9a585c1c4c1c74b466738130b2e224575c2eaee100e3",
+      "writes": [],
+      "calls": [
+        "ValueError",
+        "row.candle",
+        "self._next_observation",
+        "self.account.ensure_trading_day",
+        "self.account.get_state",
+        "self.session._normalize_candle"
+      ],
+      "output_fields": [],
+      "owner": "AccountStateManagerV2.ensure_trading_day canonical rollover",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Current observation advances canonical account clock/trading day",
+      "mutates_fill_state": false,
+      "mutates_position_state": false,
+      "mutates_portfolio": false,
+      "mutates_account_pnl": true,
+      "mutates_journal": false,
+      "mutates_history": false,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "Inherited _HistoricalSession position update"
+      ],
+      "caller_evidence": "test_current_paper_sprint10.py persisted journal assertions",
+      "downstream_consumers": [
+        "AccountStateManagerV2",
+        "TradeLifecycleServiceV2",
+        "Current PAPER snapshot"
       ]
     }
   ],

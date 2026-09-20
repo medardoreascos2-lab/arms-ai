@@ -37,7 +37,7 @@ function apiOrigin(): string {
 }
 
 export async function requestJson(path: string, body?: JsonObject, protectedCall = false,
-                                  missingIsEmpty = false): Promise<JsonObject> {
+                                  missingIsEmpty = false, signal?: AbortSignal): Promise<JsonObject> {
   if (!path.startsWith("/") || path.startsWith("//")) throw new Error("Ruta API inválida.");
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -48,7 +48,7 @@ export async function requestJson(path: string, body?: JsonObject, protectedCall
   const response = await fetch(`${apiOrigin()}${path}`, {
     method: body === undefined ? "GET" : "POST", headers,
     body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store",
-    redirect: "error", credentials: "omit",
+    redirect: "error", credentials: "omit", ...(signal ? { signal } : {}),
   });
   if (missingIsEmpty && response.status === 404) return { status: "UNAVAILABLE", reason: "Sin análisis de mercado disponible." };
   if (!response.ok) {

@@ -61,12 +61,14 @@ class PaperResearchSessionV1:
         self._lock = Lock()
         engine = ParameterBacktestEngineFactoryV2(csv_path=None, settings=settings)(
             {"ema":config.ema,"stop_loss":config.stop_loss,"take_profit":config.take_profit})
-        self.runtime = HistoricalAccountingV1(engine, policy=policy, observations=observations,
+        self.runtime = self.accounting_type(engine, policy=policy, observations=observations,
             contract=contract, costs=HistoricalCostsV1(config.fee_per_contract_side,config.slippage_ticks_side),
             strategy_version=config.version)
         strategy = self.runtime.session.strategy_runner_v2
         strategy.confluence_engine = _ResearchConfluenceV1(strategy.confluence_engine,config.boundary)
         self._snapshot = self._capture("READY")
+
+    accounting_type = HistoricalAccountingV1
 
     def _capture(self, status):
         r = self.runtime

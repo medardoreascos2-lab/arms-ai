@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILDERS = {
+    "CurrentPaperServiceV1", "_CurrentRuntimeV1", "accounting_type", "session_type",
     "PaperRuntimeV1", "PaperResearchSessionV1", "create_paper_rc_app_v1",
     "HistoricalAccountingV1",
     "RuntimeAdmissionV2", "bind_runtime_admission",
@@ -33,6 +34,8 @@ EXECUTION = {
 }
 # Startup/recovery/publication and fill/mark handlers have non-order names.
 EXPLICIT = {
+    "backend/api/current_paper_app_v1.py": {"create_current_paper_app_v1"},
+    "backend/backtesting/current_paper_runtime_v1.py": {"ingest", "control", "shutdown"},
     "backend/backtesting/paper_runtime_v1.py": {"_process", "control", "step", "shutdown"},
     "backend/api/paper_rc_app_v1.py": {"create_paper_rc_app_v1"},
     "backend/backtesting/paper_research_v1.py": {"run"},

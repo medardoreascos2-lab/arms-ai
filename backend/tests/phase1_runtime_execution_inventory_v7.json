@@ -1009,9 +1009,8 @@
       "id": "backend/backtesting/paper_research_v1.py:PaperResearchSessionV1.__init__",
       "path": "backend/backtesting/paper_research_v1.py",
       "function": "PaperResearchSessionV1.__init__",
-      "source_sha256": "df209b510d753ee777deb4c23f9b35ecfd0f490765609493c4a33416462642c3",
+      "source_sha256": "52afe2bc25e8ced068083f05222c96b8aae698fb3f8f68bca9659dfadf419624",
       "calls": [
-        "HistoricalAccountingV1",
         "HistoricalCostsV1",
         "Lock",
         "ParameterBacktestEngineFactoryV2",
@@ -1019,10 +1018,11 @@
         "TypeError",
         "_ResearchConfluenceV1",
         "self._capture",
+        "self.accounting_type",
         "type"
       ],
       "construction_calls": [
-        "HistoricalAccountingV1"
+        "accounting_type"
       ],
       "classification": "ISOLATED_HISTORICAL_COMPOSITION",
       "owner": "PaperResearchSessionV1",
@@ -1087,11 +1087,10 @@
       "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.__init__",
       "path": "backend/backtesting/paper_runtime_v1.py",
       "function": "PaperRuntimeV1.__init__",
-      "source_sha256": "88198487f0a5a17579272562e3687c01b1e9f1b23d5d11577498ff148e08e47c",
+      "source_sha256": "7ac6faad6ab065ebc769214f3cb538055fafa78687f688e46d525347024fcae7",
       "calls": [
         "ClosedBarAggregatorV1",
         "OperatingModeV1",
-        "PaperResearchSessionV1",
         "Path",
         "RLock",
         "ValueError",
@@ -1109,13 +1108,14 @@
         "self._publish",
         "self._recover_evidence",
         "self._save",
+        "self.session_type",
         "sha256",
         "sha256(_encode({'account_config': r.config_hash, 'paper': asdict(config), 'mode': mode, 'clock': 'CERTIFIED_REPLAY', 'effective_policy': self._policy_identity, 'maximum_quote_age_seconds': self._max_age, 'input': [(x.source_sha256, x.source_row, x.raw_row) for x in self._rows]}).encode()).hexdigest",
         "sqlite3.connect",
         "tuple"
       ],
       "construction_calls": [
-        "PaperResearchSessionV1"
+        "session_type"
       ],
       "owner": "PaperRuntimeV1 -> frozen PaperResearchSessionV1/HistoricalAccountingV1",
       "classification": "ISOLATED_PAPER_RC_COMPOSITION",
@@ -1133,6 +1133,75 @@
       "test_or_production": "PRODUCTION_SOURCE_PAPER_REPLAY_OPT_IN",
       "canonical_or_legacy": "CANONICAL_HISTORICAL_DELEGATE",
       "downstream_effect": "Construct unchanged certified PAPER authority once; no default app or live broker connection",
+      "unsafe_duplicate": false
+    },
+    {
+      "id": "backend/backtesting/current_paper_runtime_v1.py:CurrentPaperServiceV1.__init__",
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "function": "CurrentPaperServiceV1.__init__",
+      "source_sha256": "0a4f62e6efa191cfe938f3c12de52d1546ece6c315471b01623d1202e559367c",
+      "calls": [
+        "Path",
+        "Path(state_path).exists",
+        "RLock",
+        "TypeError",
+        "ValueError",
+        "_CurrentRuntimeV1",
+        "dict",
+        "type"
+      ],
+      "construction_calls": [
+        "_CurrentRuntimeV1"
+      ],
+      "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
+      "classification": "ISOLATED_CURRENT_PAPER_COMPOSITION",
+      "caller": "Explicit CurrentPaperServiceV1 injection",
+      "account_scope": "New isolated PAPER account; existing namespace recovery blocked",
+      "runtime_generation": "Single process namespace, no automatic operational restart",
+      "services_created": [
+        "_CurrentRuntimeV1 (lazy on first admitted closed candle; existing namespace recovery only)"
+      ],
+      "execution_owner": "TradeLifecycleServiceV2 and canonical historical intrabar position manager",
+      "risk_owner": "RiskManagerV2 + AccountStateManagerV2 + ExecutionRiskGateV1",
+      "financial_owner": "PortfolioManagerV2 + AccountStateManagerV2 + TradeJournalV2",
+      "market_owner": "CurrentCandleAuthorityV1 + certified market hours + ClosedBarAggregatorV1",
+      "startup_or_runtime": "Explicit opt-in startup",
+      "test_or_production": "PRODUCTION_SOURCE_CURRENT_PAPER_OPT_IN",
+      "canonical_or_legacy": "CANONICAL_HISTORICAL_DELEGATE",
+      "downstream_effect": "Reuses certified canonical PAPER authorities; no LIVE orders or automatic provider discovery",
+      "unsafe_duplicate": false
+    },
+    {
+      "id": "backend/backtesting/current_paper_runtime_v1.py:CurrentPaperServiceV1.ingest",
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "function": "CurrentPaperServiceV1.ingest",
+      "source_sha256": "663d119434a981786e4950116fb73a0a4f0d0ce2e5dd479f2d421e5db2667b6b",
+      "calls": [
+        "RuntimeError",
+        "_CurrentRuntimeV1",
+        "self._runtime.ingest",
+        "self.gate.admit",
+        "self.get_snapshot"
+      ],
+      "construction_calls": [
+        "_CurrentRuntimeV1"
+      ],
+      "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
+      "classification": "ISOLATED_CURRENT_PAPER_COMPOSITION",
+      "caller": "Explicit CurrentPaperServiceV1 injection",
+      "account_scope": "New isolated PAPER account; existing namespace recovery blocked",
+      "runtime_generation": "Single process namespace, no automatic operational restart",
+      "services_created": [
+        "_CurrentRuntimeV1 (lazy on first admitted closed candle; existing namespace recovery only)"
+      ],
+      "execution_owner": "TradeLifecycleServiceV2 and canonical historical intrabar position manager",
+      "risk_owner": "RiskManagerV2 + AccountStateManagerV2 + ExecutionRiskGateV1",
+      "financial_owner": "PortfolioManagerV2 + AccountStateManagerV2 + TradeJournalV2",
+      "market_owner": "CurrentCandleAuthorityV1 + certified market hours + ClosedBarAggregatorV1",
+      "startup_or_runtime": "Explicit opt-in startup",
+      "test_or_production": "PRODUCTION_SOURCE_CURRENT_PAPER_OPT_IN",
+      "canonical_or_legacy": "CANONICAL_HISTORICAL_DELEGATE",
+      "downstream_effect": "Reuses certified canonical PAPER authorities; no LIVE orders or automatic provider discovery",
       "unsafe_duplicate": false
     }
   ],
@@ -5234,11 +5303,10 @@
       "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.__init__",
       "path": "backend/backtesting/paper_runtime_v1.py",
       "function": "PaperRuntimeV1.__init__",
-      "source_sha256": "88198487f0a5a17579272562e3687c01b1e9f1b23d5d11577498ff148e08e47c",
+      "source_sha256": "7ac6faad6ab065ebc769214f3cb538055fafa78687f688e46d525347024fcae7",
       "calls": [
         "ClosedBarAggregatorV1",
         "OperatingModeV1",
-        "PaperResearchSessionV1",
         "Path",
         "RLock",
         "ValueError",
@@ -5256,6 +5324,7 @@
         "self._publish",
         "self._recover_evidence",
         "self._save",
+        "self.session_type",
         "sha256",
         "sha256(_encode({'account_config': r.config_hash, 'paper': asdict(config), 'mode': mode, 'clock': 'CERTIFIED_REPLAY', 'effective_policy': self._policy_identity, 'maximum_quote_age_seconds': self._max_age, 'input': [(x.source_sha256, x.source_row, x.raw_row) for x in self._rows]}).encode()).hexdigest",
         "sqlite3.connect",
@@ -5391,7 +5460,7 @@
       "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1.ingest",
       "path": "backend/backtesting/paper_runtime_v1.py",
       "function": "PaperRuntimeV1.ingest",
-      "source_sha256": "396582a0019a7b8d8703a3c2d827225c0394e160638115feed8a1afd80884934",
+      "source_sha256": "61c2bf06ab0e1a6971e0754099020176f311ba6dae1e785bf9ddc04773d3a265",
       "calls": [
         "(received_at.astimezone(timezone.utc) - observation.available_at).total_seconds",
         "RuntimeError",
@@ -5409,6 +5478,7 @@
         "self._process",
         "self._publish",
         "self._save",
+        "self._validate_observation",
         "self.get_snapshot",
         "sha256",
         "sha256(repr(observation).encode()).hexdigest",
@@ -5434,7 +5504,7 @@
       "id": "backend/backtesting/paper_runtime_v1.py:PaperRuntimeV1._process",
       "path": "backend/backtesting/paper_runtime_v1.py",
       "function": "PaperRuntimeV1._process",
-      "source_sha256": "ce4ff8992221bd77a58bebd2c57714693213b1447a7a7aec5fbdc55247e67c29",
+      "source_sha256": "5c0607d56b2ff18e2a060b645652f726a9037816373a9aab8e30ac2b982c8f3e",
       "calls": [
         "TypeError",
         "any",
@@ -5443,7 +5513,6 @@
         "getattr(s, name).clear",
         "int",
         "isinstance",
-        "len",
         "list",
         "observation.candle",
         "r.risk_evaluations.clear",
@@ -5453,6 +5522,7 @@
         "s._update_active_position_if_configured",
         "s.candle_history.append",
         "s.strategy_runner_v2.run",
+        "self._can_analyze",
         "self._htf.history",
         "self._htf.update_completed",
         "self._reasons"
@@ -5492,18 +5562,120 @@
       ],
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/api/current_paper_app_v1.py:create_current_paper_app_v1",
+      "path": "backend/api/current_paper_app_v1.py",
+      "function": "create_current_paper_app_v1",
+      "source_sha256": "2a02e5b1acdc0ac90091c8e634703ea879e307347a30e5926341de558f392fae",
+      "calls": [
+        "AdminAuthorizationV2",
+        "Depends",
+        "FastAPI",
+        "HTTPException",
+        "TypeError",
+        "app.add_middleware",
+        "app.get",
+        "app.post",
+        "service.control",
+        "service.get_snapshot",
+        "service.shutdown",
+        "str",
+        "type"
+      ],
+      "execution_calls": [],
+      "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit current feed adapter or authenticated PAPER command; GET only projects"
+      ],
+      "downstream_effects": [
+        "Delegates existing PAPER runtime; closed-event gate precedes durable INFLIGHT and canonical financial mutation",
+        "No alternate fill, position, PnL or broker authority; restart requires reconciliation"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/current_paper_runtime_v1.py:CurrentPaperServiceV1.control",
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "function": "CurrentPaperServiceV1.control",
+      "source_sha256": "02594aef02d9e5c59d763381baeed3bc148b81ba7d054a5c92262290e93edf23",
+      "calls": [
+        "RuntimeError",
+        "self._runtime.control",
+        "self.get_snapshot"
+      ],
+      "execution_calls": [],
+      "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit current feed adapter or authenticated PAPER command; GET only projects"
+      ],
+      "downstream_effects": [
+        "Delegates existing PAPER runtime; closed-event gate precedes durable INFLIGHT and canonical financial mutation",
+        "No alternate fill, position, PnL or broker authority; restart requires reconciliation"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/current_paper_runtime_v1.py:CurrentPaperServiceV1.ingest",
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "function": "CurrentPaperServiceV1.ingest",
+      "source_sha256": "663d119434a981786e4950116fb73a0a4f0d0ce2e5dd479f2d421e5db2667b6b",
+      "calls": [
+        "RuntimeError",
+        "_CurrentRuntimeV1",
+        "self._runtime.ingest",
+        "self.gate.admit",
+        "self.get_snapshot"
+      ],
+      "execution_calls": [],
+      "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit current feed adapter or authenticated PAPER command; GET only projects"
+      ],
+      "downstream_effects": [
+        "Delegates existing PAPER runtime; closed-event gate precedes durable INFLIGHT and canonical financial mutation",
+        "No alternate fill, position, PnL or broker authority; restart requires reconciliation"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/current_paper_runtime_v1.py:CurrentPaperServiceV1.shutdown",
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "function": "CurrentPaperServiceV1.shutdown",
+      "source_sha256": "9a994ef9659f23cd872e6db6ded26a4599810a1cd3c99cf09e313f0c24b2f8c3",
+      "calls": [
+        "self._runtime.shutdown"
+      ],
+      "execution_calls": [],
+      "owner": "CurrentCandleAuthorityV1 admission -> PaperRuntimeV1 -> HistoricalAccountingV1 canonical PAPER lifecycle",
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "callers": [
+        "Explicit current feed adapter or authenticated PAPER command; GET only projects"
+      ],
+      "downstream_effects": [
+        "Delegates existing PAPER runtime; closed-event gate precedes durable INFLIGHT and canonical financial mutation",
+        "No alternate fill, position, PnL or broker authority; restart requires reconciliation"
+      ],
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
     }
   ],
   "certificate": {
-    "TOTAL_RUNTIME_BUILDERS": 23,
-    "CLASSIFIED_RUNTIME_BUILDERS": 23,
+    "TOTAL_RUNTIME_BUILDERS": 25,
+    "CLASSIFIED_RUNTIME_BUILDERS": 25,
     "UNCLASSIFIED_RUNTIME_BUILDERS": 0,
     "UNSAFE_DUPLICATE_RUNTIME_BUILDERS": 0,
     "CANONICAL_RUNTIME_OWNER": "backend.services.runtime_context_v2.build_runtime_context",
     "CANONICAL_EXECUTION_OWNER": "TradeLifecycleServiceV2",
     "CANONICAL_ORDER_LIFECYCLE_OWNER": "TradeLifecycleServiceV2",
-    "TOTAL_EXECUTION_DECISION_POINTS": 121,
-    "CLASSIFIED_EXECUTION_DECISION_POINTS": 121,
+    "TOTAL_EXECUTION_DECISION_POINTS": 125,
+    "CLASSIFIED_EXECUTION_DECISION_POINTS": 125,
     "UNCLASSIFIED_EXECUTION_DECISION_POINTS": 0,
     "DIRECT_BROKER_BYPASS": 0,
     "UNAUTHORIZED_EXECUTION_ENTRY": 0,

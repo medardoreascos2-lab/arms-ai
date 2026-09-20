@@ -55,6 +55,17 @@ test("only protected requests carry the canonical credential", async () => {
   assert.equal(c.calls[1].options.credentials, 'omit');
 });
 
+test("current monitor can abort a read without credentials or mutation", async () => {
+  const c = client([{body:{}}]);
+  const controller = new AbortController();
+  await c.api.requestJson('/api/v2/backtesting/dashboard', undefined, false, false, controller.signal);
+  assert.equal(c.calls[0].options.signal, controller.signal);
+  assert.equal(c.calls[0].options.method, 'GET');
+  assert.equal(c.calls[0].options.headers['X-ARMS-ADMIN-TOKEN'], undefined);
+  controller.abort();
+  assert.equal(c.calls[0].options.signal.aborted, true);
+});
+
 test("missing credential cannot send a protected command or open a socket", async () => {
   const c = client([]);
   c.api.configurePaperCredential('');

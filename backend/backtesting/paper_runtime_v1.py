@@ -88,7 +88,7 @@ class PaperRuntimeV1:
             return
         try:
             self._rows = tuple(observations)
-            self._paper = PaperResearchSessionV1(config=config, settings=settings, policy=policy,
+            self._paper = self.session_type(config=config, settings=settings, policy=policy,
                                                 observations=self._rows, contract=contract)
             r = self._paper.runtime
             self._authorities = self._authority_bindings()
@@ -117,6 +117,19 @@ class PaperRuntimeV1:
                 self._db = None
             # Preserve the namespace even if initialization failed.
             raise
+
+    session_type = PaperResearchSessionV1
+
+    def _input_exhausted(self):
+        return self._cursor == len(self._rows)
+
+    def _validate_observation(self, observation):
+        if self._cursor >= len(self._rows) or observation != self._rows[self._cursor]:
+            raise ValueError("OUT_OF_ORDER_OR_CONFLICTING_INPUT")
+
+    def _can_analyze(self):
+        r = self._paper.runtime
+        return r.engine.minimum_candles <= r.index < len(r.rows)
 
     def _recover_evidence(self):
         try:
@@ -206,7 +219,7 @@ class PaperRuntimeV1:
             reasons.append("EMERGENCY_BLOCK")
         if self._paper.runtime.index == 0:
             reasons.append("AWAITING_MARKET_DATA")
-        if self._cursor == len(self._rows):
+        if self._input_exhausted():
             reasons.append("END_OF_DATA")
         account = self._paper.runtime.account.get_state()
         if account["trading_blocked"]:
@@ -294,8 +307,7 @@ class PaperRuntimeV1:
                     return self.get_snapshot()
                 if self._authority_reasons():
                     raise ValueError("AUTHORITY_UNAVAILABLE")
-                if self._cursor >= len(self._rows) or observation != self._rows[self._cursor]:
-                    raise ValueError("OUT_OF_ORDER_OR_CONFLICTING_INPUT")
+                self._validate_observation(observation)
                 if received_at.tzinfo is None:
                     raise ValueError("INVALID_REPLAY_CLOCK")
                 age = (received_at.astimezone(timezone.utc)-observation.available_at).total_seconds()
@@ -340,7 +352,7 @@ class PaperRuntimeV1:
         s.candle_history.append(normalized)
         del s.candle_history[:-s.analysis_window]
         self._htf.update_completed(candle)
-        if r.engine.minimum_candles <= r.index < len(r.rows):
+        if self._can_analyze():
             context = {"candle": normalized, "history": list(s.candle_history),
                 "history_15m": [s._normalize_candle(x) for x in self._htf.history("15m")],
                 "history_1h": [s._normalize_candle(x) for x in self._htf.history("1h")],

@@ -39,3 +39,19 @@ test('all declared modes remain visible and only explicit PAPER mode can be read
     assert.equal(rows['PAPER STATUS'],mode==='PAPER_RESEARCH' ? 'PAPER READY' : 'BLOCKED');
   }
 });
+
+test('current feed projection preserves canonical values and separates replay readiness', () => {
+  const input = {mode:'CURRENT_MARKET_PAPER',paper_ready:true,execution_kind:'SIMULATED / PAPER',
+    market_data:{provider:'FIXTURE',contract:'NQ TEST',connected:true,data_age_seconds:2,version:4},
+    account_overview:{balance:150540},recovery_required:false};
+  const before = JSON.stringify(input);
+  const rows = Object.fromEntries(exports.currentPaperRows(input));
+  assert.equal(rows['PAPER STATUS'],'PAPER READY');
+  assert.equal(rows['CURRENT CONTRACT'],'NQ TEST');
+  assert.equal(rows['DATA AGE SECONDS'],2);
+  assert.equal(rows.BALANCE,150540);
+  assert.equal(Object.fromEntries(exports.paperRcRows(input))['PAPER STATUS'],'BLOCKED');
+  assert.equal(Object.fromEntries(exports.currentPaperRows({...input,paper_ready:false}))['PAPER STATUS'],'BLOCKED');
+  assert.equal(Object.fromEntries(exports.currentPaperRows({mode:'PAPER_RESEARCH',paper_ready:true}))['PAPER STATUS'],'BLOCKED');
+  assert.equal(JSON.stringify(input),before);
+});
