@@ -1,0 +1,171 @@
+{
+  "status": "NATIVE_METADATA_OBSERVED_SMOKE_BLOCKED",
+  "audit_time_utc": "2026-09-20T02:18:33.965576+00:00",
+  "start_head": "251d5211241091b968def57f75da80b943c80cb8",
+  "output_directory": "C:/Development/ARMS-AI/.arms-dev/ninjatrader-current",
+  "user_supplied_directory_typo": "ARMS-AI.arms-dev directory absent; files found under repository .arms-dev",
+  "installed_indicator_matches_start_commit": true,
+  "metadata": {
+    "provider": "Provider31",
+    "contract": "NQ DEC26",
+    "expiry": "2026-12-01",
+    "instrument": "NQ",
+    "tick_size": 0.25,
+    "point_value": 20,
+    "timeframe": "1m",
+    "trading_hours_template": "CME US Index Futures ETH",
+    "source_timezone": "UTC",
+    "bar_label": "CLOSE",
+    "realtime": true,
+    "read_only": true
+  },
+  "expiry_semantics": "Instrument.Expiry represents contract month; 2026-12-01 is not certified final trading/expiration day",
+  "expiry_reference": "https://ninjatrader.com/support/helpGuides/nt8/expiry.htm",
+  "application_timezone_from_private_config": "UTC",
+  "calendar": {
+    "template_sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
+    "template": "CME US Index Futures ETH",
+    "timezone": "Central Standard Time",
+    "regular_sessions": [
+      {
+        "BeginDay": "Sunday",
+        "BeginTime": "1700",
+        "EndDay": "Monday",
+        "EndTime": "1600",
+        "TradingDay": "Monday"
+      },
+      {
+        "BeginDay": "Monday",
+        "BeginTime": "1700",
+        "EndDay": "Tuesday",
+        "EndTime": "1600",
+        "TradingDay": "Tuesday"
+      },
+      {
+        "BeginDay": "Tuesday",
+        "BeginTime": "1700",
+        "EndDay": "Wednesday",
+        "EndTime": "1600",
+        "TradingDay": "Wednesday"
+      },
+      {
+        "BeginDay": "Wednesday",
+        "BeginTime": "1700",
+        "EndDay": "Thursday",
+        "EndTime": "1600",
+        "TradingDay": "Thursday"
+      },
+      {
+        "BeginDay": "Thursday",
+        "BeginTime": "1700",
+        "EndDay": "Friday",
+        "EndTime": "1600",
+        "TradingDay": "Friday"
+      }
+    ],
+    "observations_outside_weekly_session": true,
+    "limitation": "Local installed template provenance only; no current closed candle/calendar equivalence observed"
+  },
+  "sessions": [
+    {
+      "file": "b5a17940-7aae-4ef2-b372-4157a2064b3f.jsonl",
+      "session": "b5a17940-7aae-4ef2-b372-4157a2064b3f",
+      "sha256": "02b61d01d70c15182a53d44fbe3f7d84804427c348961f98b64f0a645ecebdab",
+      "bytes": 621,
+      "first_event": "2026-09-20T02:08:59.6155831Z",
+      "last_event": "2026-09-20T02:08:59.6228108Z",
+      "approximate_duration_milliseconds": 7.227,
+      "schema_valid": true,
+      "metadata_valid": true,
+      "sequence_contiguous": true,
+      "duplicate_frames": 0,
+      "events": {
+        "HELLO": 1,
+        "DISCONNECTED": 1
+      },
+      "classification": "METADATA_ACCEPTED_THEN_IMMEDIATELY_STOPPED",
+      "stop_reason": "UNRECOVERABLE_FROM_OLD_FORMAT; no per-cause code emitted"
+    },
+    {
+      "file": "deb6ce88-3372-44d6-9b0f-2da48cdb543d.jsonl",
+      "session": "deb6ce88-3372-44d6-9b0f-2da48cdb543d",
+      "sha256": "e22d8d9ee83de07dac690a78bd66c7842553956af9158f0fa71d99d2a28273fb",
+      "bytes": 621,
+      "first_event": "2026-09-20T02:10:46.5670765Z",
+      "last_event": "2026-09-20T02:10:46.5670765Z",
+      "approximate_duration_milliseconds": 0.0,
+      "schema_valid": true,
+      "metadata_valid": true,
+      "sequence_contiguous": true,
+      "duplicate_frames": 0,
+      "events": {
+        "HELLO": 1,
+        "DISCONNECTED": 1
+      },
+      "classification": "METADATA_ACCEPTED_THEN_IMMEDIATELY_STOPPED",
+      "stop_reason": "UNRECOVERABLE_FROM_OLD_FORMAT; no per-cause code emitted"
+    }
+  ],
+  "sessions_merged": false,
+  "discovery_session_explanation": "Provider mismatch rejects before FileMode.CreateNew; neither observed file is a blocked provider-discovery session",
+  "exact_stop_cause": "UNRESOLVED; startup failure, termination and connection/callback failure shared old Stop record",
+  "heartbeat_connection_status": "NO_HEARTBEAT; both sessions explicitly disconnected",
+  "source_continuity": "NOT_ESTABLISHED",
+  "forming_vs_closed_native": "NOT_OBSERVED",
+  "ohlcv_native": "NOT_OBSERVED",
+  "closed_1m_native": 0,
+  "htf_native": "NOT_EXERCISED",
+  "real_provider_smoke_status": "BLOCKED_NO_HEALTHY_FRESH_STREAM",
+  "current_runtime_admission": "NOT_ATTEMPTED; no valid fresh stream; no historical replay or clock substitution",
+  "duplicate_market_candles": 0,
+  "broker_order_calls": 0,
+  "duplicate_execution": 0,
+  "duplicate_pnl": 0,
+  "count_limitation": "Zero candles admitted; zero counts do not certify positive native operation",
+  "sim_account_discovery_status": "NOT_RUN; market smoke prerequisite unmet",
+  "sim_account_proven": false,
+  "sim_order_authority": false,
+  "live_execution": false,
+  "production_threshold": 90,
+  "paper_threshold": 80.5,
+  "quality_threshold": 85,
+  "repair": "Fixed allowlisted stop reasons/error categories and chart-null diagnostic; no guessed timer/source redesign",
+  "exception_privacy": "No raw messages, stack traces, personal paths, account/connection names or credentials emitted",
+  "installed_source_changed": false,
+  "native_files_changed": false,
+  "push_performed": false,
+  "verification": {
+    "native_compile": "PASS against installed NinjaTrader 8.1.8.2 assemblies; not deployed",
+    "commands": [
+      "py -m pytest backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py backend/tests/test_ninjatrader_market_sprint11.py backend/tests/test_current_paper_sprint10.py -q",
+      "py -m pytest backend/tests/test_paper_runtime_sprint08.py backend/tests/test_mvp_release_sprint09.py -q"
+    ],
+    "results": {
+      "tests": {
+        "tests": 81,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "mvp-tests": {
+        "tests": 35,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "total_passed": 116,
+    "native_error_harness": "Actual Emit/ErrorCode/Stop methods compiled and executed with fault-injecting Print/timer doubles; NinjaTrader not loaded",
+    "diff_check": "PASS",
+    "baseline_full_backend": "6165 passed, 1 existing skip at prior milestone; not rerun for diagnostic-only native change",
+    "frontend": "UNCHANGED; not rerun",
+    "original_jsonl_sha256_rechecked": true,
+    "source_hash_normalization": "UTF-8 LF",
+    "source_sha256": {
+      "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs": "6564888a76e28e2d48280fea85e73a89ecf2bdca4b94f8b730ea75fb2b2e4719",
+      "backend/tests/test_ninjatrader_market_sprint11.py": "7bb6d35461e015d10456873636ec3d351f5b33347cd144b18aa6aba25217fa3b",
+      "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py": "a72b7655b63e61e834d7368a2c58c20da48b3cc3f52555278b0782e3bb187da3",
+      "docs/architecture/ninjatrader_market_sprint11.md": "15cbb5410686a523f8eff3126afc714719c3cecf80606af9bbc85e1cd7ef82bd"
+    }
+  }
+}

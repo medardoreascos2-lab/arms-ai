@@ -146,3 +146,58 @@ fills. Confirm disconnect/reconnect containment and a bounded soak. Only after
 that passes may read-only strong SIM account-type discovery begin. Account name
 alone cannot grant authority. External SIM orders, lifecycle/reconciliation and
 SIM soak remain separate gated work; none is implemented or claimed here.
+
+## Native activation audit, 2026-09-20 UTC
+
+Two original files were inspected directly and kept separate. Each is 621 bytes
+and contains exactly HELLO (sequence 0) followed by DISCONNECTED (sequence 1).
+Both advertise Provider31, NQ DEC26, UTC, 1m CLOSE labels, .25 tick, 20 point
+value and CME US Index Futures ETH. The installed indicator body matches the
+initial Sprint 11 source; the private application configuration also records UTC.
+Neither file has a heartbeat, forming bar or closed bar. Neither can enter the
+current runtime as a healthy fresh stream. They were not replayed or merged.
+
+The blocked provider-enum discovery branch runs before file creation. Therefore
+these are two metadata-accepted sessions that immediately stopped, not the
+discovery session followed by a successful stream. The first stopped roughly
+7.2 ms after HELLO; the second has the same recorded timestamp for both frames.
+The original format cannot distinguish an exception from termination or price
+connection loss. Native log/trace searches contained no matching ARMS diagnostic.
+An exact exception cause is **unresolved**; do not infer one from the short delay.
+
+The two attempts occurred on Saturday in America/Chicago, outside the installed
+template's weekly sessions (Sunday 17:00 through Friday 16:00 with daily breaks).
+No market bars are expected during that interval, but the exporter should still
+produce heartbeats. Weekend closure does not explain away immediate STOP records.
+The local template's schedule/holiday content was inspected read-only; actual
+closed-bar/calendar equivalence still needs an open-session smoke.
+
+Native `expiry=2026-12-01` is an **expiration-month identifier**. NinjaTrader's
+[Instrument.Expiry contract](https://ninjatrader.com/support/helpGuides/nt8/expiry.htm)
+does not certify that December 1 is the final trading day. Match that native value
+in the reader; establish any final trading-day/rollover limit separately.
+
+The repository exporter now emits fixed `reason` and `error_code` categories in
+DISCONNECTED and a matching `ARMS_READ_ONLY_STOP` output. Startup stages, absent
+ChartControl, asynchronous heartbeat startup, bar/heartbeat validation, callback
+failure, price connection loss and termination are distinguishable. No raw
+exception text, stack trace, file path or account/connection name is emitted.
+Cleanup remains fail-closed even if printing or timer cleanup throws. This is a
+diagnostic/containment repair, not a speculative timer or source redesign.
+The reader still rejects every DISCONNECTED frame without admitting candles.
+
+The native application has **not** been modified automatically. Minimal next step:
+
+| WINDOW | MENU | FIELD | VALUE | BUTTON |
+| --- | --- | --- | --- | --- |
+| NinjaScript Editor | Indicators > ArmsReadOnlyMarketV1 | User-authored source | Replace with the updated repository C# source; keep only one copy of the NinjaScript-generated wrapper | F5 / Compile |
+| NQ DEC26 chart | Right-click > Indicators | Configured ArmsReadOnlyMarketV1 instance | Remove old instance; preserve the two original JSONL files | Remove, then OK |
+| NQ DEC26 chart | Right-click > Indicators | ArmsReadOnlyMarketV1 properties | Provider31; `C:\Development\ARMS-AI\.arms-dev\ninjatrader-current`; keep UTC, Minute/1 and the same template | Add, then OK |
+
+Wait at least fifteen seconds, then resume this audit. No manual JSONL copy is
+needed: inspect the newly generated file directly. A stable sequence of fresh
+heartbeats proves only transport operation. Closed 1m candles, HTF progression,
+strategy evaluation and dashboard equivalence must still pass during a verified
+open session before account discovery. Do not inspect/select an account or submit
+an order as part of these diagnostic steps. See the separate sanitized native
+activation evidence JSON; the original offline certificate remains historical.

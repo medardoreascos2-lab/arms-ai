@@ -205,3 +205,17 @@ def test_native_exporter_has_no_order_channel_and_skips_historical_partial_bars(
     assert 'State != State.Realtime' in source
     assert 'Calculate.OnEachTick' in source
     assert 'FileMode.CreateNew' in source
+
+
+@pytest.mark.parametrize("reason", ["CHART_UNAVAILABLE", "STARTUP_HEARTBEAT_SCHEDULE_FAILED",
+    "HEARTBEAT_START_FAILED", "PRICE_CONNECTION_LOST", "TERMINATED"])
+def test_diagnostic_disconnect_still_revokes_all_admission(api_settings, tmp_path, reason):
+    r, clock = setup(tmp_path)
+    send(r, hello(r, clock))
+    with pytest.raises(ValueError):
+        send(r, frame(clock, 1, "DISCONNECTED", dict(connected=False, reason=reason, error_code="NONE")))
+    assert r.service._runtime is None
+    assert r.service.gate.closed_count == 0
+    assert "RECOVERY_REQUIRED" in r.service.gate.reasons()
+    with pytest.raises(RuntimeError): send(r, bar(clock, 2))
+    r.close()

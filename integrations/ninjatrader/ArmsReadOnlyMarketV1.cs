@@ -50,6 +50,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 lock (sync)
                 {
+                    string startupStage = "SOURCE_VALIDATION";
                     try
                     {
                         contract = Instrument.FullName;
@@ -60,32 +61,40 @@ namespace NinjaTrader.NinjaScript.Indicators
                             || !Directory.Exists(OutputDirectory)
                             || !SafeSource()) throw new InvalidOperationException();
                         session = Guid.NewGuid().ToString();
+                        startupStage = "FILE_OPEN";
                         var file = new FileStream(Path.Combine(OutputDirectory, session + ".jsonl"),
                             FileMode.CreateNew, FileAccess.Write, FileShare.Read);
                         writer = new StreamWriter(file, new UTF8Encoding(false));
                         writer.AutoFlush = true;
                         firstRealtimeBar = -1;
+                        startupStage = "HELLO_WRITE";
                         Emit("HELLO", new { provider = ExpectedProvider, contract = contract, expiry = expiry,
                             instrument = "NQ", tick_size = .25, point_value = 20, timeframe = "1m",
                             trading_hours_template = template, source_timezone = "UTC", bar_label = "CLOSE",
                             realtime = true, read_only = true });
                         // Indicator dispatcher timer, as used by the native BarTimer.
+                        startupStage = "HEARTBEAT_SCHEDULE";
+                        if (ChartControl == null) { Stop("CHART_UNAVAILABLE"); return; }
                         ChartControl.Dispatcher.InvokeAsync(new Action(() => {
                             lock (sync)
                             {
                                 if (failed || writer == null) return;
-                                timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                                timer.Tick += Heartbeat;
-                                timer.Start();
+                                try
+                                {
+                                    timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                                    timer.Tick += Heartbeat;
+                                    timer.Start();
+                                }
+                                catch (Exception error) { Stop("HEARTBEAT_START_FAILED", ErrorCode(error)); }
                             }
                         }));
                     }
-                    catch { Print("ARMS_READ_ONLY_BLOCKED_CONFIGURATION"); Stop(); }
+                    catch (Exception error) { Stop("STARTUP_" + startupStage + "_FAILED", ErrorCode(error)); }
                 }
             }
             else if (State == State.Terminated)
             {
-                lock (sync) Stop();
+                lock (sync) Stop("TERMINATED");
             }
         }
 
@@ -140,7 +149,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (failed || writer == null) return;
                 try
                 {
-                    if (!SafeSource()) { Stop(); return; }
+                    if (!SafeSource()) { Stop("BAR_SOURCE_VALIDATION_FAILED"); return; }
                     // Anchor to an observed callback, not CurrentBar at the state
                     // transition (which can precede the first realtime bar).
                     if (firstRealtimeBar < 0) firstRealtimeBar = CurrentBar;
@@ -149,7 +158,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                     if (CurrentBar - 1 > firstRealtimeBar) Emit("CLOSED", Candle(1));
                     Emit("FORMING", Candle(0));
                 }
-                catch { Stop(); }
+                catch (Exception error) { Stop("BAR_CALLBACK_FAILED", ErrorCode(error)); }
             }
         }
 
@@ -160,10 +169,10 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (failed || writer == null) return;
                 try
                 {
-                    if (!SafeSource()) { Stop(); return; }
+                    if (!SafeSource()) { Stop("HEARTBEAT_SOURCE_VALIDATION_FAILED"); return; }
                     Emit("HEARTBEAT", new { connected = true });
                 }
-                catch { Stop(); }
+                catch (Exception error) { Stop("HEARTBEAT_CALLBACK_FAILED", ErrorCode(error)); }
             }
         }
 
@@ -172,17 +181,35 @@ namespace NinjaTrader.NinjaScript.Indicators
             lock (sync)
             {
                 if (writer != null && !failed && update.Connection == source
-                    && update.PriceStatus != ConnectionStatus.Connected) Stop();
+                    && update.PriceStatus != ConnectionStatus.Connected) Stop("PRICE_CONNECTION_LOST");
             }
         }
 
-        private void Stop()
+        // Fixed categories only. Never serialize Message, StackTrace, connection
+        // names, file paths or other provider-owned exception text.
+        private static string ErrorCode(Exception error)
         {
+            if (error is NullReferenceException) return "NULL_REFERENCE";
+            if (error is InvalidOperationException) return "INVALID_OPERATION";
+            if (error is UnauthorizedAccessException) return "ACCESS_DENIED";
+            if (error is IOException) return "IO_ERROR";
+            if (error is ArgumentException) return "INVALID_ARGUMENT";
+            return "OTHER";
+        }
+
+        private void Stop(string reason, string errorCode = "NONE")
+        {
+            if (failed) return;
             failed = true;
-            if (timer != null) { timer.Stop(); timer.Tick -= Heartbeat; timer = null; }
+            try { Print("ARMS_READ_ONLY_STOP reason=" + reason + " error=" + errorCode); } catch { }
+            if (timer != null)
+            {
+                try { timer.Stop(); timer.Tick -= Heartbeat; } catch { }
+                timer = null;
+            }
             if (writer != null)
             {
-                try { Emit("DISCONNECTED", new { connected = false }); } catch { }
+                try { Emit("DISCONNECTED", new { connected = false, reason = reason, error_code = errorCode }); } catch { }
                 try { writer.Dispose(); } catch { }
                 writer = null;
             }
