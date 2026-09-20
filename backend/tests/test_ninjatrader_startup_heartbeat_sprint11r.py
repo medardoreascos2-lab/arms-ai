@@ -22,12 +22,13 @@ def startup_harness(tmp_path_factory):
               "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs").read_text()
     methods = "\n".join(_method(source, signature) for signature in (
         "protected override void OnStateChange(", "private void Heartbeat(",
-        "private void Emit(", "private static string ErrorCode(", "private void Stop("))
+        "private void Emit(", "private static string ErrorCode(", "private void Stop(", "private sealed class ReadinessGate"))
     harness = r'''
 using System;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Diagnostics;
 using System.Web.Script.Serialization;
 public enum State { SetDefaults, Realtime, Terminated }
 public enum Calculate { OnEachTick }
@@ -62,6 +63,10 @@ public class StartupHarness : Indicator {
     private long sequence;
     private int firstRealtimeBar;
     private bool failed, sourceHealthy = true;
+    private bool started, helloSent;
+    private ReadinessGate readiness = new ReadinessGate();
+    private Stopwatch startupClock = new Stopwatch();
+    private System.Threading.Timer startupDeadline;
     private string OutputDirectory, ExpectedProvider = "Provider31", Name, Description;
     private bool IsOverlay, IsChartOnly, IsSuspendedWhileInactive;
     private Calculate Calculate;
@@ -77,6 +82,7 @@ public class StartupHarness : Indicator {
         var dispatcher = h.ChartControl.Dispatcher;
         if (args[0] == "unhealthy_start") h.sourceHealthy = false;
         h.State = State.Realtime; h.OnStateChange();
+        h.readiness.Event(true,true,true,true,"Connected","Connected","Connecting","Connecting");
         if (args[0] == "stop_before_dispatch") h.Stop("TEST_STOP");
         if (args[0] == "terminate_before_dispatch") { h.State = State.Terminated; h.OnStateChange(); }
         if (args[0] == "loss_before_dispatch") h.sourceHealthy = false;
@@ -133,6 +139,6 @@ def test_actual_startup_and_heartbeat_interleavings(startup_harness, tmp_path, c
     if reason is None:
         assert market == []
     else:
-        assert [row["kind"] for row in market] == ["HELLO"] + ["HEARTBEAT"] * heartbeats + ["DISCONNECTED"]
+        assert [row["kind"] for row in market] == (["HELLO"] if heartbeats else []) + ["HEARTBEAT"] * heartbeats + ["DISCONNECTED"]
         assert market[-1]["payload"]["reason"] == reason
         assert [row["sequence"] for row in market] == list(range(len(market)))

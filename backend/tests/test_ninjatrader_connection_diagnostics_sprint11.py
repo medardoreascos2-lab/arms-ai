@@ -21,13 +21,14 @@ def native_callback_harness(tmp_path_factory):
               "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs").read_text()
     methods = "\n".join(_method(source, signature) for signature in (
         "protected override void OnConnectionStatusUpdate(", "private static string StatusName(",
-        "private static string ProviderName(", "private static string ConnectionDecision(",
+        "private static string ProviderName(", "private sealed class ReadinessGate",
         "private void Heartbeat(", "private void Emit(", "private static string ErrorCode(", "private void Stop("))
     harness = r'''
 using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Diagnostics;
 using System.Web.Script.Serialization;
 public enum ConnectionStatus { Connected, Disconnected, Connecting, Disconnecting, ConnectionLost }
 public enum Provider { Provider31, Other }
@@ -67,6 +68,12 @@ public class CallbackHarness : Indicator {
     private StreamWriter writer, connectionWriter;
     private FaultTimer timer;
     private bool failed;
+    private bool helloSent = true;
+    private int firstRealtimeBar;
+    private string contract = "NQ DEC26", expiry = "2026-12-01", template = "CME US Index Futures ETH";
+    private ReadinessGate readiness = new ReadinessGate();
+    private Stopwatch startupClock = new Stopwatch();
+    private System.Threading.Timer startupDeadline;
     private long sequence, connectionSequence;
     private string session = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
     private string ExpectedProvider = "Provider31";
@@ -90,6 +97,10 @@ public class CallbackHarness : Indicator {
         h.writer = new StreamWriter(market, new UTF8Encoding(false)); h.writer.AutoFlush = true;
         h.connectionWriter = new StreamWriter(diagnostic, new UTF8Encoding(false)); h.connectionWriter.AutoFlush = true;
         h.timer = new FaultTimer();
+        // These existing cases exercise an already admitted session. Startup has
+        // separate whole-exporter coverage in Sprint 11T.
+        h.readiness.Event(true,true,true,true,"Connected","Connected","Connecting","Connecting");
+        h.readiness.Poll(true,0);
         h.Emit("HELLO", new { read_only = true });
         switch (args[0]) {
             case "disconnected_connected": update.PriceStatus = ConnectionStatus.Disconnected; break;
@@ -199,15 +210,15 @@ public class CallbackHarness : Indicator {
 
 
 @pytest.mark.parametrize("case,decision", [
-    ("disconnected_connected", "STOP_CONTRADICTORY_CONNECTION_STATE"),
+    ("disconnected_connected", "STOP_CONNECTION_LOSS_EVENT"),
     ("connected_connected", "CONTINUE"),
-    ("disconnected_disconnected", "STOP_CONFIRMED_PRICE_CONNECTION_LOST"),
-    ("connected_disconnected", "STOP_CONFIRMED_PRICE_CONNECTION_LOST"),
-    ("previous_connected_disconnected", "STOP_CONFIRMED_PRICE_CONNECTION_LOST"),
-    ("previous_disconnected_connected", "CONTINUE"),
-    ("connecting_connected", "STOP_CONTRADICTORY_CONNECTION_STATE"),
-    ("current_connecting", "STOP_CONFIRMED_PRICE_CONNECTION_LOST"),
-    ("current_connection_lost", "STOP_CONFIRMED_PRICE_CONNECTION_LOST"),
+    ("disconnected_disconnected", "STOP_CURRENT_CONNECTION_NOT_READY"),
+    ("connected_disconnected", "STOP_CURRENT_CONNECTION_NOT_READY"),
+    ("previous_connected_disconnected", "STOP_CURRENT_CONNECTION_NOT_READY"),
+    ("previous_disconnected_connected", "STOP_RECONNECT_OR_UNPROVEN_CONTINUITY"),
+    ("connecting_connected", "STOP_CONNECTION_REGRESSION"),
+    ("current_connecting", "STOP_CURRENT_CONNECTION_NOT_READY"),
+    ("current_connection_lost", "STOP_CURRENT_CONNECTION_NOT_READY"),
     ("different_connection", "STOP_CONNECTION_IDENTITY_MISMATCH"),
     ("unknown_source", "STOP_UNKNOWN_CONNECTION_STATE"),
     ("unknown_event", "STOP_UNKNOWN_CONNECTION_STATE"),
@@ -220,13 +231,13 @@ public class CallbackHarness : Indicator {
     ("unknown_provider", "STOP_UNKNOWN_CONNECTION_STATE"),
     ("missing_options", "STOP_UNKNOWN_CONNECTION_STATE"),
     ("provider_mismatch", "STOP_CONNECTION_IDENTITY_MISMATCH"),
-    ("adapter_disconnected_price_connected", "CONTINUE"),
-    ("contradictory_adapter", "STOP_CONTRADICTORY_CONNECTION_STATE"),
-    ("changing_current_snapshot", "STOP_CONFIRMED_PRICE_CONNECTION_LOST"),
+    ("adapter_disconnected_price_connected", "STOP_CURRENT_CONNECTION_NOT_READY"),
+    ("contradictory_adapter", "STOP_CONNECTION_LOSS_EVENT"),
+    ("changing_current_snapshot", "STOP_UNSTABLE_CONNECTION_STATE"),
     ("changing_adapter_snapshot", "STOP_UNSTABLE_CONNECTION_STATE"),
     ("diagnostic_io_failure", "STOP_CONNECTION_DIAGNOSTIC_FAILED"),
     ("inactive", None),
-    ("rapid_ordering", "STOP_CONTRADICTORY_CONNECTION_STATE"),
+    ("rapid_ordering", "STOP_CONNECTION_LOSS_EVENT"),
 ])
 def test_actual_native_callback_adjudication(native_callback_harness, case, decision):
     result = subprocess.run([str(native_callback_harness), case], capture_output=True, text=True)
@@ -271,15 +282,15 @@ def test_actual_native_callback_adjudication(native_callback_harness, case, deci
 
 
 @pytest.mark.parametrize("case,decisions,stop,heartbeats", [
-    ("startup_disconnected_connecting_connected", ["STOP_CONFIRMED_PRICE_CONNECTION_LOST"], "STOP_CONFIRMED_PRICE_CONNECTION_LOST", 0),
-    ("startup_connecting_connected", ["STOP_CONFIRMED_PRICE_CONNECTION_LOST"], "STOP_CONFIRMED_PRICE_CONNECTION_LOST", 0),
-    ("observed_native_startup", ["STOP_CONTRADICTORY_CONNECTION_STATE"], "STOP_CONTRADICTORY_CONNECTION_STATE", 0),
-    ("rapid_superseded_startup", ["STOP_CONTRADICTORY_CONNECTION_STATE"], "STOP_CONTRADICTORY_CONNECTION_STATE", 0),
-    ("connected_to_connecting", ["STOP_CONTRADICTORY_CONNECTION_STATE"], "STOP_CONTRADICTORY_CONNECTION_STATE", 0),
-    ("rapid_ordered_connected", ["CONTINUE", "CONTINUE"], None, 0),
-    ("connected_to_lost", ["CONTINUE", "STOP_CONFIRMED_PRICE_CONNECTION_LOST"], "STOP_CONFIRMED_PRICE_CONNECTION_LOST", 0),
+    ("startup_disconnected_connecting_connected", ["STOP_CURRENT_CONNECTION_NOT_READY"], "STOP_CURRENT_CONNECTION_NOT_READY", 0),
+    ("startup_connecting_connected", ["STOP_CURRENT_CONNECTION_NOT_READY"], "STOP_CURRENT_CONNECTION_NOT_READY", 0),
+    ("observed_native_startup", ["STOP_RECONNECT_OR_UNPROVEN_CONTINUITY"], "STOP_RECONNECT_OR_UNPROVEN_CONTINUITY", 0),
+    ("rapid_superseded_startup", ["STOP_RECONNECT_OR_UNPROVEN_CONTINUITY"], "STOP_RECONNECT_OR_UNPROVEN_CONTINUITY", 0),
+    ("connected_to_connecting", ["STOP_CONNECTION_REGRESSION"], "STOP_CONNECTION_REGRESSION", 0),
+    ("rapid_ordered_connected", ["STOP_RECONNECT_OR_UNPROVEN_CONTINUITY"], "STOP_RECONNECT_OR_UNPROVEN_CONTINUITY", 0),
+    ("connected_to_lost", ["CONTINUE", "STOP_CURRENT_CONNECTION_NOT_READY"], "STOP_CURRENT_CONNECTION_NOT_READY", 0),
     ("closed_market_connected", ["CONTINUE"], None, 4),
-    ("closed_market_disconnected", ["STOP_CONFIRMED_PRICE_CONNECTION_LOST"], "STOP_CONFIRMED_PRICE_CONNECTION_LOST", 0),
+    ("closed_market_disconnected", ["STOP_CURRENT_CONNECTION_NOT_READY"], "STOP_CURRENT_CONNECTION_NOT_READY", 0),
     ("heartbeat_current_disconnect", ["CONTINUE"], "HEARTBEAT_SOURCE_VALIDATION_FAILED", 0),
 ])
 def test_startup_sequences_and_no_tick_heartbeat(native_callback_harness, case, decisions, stop, heartbeats):

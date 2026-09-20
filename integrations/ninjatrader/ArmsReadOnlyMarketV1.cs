@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -26,6 +27,10 @@ namespace NinjaTrader.NinjaScript.Indicators
         private int firstRealtimeBar;
         private bool failed;
         private Connection source;
+        private readonly ReadinessGate readiness = new ReadinessGate();
+        private readonly Stopwatch startupClock = new Stopwatch();
+        private System.Threading.Timer startupDeadline;
+        private bool helloSent, started;
 
         [NinjaScriptProperty]
         [Display(Name = "Private output directory", Order = 1, GroupName = "ARMS read only")]
@@ -52,6 +57,9 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 lock (sync)
                 {
+                    if (started || failed) { Stop("STOP_LIFECYCLE_REENTRY"); return; }
+                    started = true;
+                    startupClock.Start();
                     string startupStage = "SOURCE_VALIDATION";
                     try
                     {
@@ -74,11 +82,14 @@ namespace NinjaTrader.NinjaScript.Indicators
                             FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false));
                         connectionWriter.AutoFlush = true;
                         firstRealtimeBar = -1;
-                        startupStage = "HELLO_WRITE";
-                        Emit("HELLO", new { provider = ExpectedProvider, contract = contract, expiry = expiry,
-                            instrument = "NQ", tick_size = .25, point_value = 20, timeframe = "1m",
-                            trading_hours_template = template, source_timezone = "UTC", bar_label = "CLOSE",
-                            realtime = true, read_only = true });
+                        // No HELLO (reader readiness) or candles during STARTING.
+                        startupStage = "DEADLINE_SCHEDULE";
+                        startupDeadline = new System.Threading.Timer(_ => {
+                            lock (sync)
+                            {
+                                if (!failed && readiness.State == "STARTING") Stop("STOP_STARTUP_TIMEOUT");
+                            }
+                        }, null, Math.Max(1, 30000 - (int)startupClock.ElapsedMilliseconds), System.Threading.Timeout.Infinite);
                         // Indicator dispatcher timer, as used by the native BarTimer.
                         startupStage = "HEARTBEAT_SCHEDULE";
                         if (ChartControl == null) { Stop("CHART_UNAVAILABLE"); return; }
@@ -103,6 +114,10 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 lock (sync) Stop("TERMINATED");
             }
+            else if (started)
+            {
+                lock (sync) Stop("STOP_LIFECYCLE_CHANGED");
+            }
         }
 
         private bool SafeSource()
@@ -114,21 +129,30 @@ namespace NinjaTrader.NinjaScript.Indicators
                 || Instrument.MasterInstrument.TickSize != .25 || Instrument.MasterInstrument.PointValue != 20
                 || ExpectedProvider.ToLowerInvariant().Contains("simulat")
                 || ExpectedProvider.ToLowerInvariant().Contains("playback")) return false;
-            lock (Connection.Connections)
+            if (!System.Threading.Monitor.TryEnter(Connection.Connections)) return false;
+            try
             {
-                var feeds = Connection.Connections.Where(c => c.PriceStatus == ConnectionStatus.Connected
+                // Do not hide an additional transitioning futures source by filtering its status.
+                var feeds = Connection.Connections.Where(c => c != null
                     && c.InstrumentTypes.Contains(InstrumentType.Future)).ToArray();
                 if (feeds.Length != 1) return false;
-                if (feeds[0].Options.Provider.ToString() != ExpectedProvider)
+                if (ProviderName(feeds[0]) != ExpectedProvider)
                 {
                     // Enum only: no connection name, credentials or account IDs.
-                    Print("ARMS_READ_ONLY_PROVIDER_ENUM=" + feeds[0].Options.Provider.ToString());
+                    Print("ARMS_READ_ONLY_PROVIDER_ENUM=" + ProviderName(feeds[0]));
                     return false;
                 }
                 if (source != null && source != feeds[0]) return false;
+                var price = StatusName(feeds[0].PriceStatus);
+                var status = StatusName(feeds[0].Status);
+                if (price != "Connected" || status != "Connected"
+                    || StatusName(feeds[0].PriceStatus) != price || StatusName(feeds[0].Status) != status
+                    || ProviderName(feeds[0]) != ExpectedProvider)
+                    return false;
                 source = feeds[0];
                 return true;
             }
+            finally { System.Threading.Monitor.Exit(Connection.Connections); }
         }
 
         private void Emit(string kind, object payload)
@@ -157,6 +181,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 try
                 {
                     if (!SafeSource()) { Stop("BAR_SOURCE_VALIDATION_FAILED"); return; }
+                    if (readiness.State != "READY" || !helloSent) return;
                     // Anchor to an observed callback, not CurrentBar at the state
                     // transition (which can precede the first realtime bar).
                     if (firstRealtimeBar < 0) firstRealtimeBar = CurrentBar;
@@ -177,6 +202,22 @@ namespace NinjaTrader.NinjaScript.Indicators
                 try
                 {
                     if (!SafeSource()) { Stop("HEARTBEAT_SOURCE_VALIDATION_FAILED"); return; }
+                    if (!readiness.Poll(true, startupClock.ElapsedMilliseconds))
+                    {
+                        if (readiness.State == "STOPPED") Stop(readiness.Reason);
+                        return;
+                    }
+                    if (!helloSent)
+                    {
+                        // Reanchor after admission; no startup/partial candle is replayed.
+                        firstRealtimeBar = -1;
+                        Emit("HELLO", new { provider = ExpectedProvider, contract = contract, expiry = expiry,
+                            instrument = "NQ", tick_size = .25, point_value = 20, timeframe = "1m",
+                            trading_hours_template = template, source_timezone = "UTC", bar_label = "CLOSE",
+                            realtime = true, read_only = true });
+                        helloSent = true;
+                        if (startupDeadline != null) { startupDeadline.Dispose(); startupDeadline = null; }
+                    }
                     Emit("HEARTBEAT", new { connected = true });
                 }
                 catch (Exception error) { Stop("HEARTBEAT_CALLBACK_FAILED", ErrorCode(error)); }
@@ -188,7 +229,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             var received = DateTime.UtcNow.ToString("o");
             lock (sync)
             {
-                // No active stream exists before HELLO or after the fail latch.
+                // Diagnostics can precede HELLO; they cannot grant admission.
                 if (writer == null || failed) return;
                 try
                 {
@@ -208,9 +249,15 @@ namespace NinjaTrader.NinjaScript.Indicators
                     var same = callback != null && Object.ReferenceEquals(callback, selected);
                     var stable = Object.ReferenceEquals(source, selected)
                         && currentPrice == currentPriceAfter && currentStatus == currentStatusAfter;
-                    var decision = ConnectionDecision(same, stable, price, previousPrice, status,
-                        previousStatus, currentPrice, currentStatus, currentPriceAfter,
-                        callbackProvider, selectedProvider, ExpectedProvider);
+                    var decision = readiness.Event(
+                        currentPrice == "Connected" && currentPriceAfter == "Connected" && currentStatus == "Connected"
+                            && currentStatusAfter == "Connected",
+                        same && callbackProvider == selectedProvider && selectedProvider == ExpectedProvider,
+                        !new[] { price, previousPrice, status, previousStatus, currentPrice, currentStatus,
+                            currentPriceAfter, currentStatusAfter, callbackProvider, selectedProvider }.Contains("UNKNOWN"),
+                        stable, price, status, previousPrice, previousStatus);
+                    if (!failed && startupClock.ElapsedMilliseconds >= 30000 && readiness.State == "STARTING")
+                        decision = readiness.Revoke("STOP_STARTUP_TIMEOUT");
                     connectionWriter.WriteLine(new JavaScriptSerializer().Serialize(new {
                         schema = "arms.nt.connection-diagnostic.v1", session = session,
                         sequence = connectionSequence++, event_time = DateTime.UtcNow.ToString("o"),
@@ -223,7 +270,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                             same_source = same, source_present = selected != null, callback_present = callback != null,
                             source_snapshot_stable = stable, callback_provider = callbackProvider,
                             source_provider = selectedProvider, decision = decision } }));
-                    if (decision != "CONTINUE") Stop(decision);
+                    if (decision != "CONTINUE" && decision != "WAIT_STARTUP_ALIGNMENT") Stop(decision);
                 }
                 catch (Exception error) { Stop("STOP_CONNECTION_DIAGNOSTIC_FAILED", ErrorCode(error)); }
             }
@@ -241,25 +288,50 @@ namespace NinjaTrader.NinjaScript.Indicators
             return Enum.IsDefined(provider.GetType(), provider) ? provider.ToString() : "UNKNOWN";
         }
 
-        private static string ConnectionDecision(bool same, bool stable, string price, string previousPrice,
-            string status, string previousStatus, string currentPrice, string currentStatus,
-            string currentPriceAfter, string callbackProvider, string selectedProvider, string expectedProvider)
+        private sealed class ReadinessGate
         {
-            // Current non-connected price state is a veto, not proof of a physical outage.
-            if ((currentPrice != "UNKNOWN" && currentPrice != "Connected")
-                || (currentPriceAfter != "UNKNOWN" && currentPriceAfter != "Connected"))
-                return "STOP_CONFIRMED_PRICE_CONNECTION_LOST";
-            if (new[] { price, previousPrice, status, previousStatus, currentPrice, currentStatus,
-                currentPriceAfter, callbackProvider, selectedProvider }.Contains("UNKNOWN"))
-                return "STOP_UNKNOWN_CONNECTION_STATE";
-            if (!same || callbackProvider != selectedProvider || selectedProvider != expectedProvider)
-                return "STOP_CONNECTION_IDENTITY_MISMATCH";
-            if (!stable) return "STOP_UNSTABLE_CONNECTION_STATE";
-            // No documented stale-startup exception: contradictory snapshots fail closed.
-            // Status is adapter/order connectivity, not SIM or order authority.
-            if (price != currentPrice || status != currentStatus)
-                return "STOP_CONTRADICTORY_CONNECTION_STATE";
-            return "CONTINUE";
+            public string State = "STARTING";
+            private bool aligned;
+            public string Event(bool healthy, bool identity, bool known, bool stable,
+                string price, string status, string previousPrice, string previousStatus)
+            {
+                if (State == "STOPPED") return "STOP_LATCHED";
+                if (!known) return Revoke("STOP_UNKNOWN_CONNECTION_STATE");
+                if (!identity) return Revoke("STOP_CONNECTION_IDENTITY_MISMATCH");
+                if (!stable) return Revoke("STOP_UNSTABLE_CONNECTION_STATE");
+                if (!healthy) return Revoke("STOP_CURRENT_CONNECTION_NOT_READY");
+                if (new[] { price, status }.Any(s => s == "Disconnected" || s == "Disconnecting" || s == "ConnectionLost"))
+                    return Revoke("STOP_CONNECTION_LOSS_EVENT");
+                if (new[] { previousPrice, previousStatus }.Any(s => s == "Disconnecting" || s == "ConnectionLost")
+                    || (State == "READY" && (previousPrice != "Connected" || previousStatus != "Connected")))
+                    return Revoke("STOP_RECONNECT_OR_UNPROVEN_CONTINUITY");
+                if (price != "Connected" || status != "Connected")
+                {
+                    aligned = false;
+                    if (State == "READY" || previousPrice == "Connected" || previousStatus == "Connected")
+                        return Revoke("STOP_CONNECTION_REGRESSION");
+                    // Quarantine, never ignore or declare this event stale. No admission.
+                    return "WAIT_STARTUP_ALIGNMENT";
+                }
+                aligned = true;
+                return "CONTINUE"; // A callback cannot grant READY.
+            }
+
+            public bool Poll(bool healthy, double elapsed)
+            {
+                if (State == "STOPPED") return false;
+                if (!healthy) { Revoke("STOP_CURRENT_CONNECTION_NOT_READY"); return false; }
+                if (State == "STARTING")
+                {
+                    if (elapsed >= 30000) { Revoke("STOP_STARTUP_TIMEOUT"); return false; }
+                    if (!aligned) return false;
+                    State = "READY";
+                }
+                return true;
+            }
+
+            public string Reason;
+            public string Revoke(string reason) { State = "STOPPED"; Reason = reason; return reason; }
         }
 
         // Fixed categories only. Never serialize Message, StackTrace, connection
@@ -278,6 +350,12 @@ namespace NinjaTrader.NinjaScript.Indicators
         {
             if (failed) return;
             failed = true;
+            readiness.Revoke(reason);
+            if (startupDeadline != null)
+            {
+                try { startupDeadline.Dispose(); } catch { }
+                startupDeadline = null;
+            }
             try { Print("ARMS_READ_ONLY_STOP reason=" + reason + " error=" + errorCode); } catch { }
             if (timer != null)
             {
