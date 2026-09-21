@@ -28,6 +28,12 @@ namespace NinjaTrader.NinjaScript.Indicators
         private int diagnosticSequence, returnedRows = -1, currentIndex = -1;
         private bool terminal, submitted, submitting, completed;
         private readonly HashSet<State> observedStates = new HashSet<State>();
+        // At most 64 calendar iterations, four progress rows each, plus lifecycle/terminal rows.
+        private const int MaximumDiagnosticRecords = 512;
+        private int calendarIteration = -1;
+        private DateTime? calendarQuery, lastCalendarQuery, sessionBegin, sessionEnd;
+        private DateTime? lastSessionBegin, lastSessionEnd;
+        private string calendarAdvanceResult = "NOT_CALLED", boundsRead = "NONE";
 
         [NinjaScriptProperty]
         [Display(Name = "Capture enabled", Order = 1, GroupName = "ARMS historical only")]
@@ -168,7 +174,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private void Trace(string value, string errorType = "NONE")
         {
-            if (diagnostic == null || diagnosticSequence >= 48) throw new InvalidOperationException();
+            if (diagnostic == null || diagnosticSequence >= MaximumDiagnosticRecords) throw new InvalidOperationException();
             diagnostic.WriteLine(new JavaScriptSerializer().Serialize(new {
                 schema = "arms.nt.historical-diagnostic.v1", classification = "DIAGNOSTIC_ONLY",
                 certification_evidence = false, runtime_admission = false, instance = attemptId,
@@ -179,7 +185,86 @@ namespace NinjaTrader.NinjaScript.Indicators
                 request_invoked = submitted, capture_completed = completed,
                 attempt_failed = terminal && !completed,
                 returned_rows = returnedRows, source_index = currentIndex, observed_time_kind = observedTimeKind,
-                request_error = requestError, exception_type = errorType }));
+                request_error = requestError, exception_type = errorType,
+                // Full redaction is intentional: provider-owned exception.Message is never serialized.
+                exception_message = errorType == "NONE" ? "NONE" :
+                    stage == "CALENDAR_ADVANCE_FALSE" ? "GetNextSession returned false." : "REDACTED_NATIVE_OR_GUARD_MESSAGE",
+                calendar_iteration = calendarIteration, calendar_query = DiagnosticTime(calendarQuery),
+                calendar_query_kind = DiagnosticKind(calendarQuery), include_end_time = true,
+                calendar_advance_result = calendarAdvanceResult, calendar_bounds_read = boundsRead,
+                last_successful_query = DiagnosticTime(lastCalendarQuery),
+                last_successful_query_kind = DiagnosticKind(lastCalendarQuery),
+                session_begin = DiagnosticTime(sessionBegin), session_begin_kind = DiagnosticKind(sessionBegin),
+                session_end = DiagnosticTime(sessionEnd), session_end_kind = DiagnosticKind(sessionEnd),
+                last_successful_session_begin = DiagnosticTime(lastSessionBegin),
+                last_successful_session_begin_kind = DiagnosticKind(lastSessionBegin),
+                last_successful_session_end = DiagnosticTime(lastSessionEnd),
+                last_successful_session_end_kind = DiagnosticKind(lastSessionEnd),
+                requested_from_kind = from.Kind.ToString(), requested_through_kind = through.Kind.ToString(),
+                expected_trading_hours = "CME US Index Futures ETH", expected_template_timezone = "Central Standard Time",
+                required_application_timezone = "UTC" }));
+        }
+
+        private static string DiagnosticTime(DateTime? value)
+        { return value.HasValue ? value.Value.ToString("o", CultureInfo.InvariantCulture) : null; }
+
+        private static string DiagnosticKind(DateTime? value)
+        { return value.HasValue ? value.Value.Kind.ToString() : "NONE"; }
+
+        private List<object> CalendarIntervals(Bars bars, DateTime calendarFrom, DateTime calendarThrough)
+        {
+            var intervals = new List<object>();
+            stage = "CALENDAR_ITERATOR_CREATE_EXCEPTION";
+            var iterator = new SessionIterator(bars); // Uses the returned Bars.TradingHours.
+            stage = "CALENDAR_ITERATOR_CREATED";
+            Trace("CALENDAR_ITERATOR_CREATED");
+            DateTime query = calendarFrom, lastEnd = DateTime.MinValue;
+            for (int count = 0; count < 64; count++)
+            {
+                calendarIteration = count; calendarQuery = query;
+                sessionBegin = sessionEnd = null; boundsRead = "NONE";
+                calendarAdvanceResult = "NOT_RETURNED";
+                stage = "CALENDAR_QUERY_BEGIN";
+                Trace("CALENDAR_QUERY_BEGIN"); // Persist exact input before invoking native code.
+                stage = "CALENDAR_ADVANCE_EXCEPTION";
+                bool advanced = iterator.GetNextSession(query, true);
+                calendarAdvanceResult = advanced ? "TRUE" : "FALSE";
+                if (!advanced)
+                {
+                    stage = "CALENDAR_ADVANCE_FALSE";
+                    throw new InvalidOperationException(); // Same fail-closed admission as before.
+                }
+                stage = "CALENDAR_ADVANCE_SUCCESS";
+                Trace("CALENDAR_ADVANCE_SUCCESS");
+                stage = "CALENDAR_SESSION_BOUNDS_READ_EXCEPTION";
+                boundsRead = "BEGIN"; var begin = iterator.ActualSessionBegin; sessionBegin = begin;
+                boundsRead = "END"; var end = iterator.ActualSessionEnd; sessionEnd = end;
+                boundsRead = "COMPLETE";
+                stage = "CALENDAR_SESSION_BOUNDS_READ_SUCCESS";
+                Trace("CALENDAR_SESSION_BOUNDS_READ_SUCCESS");
+                stage = "CALENDAR_INTERVAL_ORDER";
+                if (begin >= end || end <= lastEnd) throw new InvalidOperationException();
+                if (begin >= calendarThrough) break;
+                stage = "CALENDAR_BEGIN_UTC_KIND"; observedTimeKind = begin.Kind.ToString();
+                var beginText = Utc(begin);
+                stage = "CALENDAR_END_UTC_KIND"; observedTimeKind = end.Kind.ToString();
+                var endText = Utc(end);
+                stage = "CALENDAR_TRADING_DAY_READ_EXCEPTION";
+                intervals.Add(new { begin = beginText, end = endText,
+                    trading_day = iterator.ActualTradingDayExchange.ToString("yyyy-MM-dd") });
+                lastCalendarQuery = query; lastSessionBegin = begin; lastSessionEnd = end;
+                lastEnd = end;
+                stage = "CALENDAR_QUERY_UPDATE";
+                query = end.AddTicks(1); // Preserve the original one-tick advancement exactly.
+                calendarQuery = query;
+                Trace("CALENDAR_QUERY_ADVANCED");
+                if (query >= calendarThrough) break;
+                stage = "CALENDAR_INTERVAL_LIMIT";
+                if (count == 63) throw new InvalidOperationException();
+            }
+            stage = "CALENDAR_ITERATION_COMPLETE";
+            Trace("CALENDAR_ITERATION_COMPLETE");
+            return intervals;
         }
 
         private string DirectoryIdentity()
@@ -293,32 +378,9 @@ namespace NinjaTrader.NinjaScript.Indicators
                     string dataset = Guid.NewGuid().ToString();
                     var serializer = new JavaScriptSerializer();
                     var lines = new List<string>();
-                    var intervals = new List<object>();
                     var calendarFrom = DateTime.SpecifyKind(from.AddDays(-2), DateTimeKind.Utc);
                     var calendarThrough = DateTime.SpecifyKind(through.AddDays(8), DateTimeKind.Utc);
-                    var iterator = new SessionIterator(bars);
-                    DateTime query = calendarFrom, lastEnd = DateTime.MinValue;
-                    for (int count = 0; count < 64; count++)
-                    {
-                        stage = "CALENDAR_ITERATOR_ADVANCE";
-                        if (!iterator.GetNextSession(query, true)) throw new InvalidOperationException();
-                        var begin = iterator.ActualSessionBegin;
-                        var end = iterator.ActualSessionEnd;
-                        stage = "CALENDAR_INTERVAL_ORDER";
-                        if (begin >= end || end <= lastEnd) throw new InvalidOperationException();
-                        if (begin >= calendarThrough) break;
-                        stage = "CALENDAR_BEGIN_UTC_KIND"; observedTimeKind = begin.Kind.ToString();
-                        var beginText = Utc(begin);
-                        stage = "CALENDAR_END_UTC_KIND"; observedTimeKind = end.Kind.ToString();
-                        var endText = Utc(end);
-                        intervals.Add(new { begin = beginText, end = endText,
-                            trading_day = iterator.ActualTradingDayExchange.ToString("yyyy-MM-dd") });
-                        lastEnd = end;
-                        query = end.AddTicks(1);
-                        if (query >= calendarThrough) break;
-                        stage = "CALENDAR_INTERVAL_LIMIT";
-                        if (count == 63) throw new InvalidOperationException();
-                    }
+                    var intervals = CalendarIntervals(bars, calendarFrom, calendarThrough);
                     stage = "HEADER_SERIALIZATION";
                     Trace("SERIALIZATION_STARTED");
                     lines.Add(serializer.Serialize(new {

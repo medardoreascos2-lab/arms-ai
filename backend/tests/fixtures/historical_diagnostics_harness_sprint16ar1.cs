@@ -52,14 +52,46 @@ namespace NinjaTrader.Data {
         public long GetVolume(int i) { return 0; }
     }
     public class SessionIterator {
-        public DateTime ActualSessionBegin, ActualSessionEnd, ActualTradingDayExchange;
-        public SessionIterator(Bars bars) { }
+        private DateTime begin, end;
+        private int calls;
+        public DateTime ActualSessionBegin { get {
+            if (Harness.Mode == "begin_throw") throw new InvalidOperationException(Harness.Secret);
+            return begin;
+        } }
+        public DateTime ActualSessionEnd { get {
+            if (Harness.Mode == "end_throw") throw new InvalidOperationException(Harness.Secret);
+            return end;
+        } }
+        public DateTime ActualTradingDayExchange { get { return begin.Date; } }
+        public SessionIterator(Bars bars) {
+            if (Harness.Mode == "iterator_create_throw") throw new InvalidOperationException(Harness.Secret);
+        }
         public bool GetNextSession(DateTime query, bool include) {
+            calls++;
+            if (!include) throw new Exception("end inclusion changed");
+            if (Harness.Mode == "iterator_throw" || (Harness.Mode == "late_throw" && calls == 3))
+                throw new InvalidOperationException(Harness.Secret + " C:\\private\\secret.txt\n" + new string('x',10000));
             if (Harness.Mode == "iterator_false") return false;
-            ActualSessionBegin = DateTime.SpecifyKind(query.Date.AddDays(query.TimeOfDay > TimeSpan.Zero ? 1 : 0),
+            if (Harness.Mode == "late_false" && calls == 3) return false;
+            if (Harness.Mode == "repeated" && calls > 1) return true;
+            if (Harness.Mode == "nonadvancing" && calls > 1) { begin=begin.AddHours(-1); return true; }
+            if (Harness.Mode == "tiny_sessions") {
+                begin = query; end = query.AddTicks(1); return true;
+            }
+            if (Harness.Mode == "session_boundaries" || Harness.Mode.StartsWith("query_")) {
+                // Synthetic September 2026 ETH geometry only; not native calendar evidence.
+                var start = query.Date.AddHours(22);
+                if (query.Hour < 21 || (query.Hour == 21 && query.TimeOfDay == TimeSpan.FromHours(21)))
+                    start = start.AddDays(-1);
+                while (start.DayOfWeek == DayOfWeek.Friday || start.DayOfWeek == DayOfWeek.Saturday)
+                    start = start.AddDays(1);
+                begin = DateTime.SpecifyKind(start, DateTimeKind.Utc);
+                end = begin.AddHours(23); return true;
+            }
+            begin = DateTime.SpecifyKind(query.Date.AddDays(query.TimeOfDay > TimeSpan.Zero ? 1 : 0),
                 Harness.Mode == "calendar_kind" ? DateTimeKind.Unspecified : DateTimeKind.Utc);
-            ActualSessionEnd = ActualSessionBegin.AddHours(23);
-            ActualTradingDayExchange = ActualSessionBegin.Date;
+            end = begin.AddHours(23);
+            if (Harness.Mode == "end_before_begin") end=begin.AddTicks(-1);
             return true;
         }
     }
@@ -118,6 +150,14 @@ namespace NinjaTrader.NinjaScript.Indicators {
     public class Host : ArmsHistoricalBootstrapV1 {
         public void Step(NinjaTrader.NinjaScript.State state) { State=state; OnStateChange(); }
         public Host Clone() { return (Host)MemberwiseClone(); }
+        public void QueryKind(DateTimeKind kind) {
+            // Exercise the real private traversal with alternate input Kind; never change production defaults.
+            var type = typeof(ArmsHistoricalBootstrapV1);
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            type.GetMethod("CalendarIntervals",flags).Invoke(this,new object[] {
+                new NinjaTrader.Data.Bars(), DateTime.SpecifyKind(new DateTime(2026,9,16),kind),
+                DateTime.SpecifyKind(new DateTime(2026,9,17),kind) });
+        }
     }
 }
 public static class Harness {
@@ -137,6 +177,11 @@ public static class Harness {
             h.FromUtcDate=Mode == "bad_date" ? Secret : "2026-09-16";
             h.ThroughUtcDate="2026-09-21";
             if (Mode != "late_properties") h.Step(NinjaTrader.NinjaScript.State.Configure);
+            if (Mode.StartsWith("query_")) {
+                h.QueryKind((DateTimeKind)Enum.Parse(typeof(DateTimeKind),Mode.Substring(6)));
+                h.Step(NinjaTrader.NinjaScript.State.Terminated);
+                Console.WriteLine("{\"creates\":0,\"invokes\":0,\"disposes\":0}"); return 0;
+            }
             if (Mode == "changed_properties") h.ThroughUtcDate="2026-09-22";
             if (Mode == "terminate_before_request") h.Step(NinjaTrader.NinjaScript.State.Terminated);
             h.Step(NinjaTrader.NinjaScript.State.DataLoaded);

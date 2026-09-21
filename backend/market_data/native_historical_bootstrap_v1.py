@@ -16,9 +16,10 @@ from tools.production_timing_v1 import parse
 from tools.native_timing_witness_v1 import ticks, MINUTE as MINUTE_TICKS
 
 SCHEMA = 'arms.certified-native-history.v1'
-EXPORTER_SHA256 = 'e053d525a0b8e0098006c9ce28feeea4b1449c0835ce6dcaffd64a95c72b2da7'
-# Closed reviewed set: original 16A and diagnostic-only 16A-R1; history schema unchanged.
+EXPORTER_SHA256 = '934e028a8503d74d1b790f600a2b93043a7ed97ea6072cf2bf9de418864e8282'
+# Closed reviewed set: original 16A, R1 and diagnostic-only R2; history schema unchanged.
 REVIEWED_EXPORTER_HASHES = frozenset((EXPORTER_SHA256,
+    'e053d525a0b8e0098006c9ce28feeea4b1449c0835ce6dcaffd64a95c72b2da7',
     '836ad9d128853129119bd9ea97b93158f6bfaa2f6bf216d80679a53c6e1ef578'))
 TEMPLATE_SHA256 = '370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620'
 TEMPLATE = 'CME US Index Futures ETH'

@@ -41,7 +41,7 @@ def run(harness, path, mode):
     marker = path / 'historical-diagnostic.jsonl'
     raw = marker.read_bytes() if marker.exists() else b''
     trace = [json.loads(line) for line in raw.splitlines()]
-    assert len(trace) <= 48 and len(raw) <= 48 * 2048
+    assert len(trace) <= 512 and len(raw) <= 512 * 8192
     assert b'PRIVATE_PROVIDER_SENTINEL' not in raw + process.stdout.encode()
     assert str(path).encode() not in raw
     for index, row in enumerate(trace):
@@ -79,7 +79,7 @@ def test_success_lifecycle_and_one_shot(harness, tmp_path, mode):
     ('empty','ROW_COUNT',1), ('inline_empty','ROW_COUNT',1),
     ('callback_error','CALLBACK_ERROR',1), ('wrong_callback','CALLBACK_IDENTITY',1),
     ('calendar_kind','CALENDAR_BEGIN_UTC_KIND',1), ('bar_kind','BAR_UTC_KIND',1),
-    ('iterator_false','CALENDAR_ITERATOR_ADVANCE',1), ('bad_price','BAR_OHLCV',1),
+    ('iterator_false','CALENDAR_ADVANCE_FALSE',1), ('bad_price','BAR_OHLCV',1),
     ('foreign_file','OUTPUT_OWNERSHIP',1), ('callback_properties','CALLBACK_PROPERTIES',1),
     ('terminated','TERMINATED_BEFORE_COMPLETION',1),
     ('terminate_before_request','TERMINATED_BEFORE_COMPLETION',0),
@@ -150,7 +150,8 @@ def test_diagnostic_bytes_are_not_certification(harness, tmp_path):
 
 
 def test_reviewed_source_pins_preserve_legacy_and_reject_unknown():
-    assert REVIEWED_EXPORTER_HASHES == frozenset((LEGACY, EXPORTER_SHA256))
+    assert REVIEWED_EXPORTER_HASHES == frozenset((LEGACY,
+        'e053d525a0b8e0098006c9ce28feeea4b1449c0835ce6dcaffd64a95c72b2da7', EXPORTER_SHA256))
     assert sha256(SOURCE.read_bytes().replace(b'\r\n',b'\n')).hexdigest() == EXPORTER_SHA256
     h, rows = native_shape()
     envelope = json.loads(bundle(h, rows))
