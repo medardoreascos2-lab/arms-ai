@@ -1,0 +1,307 @@
+{
+  "schema": "arms.market-open-native-certification.sprint13.v1",
+  "status": "PASS_BOUNDED_MARKET_OPEN_ONLY",
+  "baseline": "092a126138829023fdb8ac7febf57fd6717ef572",
+  "session": "0e02836d-5355-40d2-82a6-4044b8e1db89",
+  "watcher_session": "a4802c12-a2eb-4a32-af06-9766f21f9589",
+  "evidence_kind": "NATIVE_CURRENT",
+  "report_sha256": "8a501c6a7248dca83cc5de18c5b7886736da5b917763db17695911c9eae6d095",
+  "native_prefix_sha256": "9776f52435b80e3e59f15e7ce5ebde0f03c8326c999e0c52e4b8c34a0a92c090",
+  "native_prefix_bytes": 352793,
+  "native_prefix_records": 1748,
+  "connection_sha256": "63d76fabca5acec3b23ad0fabe224f9729a0fb29120f3df262b202b16ad27723",
+  "capture": {
+    "requested_seconds": 7500,
+    "watcher_exit_code": 0,
+    "first_live_poll": "2026-09-21T00:52:01.213789+00:00",
+    "hello": "2026-09-21T00:52:01.1832831Z",
+    "last_admitted_event": "2026-09-21T02:57:00.4029173Z",
+    "report_written_utc": "2026-09-21T02:57:01.430077+00:00",
+    "admitted_event_span_seconds": 7499.219634,
+    "duration_basis": "7500_SECOND_MONOTONIC_LOOP_COMPLETED; EXACT_MONOTONIC_ELAPSED_NOT_SERIALIZED",
+    "activation_deadline_utc": "2026-09-21T00:52:10.1862460Z"
+  },
+  "identity": {
+    "provider": "Provider31",
+    "contract": "NQ DEC26",
+    "expiry": "2026-12-01",
+    "instrument": "NQ",
+    "tick_size": 0.25,
+    "point_value": 20,
+    "timeframe": "1m",
+    "trading_hours_template": "CME US Index Futures ETH",
+    "source_timezone": "UTC",
+    "bar_label": "CLOSE",
+    "realtime": true,
+    "read_only": true
+  },
+  "startup": {
+    "status": "PASS",
+    "sha256": "63d76fabca5acec3b23ad0fabe224f9729a0fb29120f3df262b202b16ad27723",
+    "records": 2
+  },
+  "frame_counts": {
+    "HELLO": 1,
+    "HEARTBEAT": 1499,
+    "FORMING": 125,
+    "CLOSED": 123
+  },
+  "candles": {
+    "FORMING": {
+      "count": 125,
+      "first_close_label": "2026-09-21T00:54:00.0000000Z",
+      "last_close_label": "2026-09-21T02:58:00.0000000Z",
+      "min_boundary_delta_seconds": 0.002879,
+      "max_boundary_delta_seconds": 5.877944,
+      "early_count": 0,
+      "gaps": 0,
+      "duplicate_labels": 0
+    },
+    "CLOSED": {
+      "count": 123,
+      "first_close_label": "2026-09-21T00:55:00.0000000Z",
+      "last_close_label": "2026-09-21T02:57:00.0000000Z",
+      "min_boundary_delta_seconds": 0.002879,
+      "max_boundary_delta_seconds": 5.877944,
+      "early_count": 0,
+      "gaps": 0,
+      "duplicate_labels": 0
+    }
+  },
+  "canonical_1m_count": 123,
+  "heartbeat": {
+    "count": 1499,
+    "span_seconds": 7496.344558,
+    "minimum_gap_seconds": 4.985397,
+    "maximum_gap_seconds": 5.060316
+  },
+  "htf": {
+    "15m": {
+      "count": 7,
+      "complete_bucket_starts": [
+        "2026-09-21T01:00:00+00:00",
+        "2026-09-21T01:15:00+00:00",
+        "2026-09-21T01:30:00+00:00",
+        "2026-09-21T01:45:00+00:00",
+        "2026-09-21T02:00:00+00:00",
+        "2026-09-21T02:15:00+00:00",
+        "2026-09-21T02:30:00+00:00"
+      ],
+      "incomplete_buckets_not_emitted": [
+        {
+          "start": "2026-09-21T00:45:00+00:00",
+          "observations": 6
+        },
+        {
+          "start": "2026-09-21T02:45:00+00:00",
+          "observations": 12
+        }
+      ],
+      "independent_ohlcv_reconstruction": "PASS",
+      "comparison_to_live_report": "COUNTS_MATCH_LIVE_VALUES_NOT_SERIALIZED"
+    },
+    "1h": {
+      "count": 1,
+      "complete_bucket_starts": [
+        "2026-09-21T01:00:00+00:00"
+      ],
+      "incomplete_buckets_not_emitted": [
+        {
+          "start": "2026-09-21T00:00:00+00:00",
+          "observations": 6
+        },
+        {
+          "start": "2026-09-21T02:00:00+00:00",
+          "observations": 57
+        }
+      ],
+      "independent_ohlcv_reconstruction": "PASS",
+      "comparison_to_live_report": "COUNTS_MATCH_LIVE_VALUES_NOT_SERIALIZED"
+    }
+  },
+  "integrity": {
+    "ohlc": "PASS",
+    "volume": "PASS",
+    "tick_alignment": "PASS",
+    "timestamps": "PASS",
+    "sequence": "PASS",
+    "malformed": 0,
+    "duplicates": 0,
+    "out_of_order": 0,
+    "stale_rejections": 0,
+    "future_rejections": 0,
+    "closed_minute_gaps": 0,
+    "fabricated_candles": 0,
+    "freshness": "PASS_LIVE_UNCHANGED_READER_AND_AUTHORITY; PER_RECORD_RECEIPT_TIMES_NOT_SERIALIZED"
+  },
+  "safety": {
+    "broker_order_calls": 0,
+    "native_account_access": false,
+    "execution_side_effects": 0,
+    "account_drift": 0,
+    "journal_completed": 0,
+    "completed_trades": 0,
+    "sim_order_authority": "DISABLED",
+    "live_authority": false,
+    "bookkeeping": "ISOLATED_LOCAL_PAPER_STATE_CREATED_BY_AUTHORIZED_HARNESS; NO_NATIVE_ACCOUNT_ACCESS"
+  },
+  "calendar_review": {
+    "status": "LOCAL_TEMPLATE_BOUND_ORDINARY_DATES_ONLY",
+    "template_sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
+    "loaded_native_calendar": "PASS",
+    "native_binding": {
+      "status": "LOADED_NATIVE_MATCH",
+      "weekly_sessions": 5,
+      "iterator_samples": 13,
+      "full_holiday_dates": 31,
+      "partial_holiday_dates": 112,
+      "partial_constraints_2026": 11,
+      "ordinary_binding": "PASS",
+      "holiday_runtime_admission": "BLOCKED_UNSUPPORTED_CIVIL_DATE_PROJECTION",
+      "timestamp_semantics": "OBSERVED_UTC_NOT_PC_LOCAL",
+      "spring_dst_native": "NOT_SAMPLED",
+      "direct_loaded_xml_hash": "NOT_EXPOSED",
+      "get_next_session_return_value": "NOT_CAPTURED",
+      "native_sha256": "c7d1d601d758ee98e2aa314384ef997f388d1c3e454d205e71dbfa9795f04cf8",
+      "session": "6741b746-6f31-4d26-86b2-524a901bc256",
+      "capture_timestamp": "2026-09-20T06:03:11.4179026Z"
+    },
+    "covered_dates": [
+      "2026-09-19",
+      "2026-09-20",
+      "2026-09-21",
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-26",
+      "2026-09-27",
+      "2026-09-28"
+    ]
+  },
+  "preserved": {
+    "original_protected_hashes": 136,
+    "preexisting_native_prefixes": 15
+  },
+  "pending": [
+    "DAILY_BOUNDARY",
+    "WEEKLY_BOUNDARY",
+    "HOLIDAY_EARLY_CLOSE",
+    "DISCONNECT_RECONNECT",
+    "SPRING_DST_NATIVE",
+    "AUTHORITATIVE_SIM_CLASSIFICATION"
+  ],
+  "readiness": {
+    "read_only_sim_discovery": false,
+    "external_sim_account_test": false,
+    "next_phase2_sprint": "SAFE_OFFLINE_WORK_ONLY; REMAINING_NATIVE_CERTIFICATIONS_PENDING"
+  },
+  "limits": [
+    "Raw ticks and exchange-authenticated clock not exported",
+    "Live receipt timestamps and exact monotonic start/end not serialized",
+    "HTF live report stores counts, not aggregated values; independently reconstructed from exact native prefix",
+    "No daily, weekly, holiday, reconnect or full Sprint 13 certification implied"
+  ],
+  "thresholds": {
+    "production": 90,
+    "paper": 80.5,
+    "quality": 85
+  },
+  "reviewed_source_hash_basis": "UTF-8 repository bytes normalized to LF",
+  "reviewed_source_sha256": {
+    "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs": "2c3b2ca833351edce47872f0c4e5bd611b13e9846b8c15774423c37bc174de0f",
+    "backend/market_data/native_certification_v1.py": "85757d6d7a6355ba45b587ca1433b8b827e3a7dec924c78cfa480b27299e3d56",
+    "backend/market_data/ninjatrader_market_reader_v1.py": "86127012c4aea2fc455b51dc1cbf05f7facac21618a84507965e5056e8f77524",
+    "backend/market_data/current_candle_authority_v1.py": "4493962d6059698bfd41c7add6a34813c0785dd0e1e2d97a621d8ed627390c8d",
+    "backend/backtesting/closed_bar_aggregator_v1.py": "fc93a6ffb645f6cfd1b2daf16aca6449447aa5b6a2a1acbd8eca344b6844ca1b",
+    "backend/backtesting/current_paper_runtime_v1.py": "d1b98067a82228b76b801d603656deb9bc791b5f0f3e61373960234720d0f156",
+    "backend/backtesting/paper_runtime_v1.py": "2fefb876275afa9551f5bb8f02228ff31891cd5c125c1757759f222cd14ff074",
+    "backend/market_data/loaded_calendar_binding_v1.py": "89375c5ea9471b3627dac66ebe6aa5209a7c49bb8d2352623962ff02deb1bd8b",
+    "backend/market_data/native_calendar_review_v1.py": "79649991b7ce50881f38944d72abddee8484e1bf31968f21c69b8f5fc829f4ea"
+  },
+  "arm_plan_sha256": "112a403f2959b38b8822ea53b7cdc959924c281beae8109b6461246bb52d1fea",
+  "clock_preflight": {
+    "windows_offsets": [
+      -0.0121616,
+      -0.0099573,
+      -0.0093506
+    ],
+    "cloudflare_offsets": [
+      -0.0105689,
+      -0.0106345,
+      -0.01217
+    ],
+    "status": "PASS_POINT_IN_TIME_NO_TOLERANCE_CHANGE"
+  },
+  "certification_window": {
+    "begin": "2026-09-21T00:00:00+00:00",
+    "end_exclusive": "2026-09-28T00:00:00+00:00"
+  },
+  "tests": {
+    "passed": 1013,
+    "failures": 0,
+    "skipped": 0,
+    "new_cases": 6,
+    "modules": [
+      "backend/tests/test_backtest_engine.py",
+      "backend/tests/test_backtest_single_pass_v27b.py",
+      "backend/tests/test_certified_market_calendar_v2.py",
+      "backend/tests/test_certified_market_hours_runtime_provider_v2.py",
+      "backend/tests/test_closed_bar_aggregation_v29r.py",
+      "backend/tests/test_loaded_calendar_sprint13.py",
+      "backend/tests/test_market_hours_service_v2.py",
+      "backend/tests/test_market_hours_special_hours_integration_v2.py",
+      "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "backend/tests/test_phase1_risk_precedence_v5.py",
+      "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+      "backend/tests/test_production_certified_outcome_v17.py",
+      "backend/tests/test_real_market_structure_detectors_v17.py",
+      "backend/tests/test_special_hours_snapshot_v2.py",
+      "backend/tests/test_current_paper_sprint10.py",
+      "backend/tests/test_historical_accounting_sprint07r.py",
+      "backend/tests/test_historical_research_sprint07r.py",
+      "backend/tests/test_mvp_release_sprint09.py",
+      "backend/tests/test_native_calendar_collector_sprint13.py",
+      "backend/tests/test_native_calendar_sprint13.py",
+      "backend/tests/test_native_certification_sprint12.py",
+      "backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py",
+      "backend/tests/test_ninjatrader_connection_observer_sprint11s.py",
+      "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+      "backend/tests/test_ninjatrader_market_sprint11.py",
+      "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+      "backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py",
+      "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py",
+      "backend/tests/test_paper_research_sprint07r.py",
+      "backend/tests/test_paper_runtime_sprint08.py",
+      "backend/tests/test_session_lifecycle_sprint12.py",
+      "backend/tests/test_sim_binding_sprint13.py",
+      "backend/tests/test_sim_readiness_sprint12.py",
+      "backend/tests/test_native_harness_preflight_sprint13.py",
+      "backend/tests/test_native_timestamp_sprint13.py",
+      "backend/tests/test_market_open_finalization_sprint13.py"
+    ],
+    "command": "py -m pytest <modules> -q --junitxml=<private-run>/finalization-regression.xml",
+    "environment_reference": "backend/tests/paper_rc_certification_sprint08.json:test_environment",
+    "private_mapping": "EXISTING_HASH_CHECKED_OFFLINE_DATASET_MAPPING",
+    "warning": "EXISTING_STARLETTE_HTTPX_DEPRECATION"
+  },
+  "validation": {
+    "diff_check": "PASS",
+    "privacy": "PASS",
+    "frontend": "NOT_AFFECTED_NOT_RERUN",
+    "native_compilation": "NOT_REQUIRED_NATIVE_SOURCE_UNCHANGED",
+    "unrelated_untracked_preserved": 109,
+    "datasets_preserved": 16
+  },
+  "files_changed": [
+    "backend/tests/market_open_native_certification_sprint13.json",
+    "backend/tests/native_test_plans_sprint13.json",
+    "backend/tests/test_market_open_finalization_sprint13.py",
+    "docs/architecture/market_open_native_certification_sprint13.md"
+  ],
+  "artifact_source_sha256": {
+    "backend/tests/native_test_plans_sprint13.json": "2d3a628054d13826feb0dc6626f6a00feba7ef7ebb3c9b2ae4ce84ba53788152",
+    "backend/tests/test_market_open_finalization_sprint13.py": "c47f6ce60ac501521120b5ac2ad3ae092536b6674f373c320bdaa06ceecc5f3e",
+    "docs/architecture/market_open_native_certification_sprint13.md": "3a644b5aad5d4c3ea5beb347eb5c0ab198e688b5a6fca0cd8ccc88c3b37c254c"
+  }
+}

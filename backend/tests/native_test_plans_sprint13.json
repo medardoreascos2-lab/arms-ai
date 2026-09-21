@@ -30,7 +30,7 @@
         "Loaded calendar binding absent"
       ],
       "activation": "Start bounded harness BEFORE one fresh exporter activation; never replay prior evidence",
-      "native_status": "PENDING",
+      "native_status": "PASS_BOUNDED_MARKET_OPEN_ONLY",
       "simulation_authority": "DISABLED",
       "purpose": "market_open",
       "start_window": "Any covered ordinary OPEN interval with at least 125 minutes before close",
@@ -39,7 +39,9 @@
         "REOPENING",
         "OPEN"
       ],
-      "status": "READY_FOR_NATIVE_TEST_WITH_BOUND_ORDINARY_CALENDAR"
+      "status": "CERTIFIED_BOUNDED_MARKET_OPEN_ONLY",
+      "certified_session": "0e02836d-5355-40d2-82a6-4044b8e1db89",
+      "certification_artifact": "backend/tests/market_open_native_certification_sprint13.json"
     },
     {
       "required_evidence": [
