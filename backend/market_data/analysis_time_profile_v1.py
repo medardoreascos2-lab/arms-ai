@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from uuid import UUID
 
 from backend.backtesting.closed_bar_aggregator_v1 import ClosedBarAggregatorV1
+from backend.market_data.certified_bootstrap_v1 import CertifiedBootstrap
 from backend.models.candle import Candle
 from backend.smart_money.market_structure import MarketStructureEngine
 from backend.smart_money.liquidity_engine import LiquidityEngine
@@ -25,7 +26,8 @@ from tools.production_timing_v1 import PAIR_FIELDS, parse
 
 SCHEMA = 'arms.market-analysis-time-profile.v1'
 EXPORTER_SHA256 = '9383d39f8b39f62d5bed235d69f4200e0a31d5a14515e5caf078805d03fcd350'
-COMPONENTS = ('1m','15m','1h','trend','structure','liquidity','fvg','regime','confluence','confidence')
+COMPONENTS = ('1m','15m','1h','trend','trend_1m','trend_15m','trend_1h',
+              'structure','liquidity','fvg','regime','confluence','confidence')
 
 
 def require(value, reason):
@@ -36,7 +38,7 @@ def require(value, reason):
 class MarketAnalysisTimeProfileV1:
     def __init__(self, *, session, epoch, frequency, reader_start_qpc, qpc_clock,
                  heartbeat_seconds, maximum_processing_seconds, exporter_sha256,
-                 calendar_evidence=None):
+                 calendar_evidence=None, bootstrap=None):
         require(str(UUID(session)) == session and isinstance(epoch,str) and bool(epoch), 'IDENTITY')
         require(type(frequency) is int and frequency > 0 and type(reader_start_qpc) is int
                 and reader_start_qpc >= 0 and callable(qpc_clock), 'QPC_CONTEXT')
@@ -58,6 +60,20 @@ class MarketAnalysisTimeProfileV1:
         self.candles = deque(maxlen=120)
         self.htf = ClosedBarAggregatorV1(history_limit=50)
         self.values = {}
+        require(bootstrap is None or type(bootstrap) is CertifiedBootstrap, 'CERTIFIED_BOOTSTRAP_REQUIRED')
+        self.bootstrap = bootstrap
+        self.bootstrap_bars = {} if bootstrap is None else {bar.candle().timestamp: bar for bar in bootstrap.bars}
+        self.origins = {}
+        self.handoff = 'NO_BOOTSTRAP' if bootstrap is None else 'AWAITING_LIVE_TAIL'
+        self.first_live = None
+        self.first_live_closed = None
+        self.overlap_skipped = 0
+        if bootstrap is not None:
+            for bar in bootstrap.bars:
+                candle = bar.candle()
+                self.htf.update_completed(candle)
+                self.candles.append(candle)
+            self._compute(origin='CERTIFIED_BOOTSTRAP')
         self.calendar_status = 'UNKNOWN'
         if calendar_evidence is not None:
             # An old calendar proof is not continuous binding of this new stream.
@@ -182,6 +198,8 @@ class MarketAnalysisTimeProfileV1:
             self.pending=(deepcopy(p),deepcopy(v))
         else:
             require(p['bars_ago']==0 and ((self.forming_count>=(1 if self.tail_baseline else 2))==(self.pending is not None)), 'MISSING_CLOSED')
+            if self.first_live is None:
+                self.first_live = dict(sequence=row['sequence'], label=v['bar_time'])
             if self.forming:
                 require(p['bar_index']==self.forming['bar_index']+1
                         and label==ticks(self.forming['source_bar_label'])+MINUTE, 'CANONICAL_GAP')
@@ -191,22 +209,42 @@ class MarketAnalysisTimeProfileV1:
                 if self.forming_count >= 2:
                     candle=Candle('NQ','1m',*[vclosed[k] for k in ('open','high','low','close','volume')],
                                   datetime.fromisoformat(vclosed['bar_time'].replace('Z','+00:00'))-timedelta(minutes=1))
-                    self.htf.update_completed(candle)
-                    self.candles.append(candle)
-                    self._compute()
+                    self._completed_live(candle, closed['canonical_sequence'])
             self.pending=None;self.forming=deepcopy(p);self.forming_count+=1
         self.pair_sequence=p['pair_sequence'];self.previous_pair=deepcopy(p);self.last_emission=em['qpc_before']
 
-    def _compute(self):
+    def _completed_live(self, candle, sequence):
+        if self.first_live_closed is None:
+            self.first_live_closed = dict(sequence=sequence, source_open=candle.timestamp.isoformat())
+        if self.bootstrap is not None:
+            cutoff = self.bootstrap.bars[-1].candle().timestamp
+            if candle.timestamp <= cutoff:
+                prior = self.bootstrap_bars.get(candle.timestamp)
+                require(prior is not None and all(getattr(prior, k) == getattr(candle, k)
+                        for k in ('open','high','low','close','volume')), 'BOOTSTRAP_LIVE_OVERLAP_CONFLICT')
+                self.overlap_skipped += 1
+                self.handoff = 'VERIFYING_OVERLAP'
+                return  # A fresh receipt is not a second admission of the same minute.
+            require(candle.timestamp == self.candles[-1].timestamp+timedelta(minutes=1), 'BOOTSTRAP_LIVE_GAP')
+            self.handoff = 'COMPLETE'
+        self.htf.update_completed(candle)
+        self.candles.append(candle)
+        self._compute()
+
+    def _compute(self, origin='LIVE_TAIL'):
         bars=list(self.candles)
+        prior_values = self.values
         self.values={'1m':dict(close=bars[-1].close,source_open=bars[-1].timestamp.isoformat())}
         for timeframe in ('15m','1h'):
             h=self.htf.history(timeframe)
             if h:self.values[timeframe]=dict(close=h[-1].close,source_open=h[-1].timestamp.isoformat())
-        if len(bars)>=50:
-            store=SimpleNamespace(get_latest=lambda **kw: bars[-kw['limit']:])
-            trend=TrendEngineV2(live_candle_store=store).analyze(symbol='NQ',timeframe='1m')
-            self.values['trend']={k:trend[k] for k in ('direction','fast_ema','slow_ema','slope')}
+        for timeframe in ('1m','15m','1h'):
+            history = bars if timeframe == '1m' else self.htf.history(timeframe)
+            if len(history) >= 50:
+                store=SimpleNamespace(get_latest=lambda **kw: history[-kw['limit']:])
+                trend=TrendEngineV2(live_candle_store=store).analyze(symbol='NQ',timeframe=timeframe)
+                self.values['trend_'+timeframe]={k:trend[k] for k in ('direction','fast_ema','slow_ema','slope')}
+                if timeframe == '1m': self.values['trend'] = self.values['trend_1m']
         if len(bars)>=3:
             self.values['structure']={'classification':MarketStructureEngine().analyze(bars)}
             args={f'{n}_{k}':getattr(bar,k) for n,bar in zip(('first','second','third'),bars[-3:]) for k in ('high','low')}
@@ -215,6 +253,11 @@ class MarketAnalysisTimeProfileV1:
             engine=LiquidityEngine();engine.analyze(bars)
             self.values['liquidity']=dict(equal_highs=engine.equal_highs,equal_lows=engine.equal_lows,
                                          sweep=engine.sweep_detected,direction=engine.sweep_direction)
+        for key in self.values:
+            timeframe = key.removeprefix('trend_')
+            if timeframe in ('15m','1h') and origin == 'LIVE_TAIL' and prior_values.get(timeframe) == self.values.get(timeframe):
+                continue  # Initialized HTF values remain historical until a new full bucket closes.
+            self.origins[key] = origin
 
     def snapshot(self):
         with self._lock:
@@ -223,7 +266,11 @@ class MarketAnalysisTimeProfileV1:
             age=None if self.last_emission is None else max(0,now-self.last_emission)/self.frequency
             active=(self.fault is None and self.pending is None and self.last_emission is not None
                     and now-self.last_emission <= self.maximum_processing)
-            components={k:dict(status='SOURCE_RELATIVE_ONLY',value=deepcopy(self.values[k])) if active and k in self.values else
+            components={k:dict(status='SOURCE_RELATIVE_ONLY',value=deepcopy(self.values[k]),
+                               data_class=self.origins[k], bootstrap_context=self.bootstrap is not None)
+                        if active and k in self.values and self.origins[k]=='LIVE_TAIL' else
+                        dict(status='CERTIFIED_BOOTSTRAP_ONLY',value=deepcopy(self.values[k]),data_class='CERTIFIED_BOOTSTRAP')
+                        if not self.fault and self.pending is None and k in self.values and self.origins[k]=='CERTIFIED_BOOTSTRAP' else
                         dict(status='BLOCKED' if self.fault else 'NOT_PROJECTED' if k in ('regime','confluence','confidence') else 'INSUFFICIENT_OR_STALE_DATA',value=None)
                         for k in COMPONENTS}
             return dict(schema=SCHEMA,profile='MARKET_ANALYSIS_TIME_PROFILE',
@@ -234,8 +281,22 @@ class MarketAnalysisTimeProfileV1:
                 source_time_status='LABELS_AND_RELATIVE_PROGRESS_ONLY' if active else 'UNKNOWN',
                 source_time_recency='UNKNOWN',absolute_market_recency='UNKNOWN',absolute_time_authority='UNKNOWN',
                 session_authority='UNKNOWN',session_status='UNKNOWN',calendar_binding=self.calendar_status,news_authority='UNCERTIFIED',
-                analysis_status='SOURCE_RELATIVE_ONLY' if active and self.candles else 'BLOCKED',
+                analysis_status='SOURCE_RELATIVE_ONLY' if active and self.candles and self.origins.get('1m')=='LIVE_TAIL' else 'BLOCKED',
+                bootstrap_status='REVOKED' if self.fault and self.bootstrap else 'CERTIFIED_BOOTSTRAP' if self.bootstrap else 'UNAVAILABLE',
+                bootstrap_source=self.bootstrap.source if self.bootstrap else None,
+                bootstrap_sha256=self.bootstrap.sha256 if self.bootstrap else None,
+                bootstrap_bar_count=len(self.bootstrap.bars) if self.bootstrap else 0,
+                bootstrap_cutoff=self.bootstrap.bars[-1].label if self.bootstrap else None,
+                bootstrap_gap_count=self.bootstrap.gap_count if self.bootstrap else 0,
+                live_handoff_status='REVOKED' if self.fault else self.handoff,
+                first_live_tail=deepcopy(self.first_live), first_live_closed=deepcopy(self.first_live_closed),
+                overlap_minutes_skipped=self.overlap_skipped,
+                complete_buckets={tf:dict(count=self.htf.emitted_counts[tf],
+                    latest_complete_label=self.htf.history(tf)[-1].timestamp.isoformat() if self.htf.history(tf) else None,
+                    label_convention='OPEN', data_class=self.origins.get(tf, 'UNTRUSTED_HISTORY')) for tf in ('15m','1h')},
+                trend_required_bars={'1m':50,'15m':50,'1h':50},
                 decision_status='NOT_PROJECTED',components=components,data_freshness='NOT_ASSERTED',
                 execution_mode='LOCAL_PAPER',paper_entry_authority='DISABLED',sim_execution_authority='DISABLED',live_authority=False,
                 broker_order_calls=0,ninjatrader_account_access=False,paper_trades_opened=0,
+                order_submit_reachable=False,
                 sequence=self.sequence,session=self.session,epoch=self.epoch,fault=self.fault)

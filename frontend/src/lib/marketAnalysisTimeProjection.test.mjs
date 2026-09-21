@@ -63,3 +63,41 @@ test('adapter lifecycle cannot project bootstrap, waiting, disconnected or revok
   assert.equal(r.ABSOLUTE_MARKET_RECENCY,'UNKNOWN');assert.equal(r.PROCESSING_AGE_STATUS,'QPC_OBSERVED');
   source.timing_pair_status='WAITING';assert.equal(project(source).MARKET_STREAM,'NOT_LIVE');
 });
+
+const historical = () => ({...healthy(),market_stream:'NOT_LIVE',analysis_status:'BLOCKED',
+  transport_liveness:'UNKNOWN_OR_LOST',canonical_continuity:'UNPROVEN_OR_REVOKED',
+  processing_age:{status:'UNKNOWN',seconds:null},bootstrap_status:'CERTIFIED_BOOTSTRAP',
+  bootstrap_source:'SEALED_NATIVE_PRODUCTION',bootstrap_sha256:'a'.repeat(64),bootstrap_bar_count:3000,
+  bootstrap_cutoff:'2026-09-21T14:00:00.0000000Z',bootstrap_gap_count:2,live_handoff_status:'AWAITING_LIVE_TAIL',
+  complete_buckets:{'1h':{count:50,latest_complete_label:'2026-09-21T08:00:00-05:00',label_convention:'OPEN'}},
+  components:{'1h':{status:'CERTIFIED_BOOTSTRAP_ONLY',data_class:'CERTIFIED_BOOTSTRAP',value:{close:20000,source_open:'2026-09-21T08:00:00-05:00'}},
+    trend_1h:{status:'CERTIFIED_BOOTSTRAP_ONLY',data_class:'CERTIFIED_BOOTSTRAP',value:{direction:'BULLISH',confidence:1}}}});
+
+test('certified initialization is visible without promoting liveness or execution',()=>{
+  const r=project(historical());
+  assert.equal(r.MARKET_STREAM,'NOT_LIVE');assert.equal(r.ANALYSIS_STATUS,'BLOCKED');
+  assert.equal(r['1H'].status,'CERTIFIED_BOOTSTRAP_ONLY');assert.equal(r.TREND_1H.direction,'BULLISH');
+  assert.equal(r.TREND_1H.confidence,undefined);assert.equal(r.CONFIDENCE,'NOT_PROJECTED');
+  assert.equal(r['1H_COMPLETE_BUCKET_COUNT'],50);assert.equal(r.BOOTSTRAP_BAR_COUNT,3000);
+  assert.equal(r.ABSOLUTE_MARKET_RECENCY,'UNKNOWN');assert.equal(r.NEWS_AUTHORITY,'UNCERTIFIED');
+  assert.equal(r.PAPER_ENTRY_AUTHORITY,'DISABLED');assert.equal(r.SIM_EXECUTION_AUTHORITY,'DISABLED');
+});
+
+test('corruption, revoked handoff, unknown origin and unsafe authority suppress bootstrap',()=>{
+  for(const patch of [{fault:'TRANSPORT_LOSS'},{bootstrap_status:'UNTRUSTED_HISTORY'},
+    {bootstrap_sha256:'unreviewed'},{bootstrap_source:'CSV'},{live_handoff_status:'REVOKED'},
+    {adapter_status:'REVOKED'},{live_authority:true},{bootstrap_cutoff:'PRIVATE'}]) {
+    const r=project({...historical(),...patch});
+    assert.equal(r['1H'],'BLOCKED / INSUFFICIENT DATA');assert.equal(r.BOOTSTRAP_BAR_COUNT,0);
+    assert.equal(r.MARKET_STREAM,'NOT_LIVE');
+  }
+  const s=historical();s.components['1h'].data_class='LIVE_TAIL';
+  assert.equal(project(s)['1H'],'BLOCKED / INSUFFICIENT DATA');
+});
+
+test('healthy live receipts do not relabel initialized hourly analysis as new live values',()=>{
+  const s={...healthy(),...historical(),market_stream:'LIVE',transport_liveness:'OBSERVED_RECEIPTS',
+    canonical_continuity:'CONTIGUOUS_OBSERVED',processing_age:{status:'QPC_OBSERVED',seconds:1},live_handoff_status:'COMPLETE'};
+  const r=project(s);assert.equal(r.MARKET_STREAM,'LIVE');assert.equal(r['1H'].status,'CERTIFIED_BOOTSTRAP_ONLY');
+  assert.equal(r.REGIME,'NOT_PROJECTED');assert.equal(r.CONFLUENCE,'NOT_PROJECTED');assert.equal(r.DECISION_STATUS,'NOT_PROJECTED');
+});

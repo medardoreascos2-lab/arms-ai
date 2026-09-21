@@ -41,6 +41,7 @@ export default function MarketAnalysisPage() {
     <p>LIVE describes observed local exporter activity. Absolute market recency, current session and news authority remain unproven.</p>
     <p>LOCAL_PAPER is the mode label only. PAPER entries and SIM execution are disabled; LIVE authority is NO. This page has no execution controls.</p>
     <p>Observations reflect the last response and expire locally after two seconds. Source-relative patterns are not trade recommendations.</p>
+    <p>CERTIFIED_BOOTSTRAP_ONLY means initialized historical analysis, not a new LIVE observation. Complete bucket labels are open times. Trend requires 50 completed bars on each timeframe. A gap or conflicting overlap blocks the handoff.</p>
     {unavailable && <p role="status">BLOCKED — analysis service unavailable or awaiting a fresh response.</p>}
     <dl className="space-y-2">{analysisTimeRows(snapshot).map(([label, value]) =>
       <div key={label}><dt className="font-semibold">{label}</dt><dd className="break-all whitespace-pre-wrap">

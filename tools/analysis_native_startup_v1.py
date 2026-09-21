@@ -86,6 +86,8 @@ def run(args):
     require(os.name == 'nt', 'WINDOWS_SAME_HOST_REQUIRED')
     source = local_path(args.installed_exporter)
     identity = verify_exporter_source(source.read_bytes())
+    from tools.certify_analysis_bootstrap_v1 import load_bootstrap
+    bootstrap = load_bootstrap(args.bootstrap_evidence, args.bootstrap_sha256) if getattr(args, 'bootstrap_evidence', None) else None
     free_port(args.port); free_port(args.frontend_port)
     node = shutil.which('node')
     require(node is not None, 'NODE_REQUIRED')
@@ -94,13 +96,14 @@ def run(args):
     parent.mkdir(parents=True, exist_ok=True)
     folder = parent/run_id
     folder.mkdir(exist_ok=False)
-    runtime = AnalysisStartupV1(run_id=run_id, installed_exporter=source)
+    runtime = AnalysisStartupV1(run_id=run_id, installed_exporter=source, bootstrap=bootstrap)
     backend_url = f'http://127.0.0.1:{args.port}'
     frontend_url = f'http://127.0.0.1:{args.frontend_port}'
     health_url = backend_url+'/api/v2/market-analysis/health'
     dashboard_url = frontend_url+'/market-analysis'
     claim = dict(run_id=run_id, pid=runtime.pid, process_start=runtime.process_start,
         mode='OFFLINE_VALIDATION' if args.validate_offline else 'ANALYSIS_ONLY', exporter_identity=identity,
+        bootstrap_sha256=bootstrap.sha256 if bootstrap else None,
         backend_url=backend_url, dashboard_url=dashboard_url, input_directory=str(folder/'inbox'))
     with (folder/'claim.json').open('x') as f:
         json.dump(claim, f, indent=2)

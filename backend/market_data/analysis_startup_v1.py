@@ -9,7 +9,7 @@ from tools.native_timing_witness_v1 import live_process_start
 
 
 class AnalysisStartupV1:
-    def __init__(self, *, run_id, installed_exporter, qpc_clock=None):
+    def __init__(self, *, run_id, installed_exporter, qpc_clock=None, bootstrap=None):
         require(str(UUID(run_id)) == run_id, 'RUN_UUID')
         self.run_id = run_id
         self.pid = os.getpid()
@@ -18,6 +18,7 @@ class AnalysisStartupV1:
         self.clock = qpc_clock or WindowsQpc()
         self.epoch, self.frequency, self.last_now = self.clock()
         self.installed_exporter = installed_exporter
+        self.bootstrap = bootstrap
         self.lock = RLock()
         self.phase = 'BACKEND_STARTING'
         self.reason = None
@@ -101,7 +102,7 @@ class AnalysisStartupV1:
                 folder = local_path(directory)
                 folder.mkdir(exist_ok=False)  # Never accept a prior empty inbox either.
                 self.adapter = FreshNativeAdapterV1(directory=folder, installed_exporter=self.installed_exporter,
-                    qpc_clock=self.clock, health_gated=True)
+                    qpc_clock=self.clock, health_gated=True, bootstrap=self.bootstrap)
                 self.phase = 'VERIFYING_WAITING'
             except Exception:
                 self.revoke('ADAPTER_STARTUP_FAILED')

@@ -122,7 +122,7 @@ class _Tail:
 class FreshNativeAdapterV1:
     def __init__(self, *, directory, qpc_clock, installed_exporter,
                  heartbeat_seconds=15, processing_seconds=90, pair_wait_seconds=5,
-                 startup_seconds=900, health_gated=True):
+                 startup_seconds=900, health_gated=True, bootstrap=None):
         self.directory = local_path(directory)
         require(self.directory.is_dir(), 'DIRECTORY_REQUIRED')
         source = local_path(installed_exporter)
@@ -161,6 +161,7 @@ class FreshNativeAdapterV1:
         self.bootstrap_deadline = None
         self.root_identity = self._directory_identity()
         self.timing_identity = None
+        self.bootstrap = bootstrap
         self.profile = self._new_profile(str(uuid4()))
 
     def _directory_identity(self):
@@ -183,9 +184,10 @@ class FreshNativeAdapterV1:
         self.last_now = now
         return epoch, frequency, now
 
-    def _new_profile(self, session):
+    def _new_profile(self, session, *, warm=True):
         return MarketAnalysisTimeProfileV1(session=session, epoch=self.epoch, frequency=self.frequency,
-            reader_start_qpc=self.start, qpc_clock=self.sample, exporter_sha256=EXPORTER_SHA256, **self.options)
+            reader_start_qpc=self.start, qpc_clock=self.sample, exporter_sha256=EXPORTER_SHA256,
+            bootstrap=self.bootstrap if warm else None, **self.options)
 
     def revoke(self, reason='ADAPTER_STOPPED', *, disconnected=False):
         with self.lock:
@@ -265,7 +267,7 @@ class FreshNativeAdapterV1:
         if self.sequence == -1:
             require(row['kind'] == 'HELLO', 'HELLO_REQUIRED')
             # Validate historical HELLO metadata in a disposable empty profile.
-            probe = self._new_profile(self.session)
+            probe = self._new_profile(self.session, warm=False)
             probe.establish_tail_baseline(raw, canonical_sequence=0, pair_sequence=-1)
         else:
             require(row['kind'] == 'HEARTBEAT' and row['payload'] == {'connected': True}
@@ -357,7 +359,8 @@ class FreshNativeAdapterV1:
             if self.status != 'LIVE_TAIL' or waiting_pair:
                 value.update(market_stream='NOT_LIVE', analysis_status='BLOCKED')
                 for component in value['components'].values():
-                    component.update(status='BLOCKED', value=None)
+                    if component['status'] != 'CERTIFIED_BOOTSTRAP_ONLY':
+                        component.update(status='BLOCKED', value=None)
             value.update(adapter_status=self.status, stream_mode=self.status,
                 exporter_session_status='BOUND' if self.session and self.status not in ('REVOKED','DISCONNECTED') else self.status,
                 exporter_session=self.session, canonical_sequence=self.sequence,
