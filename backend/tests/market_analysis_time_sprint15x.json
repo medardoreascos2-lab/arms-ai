@@ -1,0 +1,123 @@
+{
+  "schema": "arms.market-analysis-time-review.v1",
+  "baseline_head": "b25c6ce7020dcfdc08f42d8524673ebeb20a7100",
+  "profile": "MARKET_ANALYSIS_TIME_PROFILE",
+  "evidence_kind": "OFFLINE_SYNTHETIC_FAULT_TESTS_AND_REVIEWED_EXISTING_NATIVE_PROVENANCE",
+  "native_activation": "NOT_PERFORMED",
+  "runtime_attachment": "NOT_IMPLEMENTED_REQUIRES_REVIEWED_SAME_HOST_ADAPTER",
+  "analysis_scope": "SOURCE_RELATIVE_OBSERVATIONS_ONLY",
+  "production_pairing": "EXISTING_PASS_STREAM_ONLY_NOT_ABSOLUTE_TIME",
+  "exporter_sha256_normalized_utf8": "9383d39f8b39f62d5bed235d69f4200e0a31d5a14515e5caf078805d03fcd350",
+  "absolute_market_recency": "UNKNOWN",
+  "absolute_time_authority": "UNKNOWN",
+  "session_authority": "UNKNOWN",
+  "news_authority": "UNCERTIFIED",
+  "paper_entry_authority": "DISABLED",
+  "sim_execution_authority": "DISABLED",
+  "live_authority": false,
+  "direct_clock_dependencies": [
+    {
+      "path": "backend/market_data/analysis_time_profile_v1.py",
+      "calls": [
+        {
+          "line": 71,
+          "call": "self.clock"
+        }
+      ],
+      "authority": "INJECTED_SAME_HOST_MONOTONIC_QPC_EPOCH",
+      "restriction": "NOMINAL_ELAPSED_OBSERVATION_ONLY_NOT_QUALIFIED_SI_OR_UTC_BOUND"
+    }
+  ],
+  "proposed_commit_scope": [
+    "backend/market_data/analysis_time_profile_v1.py",
+    "backend/api/market_analysis_time_app_v1.py",
+    "backend/tests/test_analysis_time_sprint15x.py",
+    "backend/tests/market_analysis_time_sprint15x.json",
+    "backend/tests/clock_preflight_sprint15t.json",
+    "docs/architecture/market_analysis_time_sprint15x.md",
+    "frontend/src/app/market-analysis/page.tsx",
+    "frontend/src/lib/marketAnalysisTimeProjection.ts",
+    "frontend/src/lib/marketAnalysisTimeProjection.test.mjs"
+  ],
+  "local_commit": false,
+  "push_performed": false,
+  "validation": {
+    "backend": {
+      "tests": 1555,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "backend_modules": [
+      "backend/tests/test_clock_preflight_sprint15t.py",
+      "backend/tests/test_clock_evidence_sprint15u.py",
+      "backend/tests/test_native_timing_sprint15v.py",
+      "backend/tests/test_ninjatrader_market_sprint11.py",
+      "backend/tests/test_native_timestamp_sprint13.py",
+      "backend/tests/test_loaded_calendar_sprint13.py",
+      "backend/tests/test_session_lifecycle_sprint12.py",
+      "backend/tests/test_closed_bar_aggregation_v29r.py",
+      "backend/tests/test_live_market_analysis_signal_freshness_v2.py",
+      "backend/tests/test_api_settings_quote_freshness_policy_v2.py",
+      "backend/tests/test_live_market_analysis_validator_session_authority_v2.py",
+      "backend/tests/test_market_data_hub_v2.py",
+      "backend/tests/test_external_market_data_provider_v2.py",
+      "backend/tests/test_certified_market_calendar_v2.py",
+      "backend/tests/test_market_hours_service_v2.py",
+      "backend/tests/test_native_certification_sprint12.py",
+      "backend/tests/test_execution_risk_gate_v1.py",
+      "backend/tests/test_ninjatrader_connection_observer_sprint11s.py",
+      "backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py",
+      "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py",
+      "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+      "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+      "backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py",
+      "backend/tests/test_native_harness_preflight_sprint13.py",
+      "backend/tests/test_market_open_finalization_sprint13.py",
+      "backend/tests/test_production_timing_sprint15w.py",
+      "backend/tests/test_mvp_release_sprint09.py",
+      "backend/tests/test_phase2_mvp_acceptance_v9.py",
+      "backend/tests/test_phase2_paper_mvp_operational_acceptance_v12.py",
+      "backend/tests/test_phase1_safety_closure_v2.py",
+      "backend/tests/test_dashboard_read_execution_safety_v2.py",
+      "backend/tests/test_production_capture_contract_sprint15wr1.py",
+      "backend/tests/test_analysis_time_sprint15x.py",
+      "backend/tests/test_current_paper_sprint10.py",
+      "backend/tests/test_trend_engine_v2.py",
+      "backend/tests/test_smart_money_engine_v2.py",
+      "backend/tests/test_market_regime_engine.py",
+      "backend/tests/test_confluence_engine_v2.py",
+      "backend/tests/test_probability_engine_v2.py",
+      "backend/tests/test_intelligence_v2_app.py",
+      "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py",
+      "backend/tests/test_strategy_intelligence_read_only_v2.py"
+    ],
+    "backend_command": "python -B -m pytest <backend_modules> -q -x --tb=short -p no:cacheprovider -o junit_family=legacy --basetemp=.arms-dev/sprint15x/regression-3 --junitxml=.arms-dev/sprint15x/regression.xml",
+    "new_profile_tests_passed": 31,
+    "frontend_tests_command": "node --test src/lib/*.test.mjs",
+    "frontend_tests_passed": 37,
+    "frontend_lint": "npm.cmd run lint: PASS",
+    "frontend_production_build": "npm.cmd run build: PASS",
+    "diff_check": "PASS",
+    "native_activation": "NOT_PERFORMED"
+  },
+  "preservation": {
+    "prior_manifest_files": 971,
+    "prior_scope_fingerprints": 16,
+    "unrelated_files": 109,
+    "datasets": 16,
+    "native_evidence_entries": 18,
+    "r4_evidence_files": 11,
+    "status": "PASS"
+  },
+  "reviewed_source_sha256_normalized_utf8": {
+    "backend/market_data/analysis_time_profile_v1.py": "b021c5877f6a1f51fe8e9ee4c49af5807f38d7cd81527e579632b7ef9a1bda60",
+    "backend/api/market_analysis_time_app_v1.py": "cb71cf6aa3e4cecce76d2605f9e3779dd1e153bf4864c858a25ed2aa45924dbd",
+    "backend/tests/test_analysis_time_sprint15x.py": "ea9f2d5e90d320017665ade1d18cc492b885ff3ee6d77db0c4b1805cb3b5e286",
+    "backend/tests/clock_preflight_sprint15t.json": "35774a5a1633b17c1186de32d3d8dcd0040883b0ca4a890d24f89d6b2c844274",
+    "docs/architecture/market_analysis_time_sprint15x.md": "8be187d38af31c2f09c704efb5636871fe996da82023584b8f35ff3d511d26f3",
+    "frontend/src/app/market-analysis/page.tsx": "234ac7ff24a08c1ea69d8cb4b7c835a67734795f84800e85ad1e4538c5412b98",
+    "frontend/src/lib/marketAnalysisTimeProjection.ts": "cf6928b7816631bc185e3f9d8cfa7c1972f8366bfdfaab72d802e19b6d78f6db",
+    "frontend/src/lib/marketAnalysisTimeProjection.test.mjs": "892b7a157b9e17aff2b3772327804ea96161d97591e78eef2517b139b6bf2b50"
+  }
+}

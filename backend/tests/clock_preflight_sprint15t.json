@@ -44,6 +44,18 @@
   "inventory_scan_scope": "All backend Python excluding tests plus all NinjaTrader C#; direct clock call inventory supplemented by indirect consumers and frontend timers",
   "direct_clock_dependencies": [
     {
+      "path": "backend/market_data/analysis_time_profile_v1.py",
+      "consequence": "SPRINT15X_SOURCE_RELATIVE_OBSERVATIONS_ONLY_NO_ABSOLUTE_AUTHORITY",
+      "introduced_by": "backend/tests/market_analysis_time_sprint15x.json",
+      "calls": [
+        {
+          "line": 71,
+          "call": "self.clock",
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        }
+      ]
+    },
+    {
       "path": "backend/account/account_state_manager_v2.py",
       "consequence": "LOCAL_ACCOUNT_TRADING_DATE_AND_RECOVERY",
       "calls": [
