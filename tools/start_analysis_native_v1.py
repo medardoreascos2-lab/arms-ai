@@ -1,34 +1,22 @@
-"""Explicit operator launcher. Import/help never arms a reader or native exporter."""
+"""Explicit health-first launcher. Help/import never starts native observation."""
 import argparse
 from pathlib import Path
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Local ANALYSIS ONLY native tail; no execution authority.')
-    parser.add_argument('--start-analysis-only', action='store_true', required=True)
-    parser.add_argument('--output-directory', type=Path, required=True)
+    parser = argparse.ArgumentParser(description='Local ANALYSIS ONLY health-first startup; no execution authority.')
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--start-analysis-only', action='store_true')
+    mode.add_argument('--validate-offline', action='store_true', help='Exercise real local health gates, never arm, then shut down.')
     parser.add_argument('--installed-exporter', type=Path, required=True)
-    parser.add_argument('--port', type=int, default=8000)
-    parser.add_argument('--dashboard-origin', default='http://localhost:3000')
+    parser.add_argument('--runtime-parent', type=Path, default=Path('.arms-dev/analysis-native').resolve())
+    parser.add_argument('--port', type=int, default=18001)
+    parser.add_argument('--frontend-port', type=int, default=13001)
     args = parser.parse_args()
-    if not 1024 <= args.port <= 65535:
-        parser.error('local port must be between 1024 and 65535')
-    from backend.market_data.fresh_native_adapter_v1 import FreshNativeAdapterV1, WindowsQpc, local_path
-    from backend.api.market_analysis_time_app_v1 import create_market_analysis_time_app_v1
-    import uvicorn
-    folder = local_path(args.output_directory)
-    folder.mkdir(parents=True, exist_ok=True)
-    adapter = FreshNativeAdapterV1(directory=folder, installed_exporter=args.installed_exporter, qpc_clock=WindowsQpc())
-    try:
-        adapter.poll()
-        if adapter.status in ('REVOKED', 'DISCONNECTED'):
-            raise ValueError('ADAPTER_PREFLIGHT_FAILED')
-        print('ANALYSIS_ONLY=YES PAPER_ENTRIES=DISABLED SIM=DISABLED LIVE=NO', flush=True)
-        print('ADAPTER_STATUS='+adapter.status, flush=True)
-        uvicorn.run(create_market_analysis_time_app_v1(adapter=adapter, dashboard_origin=args.dashboard_origin),
-                    host='127.0.0.1', port=args.port, workers=1, access_log=False)
-    finally:
-        adapter.close()
+    if not all(1024 <= p <= 65535 for p in (args.port, args.frontend_port)) or args.port == args.frontend_port:
+        parser.error('distinct local ports between 1024 and 65535 required')
+    from tools.analysis_native_startup_v1 import run
+    run(args)
 
 
 if __name__ == '__main__':

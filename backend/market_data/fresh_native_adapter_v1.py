@@ -13,6 +13,7 @@ from threading import RLock
 from uuid import UUID, uuid4
 
 from backend.market_data.analysis_time_profile_v1 import MarketAnalysisTimeProfileV1, EXPORTER_SHA256, require
+from backend.market_data.exporter_identity_v1 import verify_exporter_source
 from tools.native_timing_witness_v1 import IDENTITY, check_pair, ticks, qpc_pair
 from tools.production_timing_v1 import PAIR_FIELDS, parse
 
@@ -121,12 +122,11 @@ class _Tail:
 class FreshNativeAdapterV1:
     def __init__(self, *, directory, qpc_clock, installed_exporter,
                  heartbeat_seconds=15, processing_seconds=90, pair_wait_seconds=5,
-                 startup_seconds=900):
+                 startup_seconds=900, health_gated=True):
         self.directory = local_path(directory)
         require(self.directory.is_dir(), 'DIRECTORY_REQUIRED')
         source = local_path(installed_exporter)
-        require(sha256(source.read_text(encoding='utf-8-sig').encode()).hexdigest() == EXPORTER_SHA256,
-                'INSTALLED_EXPORTER_MISMATCH')
+        self.exporter_identity = verify_exporter_source(source.read_bytes())
         require(all(type(v) in (int, float) and isfinite(v) and v > 0 for v in
                     (heartbeat_seconds, processing_seconds, pair_wait_seconds, startup_seconds)), 'AGE_BUDGET')
         # These are local observation cutoffs, not revised absolute timestamp tolerances.
@@ -137,6 +137,8 @@ class FreshNativeAdapterV1:
         require(isinstance(self.epoch, str) and bool(self.epoch) and type(self.frequency) is int
                 and self.frequency > 0 and type(self.start) is int and self.start >= 0, 'QPC_CONTEXT')
         self.last_now = self.start
+        self.health_gated = health_gated
+        self.activation_start = None if health_gated else self.start
         self.heartbeat_ticks = int(heartbeat_seconds*self.frequency)
         self.wait_ticks = int(pair_wait_seconds*self.frequency)
         self.startup_ticks = int(startup_seconds*self.frequency)
@@ -165,6 +167,15 @@ class FreshNativeAdapterV1:
         info = local_path(self.directory).stat()
         return info.st_dev, info.st_ino
 
+    def arm_activation(self):
+        """In-process coordinator only; no HTTP/file-based arming or reset."""
+        with self.lock:
+            require(self.health_gated and self.activation_start is None and self.status == 'WAITING'
+                    and self.session is None, 'ACTIVATION_REENTRY_OR_INVALID_STATE')
+            require(self._directory_identity() == self.root_identity and not any(self.directory.iterdir()),
+                    'ACTIVATION_INPUT_NOT_FRESH')
+            self.activation_start = self.sample()[2]
+
     def sample(self):
         epoch, frequency, now = self.clock()
         require(epoch == self.epoch and type(frequency) is int and frequency == self.frequency
@@ -188,11 +199,14 @@ class FreshNativeAdapterV1:
 
     def _discover(self, now):
         require(self._directory_identity() == self.root_identity, 'DIRECTORY_REPLACED')
+        if self.activation_start is None:
+            require(not any(self.directory.iterdir()), 'INPUT_BEFORE_ACTIVATION_ALLOWANCE')
+            return
         candidates = sorted(p for p in self.directory.glob('*.jsonl') if not p.name.endswith('.connection.jsonl'))
         require(len(candidates) <= 1, 'SESSION_ROTATION')
         if not candidates:
             require(self.market is None, 'MARKET_FILE_REMOVED')
-            require(now-self.start <= self.startup_ticks, 'ACTIVATION_TIMEOUT')
+            require(now-self.activation_start <= self.startup_ticks, 'ACTIVATION_TIMEOUT')
             return
         path = candidates[0]
         session = path.stem
@@ -352,6 +366,7 @@ class FreshNativeAdapterV1:
                 bootstrap_records=self.bootstrap_records, live_delivered_records=self.delivered_records,
                 startup_cursor=None if not self.market else self.market.cursor,
                 adapter_heartbeat=self.heartbeat, order_submit_reachable=False,
+                activation_allowance_started=self.activation_start is not None,
                 transport_status='TRANSPORT_LIVE' if value['market_stream']=='LIVE' else 'NOT_LIVE')
             return value
 

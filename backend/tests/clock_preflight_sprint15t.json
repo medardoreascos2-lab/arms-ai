@@ -66,7 +66,7 @@
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         },
         {
-          "line": 169,
+          "line": 180,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         }
@@ -870,6 +870,23 @@
           "call": "event_time = DateTime.UtcNow.ToString(\"o\"), elapsed_ms = clock.Elapsed.TotalMilliseconds,"
         }
       ]
+    },
+    {
+      "path": "backend/market_data/analysis_startup_v1.py",
+      "calls": [
+        {
+          "line": 19,
+          "call": "self.clock",
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        },
+        {
+          "line": 31,
+          "call": "self.clock",
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        }
+      ],
+      "introduced_by": "backend/tests/analysis_startup_sprint15yr1.json",
+      "consequence": "HEALTH_GATE_QPC_ONLY; NO_ABSOLUTE_TIME_AUTHORITY; NO_ACTIVATION_BEFORE_FINAL_GATE"
     }
   ],
   "indirect_time_dependencies": [

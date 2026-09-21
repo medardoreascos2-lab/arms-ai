@@ -44,7 +44,7 @@ class Files:
 
     def attach(self):
         self.stream.qpc+=1
-        self.adapter=FreshNativeAdapterV1(directory=self.root,installed_exporter=EXPORTER,
+        self.adapter=FreshNativeAdapterV1(health_gated=False, directory=self.root,installed_exporter=EXPORTER,
             qpc_clock=lambda:(self.stream.epoch,1000,self.stream.qpc))
         self.adapter.poll()
         return self.adapter
@@ -64,7 +64,7 @@ class Files:
 def test_waiting_then_fresh_stream_and_full_hour(tmp_path):
     folder=tmp_path/'inbox';folder.mkdir()
     now=[1000]
-    adapter=FreshNativeAdapterV1(directory=folder,installed_exporter=EXPORTER,
+    adapter=FreshNativeAdapterV1(health_gated=False, directory=folder,installed_exporter=EXPORTER,
         qpc_clock=lambda:('fixture',1000,now[0]))
     assert adapter.snapshot()['adapter_status']=='WAITING'
     assert_disabled(adapter.snapshot());adapter.close()
@@ -195,7 +195,7 @@ def test_closed_history_and_invalid_source_cannot_attach(tmp_path):
     a=files.attach();assert a.status=='DISCONNECTED'
     bad=tmp_path/'unreviewed.cs';bad.write_text('unreviewed')
     with pytest.raises(ValueError,match='INSTALLED_EXPORTER_MISMATCH'):
-        FreshNativeAdapterV1(directory=files.root,installed_exporter=bad,qpc_clock=lambda:('epoch',1000,1))
+        FreshNativeAdapterV1(health_gated=False, directory=files.root,installed_exporter=bad,qpc_clock=lambda:('epoch',1000,1))
 
 
 def test_native_clock_read_only_and_dependency_surface():

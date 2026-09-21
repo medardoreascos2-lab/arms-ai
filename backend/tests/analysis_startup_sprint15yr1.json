@@ -1,0 +1,223 @@
+{
+  "schema": "arms.analysis-startup.review.v1",
+  "baseline_head": "661b3aeae48b6b88eb960d036ecaa46940bded8f",
+  "exporter_compatibility": "PASS_AUTHORED_SHA256_AND_CLOSED_GENERATED_TOKEN_ALLOWLIST",
+  "authored_sha256": "593d84014549759d8ad451ebedfd1fa87392aab9df97021ad592cda8f42f9a50",
+  "wrapper_tokens_sha256": "602e415d3580d6835424b667cbec475d7a80987cde07ff282686144d58fa45f1",
+  "compiled_assembly_attested": false,
+  "ninjatrader_recompile_required": false,
+  "exporter_changed": false,
+  "canonical_market_semantics": "UNCHANGED",
+  "timing_tolerances": "UNCHANGED",
+  "fingerprint_normalization": "UTF8_OPTIONAL_BOM; CRLF_TO_LF; AUTHORED_PREFIX_REMOVE_TRAILING_LF_ONLY; PINNED_WRAPPER_LEXICAL_TOKENS",
+  "generated_boundary": "#region NinjaScript generated code. Neither change nor remove.",
+  "health_first_startup": "PASS_OFFLINE",
+  "stale_runtime_protection": "FRESH_UUID_PID_CREATION_LISTENER_BUILD_ID_QPC_HEARTBEATS_EXCLUSIVE_INBOX",
+  "native_activation": "NOT_PERFORMED",
+  "real_activation_allowance": "NOT_STARTED",
+  "broker_order_calls": 0,
+  "ninjatrader_account_access": false,
+  "paper_trades_opened": 0,
+  "order_submit_reachable": false,
+  "paper_entry_authority": "DISABLED",
+  "sim_execution_authority": "DISABLED",
+  "live_authority": false,
+  "validation_run_id": "64b6120f-c56a-4f7f-b055-0c3603772662",
+  "validation_evidence": "BOUNDED_REAL_LOCAL_PROCESSES_WITH_NO_NATIVE_INPUT_OR_ARMING",
+  "validation_health_samples": [
+    {
+      "run_id": "64b6120f-c56a-4f7f-b055-0c3603772662",
+      "pid": 12148,
+      "process_start": 134344821804243414,
+      "phase": "VERIFYING_WAITING",
+      "reason": null,
+      "worker_heartbeat": 114,
+      "worker_qpc": 8782118642948,
+      "adapter_heartbeat": 7,
+      "adapter_status": "WAITING",
+      "activation_allowance_started": false,
+      "analysis_only": true,
+      "order_submit_reachable": false
+    },
+    {
+      "run_id": "64b6120f-c56a-4f7f-b055-0c3603772662",
+      "pid": 12148,
+      "process_start": 134344821804243414,
+      "phase": "VERIFYING_WAITING",
+      "reason": null,
+      "worker_heartbeat": 121,
+      "worker_qpc": 8782136283610,
+      "adapter_heartbeat": 14,
+      "adapter_status": "WAITING",
+      "activation_allowance_started": false,
+      "analysis_only": true,
+      "order_submit_reachable": false
+    },
+    {
+      "run_id": "64b6120f-c56a-4f7f-b055-0c3603772662",
+      "pid": 12148,
+      "process_start": 134344821804243414,
+      "phase": "VERIFYING_WAITING",
+      "reason": null,
+      "worker_heartbeat": 128,
+      "worker_qpc": 8782153948176,
+      "adapter_heartbeat": 21,
+      "adapter_status": "WAITING",
+      "activation_allowance_started": false,
+      "analysis_only": true,
+      "order_submit_reachable": false
+    }
+  ],
+  "validation_dashboard_http_status": 200,
+  "owned_validation_services_stopped": true,
+  "input_empty": true,
+  "validation_build_id": "U583ilaKJDW-6YiV7xITG",
+  "expected_dashboard_url": "http://127.0.0.1:13001/market-analysis",
+  "dashboard_currently_running": false,
+  "prior_service_diagnosis": {
+    "prior_backend": {
+      "url": "http://127.0.0.1:8001/api/v2/market-analysis/time-profile",
+      "http_status": 404,
+      "build_ids": []
+    },
+    "prior_frontend": {
+      "url": "http://127.0.0.1:3000/market-analysis",
+      "http_status": 404,
+      "build_ids": [
+        "69D6Mk4RqyrMotwKCRllK"
+      ]
+    },
+    "reviewed_repo_frontend_build_id": "69D6Mk4RqyrMotwKCRllK",
+    "prior_processes": [
+      {
+        "ProcessId": 37532,
+        "CreationDate": "/Date(1789966121257)/",
+        "CommandLine": "python -B .arms-dev/sprint15r/dashboard_host.py"
+      },
+      {
+        "ProcessId": 67632,
+        "CreationDate": "/Date(1789966647946)/",
+        "CommandLine": "node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000"
+      }
+    ],
+    "reviewed_build_mtime_ns": 1790007160483988400
+  },
+  "same_build_new_process_proof": {
+    "pid": 69176,
+    "http_status": 200,
+    "same_build_id": true,
+    "analysis_only": true,
+    "stopped": true
+  },
+  "tests": {
+    "backend": {
+      "tests": 1622,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "backend_modules": [
+      "backend/tests/test_clock_preflight_sprint15t.py",
+      "backend/tests/test_clock_evidence_sprint15u.py",
+      "backend/tests/test_native_timing_sprint15v.py",
+      "backend/tests/test_ninjatrader_market_sprint11.py",
+      "backend/tests/test_native_timestamp_sprint13.py",
+      "backend/tests/test_loaded_calendar_sprint13.py",
+      "backend/tests/test_session_lifecycle_sprint12.py",
+      "backend/tests/test_closed_bar_aggregation_v29r.py",
+      "backend/tests/test_live_market_analysis_signal_freshness_v2.py",
+      "backend/tests/test_api_settings_quote_freshness_policy_v2.py",
+      "backend/tests/test_live_market_analysis_validator_session_authority_v2.py",
+      "backend/tests/test_market_data_hub_v2.py",
+      "backend/tests/test_external_market_data_provider_v2.py",
+      "backend/tests/test_certified_market_calendar_v2.py",
+      "backend/tests/test_market_hours_service_v2.py",
+      "backend/tests/test_native_certification_sprint12.py",
+      "backend/tests/test_execution_risk_gate_v1.py",
+      "backend/tests/test_ninjatrader_connection_observer_sprint11s.py",
+      "backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py",
+      "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py",
+      "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+      "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+      "backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py",
+      "backend/tests/test_native_harness_preflight_sprint13.py",
+      "backend/tests/test_market_open_finalization_sprint13.py",
+      "backend/tests/test_production_timing_sprint15w.py",
+      "backend/tests/test_mvp_release_sprint09.py",
+      "backend/tests/test_phase2_mvp_acceptance_v9.py",
+      "backend/tests/test_phase2_paper_mvp_operational_acceptance_v12.py",
+      "backend/tests/test_phase1_safety_closure_v2.py",
+      "backend/tests/test_dashboard_read_execution_safety_v2.py",
+      "backend/tests/test_production_capture_contract_sprint15wr1.py",
+      "backend/tests/test_analysis_time_sprint15x.py",
+      "backend/tests/test_current_paper_sprint10.py",
+      "backend/tests/test_trend_engine_v2.py",
+      "backend/tests/test_smart_money_engine_v2.py",
+      "backend/tests/test_market_regime_engine.py",
+      "backend/tests/test_confluence_engine_v2.py",
+      "backend/tests/test_probability_engine_v2.py",
+      "backend/tests/test_intelligence_v2_app.py",
+      "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py",
+      "backend/tests/test_strategy_intelligence_read_only_v2.py",
+      "backend/tests/test_fresh_native_adapter_sprint15y.py",
+      "backend/tests/test_analysis_startup_sprint15yr1.py"
+    ],
+    "new_startup_tests": 35,
+    "final_focus": 37,
+    "frontend_tests": 38,
+    "frontend_lint": "PASS",
+    "frontend_production_build": "PASS_WEBPACK_ISOLATED_SOURCE_COPY",
+    "commands": [
+      "python -B -m pytest <backend_modules> -q --disable-warnings --tb=short --basetemp=.arms-dev/sprint15y-r1/regression-2 --junitxml=.arms-dev/sprint15y-r1/regression.xml",
+      "node --test src/lib/*.test.mjs (cwd frontend)",
+      "npm.cmd run lint (cwd frontend)",
+      "node <repository next CLI> build --webpack (cwd isolated frontend; NEXT_PUBLIC_API_URL=http://127.0.0.1:18001)",
+      "python -B -m tools.start_analysis_native_v1 --validate-offline --installed-exporter <actual installed source> --runtime-parent <fresh local validation parent> --port 18001 --frontend-port 13001"
+    ],
+    "environment": "Existing CERTIFIED_ENV from tools/arms_dev_runner.py, supplied only to regression subprocess",
+    "corrected_validation_issues": [
+      "Default pytest temp permission: rerun with fresh workspace basetemp",
+      "Missing regression environment: rerun with existing certified test profile",
+      "First isolated frontend copy omitted dashboard-v2 import; included and rebuilt successfully; failed run stopped unarmed"
+    ]
+  },
+  "preservation": {
+    "manifests": 16,
+    "files": 971,
+    "unrelated_files": 109,
+    "status": "PASS"
+  },
+  "ready_for_health_first_adapter_start": true,
+  "ready_for_operator_native_activation": false,
+  "local_commit": false,
+  "push_performed": false,
+  "proposed_commit_scope": [
+    "backend/market_data/exporter_identity_v1.py",
+    "backend/market_data/analysis_startup_v1.py",
+    "backend/market_data/fresh_native_adapter_v1.py",
+    "backend/api/market_analysis_time_app_v1.py",
+    "tools/analysis_native_startup_v1.py",
+    "tools/start_analysis_native_v1.py",
+    "backend/tests/fixtures/ArmsReadOnlyMarketV1.generated.txt",
+    "backend/tests/test_analysis_startup_sprint15yr1.py",
+    "backend/tests/test_fresh_native_adapter_sprint15y.py",
+    "backend/tests/test_analysis_time_sprint15x.py",
+    "backend/tests/clock_preflight_sprint15t.json",
+    "backend/tests/analysis_startup_sprint15yr1.json",
+    "docs/architecture/analysis_startup_sprint15yr1.md"
+  ],
+  "reviewed_source_sha256_normalized_utf8": {
+    "backend/market_data/exporter_identity_v1.py": "953d93d0dfb238144ce2875f0a7422e84c597244562232dfdd062ba511ba61e2",
+    "backend/market_data/analysis_startup_v1.py": "8d5461c09fe50a879d4602af0c1af485a914ecf19a158be1132a9ffbd6355932",
+    "backend/market_data/fresh_native_adapter_v1.py": "eed44c0b5d0b50af938bd0754ce0b7b2eb7a80790921739d2bf72ce92ef377aa",
+    "backend/api/market_analysis_time_app_v1.py": "19533982e2dd68bd9961f3113e0de8a3238d00ba32b494b9dc5e01af402b1ce0",
+    "tools/analysis_native_startup_v1.py": "4498dafe87f4ed750488191211715dd4bf1b6f281b10596af1294a3c81f31033",
+    "tools/start_analysis_native_v1.py": "b751cdac04fb591e05f309a9155734f82679303fcff7b680723076f3fb17e1bd",
+    "backend/tests/fixtures/ArmsReadOnlyMarketV1.generated.txt": "6443c5097d0cb0502f8ea445bc874ff41ed93139fd8ce198768680ee112e1eb3",
+    "backend/tests/test_analysis_startup_sprint15yr1.py": "a9b5da30ef4acc33ae093170a330b49ef020c888eec1345fb5feb0a050519055",
+    "backend/tests/test_fresh_native_adapter_sprint15y.py": "90dc4481501857d20216b7eaf80d4d856842d6345fe9ed4f05e19a4f4dd200bb",
+    "backend/tests/test_analysis_time_sprint15x.py": "b8e4efb6407742ba91a32ddd4972ef456ba0f6267921b01141920592a4d5ae30",
+    "backend/tests/clock_preflight_sprint15t.json": "10c69b9859cd1dee0bee86ccfad4780f234c666690f510f07e527a924f4647a0",
+    "docs/architecture/analysis_startup_sprint15yr1.md": "701d903279607522bdc8162d6cd61c76fa5e411ee840413e530afb90d2a2a695"
+  }
+}

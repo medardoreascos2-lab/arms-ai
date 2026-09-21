@@ -1,0 +1,56 @@
+#region NinjaScript generated code. Neither change nor remove.
+
+namespace NinjaTrader.NinjaScript.Indicators
+{
+	public partial class Indicator : NinjaTrader.Gui.NinjaScript.IndicatorRenderBase
+	{
+		private ArmsReadOnlyMarketV1[] cacheArmsReadOnlyMarketV1;
+		public ArmsReadOnlyMarketV1 ArmsReadOnlyMarketV1(string outputDirectory, string expectedProvider)
+		{
+			return ArmsReadOnlyMarketV1(Input, outputDirectory, expectedProvider);
+		}
+
+		public ArmsReadOnlyMarketV1 ArmsReadOnlyMarketV1(ISeries<double> input, string outputDirectory, string expectedProvider)
+		{
+			if (cacheArmsReadOnlyMarketV1 != null)
+				for (int idx = 0; idx < cacheArmsReadOnlyMarketV1.Length; idx++)
+					if (cacheArmsReadOnlyMarketV1[idx] != null && cacheArmsReadOnlyMarketV1[idx].OutputDirectory == outputDirectory && cacheArmsReadOnlyMarketV1[idx].ExpectedProvider == expectedProvider && cacheArmsReadOnlyMarketV1[idx].EqualsInput(input))
+						return cacheArmsReadOnlyMarketV1[idx];
+			return CacheIndicator<ArmsReadOnlyMarketV1>(new ArmsReadOnlyMarketV1(){ OutputDirectory = outputDirectory, ExpectedProvider = expectedProvider }, input, ref cacheArmsReadOnlyMarketV1);
+		}
+	}
+}
+
+namespace NinjaTrader.NinjaScript.MarketAnalyzerColumns
+{
+	public partial class MarketAnalyzerColumn : MarketAnalyzerColumnBase
+	{
+		public Indicators.ArmsReadOnlyMarketV1 ArmsReadOnlyMarketV1(string outputDirectory, string expectedProvider)
+		{
+			return indicator.ArmsReadOnlyMarketV1(Input, outputDirectory, expectedProvider);
+		}
+
+		public Indicators.ArmsReadOnlyMarketV1 ArmsReadOnlyMarketV1(ISeries<double> input , string outputDirectory, string expectedProvider)
+		{
+			return indicator.ArmsReadOnlyMarketV1(input, outputDirectory, expectedProvider);
+		}
+	}
+}
+
+namespace NinjaTrader.NinjaScript.Strategies
+{
+	public partial class Strategy : NinjaTrader.Gui.NinjaScript.StrategyRenderBase
+	{
+		public Indicators.ArmsReadOnlyMarketV1 ArmsReadOnlyMarketV1(string outputDirectory, string expectedProvider)
+		{
+			return indicator.ArmsReadOnlyMarketV1(Input, outputDirectory, expectedProvider);
+		}
+
+		public Indicators.ArmsReadOnlyMarketV1 ArmsReadOnlyMarketV1(ISeries<double> input , string outputDirectory, string expectedProvider)
+		{
+			return indicator.ArmsReadOnlyMarketV1(input, outputDirectory, expectedProvider);
+		}
+	}
+}
+
+#endregion
