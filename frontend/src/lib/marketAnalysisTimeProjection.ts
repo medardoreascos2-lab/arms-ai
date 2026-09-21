@@ -30,7 +30,9 @@ export function analysisTimeRows(input: unknown): [string, unknown][] {
   const label = (value: unknown) => typeof value === "string" &&
     /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,7})?(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : "UNKNOWN";
   const bootstrapAllows = s?.bootstrap_status === "CERTIFIED_BOOTSTRAP" && s.fault === null &&
-    s.bootstrap_source === "SEALED_NATIVE_PRODUCTION" && typeof s.bootstrap_sha256 === "string" &&
+    ["SEALED_NATIVE_PRODUCTION", "NATIVE_HISTORICAL_REPOSITORY"].includes(String(s.bootstrap_source)) &&
+    (s.bootstrap_source !== "NATIVE_HISTORICAL_REPOSITORY" || s.bootstrap_provider_attribution === "UNATTESTED") &&
+    typeof s.bootstrap_sha256 === "string" &&
     /^[a-f0-9]{64}$/.test(s.bootstrap_sha256) && typeof s.bootstrap_bar_count === "number" &&
     Number.isSafeInteger(s.bootstrap_bar_count) && s.bootstrap_bar_count > 0 &&
     label(s.bootstrap_cutoff) !== "UNKNOWN" &&
@@ -45,7 +47,8 @@ export function analysisTimeRows(input: unknown): [string, unknown][] {
     typeof age.seconds === "number" && Number.isFinite(age.seconds) && age.seconds >= 0;
   const rows: [string, unknown][] = [
     ["BOOTSTRAP_STATUS", choose(s?.bootstrap_status, ["CERTIFIED_BOOTSTRAP", "UNAVAILABLE", "UNTRUSTED_HISTORY", "REVOKED"])],
-    ["BOOTSTRAP_SOURCE", bootstrapAllows ? "SEALED_NATIVE_PRODUCTION" : "UNAVAILABLE"],
+    ["BOOTSTRAP_SOURCE", bootstrapAllows ? s!.bootstrap_source : "UNAVAILABLE"],
+    ["BOOTSTRAP_PROVIDER_ATTRIBUTION", bootstrapAllows && s!.bootstrap_source === "NATIVE_HISTORICAL_REPOSITORY" ? "UNATTESTED" : "NOT_APPLICABLE"],
     ["BOOTSTRAP_BAR_COUNT", bootstrapAllows ? s!.bootstrap_bar_count : 0],
     ["BOOTSTRAP_CUTOFF", bootstrapAllows ? label(s!.bootstrap_cutoff) : "UNKNOWN"],
     ["BOOTSTRAP_GAP_COUNT", bootstrapAllows && Number.isSafeInteger(s!.bootstrap_gap_count) ? s!.bootstrap_gap_count : "UNKNOWN"],

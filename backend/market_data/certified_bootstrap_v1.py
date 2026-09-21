@@ -49,6 +49,9 @@ class CertifiedBootstrap:
     sessions: tuple
     gap_count: int
     source: str = 'SEALED_NATIVE_PRODUCTION'
+    calendar_intervals: tuple = ()
+    calendar_coverage: tuple = ()
+    gap_report: tuple = ()
 
 
 def _lines(raw):
@@ -167,6 +170,9 @@ def certify_bootstrap(raw, *, expected_sha256):
         require(type(expected_sha256) is str and len(expected_sha256) == 64
                 and sha256(raw).hexdigest() == expected_sha256, 'BOOTSTRAP_PIN_MISMATCH')
         bundle = parse(raw)
+        if bundle.get('schema') == 'arms.certified-native-history.v1':
+            from backend.market_data.native_historical_bootstrap_v1 import certify_native_history
+            return certify_native_history(bundle, expected_sha256)
         require(set(bundle) == {'schema','authored_sha256','segments'} and bundle['schema'] == SCHEMA
                 and bundle['authored_sha256'] == AUTHORED_SHA256, 'BOOTSTRAP_AUTHORED_IDENTITY')
         require(type(bundle['segments']) is list and 0 < len(bundle['segments']) <= 128, 'BOOTSTRAP_SEGMENTS')

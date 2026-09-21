@@ -65,6 +65,7 @@ class MarketAnalysisTimeProfileV1:
         self.bootstrap_bars = {} if bootstrap is None else {bar.candle().timestamp: bar for bar in bootstrap.bars}
         self.origins = {}
         self.handoff = 'NO_BOOTSTRAP' if bootstrap is None else 'AWAITING_LIVE_TAIL'
+        self.handoff_gap = None
         self.first_live = None
         self.first_live_closed = None
         self.overlap_skipped = 0
@@ -225,7 +226,15 @@ class MarketAnalysisTimeProfileV1:
                 self.overlap_skipped += 1
                 self.handoff = 'VERIFYING_OVERLAP'
                 return  # A fresh receipt is not a second admission of the same minute.
-            require(candle.timestamp == self.candles[-1].timestamp+timedelta(minutes=1), 'BOOTSTRAP_LIVE_GAP')
+            if candle.timestamp != self.candles[-1].timestamp+timedelta(minutes=1):
+                from backend.market_data.native_historical_bootstrap_v1 import classify_gap
+                previous = self.candles[-1].timestamp+timedelta(minutes=1)
+                following = candle.timestamp+timedelta(minutes=1)
+                status = classify_gap(previous, following, self.bootstrap.calendar_intervals,
+                                      self.bootstrap.calendar_coverage)
+                require(self.handoff != 'COMPLETE' and status == 'EXPECTED_SESSION_GAP', 'BOOTSTRAP_LIVE_GAP')
+                self.handoff_gap = dict(previous_close=previous.isoformat(), first_live_close=following.isoformat(),
+                                        classification=status)
             self.handoff = 'COMPLETE'
         self.htf.update_completed(candle)
         self.candles.append(candle)
@@ -288,6 +297,10 @@ class MarketAnalysisTimeProfileV1:
                 bootstrap_bar_count=len(self.bootstrap.bars) if self.bootstrap else 0,
                 bootstrap_cutoff=self.bootstrap.bars[-1].label if self.bootstrap else None,
                 bootstrap_gap_count=self.bootstrap.gap_count if self.bootstrap else 0,
+                bootstrap_gap_report=self.bootstrap.gap_report if self.bootstrap else (),
+                bootstrap_provider_attribution='UNATTESTED' if self.bootstrap and
+                    self.bootstrap.source == 'NATIVE_HISTORICAL_REPOSITORY' else None,
+                handoff_gap=deepcopy(self.handoff_gap),
                 live_handoff_status='REVOKED' if self.fault else self.handoff,
                 first_live_tail=deepcopy(self.first_live), first_live_closed=deepcopy(self.first_live_closed),
                 overlap_minutes_skipped=self.overlap_skipped,

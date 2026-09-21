@@ -73,6 +73,18 @@ const historical = () => ({...healthy(),market_stream:'NOT_LIVE',analysis_status
   components:{'1h':{status:'CERTIFIED_BOOTSTRAP_ONLY',data_class:'CERTIFIED_BOOTSTRAP',value:{close:20000,source_open:'2026-09-21T08:00:00-05:00'}},
     trend_1h:{status:'CERTIFIED_BOOTSTRAP_ONLY',data_class:'CERTIFIED_BOOTSTRAP',value:{direction:'BULLISH',confidence:1}}}});
 
+test('native repository initialization retains unproven provider and current authority',()=>{
+  const source={...historical(),bootstrap_source:'NATIVE_HISTORICAL_REPOSITORY',bootstrap_provider_attribution:'UNATTESTED'};
+  const r=project(source);
+  assert.equal(r['1H'].status,'CERTIFIED_BOOTSTRAP_ONLY');
+  assert.equal(r.BOOTSTRAP_SOURCE,'NATIVE_HISTORICAL_REPOSITORY');
+  assert.equal(r.BOOTSTRAP_PROVIDER_ATTRIBUTION,'UNATTESTED');
+  assert.equal(r.MARKET_STREAM,'NOT_LIVE');assert.equal(r.ABSOLUTE_MARKET_RECENCY,'UNKNOWN');
+  assert.equal(r.SIM_EXECUTION_AUTHORITY,'DISABLED');assert.equal(r.DECISION_STATUS,'NOT_PROJECTED');
+  source.bootstrap_provider_attribution='Provider31';
+  assert.equal(project(source)['1H'],'BLOCKED / INSUFFICIENT DATA');
+});
+
 test('certified initialization is visible without promoting liveness or execution',()=>{
   const r=project(historical());
   assert.equal(r.MARKET_STREAM,'NOT_LIVE');assert.equal(r.ANALYSIS_STATUS,'BLOCKED');

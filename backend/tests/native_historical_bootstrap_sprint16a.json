@@ -1,0 +1,225 @@
+{
+  "sprint": "16A",
+  "status": "OFFLINE_IMPLEMENTATION_VERIFIED_NATIVE_CAPTURE_PENDING",
+  "base_head": "9b6cdc88f2cd43833e71fe39b3ba22c09c8dfd7c",
+  "classification": "IMPLEMENTATION_CERTIFICATE_NOT_NATIVE_MARKET_DATA",
+  "source": "BARSREQUEST_REPOSITORY_DONOTMERGE",
+  "sdk_version": "8.1.8.2",
+  "historical_native_capture_performed": false,
+  "existing_native_archive_completed_minutes": 8,
+  "sufficient_native_history_available": false,
+  "provider_attribution": "UNATTESTED",
+  "source_relative_only": true,
+  "absolute_recency": "UNKNOWN",
+  "session_authority": "UNKNOWN",
+  "news_authority": "UNCERTIFIED",
+  "authored_exporter_sha256": "836ad9d128853129119bd9ea97b93158f6bfaa2f6bf216d80679a53c6e1ef578",
+  "static_template_sha256": "370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620",
+  "sdk_compile": {
+    "status": "PASS_OFFLINE_NOT_INSTALLED",
+    "compiled_assembly_sha256": "756a363cb479a59b534d11c333de811e07bbbee69790b8b3ee292e3e822ce655",
+    "references": {
+      "NinjaTrader.Core.dll": "89d30ce74dfb21c26c0819db1f5979799b152d522bbfbc436a3b2cfb495b9408",
+      "NinjaTrader.Gui.dll": "f03f3a4a8ffb108d85e379deee1e58f098ebad1ac98f474757899972947fb574"
+    },
+    "compiled_cbi_calls": [
+      "NinjaTrader.Cbi.Connection::get_PlaybackConnection",
+      "NinjaTrader.Cbi.Instrument::get_Expiry",
+      "NinjaTrader.Cbi.Instrument::get_FullName",
+      "NinjaTrader.Cbi.Instrument::get_MasterInstrument",
+      "NinjaTrader.Cbi.Instrument::GetInstrument",
+      "NinjaTrader.Cbi.MasterInstrument::get_Name",
+      "NinjaTrader.Cbi.MasterInstrument::get_PointValue",
+      "NinjaTrader.Cbi.MasterInstrument::get_TickSize"
+    ],
+    "account_or_order_calls": [],
+    "assembly_instantiated": false
+  },
+  "warmup": {
+    "minimum_1m_constituents_for_all": 3000,
+    "minimum_15m_buckets_for_trend": 50,
+    "minimum_1h_buckets_for_trend": 50,
+    "price_inputs": {
+      "1m": 1,
+      "15m": 15,
+      "1h": 60
+    },
+    "trend_constituents": {
+      "1m": 50,
+      "15m": 750,
+      "1h": 3000
+    },
+    "fast_ema": 10,
+    "slow_ema": 50,
+    "slope_lookback": 5,
+    "sideways_threshold": 0.0005,
+    "recommended_complete_hours": 60,
+    "recommended_constituents": 3600,
+    "boundary_padding_required": true
+  },
+  "handoff": {
+    "status": "OFFLINE_TESTED_NOT_DEPLOYED",
+    "expected_session_gap_requires_bound_iterator_and_template": true,
+    "unknown_or_open_market_gap": "REJECT",
+    "overlap": "COMPARE_ALL_OHLCV_SKIP_IDENTICAL_REJECT_CONFLICT",
+    "startup_cursor_restored": false,
+    "historical_live_count": 0,
+    "cold_start_open_gap": "NOT_SOLVED_BY_OLD_SNAPSHOT_REQUIRES_SEPARATE_CONTINUOUS_JOIN_REVIEW"
+  },
+  "test_results": [
+    {
+      "run": "regression-1",
+      "tests": 1718,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "run": "final-focus",
+      "tests": 709,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "regression_modules": [
+    "backend/tests/test_clock_preflight_sprint15t.py",
+    "backend/tests/test_clock_evidence_sprint15u.py",
+    "backend/tests/test_native_timing_sprint15v.py",
+    "backend/tests/test_ninjatrader_market_sprint11.py",
+    "backend/tests/test_native_timestamp_sprint13.py",
+    "backend/tests/test_loaded_calendar_sprint13.py",
+    "backend/tests/test_session_lifecycle_sprint12.py",
+    "backend/tests/test_closed_bar_aggregation_v29r.py",
+    "backend/tests/test_live_market_analysis_signal_freshness_v2.py",
+    "backend/tests/test_api_settings_quote_freshness_policy_v2.py",
+    "backend/tests/test_live_market_analysis_validator_session_authority_v2.py",
+    "backend/tests/test_market_data_hub_v2.py",
+    "backend/tests/test_external_market_data_provider_v2.py",
+    "backend/tests/test_certified_market_calendar_v2.py",
+    "backend/tests/test_market_hours_service_v2.py",
+    "backend/tests/test_native_certification_sprint12.py",
+    "backend/tests/test_execution_risk_gate_v1.py",
+    "backend/tests/test_ninjatrader_connection_observer_sprint11s.py",
+    "backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py",
+    "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py",
+    "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+    "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+    "backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py",
+    "backend/tests/test_native_harness_preflight_sprint13.py",
+    "backend/tests/test_market_open_finalization_sprint13.py",
+    "backend/tests/test_production_timing_sprint15w.py",
+    "backend/tests/test_mvp_release_sprint09.py",
+    "backend/tests/test_phase2_mvp_acceptance_v9.py",
+    "backend/tests/test_phase2_paper_mvp_operational_acceptance_v12.py",
+    "backend/tests/test_phase1_safety_closure_v2.py",
+    "backend/tests/test_dashboard_read_execution_safety_v2.py",
+    "backend/tests/test_production_capture_contract_sprint15wr1.py",
+    "backend/tests/test_analysis_time_sprint15x.py",
+    "backend/tests/test_current_paper_sprint10.py",
+    "backend/tests/test_trend_engine_v2.py",
+    "backend/tests/test_smart_money_engine_v2.py",
+    "backend/tests/test_market_regime_engine.py",
+    "backend/tests/test_confluence_engine_v2.py",
+    "backend/tests/test_probability_engine_v2.py",
+    "backend/tests/test_intelligence_v2_app.py",
+    "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py",
+    "backend/tests/test_strategy_intelligence_read_only_v2.py",
+    "backend/tests/test_fresh_native_adapter_sprint15y.py",
+    "backend/tests/test_analysis_startup_sprint15yr1.py",
+    "backend/tests/test_certified_bootstrap_sprint15z.py",
+    "backend/tests/test_native_historical_bootstrap_sprint16a.py"
+  ],
+  "frontend": {
+    "tests": 42,
+    "failures": 0,
+    "eslint": "PASS",
+    "typescript_noemit": "PASS",
+    "runtime_build_or_restart": false
+  },
+  "preservation": {
+    "preserved": {
+      "count": 971,
+      "intact": true
+    },
+    "unrelated_sha256": {
+      "count": 109,
+      "intact": true
+    },
+    "manifests": {
+      "count": 16,
+      "intact": true
+    }
+  },
+  "safety": {
+    "BROKER_ORDER_CALLS": 0,
+    "NINJATRADER_ACCOUNT_ACCESS": "NO",
+    "PAPER_TRADES_OPENED": 0,
+    "ORDER_SUBMIT_REACHABLE": "NO",
+    "PAPER_ENTRY_AUTHORITY": "DISABLED",
+    "SIM_EXECUTION_AUTHORITY": "DISABLED",
+    "LIVE_AUTHORITY": "NO"
+  },
+  "live_runtime": {
+    "run_uuid": "8260a1d7-d6aa-4b53-a78a-f525bdbc0fa3",
+    "untouched": true,
+    "restarted": false,
+    "observed_status": "LIVE_TAIL",
+    "backend_pid": 11028,
+    "backend_start_filetime": 134344828006629506,
+    "frontend_pid": 27024,
+    "frontend_start_filetime": 134344828268662290,
+    "canonical_sequence_observations": [
+      657,
+      731
+    ],
+    "adapter_heartbeat_observations": [
+      12767,
+      14124
+    ],
+    "dashboard_http": 200
+  },
+  "native_compile_required": "YES_NEW_COMPONENT_ONLY",
+  "historical_capture_required": true,
+  "expected_capture_duration": "UNMEASURED_ALLOW_ABOUT_TWO_MINUTES_FOR_OPERATOR_OBSERVATION_NO_AUTOMATIC_TIMEOUT",
+  "ready_for_native_historical_capture": "OFFLINE_COMPONENT_READY_MANUAL_INSTALL_AND_CAPTURE_REQUIRED",
+  "ready_for_bootstrap_certification": false,
+  "ready_for_controlled_handoff": false,
+  "blockers": [
+    "No sufficient captured native historical dataset",
+    "Native callback timestamp/iterator behavior still needs capture validation",
+    "Historical repository provider origin is unattested",
+    "Continuous operational join not deployed or authorized"
+  ],
+  "PROPOSED_COMMIT_SCOPE": [
+    "backend/market_data/analysis_time_profile_v1.py",
+    "backend/market_data/certified_bootstrap_v1.py",
+    "backend/market_data/native_historical_bootstrap_v1.py",
+    "backend/tests/clock_preflight_sprint15t.json",
+    "backend/tests/fixtures/historical_template_sprint16a.json",
+    "backend/tests/native_historical_bootstrap_sprint16a.json",
+    "backend/tests/test_native_historical_bootstrap_sprint16a.py",
+    "docs/architecture/native_historical_bootstrap_sprint16a.md",
+    "frontend/src/lib/marketAnalysisTimeProjection.test.mjs",
+    "frontend/src/lib/marketAnalysisTimeProjection.ts",
+    "integrations/ninjatrader/ArmsHistoricalBootstrapV1.cs",
+    "tools/certify_native_history_v1.py"
+  ],
+  "commit_authorized": false,
+  "local_commit": false,
+  "push_performed": false,
+  "reviewed_file_sha256": {
+    "backend/market_data/analysis_time_profile_v1.py": "25ee25b02e896a2b57b71fa674af27b54ae0b5b94fd18ab6f938d22821822a46",
+    "backend/market_data/certified_bootstrap_v1.py": "445be21f2271917296fc896ca91c8226e1dc0683ad4de3cf13915b7aa5031215",
+    "backend/market_data/native_historical_bootstrap_v1.py": "fe523b59904329c9375c911bceddccdd3e2e9ce62313629c9396e4bf911c16a9",
+    "backend/tests/clock_preflight_sprint15t.json": "eaa390491c44add27c15876eaabbb7d4581d016f6b6b5c18231275838fa7fcb5",
+    "backend/tests/fixtures/historical_template_sprint16a.json": "704da35846e12b7b5e2858b4a2014eea4c231bdb423d471dcfc8a1bf4ad49df6",
+    "backend/tests/test_native_historical_bootstrap_sprint16a.py": "57fb6be13097da7592a7c0f4e4e418ec79e99643c4f60947aff55e63ca52269a",
+    "docs/architecture/native_historical_bootstrap_sprint16a.md": "d6fd0a30f7933ef0bb2e6856e208368a7abb549de19092c613746fa7abaa3d18",
+    "frontend/src/lib/marketAnalysisTimeProjection.test.mjs": "93b6b582782286a472043b60e649940a04bbb82d66230c1a568fb2f095d0971d",
+    "frontend/src/lib/marketAnalysisTimeProjection.ts": "4c49c1515d6eca4ad951ec27baffbea7e1dfb5a49b3422109284a00c337fccbd",
+    "integrations/ninjatrader/ArmsHistoricalBootstrapV1.cs": "836ad9d128853129119bd9ea97b93158f6bfaa2f6bf216d80679a53c6e1ef578",
+    "tools/certify_native_history_v1.py": "238ffffd2be7c3e207888ecc2ef9092f883bda108b1114d82581ce3f7fcb0f28"
+  },
+  "diff_check": "PASS_TRACKED_AND_ALL_PROPOSED_FILES"
+}

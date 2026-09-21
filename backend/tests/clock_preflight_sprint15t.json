@@ -49,7 +49,7 @@
       "introduced_by": "backend/tests/market_analysis_time_sprint15x.json",
       "calls": [
         {
-          "line": 88,
+          "line": 89,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         }
