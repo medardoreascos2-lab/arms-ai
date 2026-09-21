@@ -1,0 +1,181 @@
+{
+  "schema": "arms.native-timestamp-investigation.sprint13.v1",
+  "baseline": "c56ec51be5eac28302216b1e99d07fe3eb7c53ae",
+  "scope": "READ_ONLY_EXISTING_EVIDENCE_AND_CLOCK_QUERIES",
+  "native_prefix": {
+    "session": "af10b6fe-8379-4f18-b3f4-bc296d14bfad",
+    "observed_at": "2026-09-21T00:27:40.623141+00:00",
+    "read_prefix_bytes": 13692,
+    "read_prefix_sha256": "01c57f6ee0a6205fc1ab0fb248b4cda09af547ecebb71e41b3f1474a0297f58f",
+    "counts": {
+      "HELLO": 1,
+      "HEARTBEAT": 59,
+      "FORMING": 5,
+      "CLOSED": 3
+    },
+    "sequence_contiguous": true,
+    "measurements": [
+      {
+        "sequence": 3,
+        "kind": "FORMING",
+        "event_time": "2026-09-21T00:22:58.8210269Z",
+        "bar_time": "2026-09-21T00:24:00.0000000Z",
+        "emitted_minus_relevant_boundary_seconds": -1.178974
+      },
+      {
+        "sequence": 16,
+        "kind": "FORMING",
+        "event_time": "2026-09-21T00:23:59.0054808Z",
+        "bar_time": "2026-09-21T00:25:00.0000000Z",
+        "emitted_minus_relevant_boundary_seconds": -0.99452
+      },
+      {
+        "sequence": 29,
+        "kind": "CLOSED",
+        "event_time": "2026-09-21T00:24:58.8042644Z",
+        "bar_time": "2026-09-21T00:25:00.0000000Z",
+        "emitted_minus_relevant_boundary_seconds": -1.195736
+      },
+      {
+        "sequence": 30,
+        "kind": "FORMING",
+        "event_time": "2026-09-21T00:24:58.8042644Z",
+        "bar_time": "2026-09-21T00:26:00.0000000Z",
+        "emitted_minus_relevant_boundary_seconds": -1.195736
+      },
+      {
+        "sequence": 43,
+        "kind": "CLOSED",
+        "event_time": "2026-09-21T00:25:58.7671737Z",
+        "bar_time": "2026-09-21T00:26:00.0000000Z",
+        "emitted_minus_relevant_boundary_seconds": -1.232827
+      },
+      {
+        "sequence": 44,
+        "kind": "FORMING",
+        "event_time": "2026-09-21T00:25:58.7671737Z",
+        "bar_time": "2026-09-21T00:27:00.0000000Z",
+        "emitted_minus_relevant_boundary_seconds": -1.232827
+      },
+      {
+        "sequence": 57,
+        "kind": "CLOSED",
+        "event_time": "2026-09-21T00:26:59.7238940Z",
+        "bar_time": "2026-09-21T00:27:00.0000000Z",
+        "emitted_minus_relevant_boundary_seconds": -0.276106
+      },
+      {
+        "sequence": 58,
+        "kind": "FORMING",
+        "event_time": "2026-09-21T00:26:59.7238940Z",
+        "bar_time": "2026-09-21T00:28:00.0000000Z",
+        "emitted_minus_relevant_boundary_seconds": -0.276106
+      }
+    ]
+  },
+  "installed_minute_bars_source": {
+    "reference": "<NINJATRADER_CUSTOM>/BarsTypes/@MinuteBarsType.cs",
+    "sha256": "64f0d2960217dc9ae23bd29f7d0a1c62e3bb22fb5909e0608e1ef53e83461bd4",
+    "loaded_binary_attestation": false
+  },
+  "clock": {
+    "service": "W32Time",
+    "status": "Stopped",
+    "start_type": "Manual",
+    "query_status_error": "0x80070426",
+    "probe_date_utc": "2026-09-21",
+    "probes": [
+      {
+        "reference": "time.windows.com",
+        "local_sample_times_utc": [
+          "00:26:51",
+          "00:26:53",
+          "00:26:55"
+        ],
+        "offset_seconds": [
+          1.3728026,
+          1.3748611,
+          1.3762588
+        ]
+      },
+      {
+        "reference": "time.cloudflare.com",
+        "local_sample_times_utc": [
+          "00:27:14",
+          "00:27:16",
+          "00:27:18"
+        ],
+        "offset_seconds": [
+          1.3720453,
+          1.3746314,
+          1.3774701
+        ]
+      }
+    ],
+    "classification": "LOCAL_CLOCK_BEHIND_TWO_INDEPENDENT_REFERENCES",
+    "limitations": [
+      "Later than failed event",
+      "Unauthenticated network measurements",
+      "Original provider tick time and native core time not captured"
+    ],
+    "changed": false
+  },
+  "classifications": {
+    "CLOCK_SKEW": "CONFIRMED_AT_PROBE_TIME_STRONGLY_SUPPORTS_CAUSATION",
+    "BAR_LABEL_SEMANTICS": "CLOSE_LABEL_CONFIRMED_BY_DOCS_AND_INSTALLED_SOURCE",
+    "TIMEZONE_CONVERSION": "NO_HOURS_SCALE_MISMATCH_OBSERVED_RAW_KIND_NOT_CAPTURED",
+    "FORMING_BAR_SEMANTICS": "FUTURE_CLOSE_LABEL_NORMAL_FUTURE_START_CONFLICT",
+    "READER_NORMALIZATION": "NO_SECOND_SCALE_SHIFT",
+    "HARNESS_ASSUMPTION": "CANONICAL_GATE_CORRECT_REQUIRES_TRUSTWORTHY_HOST_CLOCK",
+    "UNKNOWN": "EXACT_ORIGINAL_TICK_CORE_CLOCK_RELATIONSHIP"
+  },
+  "runtime_change_justified": false,
+  "observer": "DESIGN_ONLY_NOT_DEPLOYED",
+  "capture_rearmed": false,
+  "broker_order_calls": 0,
+  "account_access": false,
+  "sim_order_authority": "DISABLED",
+  "live_authority": false,
+  "thresholds": {
+    "production": 90,
+    "paper": 80.5,
+    "quality": 85
+  },
+  "tests": {
+    "passed": 350,
+    "failed": 0,
+    "skipped": 0,
+    "modules": [
+      "backend/tests/test_closed_bar_aggregation_v29r.py",
+      "backend/tests/test_current_paper_sprint10.py",
+      "backend/tests/test_loaded_calendar_sprint13.py",
+      "backend/tests/test_mvp_release_sprint09.py",
+      "backend/tests/test_native_calendar_sprint13.py",
+      "backend/tests/test_native_certification_sprint12.py",
+      "backend/tests/test_native_harness_preflight_sprint13.py",
+      "backend/tests/test_native_timestamp_sprint13.py",
+      "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+      "backend/tests/test_ninjatrader_market_sprint11.py",
+      "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+      "backend/tests/test_paper_runtime_sprint08.py",
+      "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+      "backend/tests/test_session_lifecycle_sprint12.py"
+    ],
+    "command": "py -m pytest <modules> -q",
+    "environment": "backend/tests/paper_rc_certification_sprint08.json:test_environment",
+    "new_timestamp_cases": 16
+  },
+  "validation": {
+    "diff_check": "PASS",
+    "privacy": "PASS",
+    "original_protected_hashes": 136,
+    "native_prefixes": 15,
+    "unrelated_untracked_preserved": 109,
+    "frontend": "UNCHANGED_NOT_RERUN",
+    "native_compilation": "NOT_REQUIRED_NATIVE_CODE_UNCHANGED"
+  },
+  "source_sha256": {
+    "backend/tests/test_native_timestamp_sprint13.py": "35c2f107fd332ac48e1c1417ce2e6fce23484683f7111701c4ab381eabeff07e",
+    "docs/architecture/native_timestamp_investigation_sprint13.md": "d8a4fd624b9828629066b8b7cc22ad55e2f5ad26f0e6377a1bfa691b46be23ef"
+  }
+}
