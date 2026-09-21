@@ -24,11 +24,21 @@ export function analysisTimeRows(input: unknown): [string, unknown][] {
     p.decision_status === "NOT_PROJECTED" && p.data_freshness === "NOT_ASSERTED";
   const s = valid ? p : null;
   const age = object(s?.processing_age);
-  const active = s?.market_stream === "LIVE" && s.fault === null &&
+  const adapterAllows = s?.adapter_status === undefined || (s.adapter_status === "LIVE_TAIL" &&
+    s.stream_mode === "LIVE_TAIL" && s.exporter_session_status === "BOUND" &&
+    s.timing_pair_status === "EXACT_PREFIX" && s.order_submit_reachable === false);
+  const active = adapterAllows && s?.market_stream === "LIVE" && s.fault === null &&
     s.transport_liveness === "OBSERVED_RECEIPTS" && s.canonical_continuity === "CONTIGUOUS_OBSERVED" &&
     s.source_time_status === "LABELS_AND_RELATIVE_PROGRESS_ONLY" && age?.status === "QPC_OBSERVED" &&
     typeof age.seconds === "number" && Number.isFinite(age.seconds) && age.seconds >= 0;
   const rows: [string, unknown][] = [
+    ["ADAPTER_STATUS", choose(s?.adapter_status, ["WAITING", "BOOTSTRAP", "LIVE_TAIL", "DISCONNECTED", "REVOKED"], "NOT_ATTACHED")],
+    ["STREAM_MODE", choose(s?.stream_mode, ["WAITING", "BOOTSTRAP", "LIVE_TAIL", "DISCONNECTED", "REVOKED"], "NOT_ATTACHED")],
+    ["EXPORTER_SESSION_STATUS", choose(s?.exporter_session_status, ["BOUND", "WAITING", "DISCONNECTED", "REVOKED"])],
+    ["CANONICAL_SEQUENCE", typeof s?.canonical_sequence === "number" && Number.isSafeInteger(s.canonical_sequence) ? s.canonical_sequence : "UNKNOWN"],
+    ["TIMING_PAIR_STATUS", choose(s?.timing_pair_status, ["WAITING", "EXACT_PREFIX", "UNAVAILABLE"])],
+    ["PROCESSING_AGE_STATUS", active ? "QPC_OBSERVED" : "UNKNOWN"],
+    ["TRANSPORT_STATUS", active ? "TRANSPORT_LIVE" : "NOT_LIVE"],
     ["MARKET_STREAM", active ? "LIVE" : "NOT_LIVE"],
     ["STREAM_MEANING", "Local exporter observations; absolute market recency is unproven"],
     ["TRANSPORT_LIVENESS", choose(s?.transport_liveness, ["OBSERVED_RECEIPTS", "UNKNOWN_OR_LOST"])],

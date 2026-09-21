@@ -49,7 +49,24 @@
       "introduced_by": "backend/tests/market_analysis_time_sprint15x.json",
       "calls": [
         {
-          "line": 71,
+          "line": 72,
+          "call": "self.clock",
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/fresh_native_adapter_v1.py",
+      "consequence": "SPRINT15Y_LOCAL_FILE_TAIL_NO_ABSOLUTE_OR_EXECUTION_AUTHORITY",
+      "introduced_by": "backend/tests/fresh_native_adapter_sprint15y.json",
+      "calls": [
+        {
+          "line": 136,
+          "call": "self.clock",
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        },
+        {
+          "line": 169,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         }

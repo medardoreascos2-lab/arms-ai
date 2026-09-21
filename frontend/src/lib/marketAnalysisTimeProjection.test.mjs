@@ -52,3 +52,14 @@ test('page polls only read endpoint, clears errors and visibility changes, expir
   for(const text of ['catch { clear(); }','setTimeout(clear, 2000)','"visibilitychange", clear','pending?.abort()']) assert.ok(source.includes(text));
   assert.equal(/<button|submit|\/control|account_id/.test(source),false);
 });
+test('adapter lifecycle cannot project bootstrap, waiting, disconnected or revoked data as LIVE',()=>{
+  for (const mode of ['WAITING','BOOTSTRAP','DISCONNECTED','REVOKED']) {
+    const source={...healthy(),adapter_status:mode,stream_mode:mode,exporter_session_status:'BOUND',timing_pair_status:'EXACT_PREFIX',order_submit_reachable:false};
+    const r=project(source);assert.equal(r.ADAPTER_STATUS,mode);assert.equal(r.MARKET_STREAM,'NOT_LIVE');
+    assert.equal(r['1M'],'BLOCKED / INSUFFICIENT DATA');
+  }
+  const source={...healthy(),adapter_status:'LIVE_TAIL',stream_mode:'LIVE_TAIL',exporter_session_status:'BOUND',timing_pair_status:'EXACT_PREFIX',order_submit_reachable:false,canonical_sequence:123};
+  const r=project(source);assert.equal(r.TRANSPORT_STATUS,'TRANSPORT_LIVE');assert.equal(r.CANONICAL_SEQUENCE,123);
+  assert.equal(r.ABSOLUTE_MARKET_RECENCY,'UNKNOWN');assert.equal(r.PROCESSING_AGE_STATUS,'QPC_OBSERVED');
+  source.timing_pair_status='WAITING';assert.equal(project(source).MARKET_STREAM,'NOT_LIVE');
+});

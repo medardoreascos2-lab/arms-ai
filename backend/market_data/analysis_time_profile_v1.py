@@ -1,7 +1,7 @@
 """Source-relative observations only. No current-market admission or execution.
 
 Explicit in-process input; never opens a feed, account, service or network socket.
-The owner must establish a fresh same-host QPC epoch before native activation.
+The owner must establish a fresh same-host QPC epoch before admitting tail data.
 Unknown absolute/source recency and current-session authority never auto-promote.
 """
 from collections import deque
@@ -54,6 +54,7 @@ class MarketAnalysisTimeProfileV1:
         self.last_receipt = self.last_emission = None
         self.previous_pair = self.forming = self.pending = None
         self.forming_count = 0
+        self.tail_baseline = False
         self.candles = deque(maxlen=120)
         self.htf = ClosedBarAggregatorV1(history_limit=50)
         self.values = {}
@@ -84,8 +85,32 @@ class MarketAnalysisTimeProfileV1:
         with self._lock:
             self.fault = self.fault or reason
 
+    def establish_tail_baseline(self, hello_raw, *, canonical_sequence, pair_sequence):
+        """Metadata/cursor only; never admits historical candles or receipts.
+
+        Called once by the adapter after it validates the discarded prefix.
+        The first tail forming bar is partial and cannot become analysis history.
+        """
+        with self._lock:
+            require(not self.fault and self.sequence == -1, 'BASELINE_REENTRY')
+            require(type(canonical_sequence) is int and canonical_sequence >= 0
+                    and type(pair_sequence) is int and pair_sequence >= -1, 'BASELINE_CURSOR')
+            row = parse(hello_raw)
+            expected = dict(provider='Provider31',contract='NQ DEC26',expiry='2026-12-01',instrument='NQ',
+                            tick_size=.25,point_value=20,timeframe='1m',trading_hours_template='CME US Index Futures ETH',
+                            source_timezone='UTC',bar_label='CLOSE',realtime=True,read_only=True)
+            require(set(row)==set('schema session sequence event_time kind payload'.split())
+                    and row['schema']=='arms.nt.market.v1' and row['session']==self.session
+                    and type(row['sequence']) is int and row['sequence']==0 and row['kind']=='HELLO'
+                    and row['payload']==expected and row['payload']['realtime'] is True
+                    and row['payload']['read_only'] is True, 'BASELINE_HELLO')
+            ticks(row['event_time'])
+            self.sequence, self.pair_sequence = canonical_sequence, pair_sequence
+            self.last_receipt = None  # HELLO was metadata, not a newly observed heartbeat.
+            self.tail_baseline = pair_sequence >= 0
+
     def accept(self, canonical_raw, timing_raw=None, *, receipt_qpc):
-        """Explicit delivery by a future reviewed adapter, not a public API input.
+        """Explicit adapter delivery, not a public API input.
 
         A frame with a sidecar is committed atomically. CLOSED stays pending until
         its same-callback FORMING record is verified. No synthetic seal or rows.
@@ -152,22 +177,23 @@ class MarketAnalysisTimeProfileV1:
         require(label%MINUTE==0 and p['source_bar_label']==v['bar_time'] and p['bar_index']>=0
                 and p['bar_index']==p['callback_index']-p['bars_ago'], 'BAR_LABEL')
         if kind=='CLOSED':
-            require(self.pending is None and self.forming_count>=2 and p['bars_ago']==1
+            require(self.pending is None and self.forming_count>=(1 if self.tail_baseline else 2) and p['bars_ago']==1
                     and self.forming['bar_index']==p['bar_index'] and self.forming['source_bar_label']==p['source_bar_label'], 'CLOSED_PROVENANCE')
             self.pending=(deepcopy(p),deepcopy(v))
         else:
-            require(p['bars_ago']==0 and ((self.forming_count>=2)==(self.pending is not None)), 'MISSING_CLOSED')
+            require(p['bars_ago']==0 and ((self.forming_count>=(1 if self.tail_baseline else 2))==(self.pending is not None)), 'MISSING_CLOSED')
             if self.forming:
                 require(p['bar_index']==self.forming['bar_index']+1
                         and label==ticks(self.forming['source_bar_label'])+MINUTE, 'CANONICAL_GAP')
             if self.pending:
                 closed,vclosed=self.pending
                 require(closed['callback']==cb and closed['callback_index']==p['callback_index'], 'SAME_CALLBACK')
-                candle=Candle('NQ','1m',*[vclosed[k] for k in ('open','high','low','close','volume')],
-                              datetime.fromisoformat(vclosed['bar_time'].replace('Z','+00:00'))-timedelta(minutes=1))
-                self.htf.update_completed(candle)
-                self.candles.append(candle)
-                self._compute()
+                if self.forming_count >= 2:
+                    candle=Candle('NQ','1m',*[vclosed[k] for k in ('open','high','low','close','volume')],
+                                  datetime.fromisoformat(vclosed['bar_time'].replace('Z','+00:00'))-timedelta(minutes=1))
+                    self.htf.update_completed(candle)
+                    self.candles.append(candle)
+                    self._compute()
             self.pending=None;self.forming=deepcopy(p);self.forming_count+=1
         self.pair_sequence=p['pair_sequence'];self.previous_pair=deepcopy(p);self.last_emission=em['qpc_before']
 

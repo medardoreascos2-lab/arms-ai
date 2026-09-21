@@ -277,5 +277,9 @@ def test_clock_inventory_extension_preserves_every_prior_assessment_field():
     assert len(additions)==1
     assert additions[0]['introduced_by']=='backend/tests/market_analysis_time_sprint15x.json'
     review['direct_clock_dependencies'].remove(additions[0])
+    # Sprint 15Y adds only its explicit file-adapter clock dependency.
+    tail=[row for row in review['direct_clock_dependencies'] if row['path']=='backend/market_data/fresh_native_adapter_v1.py']
+    assert len(tail)==1 and tail[0]['introduced_by']=='backend/tests/fresh_native_adapter_sprint15y.json'
+    review['direct_clock_dependencies'].remove(tail[0])
     original=sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     assert original=='439139eb808ea2440a34e0d757df5f73e217bd6004ec1b723a8cb3e9bddc4459'

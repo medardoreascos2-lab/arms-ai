@@ -36,7 +36,8 @@ export default function MarketAnalysisPage() {
     };
   }, []);
   return <main className="p-6 space-y-4">
-    <h1 className="text-2xl font-bold">ARMS AI — Source-relative market analysis</h1>
+    <h1 className="text-2xl font-bold">ARMS AI — ANALYSIS ONLY</h1>
+    <p className="font-semibold">SOURCE_RELATIVE_ANALYSIS · ABSOLUTE_RECENCY_UNKNOWN</p>
     <p>LIVE describes observed local exporter activity. Absolute market recency, current session and news authority remain unproven.</p>
     <p>LOCAL_PAPER is the mode label only. PAPER entries and SIM execution are disabled; LIVE authority is NO. This page has no execution controls.</p>
     <p>Observations reflect the last response and expire locally after two seconds. Source-relative patterns are not trade recommendations.</p>
