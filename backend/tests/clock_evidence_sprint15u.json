@@ -1,0 +1,151 @@
+{
+  "schema": "arms.clock-evidence.sprint15u.v1",
+  "baseline": "de52c6c1392440f1e3d56b360bca50ed52ac4918",
+  "scope": "READ_ONLY_DIAGNOSTICS_AND_OFFLINE_PROOF_REQUIREMENTS",
+  "reviewed_bounds": null,
+  "reference_review": {
+    "time.cloudflare.com": {
+      "group": "cloudflare",
+      "protocol": "NTP_UDP_123",
+      "leap_policy": "NO_SMEAR",
+      "absolute_error_us": null,
+      "packet_authentication": false,
+      "source": "https://developers.cloudflare.com/time-services/ntp/"
+    },
+    "time.google.com": {
+      "group": "google",
+      "protocol": "NTP_UDP_123",
+      "leap_policy": "SMEAR",
+      "absolute_error_us": null,
+      "packet_authentication": false,
+      "source": "https://developers.google.com/time/faq"
+    },
+    "time.windows.com": {
+      "group": "microsoft",
+      "purpose": "CURRENT_W32TIME_SOURCE_COMPARISON",
+      "absolute_error_us": null,
+      "packet_authentication": false,
+      "source": "https://learn.microsoft.com/en-us/windows-server/networking/windows-time-service/windows-time-service-tools-and-settings"
+    }
+  },
+  "acquisition": {
+    "module": "tools.clock_evidence_v1",
+    "rounds": 12,
+    "period_seconds": 5,
+    "peer_count": 3,
+    "maximum_datagrams": 36,
+    "udp_timeout_seconds": 2,
+    "dns_child_timeout_seconds": 3,
+    "windows_query_timeout_seconds": 5,
+    "configuration_changes": false,
+    "time_changes": false,
+    "quarantine_or_ingestion": false,
+    "fresh_output_required": true,
+    "trust": "MEASUREMENTS_NOT_ATTESTATIONS",
+    "rate_bound": "EMPIRICAL_OBSERVATIONS_DO_NOT_ESTABLISH_FUTURE_BOUND",
+    "sample_selection": "ALL_VALID_RAW_SAMPLES_RETAINED_LOW_DELAY_SUMMARY_DIAGNOSTIC_ONLY"
+  },
+  "gaps": {
+    "reference_error": "SERVICE_IDENTITIES_REVIEWED_ABSOLUTE_ERROR_AND_UTC_SMEAR_MAPPING_UNPROVEN",
+    "drift": "PAIRED_READS_AND_RATE_MEASURED_REVIEWED_VALIDITY_BOUND_UNPROVEN",
+    "native_timing": "EXISTING_RECORD_EMISSION_HAS_UTC_ONLY_NO_PAIRED_MONOTONIC_OR_CALLBACK_BINDING",
+    "operation_windows": "ORDINARY_MINUTE_ALGEBRA_TESTED_CURRENT_NATIVE_WINDOW_UNPROVEN"
+  },
+  "native_capture": {
+    "status": "DESIGN_ONLY_BLOCKED_BEFORE_DEPLOYMENT",
+    "armed": false,
+    "exporter_modified": false,
+    "proposed_maximum_seconds": 330,
+    "proposed_activation_seconds": 180,
+    "stop_condition": "THREE_CONSECUTIVE_FULL_REALTIME_CLOSED_MINUTES_AND_MATCHING_FORMING_OR_DEADLINE",
+    "deadline_result_if_insufficient": "INCONCLUSIVE",
+    "sufficiency": "ORDINARY_OPEN_TIMING_ONLY_CONDITIONAL_ON_REVIEWED_REFERENCE_AND_DRIFT_BOUNDS",
+    "duration_derivation": "30S_STARTUP_PLUS_UP_TO_60S_FIRST_CALLBACK_ALIGNMENT_PLUS_4_MINUTE_TRANSITIONS_FOR_3_CLOSED_RECORDS; NO_GUARANTEE_WITHOUT_TICKS",
+    "does_not_recertify": ["HTF_15M", "HTF_1H", "DAILY", "WEEKLY", "HOLIDAY", "FUTURE_DRIFT", "EXECUTION"],
+    "binding_key": ["process_epoch", "native_session", "sequence", "raw_record_sha256", "file_byte_offset", "calendar_sha256"],
+    "native_pair": ["qpc_before_ticks", "utc_ticks_100ns", "qpc_after_ticks", "qpc_frequency", "epoch"],
+    "callback_fields": ["state", "bars_in_progress", "current_bar", "is_first_tick_of_bar", "time0_raw_and_kind", "time1_raw_and_kind", "bars_get_time_raw_and_kind", "bars_period", "application_timezone", "template_timezone", "session_begin", "session_end", "trading_day"],
+    "price_event_fields": ["market_data_type", "native_event_time_raw_and_kind", "callback_receipt_pair"],
+    "reader_fields": ["read_begin_pair", "read_end_pair", "complete_line_only", "raw_record_sha256", "file_byte_offset"],
+    "binding_limit": "SIBLING_INDICATOR_CALLBACK_OR_EQUAL_BAR_LABEL_IS_NOT_EXPORTER_EMISSION_PROVENANCE",
+    "alternative_reuse": "REVIEW_CONTINUOUS_VALID_WALL_TO_MONOTONIC_MAPPING_TO_ENCLOSE_EXISTING_EMISSION_WITHOUT_EDITING_EXPORTER",
+    "forbidden": ["accounts", "orders", "cancel", "flatten", "positions", "connection_changes", "market_data_changes", "credentials"]
+  },
+  "operation_requirements": {
+    "MARKET_ANALYSIS": "PER_RECORD_BOUNDARY_FRESHNESS_ORDER_AND_CERTIFIED_OPEN_SESSION_CONTAINMENT",
+    "LOCAL_PAPER": "ANALYSIS_REQUIREMENTS_PLUS_NEWS_RISK_EXECUTION_CONTRACT; DISABLED",
+    "NEWS": "CERTIFIED_COVERAGE_AND_PRE_POST_EVENT_BLACKOUT_CONTAINMENT; UNCERTIFIED",
+    "SIM": "EXTERNAL_EXECUTION_TIME_CONTRACT_AND_IDENTITY_NOT_PROVEN; DISABLED",
+    "LIVE": "VENUE_EXECUTION_TIME_CONTRACT_AND_EXPLICIT_AUTHORITY_ABSENT; NO"
+  },
+  "clock_readiness": {
+    "MARKET_ANALYSIS": "UNKNOWN_INELIGIBLE",
+    "PAPER": "UNKNOWN_INELIGIBLE",
+    "NEWS": "UNKNOWN_INELIGIBLE",
+    "SIM": "UNKNOWN_INELIGIBLE",
+    "LIVE": "UNKNOWN_INELIGIBLE"
+  },
+  "boundary_quarantine": {
+    "required": "NOT_ESTABLISHED",
+    "implemented": false,
+    "reason": "POST_BOUNDARY_PROVEN_RECORDS_NEED_NO_QUEUE; WAITING_CANNOT_REPAIR_UNPROVEN_EMISSION"
+  },
+  "fresh_observation": {
+    "observed_at_host_utc": "2026-09-21T06:49:38.183006+00:00",
+    "evidence_sha256": "90088bab6415c5540cfd9d4ad938bd3d38e757e102c068055f51d5168ff2dd57",
+    "collector_sha256": "613efd90e42d167cf1fbcdc4b0c999537020957a49e1b4f74a199f9fb752c5ff",
+    "valid_reply_count": 36,
+    "samples_per_reference": 12,
+    "positive_offset_means": "REFERENCE_MINUS_HOST_HOST_BEHIND",
+    "low_delay_median_offset_seconds": {
+      "cloudflare": 0.0952520875,
+      "google": 0.0972893275,
+      "microsoft": 0.098619174
+    },
+    "representative_disagreement_seconds": 0.0033670865,
+    "maximum_observed_roundtrip_seconds": 0.2184148,
+    "windows_before": {
+      "service": "Running", "startup": "Auto", "source": "time.windows.com,0x8",
+      "last_sync_local": "2026-09-21T02:32:16", "state": "Sync",
+      "last_sync_error": 2, "phase_offset_seconds": 0.0897266
+    },
+    "windows_after": {
+      "service": "Running", "startup": "Auto", "source": "time.windows.com,0x8",
+      "last_sync_local": "2026-09-21T02:49:20", "state": "Sync",
+      "last_sync_error": 0, "phase_offset_seconds": 0.0760262
+    },
+    "nominal_rate_adjustment_ppm": 25.60000000007001,
+    "automatic_sample_observed": true,
+    "not_a_continuing_readiness_lease": true,
+    "formal_preflight_status": "UNKNOWN"
+  },
+  "validation": {
+    "backend_modules": 58,
+    "backend_passed": 1918,
+    "scoped_passed": 650,
+    "sprint15u_new_tests": 70,
+    "counts_overlap": true,
+    "frontend_tests_passed": 32,
+    "frontend_lint": "PASS",
+    "frontend_production_build": "PASS_ISOLATED_UNCHANGED_TRACKED_SOURCE_WEBPACK",
+    "warning": "EXISTING_STARLETTE_HTTPX_DEPRECATION",
+    "native_compilation": "NOT_PERFORMED_DESIGN_ONLY_NO_NATIVE_SOURCE_CHANGES",
+    "runtime_changes": false,
+    "windows_changes": false,
+    "native_manipulation": false,
+    "watcher_armed": false,
+    "local_commit": null,
+    "push_performed": false
+  },
+  "safety": {
+    "paper_entries": "DISABLED",
+    "news_authority": "UNCERTIFIED",
+    "broker_order_calls": 0,
+    "ninjatrader_account_access": false,
+    "sim_execution_authority": "DISABLED",
+    "live_authority": false,
+    "production_threshold": 90,
+    "paper_threshold": 80.5,
+    "quality_threshold": 85
+  }
+}
