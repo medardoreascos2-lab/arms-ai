@@ -34,6 +34,9 @@ EXECUTION = {
 }
 # Startup/recovery/publication and fill/mark handlers have non-order names.
 EXPLICIT = {
+    "backend/backtesting/operational_paper_v1.py": {"_frame", "poll", "close", "get_snapshot", "_accepted_frame", "reconcile"},
+    "backend/backtesting/operational_paper_soak_v1.py": {"main"},
+    "backend/api/operational_paper_app_v1.py": {"create_operational_paper_app_v1"},
     "backend/market_data/ninjatrader_market_reader_v1.py": {"_frame", "poll", "close"},
     "backend/api/ninjatrader_market_app_v1.py": {"create_ninjatrader_market_app_v1"},
     "backend/api/current_paper_app_v1.py": {"create_current_paper_app_v1"},

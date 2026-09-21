@@ -9,6 +9,29 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('./paperRcProjecti
   compilerOptions: { module: ts.ModuleKind.CommonJS },
 }).outputText, { exports });
 
+test('local PAPER projects canonical decision, position and authority without inventing missing values', () => {
+  const source = {execution_mode:'LOCAL_PAPER',canonical_timeframe:'1m',journal_status:'RECONCILED',
+    local_account_status:'AVAILABLE',live_authority:false,ninjatrader_account_access:false,
+    latest_decision:{action:'HOLD',confidence:.7,reason:'No eligible setup'},news_status:'NEWS_UNCERTIFIED',
+    active_simulated_positions:[{entry_price:10000,stop_loss:9970,take_profit:10060,unrealized_pnl:20}]};
+  const before=JSON.stringify(source);
+  const rows=Object.fromEntries(exports.currentPaperRows(source));
+  assert.equal(rows['EXECUTION MODE'],'LOCAL_PAPER');
+  assert.equal(rows['CANONICAL TIMEFRAME'],'1m');
+  assert.equal(rows['JOURNAL STATUS'],'RECONCILED');
+  assert.equal(rows['LOCAL PAPER ACCOUNT STATUS'],'AVAILABLE');
+  assert.equal(rows['CONFIDENCE'],.7);
+  assert.equal(rows['ENTRY'],10000);
+  assert.equal(rows['SL'],9970);
+  assert.equal(rows['TP'],10060);
+  assert.equal(rows['UNREALIZED PNL'],20);
+  assert.equal(rows['LIVE AUTHORITY'],'NO');
+  assert.equal(rows['NINJATRADER ACCOUNT ACCESS'],'NO');
+  assert.equal(rows['NEWS STATUS'],'NEWS_UNCERTIFIED');
+  assert.equal(Object.fromEntries(exports.currentPaperRows({}))['ENTRY'],undefined);
+  assert.equal(JSON.stringify(source),before);
+});
+
 test('session and provider are independent projections; missing SIM authority is not enabled', () => {
   const input = {session_state:{state:'WEEKEND_CLOSED',reason:'WEEKEND_CLOSED'},
     provider_state:'CONNECTED',data_freshness:'STALE_OR_MISSING',sim_execution_authority:'DISABLED',

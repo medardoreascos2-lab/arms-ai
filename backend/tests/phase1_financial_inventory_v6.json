@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 146,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 146,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 148,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 148,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -7062,6 +7062,112 @@
         "Durable event evidence",
         "Read-only dashboard"
       ]
+    },
+    {
+      "id": "backend/backtesting/operational_paper_v1.py:OperationalPaperV1._accepted_frame",
+      "path": "backend/backtesting/operational_paper_v1.py",
+      "function": "OperationalPaperV1._accepted_frame",
+      "input": "self, frame",
+      "source_sha256": "8d359dba64afb104c144d705cda7a8d8412d3b0674b7d839b97a3b3283f16dab",
+      "writes": [],
+      "calls": [
+        "(submission.get('position') or {}).get",
+        "ValueError",
+        "_CurrentRuntimeV1",
+        "_utc",
+        "any",
+        "certify_startup",
+        "check.get",
+        "db.commit",
+        "db.execute",
+        "dict",
+        "float",
+        "int",
+        "json.dumps",
+        "max",
+        "row.available_at.isoformat",
+        "self._news_status",
+        "self.calendar_check",
+        "self.decision_records.append",
+        "self.gate.clock",
+        "self.reader.path.with_suffix",
+        "self.reconcile",
+        "self.reconcile().values",
+        "self.runtime.control",
+        "self.runtime.get_snapshot",
+        "self.runtime.ingest",
+        "self.validation.get_snapshot",
+        "snap.get",
+        "submission.get"
+      ],
+      "output_fields": [],
+      "owner": "OperationalPaperV1 delegates admitted canonical candles to existing _CurrentRuntimeV1; validation account always disabled",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Canonical PAPER state plus durable decision trace; no alternate financial owner",
+      "callers": [
+        "Bounded native LOCAL_PAPER consumer"
+      ],
+      "caller_evidence": "test_operational_paper_sprint15.py",
+      "downstream_consumers": [
+        "Canonical PAPER account/journal",
+        "Read-only dashboard"
+      ],
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "mutates_fill_state": true,
+      "mutates_position_state": true,
+      "mutates_portfolio": true,
+      "mutates_account_pnl": true,
+      "mutates_journal": true,
+      "mutates_history": true
+    },
+    {
+      "id": "backend/backtesting/operational_paper_v1.py:OperationalPaperV1.reconcile",
+      "path": "backend/backtesting/operational_paper_v1.py",
+      "function": "OperationalPaperV1.reconcile",
+      "input": "self",
+      "source_sha256": "7ebbe669665c68a501a4edeab305a2d3a67398fa87f90882bf2b8d0b7ce8e201",
+      "writes": [],
+      "calls": [
+        "abs",
+        "bool",
+        "dict",
+        "int",
+        "json.loads",
+        "len",
+        "r.account.get_state",
+        "r.lifecycle.broker_connector_v2.get_fills",
+        "r.lifecycle.get_active_positions",
+        "self.runtime._db.execute",
+        "self.runtime._db.execute(\"SELECT count(*) FROM operational_decisions WHERE phase!='COMPLETED'\").fetchone",
+        "self.runtime._db.execute(\"SELECT payload FROM operational_decisions WHERE phase='COMPLETED'\").fetchall",
+        "self.runtime._db.execute('SELECT payload FROM journal').fetchall",
+        "set",
+        "sorted",
+        "sum"
+      ],
+      "output_fields": [],
+      "owner": "OperationalPaperV1 delegates admitted canonical candles to existing _CurrentRuntimeV1; validation account always disabled",
+      "classification": "OBSERVATIONAL_PROJECTION",
+      "output": "Canonical PAPER state plus durable decision trace; no alternate financial owner",
+      "callers": [
+        "Bounded native LOCAL_PAPER consumer"
+      ],
+      "caller_evidence": "test_operational_paper_sprint15.py",
+      "downstream_consumers": [
+        "Canonical PAPER account/journal",
+        "Read-only dashboard"
+      ],
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "mutates_fill_state": false,
+      "mutates_position_state": false,
+      "mutates_portfolio": false,
+      "mutates_account_pnl": false,
+      "mutates_journal": false,
+      "mutates_history": false
     }
   ],
   "v81_review": {
@@ -7074,5 +7180,6 @@
     ],
     "reason": "Mandatory canonical runtime admission, shared freshness delegation, generation validation and execution scope; financial application unchanged"
   },
-  "v10_review": "Reviewed source evidence for candidate-only canonical market orchestration; execution admission and risk thresholds unchanged. V10 real application tests certify non-execution during analysis and separate admission handoff."
+  "v10_review": "Reviewed source evidence for candidate-only canonical market orchestration; execution admission and risk thresholds unchanged. V10 real application tests certify non-execution during analysis and separate admission handoff.",
+  "sprint15_review": "Scoped LOCAL_PAPER composition; certified native sources and risk thresholds unchanged. New consumer requires native soak; no external SIM or LIVE authority."
 }

@@ -9,6 +9,8 @@ VOCABULARY = {"BLOCKED", "BLOCK", "APPROVED", "ALLOW_TRADE", "BLOCK_TRADE",
               "DO_NOT_EXECUTE", "risk_approved", "sizing_approved", "EXECUTE"}
 # These owners decide through booleans/exceptions/delegation rather than result vocabulary.
 EXPLICIT = {
+ "backend/backtesting/operational_paper_v1.py": {"__init__", "_accepted_frame", "poll", "_news_status", "close"},
+ "backend/backtesting/operational_paper_soak_v1.py": {"review", "validate_runway", "fresh_candidate", "main"},
  "backend/market_data/ninjatrader_market_reader_v1.py": {"__init__", "_frame", "_fail", "poll", "close"},
  "backend/market_data/current_candle_authority_v1.py": {"__init__", "__post_init__", "admit", "fail", "connection", "reasons", "validate_segment", "_gap_proven_closed"},
  "backend/backtesting/current_paper_runtime_v1.py": {"__init__", "advance", "_next_observation", "_validate_observation", "_can_analyze", "_reasons", "connection", "ingest", "control", "shutdown"},

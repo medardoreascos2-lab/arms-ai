@@ -29,6 +29,7 @@ export function paperRcRows(snapshot: JsonObject): [string, JsonValue | undefine
     ["ACCOUNT REPORTED OPEN RISK", account.open_risk],
     ["OPEN EXPOSURE", snapshot.active_simulated_positions],
     ["CURRENT DECISION", decision.action], ["DECISION REASONS", decision.reason],
+    ["CONFIDENCE", decision.confidence],
     ["CONFLUENCE", evidence.confluence], ["CONFLUENCE THRESHOLD", config.boundary],
     ["QUALITY", evidence.quality], ["QUALITY THRESHOLD", config.quality],
     ["TREND", evidence.trend], ["STRUCTURE", evidence.structure],
@@ -45,10 +46,23 @@ export function paperRcRows(snapshot: JsonObject): [string, JsonValue | undefine
 export function currentPaperRows(snapshot: JsonObject): [string, JsonValue | undefined][] {
   const market = object(snapshot.market_data);
   const session = object(snapshot.session_state);
+  const positions = Array.isArray(snapshot.active_simulated_positions) ? snapshot.active_simulated_positions : [];
+  const position = object(positions[0]);
   return paperRcRows(snapshot).map(([label, value]): [string, JsonValue | undefined] =>
     label === "PAPER STATUS" ? [label, snapshot.mode === "CURRENT_MARKET_PAPER" &&
       snapshot.paper_ready === true ? "PAPER READY" : "BLOCKED"] : [label, value]).concat([
     ["EXECUTION KIND", snapshot.execution_kind],
+    ["EXECUTION MODE", status(snapshot.execution_mode, ["LOCAL_PAPER"])],
+    ["CANONICAL TIMEFRAME", status(snapshot.canonical_timeframe, ["1m"])],
+    ["LOCAL PAPER ACCOUNT STATUS", status(snapshot.local_account_status, ["AVAILABLE", "AWAITING_MARKET_DATA", "RECOVERY_REQUIRED"])],
+    ["JOURNAL STATUS", status(snapshot.journal_status, ["RECONCILED", "NOT_EVALUATED", "REVIEW_REQUIRED"])],
+    ["LOCAL PAPER POSITION COUNT", snapshot.active_simulated_positions == null ? undefined : positions.length],
+    ["ENTRY", position.entry_price], ["SL", position.stop_loss], ["TP", position.take_profit],
+    ["UNREALIZED PNL", position.unrealized_pnl],
+    ["NEWS STATUS", status(snapshot.news_status, ["CLEAR", "NEWS_BLOCKED", "NEWS_UNCERTIFIED"])],
+    ["DECISION / RISK TRACE", snapshot.latest_decision_trace],
+    ["LIVE AUTHORITY", snapshot.live_authority === false ? "NO" : "UNKNOWN"],
+    ["NINJATRADER ACCOUNT ACCESS", snapshot.ninjatrader_account_access === false ? "NO" : "UNKNOWN"],
     ["MARKET SESSION STATE", session.state], ["SESSION REASON", session.reason],
     ["PROVIDER STATE", snapshot.provider_state], ["DATA FRESHNESS", snapshot.data_freshness],
     ["SESSION READINESS", snapshot.session_readiness],

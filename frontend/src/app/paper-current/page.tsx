@@ -35,8 +35,8 @@ export default function CurrentPaperPage() {
   }, []);
   return <main className="p-6 space-y-4">
     <h1 className="text-2xl font-bold">ARMS AI — Current-market PAPER</h1>
-    <p>SIMULATED / PAPER fills. No live orders. Read-only current-feed monitor.</p>
-    <p>Entries require an explicitly configured provider, certified calendar and administrative enable command.</p>
+    <p>LOCAL_PAPER uses internal ARMS simulated fills and bookkeeping. No NinjaTrader or prop account is traded.</p>
+    <p>This page is read-only. Entries require the local launcher, certified market and news coverage, and risk approval. HOLD is a valid decision.</p>
     {error && <p role="alert">BLOCKED / unavailable: {error}</p>}
     {!snapshot && <p>Awaiting authoritative current PAPER state.</p>}
     {snapshot && <dl className="space-y-2">{currentPaperRows(snapshot).map(([label, value]) =>
