@@ -1,0 +1,1018 @@
+{
+  "schema": "arms.clock-preflight.sprint15t.v1",
+  "baseline": "905db9ea4a5efbf61e990c60c737fec1d82cdd88",
+  "scope": "OFFLINE_SPECIFICATION_AND_TESTS_ONLY",
+  "universal_offset_bound_us": null,
+  "universal_offset_bound_reason": "No nonzero universal bound follows from boundary comparisons or point-in-time certification",
+  "model": "tools/clock_preflight_v1.py",
+  "units": "INTEGER_MICROSECONDS; RATES_IN_PARTS_PER_BILLION",
+  "minimum_independent_groups": 2,
+  "minimum_distinct_samples_per_reference": 2,
+  "counts_basis": "Two groups enable cross-reference consistency; two times enable temporal consistency. Neither proves accuracy or future drift.",
+  "reference_trust": "Reviewer-attested reference error and independence required; string provenance is NOT cryptographic authentication",
+  "network_model": "Full causal RTT enclosure plus reference error; arbitrary asymmetry; hull retained after consistency check",
+  "freshness": "Monotonic epoch plus reviewed validity interval; propagate error with reviewed rate bound through operation horizon; no fixed arbitrary age cutoff",
+  "windows_state": "Running, automatic, known reviewed source, Hold or Sync, no error, mapped last synchronization within reviewed validity interval; state never proves accuracy",
+  "operation_readiness": "Interval containment for explicitly reviewed operation-specific UTC windows only; missing window UNKNOWN/ineligible; no runtime readiness granted",
+  "production_maximum_age_us": 30000000,
+  "current_host": {
+    "observation_scope": "PREVIOUS_DIAGNOSTIC_2026-09-21_06:13_UTC; NOT_FRESH_AUTHORITY",
+    "offset_estimate_us": [
+      136893,
+      138790
+    ],
+    "estimated_rate_adjustment_ppm": 44.8,
+    "missing": [
+      "reference_absolute_error_attestations",
+      "trusted_independence_and_sample_provenance",
+      "reviewed_future_host_and_monotonic_drift_bounds",
+      "paired_monotonic_native_receipt_metadata",
+      "operation_specific_certified_windows",
+      "news_blackout_authority"
+    ],
+    "readiness": {
+      "MARKET_ANALYSIS": "UNKNOWN_INELIGIBLE",
+      "PAPER": "UNKNOWN_INELIGIBLE",
+      "NEWS": "UNKNOWN_INELIGIBLE",
+      "SIM": "UNKNOWN_INELIGIBLE",
+      "LIVE": "UNKNOWN_INELIGIBLE"
+    }
+  },
+  "native_certificate": "backend/tests/market_open_native_certification_sprint13.json",
+  "native_minimum_boundary_margin_us": 2879,
+  "native_margin_is_clock_tolerance": false,
+  "inventory_scan_scope": "All backend Python excluding tests plus all NinjaTrader C#; direct clock call inventory supplemented by indirect consumers and frontend timers",
+  "direct_clock_dependencies": [
+    {
+      "path": "backend/account/account_state_manager_v2.py",
+      "consequence": "LOCAL_ACCOUNT_TRADING_DATE_AND_RECOVERY",
+      "calls": [
+        {
+          "line": 94,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 96,
+          "call": "self._clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 485,
+          "call": "self._clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 555,
+          "call": "self._clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/api/dashboard_live_api_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 46,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/api/routers/certified_economic_news_refresh_api_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 75,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/api/routers/market.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 751,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/backtest_engine_pipeline_adapter_v2.py",
+      "consequence": "RESEARCH_OR_CERTIFICATION_METADATA_NOT_LIVE_CLOCK_AUTHORITY",
+      "calls": [
+        {
+          "line": 69,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 142,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/backtest_pipeline_v2.py",
+      "consequence": "RESEARCH_OR_CERTIFICATION_METADATA_NOT_LIVE_CLOCK_AUTHORITY",
+      "calls": [
+        {
+          "line": 270,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/backtesting_job_v2.py",
+      "consequence": "RESEARCH_OR_CERTIFICATION_METADATA_NOT_LIVE_CLOCK_AUTHORITY",
+      "calls": [
+        {
+          "line": 49,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 98,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 138,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 166,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 188,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "line": 151,
+          "call": "g.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/operational_paper_soak_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "line": 108,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 124,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 126,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 150,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 156,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 164,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 166,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 167,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 195,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 196,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 197,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 204,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/operational_paper_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "line": 60,
+          "call": "self.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 93,
+          "call": "self.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 100,
+          "call": "self.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 173,
+          "call": "self.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 201,
+          "call": "self.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 239,
+          "call": "self.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/connectors/paper_broker_connector_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 115,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_auto_refresh_engine_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 97,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_event_bus_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 105,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_live_data_service_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 40,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_refresh_service_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 145,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_websocket_broadcaster_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 118,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_websocket_hub_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "line": 171,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/execution/oco_manager_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 38,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/execution/protective_order_registry_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 47,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/execution/trade_execution_engine.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 89,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/execution/trade_logger_v2.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "line": 45,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/journal/trade_journal_engine.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "line": 86,
+          "call": "datetime.utcnow",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/journal/trade_journal_v2.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "line": 260,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 451,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/current_candle_authority_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "line": 167,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 190,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 224,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/market_data_hub_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 161,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/native_certification_v1.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "line": 81,
+          "call": "self.reader.service.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 129,
+          "call": "self.reader.service.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 221,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 240,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 258,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 260,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 271,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 276,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 278,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/ninjatrader_market_reader_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "line": 73,
+          "call": "service.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 101,
+          "call": "self.service.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 148,
+          "call": "self.service.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 177,
+          "call": "self.service.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/risk/risk_event_logger_v1.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "line": 37,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/certified_economic_news_data_lifecycle_v2.py",
+      "consequence": "CERTIFICATION_COVERAGE_AND_FRESHNESS",
+      "calls": [
+        {
+          "line": 75,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/certified_market_hours_data_lifecycle_v2.py",
+      "consequence": "CERTIFICATION_COVERAGE_AND_FRESHNESS",
+      "calls": [
+        {
+          "line": 58,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/data_collector.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "line": 38,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/durable_execution_state_v2.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "line": 293,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/execution_simulator.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "line": 77,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 151,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/execution_state_store_v2.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "line": 353,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/graceful_shutdown_service_v2.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "line": 52,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/live_candle_store.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 49,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/live_market_analysis_service.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "line": 135,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 2979,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/price_feed_service_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 218,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/runtime_admission_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 25,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 51,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/startup_coordinator_v2.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "line": 46,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/state_recovery_service_v2.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "line": 40,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/trade_lifecycle_service_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "line": 536,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 1774,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/trade_logger.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "line": 16,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "integrations/ninjatrader/ArmsCalendarEvidenceV1.cs",
+      "consequence": "NATIVE_METADATA_AND_SOURCE_BOUNDARIES; WITNESS_NOT_RUN",
+      "calls": [
+        {
+          "line": 64,
+          "call": "event_time = DateTime.UtcNow.ToString(\"o\"), observation_only = true,"
+        }
+      ]
+    },
+    {
+      "path": "integrations/ninjatrader/ArmsConnectionObserverV1.cs",
+      "consequence": "NATIVE_METADATA_AND_SOURCE_BOUNDARIES; WITNESS_NOT_RUN",
+      "calls": [
+        {
+          "line": 22,
+          "call": "private readonly Stopwatch clock = new Stopwatch();"
+        },
+        {
+          "line": 97,
+          "call": "int remaining = Math.Max(1, WindowMilliseconds - (int)clock.Elapsed.TotalMilliseconds);"
+        },
+        {
+          "line": 125,
+          "call": "var received = DateTime.UtcNow.ToString(\"o\");"
+        },
+        {
+          "line": 126,
+          "call": "var receivedElapsed = clock.Elapsed.TotalMilliseconds;"
+        },
+        {
+          "line": 130,
+          "call": "if (clock.Elapsed.TotalMilliseconds >= WindowMilliseconds) { Finish(\"WINDOW_END\"); return; }"
+        },
+        {
+          "line": 173,
+          "call": "if (kind != \"OBSERVER_END\" && clock.Elapsed.TotalMilliseconds >= WindowMilliseconds)"
+        },
+        {
+          "line": 180,
+          "call": "event_time = DateTime.UtcNow.ToString(\"o\"), elapsed_ms = clock.Elapsed.TotalMilliseconds,"
+        },
+        {
+          "line": 239,
+          "call": "try { Write(\"OBSERVER_END\", \"LIFECYCLE\", DateTime.UtcNow.ToString(\"o\"),"
+        },
+        {
+          "line": 240,
+          "call": "clock.Elapsed.TotalMilliseconds, new { reason = reason, error_code = errorCode,"
+        }
+      ]
+    },
+    {
+      "path": "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs",
+      "consequence": "NATIVE_METADATA_AND_SOURCE_BOUNDARIES; WITNESS_NOT_RUN",
+      "calls": [
+        {
+          "line": 31,
+          "call": "private readonly Stopwatch startupClock = new Stopwatch();"
+        },
+        {
+          "line": 92,
+          "call": "}, null, Math.Max(1, 30000 - (int)startupClock.ElapsedMilliseconds), System.Threading.Timeout.Infinite);"
+        },
+        {
+          "line": 162,
+          "call": "event_time = DateTime.UtcNow.ToString(\"o\"), kind = kind, payload = payload }));"
+        },
+        {
+          "line": 171,
+          "call": "return new { bar_time = DateTime.SpecifyKind(Time[ago], DateTimeKind.Utc).ToString(\"o\"),"
+        },
+        {
+          "line": 205,
+          "call": "if (!readiness.Poll(true, startupClock.ElapsedMilliseconds))"
+        },
+        {
+          "line": 229,
+          "call": "var received = DateTime.UtcNow.ToString(\"o\");"
+        },
+        {
+          "line": 259,
+          "call": "if (!failed && startupClock.ElapsedMilliseconds >= 30000 && readiness.State == \"STARTING\")"
+        },
+        {
+          "line": 263,
+          "call": "sequence = connectionSequence++, event_time = DateTime.UtcNow.ToString(\"o\"),"
+        }
+      ]
+    },
+    {
+      "path": "integrations/ninjatrader/ArmsSim101WitnessV1.cs",
+      "consequence": "NATIVE_METADATA_AND_SOURCE_BOUNDARIES; WITNESS_NOT_RUN",
+      "calls": [
+        {
+          "line": 20,
+          "call": "private readonly Stopwatch clock = new Stopwatch();"
+        },
+        {
+          "line": 68,
+          "call": "Math.Max(1, WindowMs - (int)clock.Elapsed.TotalMilliseconds), Timeout.Infinite);"
+        },
+        {
+          "line": 115,
+          "call": "if (clock.Elapsed.TotalMilliseconds >= WindowMs) { Finish(\"WINDOW_END\"); return; }"
+        },
+        {
+          "line": 162,
+          "call": "if (kind != \"WITNESS_END\" && clock.Elapsed.TotalMilliseconds >= WindowMs)"
+        },
+        {
+          "line": 169,
+          "call": "event_time = DateTime.UtcNow.ToString(\"o\"), elapsed_ms = clock.Elapsed.TotalMilliseconds,"
+        }
+      ]
+    }
+  ],
+  "indirect_time_dependencies": [
+    {
+      "path": "backend/backtesting/closed_bar_aggregator_v1.py",
+      "consequence": "SOURCE_DEFINED_CONTIGUOUS_LABELS_ONLY; NO_WALL_CLOCK"
+    },
+    {
+      "path": "backend/market_data/session_state_v1.py",
+      "consequence": "HOST_NOW_INPUT; DAILY_WEEKLY_HOLIDAY_SPECIAL_HOURS_AND_TRADING_DATE"
+    },
+    {
+      "path": "backend/services/market_hours_service_v2.py",
+      "consequence": "CALLER_TIMESTAMP_TO_CERTIFIED_SESSION_AND_TRADING_DATE"
+    },
+    {
+      "path": "backend/services/special_hours_snapshot_v2.py",
+      "consequence": "CALLER_TIMESTAMP_SPECIAL_SESSION_COVERAGE"
+    },
+    {
+      "path": "backend/services/certified_market_hours_runtime_provider_v2.py",
+      "consequence": "CALENDAR_COVERAGE_INPUT_NOT_CONNECTIVITY"
+    },
+    {
+      "path": "backend/services/economic_news_authority_v2.py",
+      "consequence": "EXACT_EVENT_TIMESTAMP_ONLY; NO_CERTIFIED_PRE_POST_BLACKOUT_POLICY"
+    },
+    {
+      "path": "backend/services/economic_news_runtime_provider_v2.py",
+      "consequence": "CALLER_TIMESTAMP_COVERAGE_FAIL_CLOSED"
+    },
+    {
+      "path": "backend/services/certified_economic_news_snapshot_v2.py",
+      "consequence": "CERTIFIED_COVERAGE_VALIDITY"
+    },
+    {
+      "path": "backend/services/runtime_quote_authority_v2.py",
+      "consequence": "CALLER_NOW_QUOTE_AGE_AND_FUTURE_REJECTION"
+    },
+    {
+      "path": "backend/services/runtime_spread_authority_v2.py",
+      "consequence": "CALLER_NOW_SPREAD_AGE_AND_FUTURE_REJECTION"
+    },
+    {
+      "path": "backend/backtesting/paper_runtime_v1.py",
+      "consequence": "ADMITTED_SOURCE_CLOSE_DELIVERY_CLOCK; NO_BROKER_AUTHORITY"
+    },
+    {
+      "path": "backend/execution/portfolio_risk_engine_v2.py",
+      "consequence": "UPSTREAM_VALIDATED_ACCOUNT_AND_QUOTE_STATE"
+    },
+    {
+      "path": "backend/execution/order_validation_engine_v2.py",
+      "consequence": "UPSTREAM_TIMESTAMP_FRESHNESS_AND_RISK"
+    },
+    {
+      "path": "frontend/src/app/paper-current/page.tsx",
+      "consequence": "RELATIVE_FETCH_TIMEOUT_AND_POLL; SERVER_STATUS_OWNS_READINESS"
+    },
+    {
+      "path": "frontend/src/lib/dashboardConnection.ts",
+      "consequence": "RELATIVE_RECONNECT_AND_POLL_ONLY"
+    },
+    {
+      "path": "frontend/src/app/page.tsx",
+      "consequence": "BROWSER_DISPLAY_AND_REFRESH_NOT_TIME_AUTHORITY"
+    },
+    {
+      "path": "frontend/src/app/dashboard-v2/page.tsx",
+      "consequence": "BROWSER_LAST_UPDATED_DISPLAY_ONLY"
+    },
+    {
+      "path": "frontend/src/app/paper-rc/page.tsx",
+      "consequence": "RELATIVE_POLL_ONLY"
+    }
+  ],
+  "safety": {
+    "runtime_changed": false,
+    "watcher_armed": false,
+    "paper_entries_enabled": false,
+    "broker_order_calls": 0,
+    "ninjatrader_account_access": false,
+    "sim_execution_authority": "DISABLED",
+    "live_authority": false
+  },
+  "thresholds": {
+    "production": 90,
+    "paper": 80.5,
+    "quality": 85
+  },
+  "validation": {
+    "broad_backend": {
+      "tests": 1656,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "final_sprint15t": {
+      "tests": 580,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "counts_overlap": true,
+    "note": "Broad run included 392 initial Sprint15T cases; final scoped run verifies expanded 580 cases and final offline model. Production sources unchanged.",
+    "backend_modules": [
+      "backend/tests/test_backtest_engine.py",
+      "backend/tests/test_backtest_single_pass_v27b.py",
+      "backend/tests/test_certified_economic_news_api_settings_v2.py",
+      "backend/tests/test_certified_economic_news_app_loading_v2.py",
+      "backend/tests/test_certified_economic_news_data_lifecycle_v2.py",
+      "backend/tests/test_certified_economic_news_operationalization_v13.py",
+      "backend/tests/test_certified_economic_news_snapshot_loader_v2.py",
+      "backend/tests/test_certified_economic_news_snapshot_v2.py",
+      "backend/tests/test_certified_market_calendar_v2.py",
+      "backend/tests/test_certified_market_hours_runtime_provider_v2.py",
+      "backend/tests/test_clock_preflight_sprint15t.py",
+      "backend/tests/test_closed_bar_aggregation_v29r.py",
+      "backend/tests/test_current_paper_sprint10.py",
+      "backend/tests/test_economic_news_authority_v2.py",
+      "backend/tests/test_economic_news_runtime_provider_v2.py",
+      "backend/tests/test_execution_risk_gate_v1.py",
+      "backend/tests/test_historical_accounting_sprint07r.py",
+      "backend/tests/test_historical_research_sprint07r.py",
+      "backend/tests/test_loaded_calendar_sprint13.py",
+      "backend/tests/test_market_hours_service_v2.py",
+      "backend/tests/test_market_hours_special_hours_integration_v2.py",
+      "backend/tests/test_market_open_finalization_sprint13.py",
+      "backend/tests/test_market_router_economic_news_authority_injection_v2.py",
+      "backend/tests/test_mvp_release_sprint09.py",
+      "backend/tests/test_native_calendar_collector_sprint13.py",
+      "backend/tests/test_native_calendar_sprint13.py",
+      "backend/tests/test_native_certification_sprint12.py",
+      "backend/tests/test_native_harness_preflight_sprint13.py",
+      "backend/tests/test_native_timestamp_sprint13.py",
+      "backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py",
+      "backend/tests/test_ninjatrader_connection_observer_sprint11s.py",
+      "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+      "backend/tests/test_ninjatrader_market_sprint11.py",
+      "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+      "backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py",
+      "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py",
+      "backend/tests/test_operational_paper_sprint15.py",
+      "backend/tests/test_operational_soak_sprint15.py",
+      "backend/tests/test_paper_research_sprint07r.py",
+      "backend/tests/test_paper_runtime_sprint08.py",
+      "backend/tests/test_phase1_duplicate_fill_idempotency_v2.py",
+      "backend/tests/test_phase1_financial_state_sync_v6.py",
+      "backend/tests/test_phase1_global_duplicate_submission_idempotency_v2.py",
+      "backend/tests/test_phase1_risk_precedence_v5.py",
+      "backend/tests/test_phase1_runtime_execution_ownership_v7.py",
+      "backend/tests/test_production_certified_outcome_v17.py",
+      "backend/tests/test_real_market_structure_detectors_v17.py",
+      "backend/tests/test_session_lifecycle_sprint12.py",
+      "backend/tests/test_sim101_witness_sprint14r.py",
+      "backend/tests/test_sim_authority_sprint14.py",
+      "backend/tests/test_sim_binding_sprint13.py",
+      "backend/tests/test_sim_readiness_sprint12.py",
+      "backend/tests/test_special_hours_snapshot_v2.py",
+      "backend/tests/test_trade_lifecycle_execution_risk_gate_v1.py",
+      "backend/tests/test_trade_quality_engine_v1.py"
+    ],
+    "frontend_tests_passed": 32,
+    "frontend_lint": "PASS",
+    "frontend_build": "NOT_RERUN_NO_FRONTEND_CHANGES",
+    "native_compilation": "NOT_REQUIRED_NO_NATIVE_CHANGES",
+    "diff_check": "PASS_INCLUDING_FOUR_NEW_FILES",
+    "runtime_source_hashes": "MATCH_REVIEWED_NATIVE_CERTIFICATE",
+    "unrelated_untracked_preserved": 109,
+    "native_prefixes_preserved": 18,
+    "privacy_review": "PASS",
+    "local_commit": null,
+    "push_performed": false
+  }
+}
