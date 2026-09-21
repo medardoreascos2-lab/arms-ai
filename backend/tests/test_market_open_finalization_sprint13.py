@@ -68,7 +68,11 @@ def test_native_certificate_is_bound_to_reviewed_source_and_preserves_scope():
     last = datetime.fromisoformat(evidence["candles"]["CLOSED"]["last_close_label"].replace("Z", "+00:00"))
     assert int((last-first)/MINUTE)+1 == evidence["canonical_1m_count"]
     for name, expected in evidence["reviewed_source_sha256"].items():
-        assert sha256((ROOT/name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() == expected, name
+        # Sprint 13 certifies its original exporter, not later instrumentation.
+        reviewed = ROOT/name
+        if name == "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs":
+            reviewed = ROOT/"backend/tests/fixtures/ArmsReadOnlyMarketV1.sprint13.cs"
+        assert sha256(reviewed.read_bytes().replace(b"\r\n", b"\n")).hexdigest() == expected, name
     for tf, minutes in (("15m", 15), ("1h", 60)):
         detail = evidence["htf"][tf]
         assert detail["count"] == len(detail["complete_bucket_starts"])

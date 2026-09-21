@@ -248,7 +248,7 @@ def test_native_exporter_has_no_order_channel_and_skips_historical_partial_bars(
     for forbidden in ("Account.All", "Submit(", "CreateOrder(", "AtmStrategy", "TcpClient", "HttpClient", "NinjaTrader.Client"):
         assert forbidden not in source
     assert 'CurrentBar - 1 > firstRealtimeBar' in source
-    assert 'Emit("CLOSED", Candle(1))' in source
+    assert 'EmitTimedBar("CLOSED", Candle(1), callbackPair, 1)' in source
     assert 'State != State.Realtime' in source
     assert 'Calculate.OnEachTick' in source
     assert 'FileMode.CreateNew' in source

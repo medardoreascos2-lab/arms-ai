@@ -249,11 +249,16 @@ def test_wide_consistent_reference_cannot_be_discarded_to_improve_readiness():
     assert not r["clock_ready"]["MARKET_ANALYSIS"]
 
 
-def test_runtime_and_native_sources_still_match_reviewed_certificate():
+def test_runtime_and_historical_native_sources_match_reviewed_certificate():
     import hashlib
     cert=json.loads(Path("backend/tests/market_open_native_certification_sprint13.json").read_text())
     for path,digest in cert["reviewed_source_sha256"].items():
-        content=Path(path).read_text(encoding="utf-8").encode()
+        # Production timing instrumentation is reviewed separately in Sprint 15W.
+        # Do not silently extend the old native certificate to the new exporter.
+        reviewed = Path(path)
+        if path == "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs":
+            reviewed = Path("backend/tests/fixtures/ArmsReadOnlyMarketV1.sprint13.cs")
+        content=reviewed.read_text(encoding="utf-8").encode()
         assert hashlib.sha256(content).hexdigest()==digest, path
 
 

@@ -22,7 +22,7 @@ def startup_harness(tmp_path_factory):
               "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs").read_text()
     methods = "\n".join(_method(source, signature) for signature in (
         "protected override void OnStateChange(", "private void Heartbeat(",
-        "private void Emit(", "private static string ErrorCode(", "private void Stop(", "private sealed class ReadinessGate"))
+        "private sealed class TimingEvidence", "private void Emit(", "private static string ErrorCode(", "private void Stop(", "private sealed class ReadinessGate"))
     harness = r'''
 using System;
 using System.IO;
@@ -65,6 +65,7 @@ public class StartupHarness : Indicator {
     private bool failed, sourceHealthy = true;
     private bool started, helloSent;
     private ReadinessGate readiness = new ReadinessGate();
+    private TimingEvidence timing;
     private Stopwatch startupClock = new Stopwatch();
     private System.Threading.Timer startupDeadline;
     private string OutputDirectory, ExpectedProvider = "Provider31", Name, Description;

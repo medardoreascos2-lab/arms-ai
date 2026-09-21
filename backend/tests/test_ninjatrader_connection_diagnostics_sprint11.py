@@ -22,7 +22,7 @@ def native_callback_harness(tmp_path_factory):
     methods = "\n".join(_method(source, signature) for signature in (
         "protected override void OnConnectionStatusUpdate(", "private static string StatusName(",
         "private static string ProviderName(", "private sealed class ReadinessGate",
-        "private void Heartbeat(", "private void Emit(", "private static string ErrorCode(", "private void Stop("))
+        "private void Heartbeat(", "private sealed class TimingEvidence", "private void Emit(", "private static string ErrorCode(", "private void Stop("))
     harness = r'''
 using System;
 using System.IO;
@@ -72,6 +72,7 @@ public class CallbackHarness : Indicator {
     private int firstRealtimeBar;
     private string contract = "NQ DEC26", expiry = "2026-12-01", template = "CME US Index Futures ETH";
     private ReadinessGate readiness = new ReadinessGate();
+    private TimingEvidence timing;
     private Stopwatch startupClock = new Stopwatch();
     private System.Threading.Timer startupDeadline;
     private long sequence, connectionSequence;

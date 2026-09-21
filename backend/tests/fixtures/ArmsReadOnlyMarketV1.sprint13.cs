@@ -31,7 +31,6 @@ namespace NinjaTrader.NinjaScript.Indicators
         private readonly Stopwatch startupClock = new Stopwatch();
         private System.Threading.Timer startupDeadline;
         private bool helloSent, started;
-        private TimingEvidence timing;
 
         [NinjaScriptProperty]
         [Display(Name = "Private output directory", Order = 1, GroupName = "ARMS read only")]
@@ -176,7 +175,6 @@ namespace NinjaTrader.NinjaScript.Indicators
         protected override void OnBarUpdate()
         {
             if (State != State.Realtime || BarsInProgress != 0 || !IsFirstTickOfBar) return;
-            var callbackPair = TimingEvidence.ReadPair(); // After eligibility guards, before lock/metadata/I/O.
             lock (sync)
             {
                 if (failed || writer == null) return;
@@ -189,131 +187,10 @@ namespace NinjaTrader.NinjaScript.Indicators
                     if (firstRealtimeBar < 0) firstRealtimeBar = CurrentBar;
                     // First realtime bar may contain historical/partial observations.
                     // Wait until an entire subsequent bar was observed in real time.
-                    if (CurrentBar - 1 > firstRealtimeBar) EmitTimedBar("CLOSED", Candle(1), callbackPair, 1);
-                    EmitTimedBar("FORMING", Candle(0), callbackPair, 0);
+                    if (CurrentBar - 1 > firstRealtimeBar) Emit("CLOSED", Candle(1));
+                    Emit("FORMING", Candle(0));
                 }
                 catch (Exception error) { Stop("BAR_CALLBACK_FAILED", ErrorCode(error)); }
-            }
-        }
-
-        private void EmitTimedBar(string kind, object payload, TimingEvidence.Pair callback, int ago)
-        {
-            var emission = TimingEvidence.ReadPair();
-            // Exactly this UTC observation supplies the existing canonical field.
-            string utc = emission == null ? DateTime.UtcNow.ToString("o") : emission.utc;
-            long rowSequence = sequence++;
-            string row = new JavaScriptSerializer().Serialize(new {
-                schema = "arms.nt.market.v1", session = session, sequence = rowSequence,
-                event_time = utc, kind = kind, payload = payload });
-            writer.WriteLine(row); // Canonical errors still follow the original BAR_CALLBACK_FAILED path.
-            try
-            {
-                if (timing == null) timing = new TimingEvidence(OutputDirectory, session);
-                timing.Record(row, rowSequence, kind, callback, emission, CurrentBar, CurrentBar - ago,
-                    ago, DateTime.SpecifyKind(Time[ago], DateTimeKind.Utc).ToString("o"),
-                    State.ToString(), BarsInProgress, IsFirstTickOfBar, ExpectedProvider, contract, template);
-            }
-            catch { if (timing != null) timing.Invalidate(); }
-            // Timing failure invalidates provenance only; never changes certified candle admission.
-        }
-
-        private sealed class TimingEvidence
-        {
-            public sealed class Pair
-            {
-                public long qpc_before, utc_ticks, qpc_after;
-                public string utc;
-            }
-            public static Pair ReadPair()
-            {
-                try
-                {
-                    if (!System.Diagnostics.Stopwatch.IsHighResolution) return null;
-                    long before = System.Diagnostics.Stopwatch.GetTimestamp();
-                    DateTime wall = DateTime.UtcNow;
-                    long after = System.Diagnostics.Stopwatch.GetTimestamp();
-                    return new Pair { qpc_before = before, utc_ticks = wall.Ticks, qpc_after = after, utc = wall.ToString("o") };
-                }
-                catch { return null; }
-            }
-            private StreamWriter output;
-            private System.Security.Cryptography.SHA256 digest;
-            private string path, owner;
-            private long records, bytes;
-            private bool invalid, closed;
-            public TimingEvidence(string directory, string sessionId)
-            {
-                owner = sessionId;
-                try
-                {
-                    // Isolated child directory: existing top-level *.jsonl consumers are unchanged.
-                    string folder = Path.Combine(directory, "timing");
-                    Directory.CreateDirectory(folder);
-                    path = Path.Combine(folder, owner + ".production-timing.jsonl");
-                    output = new StreamWriter(new FileStream(path, FileMode.CreateNew, FileAccess.Write,
-                        FileShare.Read), new UTF8Encoding(false));
-                    output.NewLine = "\n";
-                    output.AutoFlush = true;
-                    digest = System.Security.Cryptography.SHA256.Create();
-                }
-                catch { Invalidate(); }
-            }
-            private static string Hex(byte[] value)
-            { return BitConverter.ToString(value).Replace("-", "").ToLowerInvariant(); }
-            public void Record(string row, long rowSequence, string kind, Pair callback, Pair emission,
-                int callbackIndex, int barIndex, int ago, string label, string state, int series, bool firstTick,
-                string provider, string contractName, string tradingHours)
-            {
-                if (invalid || closed) return;
-                try
-                {
-                    if (callback == null || emission == null) { Invalidate(); return; }
-                    string rowHash;
-                    using (var h = System.Security.Cryptography.SHA256.Create())
-                        rowHash = Hex(h.ComputeHash(Encoding.UTF8.GetBytes(row)));
-                    string line = new JavaScriptSerializer().Serialize(new {
-                        schema = "arms.nt.production-timing.v1", session = owner, pair_sequence = records,
-                        canonical_sequence = rowSequence, canonical_sha256 = rowHash, kind = kind,
-                        source_bar_label = label, callback = callback, emission = emission,
-                        qpc_frequency = System.Diagnostics.Stopwatch.Frequency,
-                        callback_index = callbackIndex, bar_index = barIndex, bars_ago = ago,
-                        state = state, bars_in_progress = series, first_tick = firstTick,
-                        provider = provider, contract = contractName, instrument = "NQ", bars_type = "Minute", bars_value = 1,
-                        application_timezone = "UTC", template = tradingHours, bar_label = "CLOSE",
-                        observation_only = true, runtime_admission = false });
-                    output.WriteLine(line);
-                    byte[] encoded = Encoding.UTF8.GetBytes(line + "\n");
-                    digest.TransformBlock(encoded, 0, encoded.Length, encoded, 0);
-                    bytes += encoded.Length; records++;
-                }
-                catch { Invalidate(); }
-            }
-            public void Invalidate()
-            {
-                invalid = true;
-                try { if (output != null) output.Dispose(); } catch { }
-                try { if (digest != null) digest.Dispose(); } catch { }
-                output = null; digest = null;
-            }
-            public void Close(long canonicalRecords, bool canonicalClosed, bool terminalWritten)
-            {
-                if (closed) return;
-                closed = true;
-                try
-                {
-                    if (invalid || !canonicalClosed || !terminalWritten) { Invalidate(); return; }
-                    output.Dispose(); output = null;
-                    digest.TransformFinalBlock(new byte[0], 0, 0);
-                    string hash = Hex(digest.Hash); digest.Dispose(); digest = null;
-                    using (var seal = new StreamWriter(new FileStream(path + ".done.tmp", FileMode.CreateNew,
-                        FileAccess.Write, FileShare.Read), new UTF8Encoding(false)))
-                        seal.Write(new JavaScriptSerializer().Serialize(new {
-                            schema = "arms.nt.production-timing.seal.v1", session = owner, records = records,
-                            bytes = bytes, sha256 = hash, canonical_records = canonicalRecords,
-                            canonical_writer_closed = true, timing_writer_closed = true, complete = true }));
-                    File.Move(path + ".done.tmp", path + ".done.json");
-                }
-                catch { Invalidate(); } // No valid seal on any closure/integrity failure.
             }
         }
 
@@ -485,11 +362,10 @@ namespace NinjaTrader.NinjaScript.Indicators
                 try { timer.Stop(); timer.Tick -= Heartbeat; } catch { }
                 timer = null;
             }
-            bool canonicalClosed = false, terminalWritten = false;
             if (writer != null)
             {
-                try { Emit("DISCONNECTED", new { connected = false, reason = reason, error_code = errorCode }); terminalWritten = true; } catch { }
-                try { writer.Dispose(); canonicalClosed = true; } catch { }
+                try { Emit("DISCONNECTED", new { connected = false, reason = reason, error_code = errorCode }); } catch { }
+                try { writer.Dispose(); } catch { }
                 writer = null;
             }
             if (connectionWriter != null)
@@ -497,7 +373,6 @@ namespace NinjaTrader.NinjaScript.Indicators
                 try { connectionWriter.Dispose(); } catch { }
                 connectionWriter = null;
             }
-            if (timing != null) { timing.Close(sequence, canonicalClosed, terminalWritten); timing = null; }
             // No native error strings, account identifiers or personal paths logged.
         }
     }

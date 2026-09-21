@@ -28,7 +28,7 @@ def test_real_native_stop_serialization_redaction_and_cleanup(tmp_path):
         pytest.skip("Native diagnostic harness requires Windows .NET Framework compiler")
     source = (Path(__file__).resolve().parents[2]/"integrations/ninjatrader/ArmsReadOnlyMarketV1.cs").read_text()
     methods = "\n".join(_method(source, signature) for signature in (
-        "private void Emit(", "private static string ErrorCode(", "private void Stop(", "private sealed class ReadinessGate"))
+        "private sealed class TimingEvidence", "private void Emit(", "private static string ErrorCode(", "private void Stop(", "private sealed class ReadinessGate"))
     harness = r'''
 using System;
 using System.IO;
@@ -41,6 +41,7 @@ public class StopHarness {
     private FaultTimer timer;
     private bool failed;
     private ReadinessGate readiness = new ReadinessGate();
+    private TimingEvidence timing;
     private System.Threading.Timer startupDeadline;
     private long sequence;
     private string session = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
