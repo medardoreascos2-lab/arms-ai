@@ -1,0 +1,248 @@
+{
+  "schema": "arms.sprint16ar1.offline-diagnostics-review.v1",
+  "baseline_head": "1d42cc35e8e02353cd53d924835d40476d3fe1b4",
+  "branch": "refactor/backend-architecture",
+  "ROOT_CAUSE_STATUS": "PERSISTENT_DIAGNOSTIC_GAP_CONFIRMED_ORIGINAL_CAPTURE_CAUSE_UNRESOLVED",
+  "FAILED_STAGE_STATUS": "UNKNOWN_NO_NATIVE_TRACE",
+  "failed_capture_run": "98107000-26fa-4fba-a0d8-e7b9a90827aa",
+  "failed_capture_directory_empty": true,
+  "original_authored_sha256": "836ad9d128853129119bd9ea97b93158f6bfaa2f6bf216d80679a53c6e1ef578",
+  "revised_authored_sha256": "e053d525a0b8e0098006c9ce28feeea4b1449c0835ce6dcaffd64a95c72b2da7",
+  "diagnostic_schema": "arms.nt.historical-diagnostic.v1",
+  "diagnostic_filename": "historical-diagnostic.jsonl",
+  "diagnostic_classification": "DIAGNOSTIC_ONLY",
+  "diagnostic_certification_evidence": false,
+  "maximum_diagnostic_records": 48,
+  "runtime_admission": false,
+  "BARREQUEST_CONTRACT_STATUS": "SDK_SIGNATURES_PASS_NATIVE_CALLBACK_BEHAVIOR_UNOBSERVED",
+  "installed_sdk_version": "8.1.8.2",
+  "request_inspectable_il": "2A",
+  "request_provider_prerequisite": "NOT_INDEPENDENTLY_ESTABLISHED",
+  "SDK_COMPILE": "PASS",
+  "sdk_compiler": "Framework64/v4.0.30319/csc.exe",
+  "sdk_references": [
+    "NinjaTrader.Core.dll",
+    "NinjaTrader.Gui.dll",
+    "System.ComponentModel.DataAnnotations.dll",
+    "System.Web.Extensions.dll",
+    "System.Core.dll",
+    "WindowsBase.dll"
+  ],
+  "sdk_compiled_sha256": "a90e7189f10ee63f48eb4fd2dd149d2181f18bb11703064435266193224ea8ad",
+  "sdk_cbi_call_allowlist": [
+    "NinjaTrader.Cbi.Connection::get_PlaybackConnection",
+    "NinjaTrader.Cbi.Instrument::get_Expiry",
+    "NinjaTrader.Cbi.Instrument::get_FullName",
+    "NinjaTrader.Cbi.Instrument::get_MasterInstrument",
+    "NinjaTrader.Cbi.Instrument::GetInstrument",
+    "NinjaTrader.Cbi.MasterInstrument::get_Name",
+    "NinjaTrader.Cbi.MasterInstrument::get_PointValue",
+    "NinjaTrader.Cbi.MasterInstrument::get_TickSize"
+  ],
+  "focused_with_sprint16a": {
+    "tests": "80",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "4.428"
+  },
+  "final_diagnostics_suite": {
+    "tests": "29",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "3.530"
+  },
+  "regression": {
+    "tests": "1749",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "147.857"
+  },
+  "regression_modules": [
+    "backend/tests/test_clock_preflight_sprint15t.py",
+    "backend/tests/test_clock_evidence_sprint15u.py",
+    "backend/tests/test_native_timing_sprint15v.py",
+    "backend/tests/test_ninjatrader_market_sprint11.py",
+    "backend/tests/test_native_timestamp_sprint13.py",
+    "backend/tests/test_loaded_calendar_sprint13.py",
+    "backend/tests/test_session_lifecycle_sprint12.py",
+    "backend/tests/test_closed_bar_aggregation_v29r.py",
+    "backend/tests/test_live_market_analysis_signal_freshness_v2.py",
+    "backend/tests/test_api_settings_quote_freshness_policy_v2.py",
+    "backend/tests/test_live_market_analysis_validator_session_authority_v2.py",
+    "backend/tests/test_market_data_hub_v2.py",
+    "backend/tests/test_external_market_data_provider_v2.py",
+    "backend/tests/test_certified_market_calendar_v2.py",
+    "backend/tests/test_market_hours_service_v2.py",
+    "backend/tests/test_native_certification_sprint12.py",
+    "backend/tests/test_execution_risk_gate_v1.py",
+    "backend/tests/test_ninjatrader_connection_observer_sprint11s.py",
+    "backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py",
+    "backend/tests/test_ninjatrader_stop_diagnostics_sprint11.py",
+    "backend/tests/test_ninjatrader_readiness_sprint11t.py",
+    "backend/tests/test_ninjatrader_exporter_startup_sprint11t.py",
+    "backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py",
+    "backend/tests/test_native_harness_preflight_sprint13.py",
+    "backend/tests/test_market_open_finalization_sprint13.py",
+    "backend/tests/test_production_timing_sprint15w.py",
+    "backend/tests/test_mvp_release_sprint09.py",
+    "backend/tests/test_phase2_mvp_acceptance_v9.py",
+    "backend/tests/test_phase2_paper_mvp_operational_acceptance_v12.py",
+    "backend/tests/test_phase1_safety_closure_v2.py",
+    "backend/tests/test_dashboard_read_execution_safety_v2.py",
+    "backend/tests/test_production_capture_contract_sprint15wr1.py",
+    "backend/tests/test_analysis_time_sprint15x.py",
+    "backend/tests/test_current_paper_sprint10.py",
+    "backend/tests/test_trend_engine_v2.py",
+    "backend/tests/test_smart_money_engine_v2.py",
+    "backend/tests/test_market_regime_engine.py",
+    "backend/tests/test_confluence_engine_v2.py",
+    "backend/tests/test_probability_engine_v2.py",
+    "backend/tests/test_intelligence_v2_app.py",
+    "backend/tests/test_live_market_analysis_probability_v2_runtime_authority_v2.py",
+    "backend/tests/test_strategy_intelligence_read_only_v2.py",
+    "backend/tests/test_fresh_native_adapter_sprint15y.py",
+    "backend/tests/test_analysis_startup_sprint15yr1.py",
+    "backend/tests/test_certified_bootstrap_sprint15z.py",
+    "backend/tests/test_native_historical_bootstrap_sprint16a.py",
+    "backend/tests/test_historical_diagnostics_sprint16ar1.py"
+  ],
+  "pytest_arguments": [
+    "-q",
+    "-p",
+    "no:cacheprovider"
+  ],
+  "pytest_environment": "CERTIFIED_ENV from tools/arms_dev_runner.py; PYTHONDONTWRITEBYTECODE=1",
+  "tests_are_synthetic": true,
+  "native_capture_performed": false,
+  "DIFF_CHECK": "PASS",
+  "preservation": {
+    "preserved": {
+      "count": 971,
+      "mismatches": []
+    },
+    "unrelated_sha256": {
+      "count": 109,
+      "mismatches": []
+    },
+    "manifests": {
+      "count": 16,
+      "mismatches": []
+    },
+    "changed_tracked": [
+      "backend/market_data/native_historical_bootstrap_v1.py",
+      "integrations/ninjatrader/ArmsHistoricalBootstrapV1.cs",
+      "tools/certify_native_history_v1.py"
+    ],
+    "staged": [],
+    "installed_production_exporter": {
+      "authored_sha256": "593d84014549759d8ad451ebedfd1fa87392aab9df97021ad592cda8f42f9a50",
+      "generated_tail": "VERIFIED_TOKENS",
+      "compiled_assembly_attested": false
+    },
+    "installed_historical_sha256": "aee0e9a87df45027bcb64375f122ed0ca1285e07e88a16b5b43ac007eed84e8b",
+    "failed_capture_entries": []
+  },
+  "current_live_runtime": {
+    "observed_utc": "2026-09-21T18:37:38.668567+00:00",
+    "run_id": "8260a1d7-d6aa-4b53-a78a-f525bdbc0fa3",
+    "observations": [
+      {
+        "url": "http://127.0.0.1:18001/api/v2/market-analysis/health",
+        "http_status": null,
+        "error_type": "URLError"
+      },
+      {
+        "url": "http://127.0.0.1:13001/market-analysis",
+        "http_status": null,
+        "error_type": "URLError"
+      }
+    ],
+    "services_restarted": false,
+    "services_stopped_by_this_task": false,
+    "ninjatrader_manipulated": false,
+    "canonical_last_row": {
+      "schema": "arms.nt.market.v1",
+      "session": "dcab3e75-9539-45df-a503-9e5a7684bb11",
+      "sequence": 1276,
+      "event_time": "2026-09-21T18:21:51.3423809Z",
+      "kind": "DISCONNECTED",
+      "payload": {
+        "connected": false,
+        "reason": "TERMINATED",
+        "error_code": "NONE"
+      }
+    },
+    "canonical_file_sha256": "864eef775442238ccccead849e3c73da6270b8ccdac9dff9e81fc0db7d01fbeb",
+    "shutdown_result_sha256": "9a97d1a33cc17bc937efb7cde9298d7a1a5d6488ffc5c5212a341925e32c30eb",
+    "recorded_final_health": {
+      "run_id": "8260a1d7-d6aa-4b53-a78a-f525bdbc0fa3",
+      "pid": 11028,
+      "process_start": 134344828006629506,
+      "phase": "FAILED",
+      "reason": "WRITER_CLOSED",
+      "worker_heartbeat": 22428,
+      "worker_qpc": 8845138723633,
+      "adapter_heartbeat": 24062,
+      "adapter_status": "DISCONNECTED",
+      "activation_allowance_started": true,
+      "analysis_only": true,
+      "order_submit_reachable": false
+    },
+    "owned_backend_stopped": true,
+    "owned_frontend_stopped": true,
+    "status": "STOPPED_DISCONNECTED_WRITER_CLOSED"
+  },
+  "current_known_process_count": 0,
+  "current_known_listener_count": 0,
+  "CURRENT_LIVE_RUNTIME_STATUS": "STOPPED_DISCONNECTED_WRITER_CLOSED",
+  "DASHBOARD_STATUS": "UNREACHABLE",
+  "production_source_modified": false,
+  "installed_historical_modified": false,
+  "local_safety": {
+    "BROKER_ORDER_CALLS": 0,
+    "NINJATRADER_ACCOUNT_ACCESS": "NO",
+    "PAPER_TRADES_OPENED": 0,
+    "ORDER_SUBMIT_REACHABLE": "NO",
+    "PAPER_ENTRY_AUTHORITY": "DISABLED",
+    "SIM_EXECUTION_AUTHORITY": "DISABLED",
+    "LIVE_AUTHORITY": "NO"
+  },
+  "safety_scope": "Offline code, compiled call audit, deterministic traps and actions in this task; no current API projection available after runtime shutdown.",
+  "NINJATRADER_RECOMPILE_REQUIRED": "YES_HISTORICAL_COMPONENT_ONLY_AFTER_REVIEW",
+  "READY_FOR_REPEAT_HISTORICAL_CAPTURE": "NO_NOT_INSTALLED_OR_ARMED",
+  "LOCAL_COMMIT": "NO",
+  "PUSH_PERFORMED": "NO",
+  "STAGED_COUNT": 0,
+  "PROPOSED_COMMIT_SCOPE": [
+    "backend/market_data/native_historical_bootstrap_v1.py",
+    "backend/tests/fixtures/historical_diagnostics_harness_sprint16ar1.cs",
+    "backend/tests/historical_diagnostics_sprint16ar1.json",
+    "backend/tests/test_historical_diagnostics_sprint16ar1.py",
+    "docs/architecture/historical_diagnostics_sprint16ar1.md",
+    "integrations/ninjatrader/ArmsHistoricalBootstrapV1.cs",
+    "tools/certify_native_history_v1.py"
+  ],
+  "reviewed_file_sha256": {
+    "backend/market_data/native_historical_bootstrap_v1.py": "47a182effd68015f6eb21465697ebae8e4a85d9f164e42ac0568dfbd603abbdb",
+    "backend/tests/fixtures/historical_diagnostics_harness_sprint16ar1.cs": "93cc2fa60c0e7f51348ce3f7f85aafa6485c21a061aa9ef6101f038e94c2a8fa",
+    "backend/tests/test_historical_diagnostics_sprint16ar1.py": "b9c8da99aae622579e7d183aad5da504e134801b381d221001f0c17f6586f8e6",
+    "docs/architecture/historical_diagnostics_sprint16ar1.md": "990d8cd75c5c49e1356e1df665ea3a175a37e62f0694fd3ea96d196365cd857c",
+    "integrations/ninjatrader/ArmsHistoricalBootstrapV1.cs": "e053d525a0b8e0098006c9ce28feeea4b1449c0835ce6dcaffd64a95c72b2da7",
+    "tools/certify_native_history_v1.py": "b3957c47bbd4b5dcb55e86b0949d89eb52eff214626f9f8ec67ba2b39f1f5f3b"
+  },
+  "BLOCKERS": [
+    "Original failure stage unknown",
+    "Revised historical component not installed or recompiled in NinjaTrader",
+    "Production runtime is stopped and dashboard unreachable",
+    "No fresh repeat capture authorized or armed"
+  ],
+  "NEXT_ACTION": "Review runtime shutdown and this offline diagnostic patch; do not repeat capture until a separate installation and fresh-directory human gate.",
+  "references": [
+    "https://docs.ninjatrader.com/ninjascript/barsrequest",
+    "https://docs.ninjatrader.com/ninjascript/onstatechange",
+    "https://docs.ninjatrader.com/ninjascript/understanding_the_lifecycle_of"
+  ]
+}

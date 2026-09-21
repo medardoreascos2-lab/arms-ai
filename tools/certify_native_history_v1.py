@@ -5,16 +5,17 @@ import json
 from pathlib import Path
 
 from backend.market_data.certified_bootstrap_v1 import certify_bootstrap
-from backend.market_data.native_historical_bootstrap_v1 import SCHEMA, EXPORTER_SHA256, report
+from backend.market_data.native_historical_bootstrap_v1 import SCHEMA, REVIEWED_EXPORTER_HASHES, report
 from backend.market_data.fresh_native_adapter_v1 import local_path
 from tools.certify_analysis_bootstrap_v1 import bounded_read
 
 
 def build_bundle(history, seal, template, source):
     # Source bytes are the reviewed authored file, not an arbitrary installed wrapper.
-    if sha256(source.replace(b'\r\n', b'\n')).hexdigest() != EXPORTER_SHA256:
+    authored_hash = sha256(source.replace(b'\r\n', b'\n')).hexdigest()
+    if authored_hash not in REVIEWED_EXPORTER_HASHES:
         raise ValueError('HISTORY_EXPORTER_SOURCE_CHANGED')
-    raw = json.dumps(dict(schema=SCHEMA, authored_sha256=EXPORTER_SHA256,
+    raw = json.dumps(dict(schema=SCHEMA, authored_sha256=authored_hash,
         history_utf8=history.decode('utf-8'), seal_utf8=seal.decode('utf-8'),
         template_utf8=template.decode('utf-8')), separators=(',',':')).encode('utf-8')
     data = certify_bootstrap(raw, expected_sha256=sha256(raw).hexdigest())

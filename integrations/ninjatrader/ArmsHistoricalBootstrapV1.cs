@@ -21,6 +21,13 @@ namespace NinjaTrader.NinjaScript.Indicators
         private bool attempted, terminated;
         private string directory;
         private DateTime from, through;
+        private ArmsHistoricalBootstrapV1 owner;
+        private StreamWriter diagnostic;
+        private string diagnosticPath, attemptId, fromProperty, throughProperty, outputProperty;
+        private string stage = "NOT_STARTED", observedTimeKind = "NONE", requestError = "NONE";
+        private int diagnosticSequence, returnedRows = -1, currentIndex = -1;
+        private bool terminal, submitted, submitting, completed;
+        private readonly HashSet<State> observedStates = new HashSet<State>();
 
         [NinjaScriptProperty]
         [Display(Name = "Capture enabled", Order = 1, GroupName = "ARMS historical only")]
@@ -49,25 +56,34 @@ namespace NinjaTrader.NinjaScript.Indicators
                 CaptureEnabled = false;
                 OutputDirectory = FromUtcDate = ThroughUtcDate = "";
             }
+            // A UI clone must never dispose or write through the running instance's resources.
+            else if (owner != null && !Object.ReferenceEquals(owner, this)) return;
+            else if (State == State.Configure)
+            {
+                lock (sync) BeginAttempt(); // Private diagnostic probe only; no request before DataLoaded.
+            }
             else if (State == State.DataLoaded)
             {
                 lock (sync)
                 {
-                    if (!CaptureEnabled || attempted || terminated) return;
-                    attempted = true;
+                    BeginAttempt(); // Also supports a host that supplies properties only before DataLoaded.
+                    if (!attempted || terminal || submitted || terminated) return;
                     try
                     {
-                        if (Core.Globals.GeneralOptions.TimeZoneInfo.Id != "UTC"
-                            || Connection.PlaybackConnection != null) throw new InvalidOperationException();
-                        from = DateTime.ParseExact(FromUtcDate, "yyyy-MM-dd", CultureInfo.InvariantCulture);
-                        through = DateTime.ParseExact(ThroughUtcDate, "yyyy-MM-dd", CultureInfo.InvariantCulture);
-                        if (from.Year != 2026 || through.Year != 2026 || through < from
-                            || (through - from).TotalDays > 14) throw new InvalidOperationException();
-                        directory = LocalDirectory(OutputDirectory);
-                        if (Directory.GetFileSystemEntries(directory).Length != 0) throw new InvalidOperationException();
+                        Trace("STATE_DATALOADED");
+                        stage = "EFFECTIVE_PROPERTIES";
+                        if (!PropertiesMatch()) throw new InvalidOperationException();
+                        stage = "SOURCE_TIMEZONE";
+                        if (Core.Globals.GeneralOptions.TimeZoneInfo.Id != "UTC") throw new InvalidOperationException();
+                        stage = "PLAYBACK_GUARD";
+                        if (Connection.PlaybackConnection != null) throw new InvalidOperationException();
+                        stage = "INSTRUMENT_IDENTITY";
                         var instrument = Instrument.GetInstrument("NQ DEC26");
                         ValidateInstrument(instrument);
+                        stage = "REQUEST_CREATE";
                         request = new BarsRequest(instrument, from, through);
+                        Trace("REQUEST_CREATED");
+                        stage = "REQUEST_PARAMETERS";
                         request.BarsPeriod = new BarsPeriod { BarsPeriodType = BarsPeriodType.Minute, Value = 1,
                             MarketDataType = MarketDataType.Last };
                         request.TradingHours = TradingHours.Get("CME US Index Futures ETH");
@@ -76,15 +92,128 @@ namespace NinjaTrader.NinjaScript.Indicators
                         request.IsResetOnNewTradingDay = true;
                         request.IsDividendAdjusted = false;
                         request.IsSplitAdjusted = false;
+                        stage = "REQUEST_INVOKE";
+                        Trace("REQUEST_SUBMITTING");
+                        submitted = true; submitting = true; // At most one invocation, including exceptions.
                         request.Request(Completed); // Exactly once; no realtime Update handler.
+                        Trace("REQUEST_SUBMITTED"); // May follow an inline callback; means Request returned.
                     }
-                    catch { DisposeRequest(); Print("ARMS_HISTORICAL_BOOTSTRAP_FAILED_START"); }
+                    catch (Exception error) { Fail(error); }
+                    finally { submitting = false; if (terminal) CloseDiagnostic(); }
                 }
             }
             else if (State == State.Terminated)
             {
-                lock (sync) { terminated = true; DisposeRequest(); }
+                lock (sync)
+                {
+                    terminated = true;
+                    if (attempted && !terminal)
+                    {
+                        stage = "TERMINATED_BEFORE_COMPLETION";
+                        Fail(new InvalidOperationException());
+                    }
+                    DisposeRequest(); CloseDiagnostic();
+                }
             }
+            else if (attempted && !terminal)
+            {
+                lock (sync)
+                {
+                    try { if (observedStates.Add(State)) Trace("STATE_" + State.ToString().ToUpperInvariant()); }
+                    catch (Exception error) { Fail(error); }
+                }
+            }
+        }
+
+        private void BeginAttempt()
+        {
+            if (!CaptureEnabled || attempted || terminated) return;
+            owner = this; attempted = true;
+            outputProperty = OutputDirectory; fromProperty = FromUtcDate; throughProperty = ThroughUtcDate;
+            attemptId = Guid.NewGuid().ToString();
+            try
+            {
+                stage = "DIAGNOSTIC_OPEN";
+                directory = LocalDirectory(outputProperty);
+                if (Directory.GetFileSystemEntries(directory).Length != 0) throw new InvalidOperationException();
+                // A fixed CreateNew name also prevents two instances from owning the same fresh directory.
+                diagnosticPath = Path.Combine(directory, "historical-diagnostic.jsonl");
+                diagnostic = new StreamWriter(new FileStream(diagnosticPath, FileMode.CreateNew, FileAccess.Write,
+                    FileShare.Read, 4096, FileOptions.WriteThrough), new UTF8Encoding(false));
+                diagnostic.NewLine = "\n"; diagnostic.AutoFlush = true;
+                Trace("INSTANCE_STARTED");
+                stage = "CONFIG_DATE_PARSE";
+                from = DateTime.ParseExact(fromProperty, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+                through = DateTime.ParseExact(throughProperty, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+                stage = "CONFIG_DATE_RANGE";
+                if (from.Year != 2026 || through.Year != 2026 || through < from
+                    || (through - from).TotalDays > 14) throw new InvalidOperationException();
+                Trace("CONFIG_VALIDATED");
+            }
+            catch (Exception error) { Fail(error); }
+        }
+
+        private bool PropertiesMatch()
+        {
+            return CaptureEnabled && OutputDirectory == outputProperty && FromUtcDate == fromProperty
+                && ThroughUtcDate == throughProperty;
+        }
+
+        private static string SafeDate(string value)
+        {
+            DateTime parsed;
+            return DateTime.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out parsed) ? parsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "INVALID";
+        }
+
+        private void Trace(string value, string errorType = "NONE")
+        {
+            if (diagnostic == null || diagnosticSequence >= 48) throw new InvalidOperationException();
+            diagnostic.WriteLine(new JavaScriptSerializer().Serialize(new {
+                schema = "arms.nt.historical-diagnostic.v1", classification = "DIAGNOSTIC_ONLY",
+                certification_evidence = false, runtime_admission = false, instance = attemptId,
+                sequence = diagnosticSequence++, stage = value, state = State.ToString(),
+                capture_enabled = CaptureEnabled, properties_match = PropertiesMatch(),
+                from_utc_date = SafeDate(fromProperty), through_utc_date = SafeDate(throughProperty),
+                output_directory_verified = directory != null, output_directory_identity = DirectoryIdentity(),
+                request_invoked = submitted, capture_completed = completed,
+                attempt_failed = terminal && !completed,
+                returned_rows = returnedRows, source_index = currentIndex, observed_time_kind = observedTimeKind,
+                request_error = requestError, exception_type = errorType }));
+        }
+
+        private string DirectoryIdentity()
+        {
+            if (directory == null) return "UNAVAILABLE";
+            using (var h = SHA256.Create())
+                return BitConverter.ToString(h.ComputeHash(Encoding.UTF8.GetBytes(directory))).Replace("-", "").ToLowerInvariant();
+        }
+
+        private static string SafeError(Exception error)
+        {
+            if (error is UnauthorizedAccessException) return "UnauthorizedAccessException";
+            if (error is IOException) return "IOException";
+            if (error is FormatException) return "FormatException";
+            if (error is ArgumentException) return "ArgumentException";
+            if (error is NullReferenceException) return "NullReferenceException";
+            if (error is InvalidOperationException) return "InvalidOperationException";
+            return "OTHER"; // Never provider-owned Message, StackTrace or arbitrary type names.
+        }
+
+        private void Fail(Exception error)
+        {
+            if (terminal) return;
+            terminal = true;
+            try { Trace("FAILED_" + stage, SafeError(error)); } catch { }
+            try { Print("ARMS_HISTORICAL_BOOTSTRAP_FAILED_" + stage + " error=" + SafeError(error)); } catch { }
+            DisposeRequest();
+            if (!submitting) CloseDiagnostic();
+        }
+
+        private void CloseDiagnostic()
+        {
+            try { if (diagnostic != null) diagnostic.Dispose(); } catch { }
+            diagnostic = null;
         }
 
         private static string LocalDirectory(string value)
@@ -124,26 +253,42 @@ namespace NinjaTrader.NinjaScript.Indicators
         {
             lock (sync)
             {
-                if (terminated || !Object.ReferenceEquals(received, request)) return;
+                if (terminated || terminal) return;
                 try
                 {
-                    if (error != ErrorCode.NoError || Core.Globals.GeneralOptions.TimeZoneInfo.Id != "UTC"
+                    stage = "CALLBACK_IDENTITY";
+                    requestError = Enum.IsDefined(typeof(ErrorCode), error) ? error.ToString() : "UNKNOWN";
+                    Trace("CALLBACK_ENTERED");
+                    if (!Object.ReferenceEquals(received, request)) throw new InvalidOperationException();
+                    stage = "CALLBACK_ERROR";
+                    if (error != ErrorCode.NoError) throw new InvalidOperationException();
+                    stage = "CALLBACK_PROPERTIES";
+                    if (!PropertiesMatch()) throw new InvalidOperationException();
+                    stage = "CALLBACK_SOURCE";
+                    if (Core.Globals.GeneralOptions.TimeZoneInfo.Id != "UTC"
                         || Connection.PlaybackConnection != null) throw new InvalidOperationException();
+                    stage = "CALLBACK_INSTRUMENT";
                     ValidateInstrument(received.Instrument);
+                    stage = "CALLBACK_REQUEST_PARAMETERS";
                     if (received.MergePolicy != MergePolicy.DoNotMerge || received.LookupPolicy != LookupPolicies.Repository
                         || received.BarsPeriod.BarsPeriodType != BarsPeriodType.Minute || received.BarsPeriod.Value != 1
                         || received.BarsPeriod.MarketDataType != MarketDataType.Last
                         || !received.IsResetOnNewTradingDay || received.IsDividendAdjusted || received.IsSplitAdjusted)
                         throw new InvalidOperationException();
                     var bars = received.Bars;
+                    stage = "CALLBACK_BARS_IDENTITY";
                     ValidateInstrument(bars.Instrument);
                     if (bars.BarsPeriod.BarsPeriodType != BarsPeriodType.Minute || bars.BarsPeriod.Value != 1
                         || bars.BarsPeriod.MarketDataType != MarketDataType.Last) throw new InvalidOperationException();
                     var hours = bars.TradingHours;
+                    stage = "CALLBACK_TRADING_HOURS";
                     if (hours.Name != "CME US Index Futures ETH" || hours.TimeZoneInfo.Id != "Central Standard Time"
                         || hours.Name != received.TradingHours.Name || hours.Version != received.TradingHours.Version)
                         throw new InvalidOperationException();
                     int returned = bars.Count;
+                    returnedRows = returned;
+                    Trace("ROWS_RECEIVED");
+                    stage = "ROW_COUNT";
                     if (returned < 3 || returned > 10002) throw new InvalidOperationException();
                     string dataset = Guid.NewGuid().ToString();
                     var serializer = new JavaScriptSerializer();
@@ -155,18 +300,27 @@ namespace NinjaTrader.NinjaScript.Indicators
                     DateTime query = calendarFrom, lastEnd = DateTime.MinValue;
                     for (int count = 0; count < 64; count++)
                     {
+                        stage = "CALENDAR_ITERATOR_ADVANCE";
                         if (!iterator.GetNextSession(query, true)) throw new InvalidOperationException();
                         var begin = iterator.ActualSessionBegin;
                         var end = iterator.ActualSessionEnd;
+                        stage = "CALENDAR_INTERVAL_ORDER";
                         if (begin >= end || end <= lastEnd) throw new InvalidOperationException();
                         if (begin >= calendarThrough) break;
-                        intervals.Add(new { begin = Utc(begin), end = Utc(end),
+                        stage = "CALENDAR_BEGIN_UTC_KIND"; observedTimeKind = begin.Kind.ToString();
+                        var beginText = Utc(begin);
+                        stage = "CALENDAR_END_UTC_KIND"; observedTimeKind = end.Kind.ToString();
+                        var endText = Utc(end);
+                        intervals.Add(new { begin = beginText, end = endText,
                             trading_day = iterator.ActualTradingDayExchange.ToString("yyyy-MM-dd") });
                         lastEnd = end;
                         query = end.AddTicks(1);
                         if (query >= calendarThrough) break;
+                        stage = "CALENDAR_INTERVAL_LIMIT";
                         if (count == 63) throw new InvalidOperationException();
                     }
+                    stage = "HEADER_SERIALIZATION";
+                    Trace("SERIALIZATION_STARTED");
                     lines.Add(serializer.Serialize(new {
                         schema = "arms.nt.historical-bootstrap.header.v1", dataset = dataset,
                         exporter = "ArmsHistoricalBootstrapV1/1", sdk_version = typeof(BarsRequest).Assembly.GetName().Version.ToString(),
@@ -176,7 +330,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                         template_timezone = hours.TimeZoneInfo.Id, application_timezone = "UTC", bar_label = "CLOSE",
                         tick_size = .25, point_value = 20, lookup_policy = "Repository", merge_policy = "DoNotMerge",
                         reset_on_new_trading_day = true, split_adjusted = false, dividend_adjusted = false,
-                        requested_from = FromUtcDate, requested_through = ThroughUtcDate,
+                        requested_from = fromProperty, requested_through = throughProperty,
                         calendar_from = Utc(calendarFrom), calendar_through = Utc(calendarThrough), calendar_intervals = intervals,
                         returned_bar_count = returned, excluded_first_and_last = true, classification = "HISTORICAL",
                         realtime = false, observation_only = true, runtime_admission = false }));
@@ -184,40 +338,57 @@ namespace NinjaTrader.NinjaScript.Indicators
                     // First may be a boundary fragment; last may still be forming. Exclude both.
                     for (int i = 1; i < returned - 1; i++)
                     {
+                        currentIndex = i; stage = "BAR_READ";
                         var time = bars.GetTime(i);
                         double open = bars.GetOpen(i), high = bars.GetHigh(i), low = bars.GetLow(i), close = bars.GetClose(i);
                         long volume = bars.GetVolume(i);
+                        stage = "BAR_LABEL_ORDER";
                         if (time <= previous || time.Ticks % TimeSpan.TicksPerMinute != 0
-                            || !Price(open) || !Price(high) || !Price(low) || !Price(close) || volume < 0
-                            || low > Math.Min(open, close) || high < Math.Max(open, close)
                             || bars.GetTime(i + 1) <= time) throw new InvalidOperationException();
+                        stage = "BAR_OHLCV";
+                        if (!Price(open) || !Price(high) || !Price(low) || !Price(close) || volume < 0
+                            || low > Math.Min(open, close) || high < Math.Max(open, close))
+                            throw new InvalidOperationException();
+                        stage = "BAR_UTC_KIND"; observedTimeKind = time.Kind.ToString();
+                        var barTime = Utc(time);
+                        stage = "BAR_SERIALIZATION";
                         lines.Add(serializer.Serialize(new { schema = "arms.nt.historical-bootstrap.bar.v1", dataset = dataset,
                             index = i - 1, source_index = i, instrument = "NQ", contract = "NQ DEC26", bars_type = "Minute",
                             bars_value = 1, template = hours.Name, classification = "HISTORICAL", realtime = false,
-                            bar_time = Utc(time), bar_time_kind = time.Kind.ToString(), open = open, high = high,
+                            bar_time = barTime, bar_time_kind = time.Kind.ToString(), open = open, high = high,
                             low = low, close = close, volume = volume }));
                         previous = time;
                     }
+                    stage = "SNAPSHOT_COUNT_STABLE";
                     if (bars.Count != returned) throw new InvalidOperationException();
                     // The request owns this historical snapshot; there is no Update subscription.
+                    stage = "OUTPUT_OWNERSHIP";
                     var outputDirectory = LocalDirectory(directory);
-                    if (Directory.GetFileSystemEntries(outputDirectory).Length != 0) throw new InvalidOperationException();
+                    var entries = Directory.GetFileSystemEntries(outputDirectory);
+                    if (entries.Length != 1 || Path.GetFullPath(entries[0]) != diagnosticPath) throw new InvalidOperationException();
                     var path = Path.Combine(outputDirectory, dataset + ".historical.jsonl");
                     byte[] raw = Encoding.UTF8.GetBytes(String.Join("\n", lines) + "\n");
                     string hash;
                     using (var digest = SHA256.Create()) hash = BitConverter.ToString(digest.ComputeHash(raw)).Replace("-", "").ToLowerInvariant();
+                    stage = "HISTORY_WRITE";
+                    Trace("HISTORY_WRITE_STARTED");
                     using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
                         output.Write(raw, 0, raw.Length);
+                    stage = "SEAL_WRITE";
                     using (var seal = new StreamWriter(new FileStream(path + ".done.tmp", FileMode.CreateNew,
                         FileAccess.Write, FileShare.Read), new UTF8Encoding(false)))
                         seal.Write(serializer.Serialize(new { schema = "arms.nt.historical-bootstrap.seal.v1", dataset = dataset,
                             bytes = raw.Length, records = lines.Count, bars = returned - 2, sha256 = hash,
                             writer_closed = true, complete = true, classification = "HISTORICAL", runtime_admission = false }));
+                    stage = "SEAL_RENAME";
                     File.Move(path + ".done.tmp", path + ".done.json");
-                    Print("ARMS_HISTORICAL_BOOTSTRAP_COMPLETE_HISTORY_ONLY");
+                    completed = true;
+                    Trace("SEAL_WRITTEN");
+                    terminal = true;
+                    try { Print("ARMS_HISTORICAL_BOOTSTRAP_COMPLETE_HISTORY_ONLY"); } catch { }
                 }
-                catch { Print("ARMS_HISTORICAL_BOOTSTRAP_FAILED_NO_CERTIFICATION"); }
-                finally { DisposeRequest(); }
+                catch (Exception failure) { Fail(failure); }
+                finally { DisposeRequest(); if (!submitting) CloseDiagnostic(); }
             }
         }
 

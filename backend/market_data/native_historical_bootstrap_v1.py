@@ -16,7 +16,10 @@ from tools.production_timing_v1 import parse
 from tools.native_timing_witness_v1 import ticks, MINUTE as MINUTE_TICKS
 
 SCHEMA = 'arms.certified-native-history.v1'
-EXPORTER_SHA256 = '836ad9d128853129119bd9ea97b93158f6bfaa2f6bf216d80679a53c6e1ef578'
+EXPORTER_SHA256 = 'e053d525a0b8e0098006c9ce28feeea4b1449c0835ce6dcaffd64a95c72b2da7'
+# Closed reviewed set: original 16A and diagnostic-only 16A-R1; history schema unchanged.
+REVIEWED_EXPORTER_HASHES = frozenset((EXPORTER_SHA256,
+    '836ad9d128853129119bd9ea97b93158f6bfaa2f6bf216d80679a53c6e1ef578'))
 TEMPLATE_SHA256 = '370b17f23eeea694e686394b5fdb9b55681089c22d5232d5e6a354a314325620'
 TEMPLATE = 'CME US Index Futures ETH'
 MINUTE = timedelta(minutes=1)
@@ -101,7 +104,8 @@ def classify_gap(previous, following, intervals=(), coverage=()):
 
 def certify_native_history(bundle, digest):
     require(set(bundle) == {'schema','authored_sha256','history_utf8','seal_utf8','template_utf8'}
-            and bundle['schema'] == SCHEMA and bundle['authored_sha256'] == EXPORTER_SHA256,
+            and bundle['schema'] == SCHEMA and type(bundle['authored_sha256']) is str
+            and bundle['authored_sha256'] in REVIEWED_EXPORTER_HASHES,
             'HISTORY_EXPORTER_IDENTITY')
     raw, lines = _lines(bundle['history_utf8'])
     require(2 <= len(lines) <= MAX_BARS+1, 'HISTORY_BAR_COUNT')
