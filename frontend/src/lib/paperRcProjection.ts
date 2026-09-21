@@ -3,6 +3,9 @@ import type { JsonObject, JsonValue } from "./dashboardApi";
 const object = (value: JsonValue | undefined): JsonObject =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
 
+const status = (value: JsonValue | undefined, allowed: string[]): JsonValue | undefined =>
+  value === undefined ? undefined : typeof value === "string" && allowed.includes(value) ? value : "UNKNOWN";
+
 /** Display published canonical values only. Missing evidence is never zero. */
 export function paperRcRows(snapshot: JsonObject): [string, JsonValue | undefined][] {
   const account = object(snapshot.account_overview);
@@ -51,10 +54,11 @@ export function currentPaperRows(snapshot: JsonObject): [string, JsonValue | und
     ["SESSION READINESS", snapshot.session_readiness],
     ["CURRENT SESSION COMPLETE 15M / 1H BARS", snapshot.htf_current_session],
     ["SIM ELIGIBILITY STATUS", snapshot.sim_eligibility_status],
-    ["SIM DISCOVERY STATUS", snapshot.sim_discovery_status],
-    ["SIM CLASSIFICATION STATUS", snapshot.sim_classification_status],
-    ["SIM BINDING STATUS", snapshot.sim_binding_status],
-    ["SIM EXECUTION AUTHORITY", snapshot.sim_execution_authority],
+    ["SIM DISCOVERY STATUS", status(snapshot.sim_discovery_status, ["NOT_IMPLEMENTED_AUTHORITY_UNPROVEN"])],
+    ["SIM CLASSIFICATION STATUS", status(snapshot.sim_classification_status, ["UNKNOWN"])],
+    ["SIM BINDING STATUS", status(snapshot.sim_binding_status, ["NOT_CONFIGURED", "INELIGIBLE", "REVOKED_REVIEW_REQUIRED"])],
+    ["SIM RUNTIME REVALIDATION", status(snapshot.sim_runtime_revalidation, ["NOT_PERFORMED", "REVOKED"])],
+    ["SIM EXECUTION AUTHORITY", status(snapshot.sim_execution_authority, ["DISABLED"])],
     ["MARKET DATA PROVIDER", market.provider], ["CONNECTION", market.connected],
     ["CURRENT CONTRACT", market.contract], ["INSTRUMENT", market.instrument],
     ["TICK SIZE", market.tick_size], ["POINT VALUE", market.point_value],

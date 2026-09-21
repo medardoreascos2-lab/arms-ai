@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.admin_authorization_dependency_v2 import require_admin_authorization_v2
 from backend.backtesting.current_paper_runtime_v1 import CurrentPaperServiceV1
 from backend.security.admin_authorization_v2 import AdminAuthorizationV2
+from backend.market_data.sim_binding_contract_v1 import native_sim_status
 
 
 def create_current_paper_app_v1(*, service, admin_token=None, dashboard_origin="http://localhost:3000"):
@@ -35,7 +36,11 @@ def create_current_paper_app_v1(*, service, admin_token=None, dashboard_origin="
 
     @app.get("/api/v2/backtesting/dashboard")
     def dashboard():
-        return {"paper_research": service.get_snapshot()}
+        return {"paper_research": {**service.get_snapshot(), **native_sim_status()}}
+
+    @app.get("/api/v2/paper/sim-readiness")
+    def sim_readiness():
+        return native_sim_status()
 
     @app.post("/api/v2/paper/{command}", dependencies=[Depends(require_admin_authorization_v2)])
     def command(command: str):

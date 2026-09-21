@@ -13,7 +13,9 @@ def fixture():
         'synthetic-label-digest','synthetic-installation','SYNTHETIC_PLATFORM_CLASS_V1',True)
     now=datetime(2026,9,22,tzinfo=timezone.utc)
     snapshot={**asdict(binding),'classification':'PROVEN_SIMULATION','account_count':1,
-        'configuration_sha256':binding.digest(),'observed_at':now.isoformat(),'revoked':False}
+        'configuration_sha256':binding.digest(),'observed_at':now.isoformat(),'revoked':False,
+        'runtime_ref':'synthetic-process-A','connection_epoch':'synthetic-epoch-A',
+        'discovery_sequence':0,'connected':True}
     return binding,now,snapshot
 
 
@@ -40,7 +42,8 @@ def test_binding_matrix_and_no_order_authority(case):
     if case=='wildcard': binding=replace(binding,account_ref='*')
     if case=='installation': snapshot['installation_ref']='synthetic-new-installation'
     result=assess_sim_binding(snapshot,binding,now,synthetic=True)
-    assert result['future_sim_eligible'] is (case=='proven_sim')
+    assert not result['future_sim_eligible']  # Binding alone cannot establish runtime continuity.
+    assert (result['sim_binding_status']=='SYNTHETIC_BINDING_MATCH') is (case=='proven_sim')
     assert result['external_order_authority'] is False and result['sim_execution_authority']=='DISABLED'
     assert result['evidence_kind']=='SYNTHETIC_OFFLINE'
     if case=='proven_real': assert result['sim_classification_status']=='PROVEN_NON_SIMULATION'
@@ -50,7 +53,8 @@ def test_binding_matrix_and_no_order_authority(case):
 
 
 def test_runtime_change_revokes_without_automatic_rebinding():
-    binding,now,snapshot=fixture(); latch=OfflineBindingLatchV1(binding)
+    binding,now,snapshot=fixture(); latch=OfflineBindingLatchV1(binding,
+        runtime_ref=snapshot['runtime_ref'],connection_epoch=snapshot['connection_epoch'])
     assert latch.observe(snapshot,now)['future_sim_eligible']
     assert not latch.observe({**snapshot,'connection_ref':'synthetic-other'},now)['future_sim_eligible']
     assert not latch.observe(snapshot,now)['future_sim_eligible']

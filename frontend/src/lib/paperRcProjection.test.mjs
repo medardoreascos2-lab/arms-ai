@@ -35,6 +35,18 @@ test('SIM discovery projects safe status fields without account identifiers', ()
   assert.equal(JSON.stringify(rows).includes('SYNTHETIC_PRIVATE_IDENTIFIER'),false);
 });
 
+test('SIM status projection rejects private strings and unreviewed authority claims', () => {
+  const input = {sim_discovery_status:'SYNTHETIC_PRIVATE',sim_classification_status:'PROVEN_SIMULATION',
+    sim_binding_status:{account_id:'SYNTHETIC_PRIVATE'},sim_runtime_revalidation:'SYNTHETIC_PRIVATE',
+    sim_execution_authority:'ENABLED'};
+  const rows = Object.fromEntries(exports.currentPaperRows(input));
+  for (const label of ['SIM DISCOVERY STATUS','SIM CLASSIFICATION STATUS','SIM BINDING STATUS',
+    'SIM RUNTIME REVALIDATION','SIM EXECUTION AUTHORITY']) assert.equal(rows[label],'UNKNOWN');
+  assert.equal(JSON.stringify(rows).includes('SYNTHETIC_PRIVATE'),false);
+  assert.equal(Object.fromEntries(exports.currentPaperRows({sim_runtime_revalidation:'NOT_PERFORMED'}))
+    ['SIM RUNTIME REVALIDATION'],'NOT_PERFORMED');
+});
+
 test('PAPER card uses canonical values without recomputing account or score', () => {
   const input = { mode:'PAPER_RESEARCH', paper_ready:false, account_overview:{balance:151170,equity:151000,daily_pnl:1170},
     strategy_evidence:{confluence:{score:81.33},quality:{score:85}}, configuration:{boundary:80.5,quality:85},

@@ -5650,7 +5650,7 @@
       "id": "backend/api/current_paper_app_v1.py:create_current_paper_app_v1",
       "path": "backend/api/current_paper_app_v1.py",
       "function": "create_current_paper_app_v1",
-      "source_sha256": "2a02e5b1acdc0ac90091c8e634703ea879e307347a30e5926341de558f392fae",
+      "source_sha256": "5fe2639ce79e67d7b851f521f8c1d8b5006262c2d879d1c042388c2a3bb91162",
       "calls": [
         "AdminAuthorizationV2",
         "Depends",
@@ -5660,6 +5660,7 @@
         "app.add_middleware",
         "app.get",
         "app.post",
+        "native_sim_status",
         "service.control",
         "service.get_snapshot",
         "service.shutdown",
