@@ -25,6 +25,12 @@ namespace NinjaTrader.NinjaScript.Indicators
         private BarsRequest request;
         private FileStream stream;
         private StreamWriter diagnostic;
+        // R5.1 forensic sidecar: never part of successful/certified evidence.
+        private StreamWriter coverageDiagnostic;
+        private int coverageRecords, coverageBytes;
+        private const string CoverageFile = "session-domain-coverage.jsonl";
+        private const int MaximumCoverageRecords = 16, MaximumCoverageBytes = 32768;
+        private CoverageProgress progress;
         private bool attempted, submitted, submitting, callbackEntered, callbackFinished, terminal, terminated;
         private string directory, outputProperty, probeId, snapshotId, snapshotHash;
         private string stage = "NOT_STARTED", outcome = "UNRESOLVED", sdkVersion, applicationTimezone;
@@ -308,50 +314,149 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
+        private sealed class CoverageProgress
+        {
+            public int Index = -1, LastProcessedIndex = -1, SessionBin = -1, DateBuckets, ObservedCount = -1;
+            public DateTime? First, Last, Current, Previous, LastProcessed;
+            public string Operation = "COVERAGE_BEGIN", Guard = "NONE", Classification = "NOT_CLASSIFIED";
+        }
+
+        private void CoverageRequire(bool condition, string guard)
+        {
+            progress.Operation = guard;
+            if (!condition) { progress.Guard = guard; throw new InvalidOperationException(); }
+        }
+
+        private void CoverageTrace(string eventName, string error = "NONE")
+        {
+            Require(coverageDiagnostic != null && coverageRecords < MaximumCoverageRecords
+                && records + coverageRecords < MaximumRecords);
+            var p = progress;
+            var row = new {
+                schema = "arms.nt.session-domain-coverage.record.v1", diagnostic_version = "R5.1/1",
+                classification = "FORENSIC_ONLY", certification_evidence = false, runtime_admission = false,
+                probe_uuid = probeId, request_id = snapshotId, snapshot_sha256 = snapshotHash,
+                sequence = coverageRecords, stage = eventName, operation = p.Operation, guard = p.Guard,
+                returned_rows = returnedRows, index = p.Index, observed_count = p.ObservedCount,
+                first = Stamp(p.First), first_kind = Kind(p.First), last = Stamp(p.Last), last_kind = Kind(p.Last),
+                current = Stamp(p.Current), current_kind = Kind(p.Current),
+                previous = Stamp(p.Previous), previous_kind = Kind(p.Previous),
+                last_processed_index = p.LastProcessedIndex, last_processed = Stamp(p.LastProcessed),
+                last_processed_kind = Kind(p.LastProcessed),
+                seconds = p.Current.HasValue ? (int?)p.Current.Value.Second : null,
+                milliseconds = p.Current.HasValue ? (int?)p.Current.Value.Millisecond : null,
+                ticks_remainder_second = p.Current.HasValue ? (long?)(p.Current.Value.Ticks % TimeSpan.TicksPerSecond) : null,
+                ticks_remainder_minute = p.Current.HasValue ? (long?)(p.Current.Value.Ticks % TimeSpan.TicksPerMinute) : null,
+                utc_date = p.Current.HasValue && p.Current.Value.Kind == DateTimeKind.Utc
+                    ? p.Current.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : null,
+                session_bin = p.SessionBin, session_classification = p.Classification, date_buckets = p.DateBuckets,
+                native_calls = calls, iterator_count = iterators, request_count = submitted ? 1 : 0,
+                exception_type = error, exception_message = error == "NONE" ? "NONE" : "REDACTED_NATIVE_OR_GUARD_MESSAGE"
+            };
+            string line = new JavaScriptSerializer().Serialize(row);
+            int size = Encoding.UTF8.GetByteCount(line) + 1;
+            Require(size <= 2048 && coverageBytes + size <= MaximumCoverageBytes && bytes + coverageBytes + size <= MaximumBytes);
+            coverageDiagnostic.WriteLine(line); coverageRecords++; coverageBytes += size;
+        }
+
         private object Measure(Bars bars)
         {
+            progress = new CoverageProgress();
+            try
+            {
+                progress.Operation = "COVERAGE_OUTPUT_OPEN";
+                coverageDiagnostic = new StreamWriter(new FileStream(Path.Combine(directory, CoverageFile), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough), new UTF8Encoding(false));
+                coverageDiagnostic.NewLine = "\n"; coverageDiagnostic.AutoFlush = true;
+                progress.Operation = "COVERAGE_BEGIN_WRITE"; CoverageTrace("COVERAGE_BEGIN");
+                return MeasureCore(bars);
+            }
+            catch (Exception error)
+            {
+                if (progress.Guard == "NONE") progress.Guard = progress.Operation + "_FAILED";
+                try { CoverageTrace("COVERAGE_GUARD_FAILED", SafeError(error)); } catch { }
+                throw;
+            }
+            finally
+            {
+                if (coverageDiagnostic != null) { try { coverageDiagnostic.Dispose(); } finally { coverageDiagnostic = null; } }
+            }
+        }
+
+        private object MeasureCore(Bars bars)
+        {
+            progress.Operation = "COVERAGE_INITIALIZE";
             var bins = new Bucket[6]; for (int j = 0; j < 6; j++) bins[j] = new Bucket();
             var dates = new SortedDictionary<string, Bucket>(StringComparer.Ordinal);
             var post = new Bucket(); var gaps = new Bucket[4];
             for (int j = 0; j < 4; j++) gaps[j] = new Bucket();
             var boundaries = new List<object>();
             int maintenance = 0, outside = 0, boundary = 0;
-            DateTime previous = DateTime.MinValue, first = bars.GetTime(0), last = bars.GetTime(returnedRows - 1);
+            DateTime previous = DateTime.MinValue;
+            progress.Previous = previous;
+            progress.Index = 0; progress.Operation = "COVERAGE_GET_FIRST";
+            DateTime first = bars.GetTime(0); progress.First = progress.Current = first;
+            progress.Operation = "COVERAGE_FIRST_WRITE"; CoverageTrace("COVERAGE_FIRST_OBSERVED");
+            progress.Index = returnedRows - 1; progress.Current = null; progress.Operation = "COVERAGE_GET_LAST";
+            DateTime last = bars.GetTime(returnedRows - 1); progress.Last = progress.Current = last;
+            progress.Operation = "COVERAGE_LAST_WRITE"; CoverageTrace("COVERAGE_LAST_OBSERVED");
             for (int i = 0; i < returnedRows; i++)
             {
+                progress.Index = i; progress.Current = null; progress.Previous = previous;
+                progress.SessionBin = -1; progress.Classification = "NOT_CLASSIFIED";
+                progress.Operation = "COVERAGE_GET_TIME";
                 var time = bars.GetTime(i);
-                Require(time.Kind == DateTimeKind.Utc && time > previous && time.Ticks % TimeSpan.TicksPerMinute == 0);
+                progress.Current = time;
+                CoverageRequire(time.Kind == DateTimeKind.Utc, "COVERAGE_KIND_NOT_UTC");
+                CoverageRequire(time > previous, "COVERAGE_NON_INCREASING");
+                CoverageRequire(time.Ticks % TimeSpan.TicksPerMinute == 0, "COVERAGE_NOT_MINUTE_ALIGNED");
                 previous = time;
+                progress.Operation = "COVERAGE_DATE_FORMAT";
                 string day = time.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                if (!dates.ContainsKey(day)) { Require(dates.Count < 32); dates.Add(day, new Bucket()); }
+                progress.Operation = "COVERAGE_DATE_BUCKET";
+                if (!dates.ContainsKey(day)) { CoverageRequire(dates.Count < 32, "COVERAGE_DATE_BUCKET_LIMIT"); dates.Add(day, new Bucket()); }
+                progress.DateBuckets = dates.Count; progress.Operation = "COVERAGE_BUCKET_ADD";
                 dates[day].Add(i, time);
                 if (time > FirstEnd) { postCount++; post.Add(i, time); }
                 bool member = false, gap = false;
                 for (int j = 0; j < 6; j++)
                 {
+                    progress.Operation = "COVERAGE_SESSION_CALCULATION";
                     var begin = FirstBegin.AddDays(SessionOffsets[j]); var end = FirstEnd.AddDays(SessionOffsets[j]);
+                    progress.Operation = "COVERAGE_BOUNDARY_ADD";
                     if (time == begin || time == end) { boundary++; boundaries.Add(new { index = i, time = Stamp(time) }); }
                     if (time > begin && time <= end)
                     {
+                        progress.SessionBin = j; progress.Classification = "SESSION"; progress.Operation = "COVERAGE_SESSION_BUCKET";
                         member = true; bins[j].Add(i, time);
                         if (i > 0 && i < returnedRows - 1 && time < end && bins[j].candidate_index < 0)
                         { bins[j].candidate_index = i; bins[j].candidate = Stamp(time); }
                         if (j > 0 && !coveredQuery.HasValue && bins[j].candidate_index == i)
                         { coveredQuery = time; coveredIndex = i; coveredSession = j; }
                     }
+                    progress.Operation = "COVERAGE_MAINTENANCE_BUCKET";
                     if (j < 4 && time > end && time <= end.AddHours(1)) { gap = true; gaps[j].Add(i, time); }
                 }
                 if (!member) { if (gap) maintenance++; else outside++; }
+                if (!member) progress.Classification = gap ? "MAINTENANCE" : "OUTSIDE";
+                progress.LastProcessedIndex = i; progress.LastProcessed = time;
+                progress.Operation = "COVERAGE_CHECKPOINT";
+                if (i % 1024 == 0) CoverageTrace("COVERAGE_CHECKPOINT");
             }
-            Require(bars.Count == returnedRows);
+            progress.Operation = "COVERAGE_FINAL_COUNT_READ";
+            progress.ObservedCount = bars.Count;
+            CoverageRequire(progress.ObservedCount == returnedRows, "COVERAGE_FINAL_COUNT_CHANGED");
             nextSessionCount = bins[1].count;
-            return new { returned_rows = returnedRows, first = Stamp(first), first_kind = first.Kind.ToString(),
+            progress.Operation = "COVERAGE_SUMMARY";
+            var summary = new { returned_rows = returnedRows, first = Stamp(first), first_kind = first.Kind.ToString(),
                 last = Stamp(last), last_kind = last.Kind.ToString(), strictly_ordered = true,
                 first_last_may_be_partial = true, after_first_session_count = postCount,
                 session_bins = bins, utc_dates = dates, post_first = post, maintenance_bins = gaps, boundary_points = boundaries,
                 maintenance_count = maintenance, outside_count = outside,
                 exact_boundary_count = boundary, covered_source_index = coveredIndex, covered_query = Stamp(coveredQuery),
                 covered_session = coveredSession, membership = "TEMPLATE_EXPECTATION_MINUTE_CLOSE_BEGIN_EXCLUSIVE_END_INCLUSIVE" };
+            progress.Operation = "COVERAGE_COMPLETE_WRITE"; CoverageTrace("COVERAGE_COMPLETE");
+            return summary;
         }
 
         private static string SessionText(Session s)
@@ -413,7 +518,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private void Trace(string eventName, Observation value, string error = "NONE")
         {
-            Require(diagnostic != null && records < MaximumRecords);
+            Require(diagnostic != null && records + coverageRecords < MaximumRecords);
             bool isCall = eventName == "CALL_BEGIN" || eventName == "CALL_RESULT";
             var row = new {
                 schema = "arms.nt.session-domain-probe.record.v1", classification = "DIAGNOSTIC_ONLY",
@@ -447,7 +552,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             };
             string line = new JavaScriptSerializer().Serialize(row);
             int size = Encoding.UTF8.GetByteCount(line) + 1;
-            Require(size <= 16384 && bytes + size <= MaximumBytes);
+            Require(size <= 16384 && bytes + coverageBytes + size <= MaximumBytes);
             diagnostic.WriteLine(line); records++; bytes += size;
         }
 
@@ -461,7 +566,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 stage = "OUTPUT_OWNERSHIP";
                 Require(LocalDirectory(directory) == directory);
                 var entries = Directory.GetFileSystemEntries(directory);
-                Require(entries.Length == 1 && Path.GetFullPath(entries[0]) == Path.Combine(directory, "session-domain-probe.jsonl"));
+                Require(entries.Length == 2 && entries.All(e => Path.GetFullPath(e) == Path.Combine(directory, "session-domain-probe.jsonl")
+                    || Path.GetFullPath(e) == Path.Combine(directory, CoverageFile)));
                 Trace("EXPERIMENT_COMPLETE", null);
                 stage = "DIAGNOSTIC_CLOSE";
                 diagnostic.Flush(); stream.Flush(true); stream.Position = 0;

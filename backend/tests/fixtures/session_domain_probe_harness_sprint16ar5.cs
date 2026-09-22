@@ -49,7 +49,12 @@ namespace NinjaTrader.Data {
     }
     public class Bars {
         public Instrument Instrument; public BarsPeriod BarsPeriod; public TradingHours TradingHours; public int Count = 5;
+        private int timeReads;
         public DateTime GetTime(int i) {
+            // Fingerprint reads each time twice. Inject only in the later coverage traversal.
+            int read = ++timeReads - 2 * Count;
+            if (Harness.Mode == "coverage_first_throw" && read == 1 || Harness.Mode == "coverage_last_throw" && read == 2
+                || Harness.Mode == "coverage_time_throw" && read == 5) throw new InvalidOperationException(Harness.Secret);
             var t = new DateTime(2026,9,16,12,0,0,DateTimeKind.Utc).AddMinutes(i);
             if (Harness.Mode == "before_only" || (Harness.Mode.StartsWith("matrix_") && (int.Parse(Harness.Mode.Substring(7)) & 32) != 0)) t = t.AddDays(-2);
             if (Harness.Mode == "with_next") t = t.AddDays(-1);
@@ -59,6 +64,11 @@ namespace NinjaTrader.Data {
             if (Harness.Mode == "bad_order" && i == 2) t = t.AddMinutes(-3);
             if (Harness.Mode == "bad_time_kind") t = DateTime.SpecifyKind(t,DateTimeKind.Unspecified);
             if (Harness.Mode == "too_many_dates") t = t.AddDays(i);
+            if (Harness.Mode == "coverage_duplicate" && i == 2) t = t.AddMinutes(-1);
+            if (Harness.Mode == "coverage_seconds" && i == 2) t = t.AddSeconds(1);
+            if (Harness.Mode == "coverage_ticks" && i == 2) t = t.AddTicks(1);
+            if (Harness.Mode == "coverage_local" && i == 2) t = DateTime.SpecifyKind(t,DateTimeKind.Local);
+            if (Harness.Mode == "coverage_count_mutation" && read == 7) Count=4;
             return t;
         }
         public double GetOpen(int i) { return Harness.Mode == "snapshot_mutated" && SessionIterator.TotalCalls >= 1 ? 20002 : 20000; }
@@ -136,6 +146,7 @@ namespace NinjaTrader.Data {
             if (Harness.Mode == "too_many") Bars.Count=10003;
             if (Harness.Mode == "too_many_dates") Bars.Count=33;
             if (Harness.Mode == "large") Bars.Count=4503;
+            if (Harness.Mode == "coverage_maximum") Bars.Count=10002;
             if (Harness.Mode == "template_exception") TradingHours.Holidays.Add(new DateTime(2026,9,15),"holiday");
             if (Harness.Mode == "wrong_schedule") TradingHours.Sessions[0].BeginTime=180000;
             if (Harness.Mode == "wrong_instrument") Instrument.FullName="OTHER";
