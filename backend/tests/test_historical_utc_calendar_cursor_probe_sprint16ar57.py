@@ -360,5 +360,193 @@ def test_no_production_conversion_or_execution_surface():
 
 
 def test_existing_tracked_sources_unchanged():
-    assert checked(['git', 'diff', '--name-only']).stdout.strip() == ''
+    allowed = {'tools/verify_historical_utc_calendar_cursor_v1.py',
+               'backend/tests/test_historical_utc_calendar_cursor_probe_sprint16ar57.py',
+               'docs/architecture/historical_utc_calendar_cursor_probe_sprint16ar57.md'}
+    assert set(checked(['git', 'diff', '--name-only']).stdout.splitlines()) <= allowed
     assert checked(['git', 'diff', '--cached', '--name-only']).stdout.strip() == ''
+
+
+def special(date='2024-12-25', early=False):
+    d = datetime.strptime(date, '%Y-%m-%d'); weekday = (d.weekday() + 1) % 7
+    return dict(date=dict(clock=date + 'T00:00:00.0000000', ticks=v.tick_of(d), kind='Unspecified'),
+                early=early, late=not early,
+                constraint=dict(begin_day=weekday, begin_time=1700, end_day=weekday if early else 0,
+                                end_time=1200 if early else 0, trading_day=weekday), sessions=[])
+
+
+def install_rules(e, rules, prefix='calendar'):
+    """Mutate only synthetic in-memory copies; bind each captured snapshot."""
+    hours = e['request']['trading_hours']
+    hours[prefix + '_rules_json'] = json.dumps(rules, separators=(',', ':'))
+    hours[prefix + '_rules_sha256'] = sha256(hours[prefix + '_rules_json'].encode()).hexdigest()
+    for name in ('bars_before', 'bars_after'): e[name]['trading_hours'] = deepcopy(hours)
+
+
+def with_special(sample, rule):
+    e, seal, original = deepcopy(sample)
+    rules = json.loads(e['request']['trading_hours']['calendar_rules_json'])
+    rules['partials'].append(rule); rules['partials'].sort(key=lambda p: p['date']['ticks'])
+    install_rules(e, rules)
+    return e, seal, original
+
+
+def test_irrelevant_late_open_retained_without_recurring_constraint_invariant(sample):
+    e, seal, original = with_special(sample, special())
+    untouched = deepcopy(e)
+    hours = e['request']['trading_hours']
+    sessions, _, partials, zone = v.calendar(hours)
+    p = partials[v.tick_of(datetime(2024, 12, 25))]
+    assert p == special() and p['constraint']['end_day'] != p['constraint']['trading_day']
+    assert v.special_influence(p, sessions, zone) == (
+        v.tick_of(datetime(2024, 12, 23, 22)), v.tick_of(datetime(2024, 12, 26, 22)))
+    result = v.validate_contract(*reseal(e, seal))
+    assert result['expected_intervals'] == original['expected_intervals']
+    assert result['summary'] == original['summary']
+    assert e == untouched
+
+
+@pytest.mark.parametrize('date', ['2026-09-16', '2026-09-30'])
+def test_relevant_late_open_including_adjacent_crossing_fails_before_coverage(sample, monkeypatch, date):
+    e, seal, _ = with_special(sample, special(date))
+    hours = e['request']['trading_hours']; initial, through = v.request(e['request'])
+    sessions, _, partials, zone = v.calendar(hours)
+    p = partials[v.tick_of(datetime.strptime(date, '%Y-%m-%d'))]
+    bounds = v.special_influence(p, sessions, zone)
+    assert bounds is not None and v.special_relevant(bounds, initial, through)
+    if date.endswith('30'):
+        assert p['date']['ticks'] >= through and bounds[0] < through
+    monkeypatch.setattr(v, 'date_classes', lambda *_: pytest.fail('coverage must not complete'))
+    with pytest.raises(ValueError, match='UNSUPPORTED_SPECIAL_SESSION'):
+        v.validate_contract(*reseal(e, seal))
+
+
+@pytest.mark.parametrize('fault', ['both_flags', 'neither_flag', 'replacement', 'null_constraint',
+                                 'mapping', 'split', 'long_group', 'offset_gap'])
+def test_unknown_influence_fails_closed_even_far_away(sample, fault):
+    p = special()
+    if fault == 'both_flags': p['early'] = True
+    elif fault == 'neither_flag': p['late'] = False
+    elif fault == 'replacement': p['sessions'] = [deepcopy(p['constraint'])]
+    elif fault == 'null_constraint': p['constraint'] = None
+    elif fault == 'mapping': p['constraint']['begin_day'] = 2
+    e, seal, _ = with_special(sample, p)
+    rules = json.loads(e['request']['trading_hours']['calendar_rules_json'])
+    if fault == 'split':
+        s = deepcopy(rules['sessions'][0]); s['begin_time'] = 1800; rules['sessions'].append(s)
+        install_rules(e, rules)
+    elif fault == 'long_group':
+        rules['sessions'][0]['begin_day'] = (rules['sessions'][0]['trading_day'] - 2) % 7
+        install_rules(e, rules)
+    elif fault == 'offset_gap':
+        zone = json.loads(e['request']['trading_hours']['timezone_rules_json'])
+        zone['adjustments'][0]['start'] = '2025-01-01'; install_rules(e, zone, 'timezone')
+    with pytest.raises(ValueError, match='UNSUPPORTED_SPECIAL_SESSION'):
+        v.validate_contract(*reseal(e, seal))
+
+
+@pytest.mark.parametrize('edge,expected', [('touch_C0', True), ('before_C0', False),
+                                         ('touch_C1', False), ('before_C1', True)])
+def test_proven_envelope_tick_edges(sample, edge, expected):
+    e, _, _ = with_special(sample, special())
+    sessions, _, partials, zone = v.calendar(e['request']['trading_hours'])
+    p = partials[v.tick_of(datetime(2024, 12, 25))]
+    low, high = v.special_influence(p, sessions, zone)
+    initial, through = {'touch_C0': (high, high + v.DAY), 'before_C0': (high + 1, high + v.DAY),
+                        'touch_C1': (low - v.DAY, low), 'before_C1': (low - v.DAY, low + 1)}[edge]
+    assert v.special_relevant((low, high), initial, through) is expected
+    if expected:
+        with pytest.raises(ValueError, match='UNSUPPORTED_SPECIAL_SESSION'):
+            v.scoped_partials(sessions, {p['date']['ticks']: p}, zone, initial, through)
+    else:
+        assert v.scoped_partials(sessions, {p['date']['ticks']: p}, zone, initial, through) == {}
+
+
+@pytest.mark.parametrize('fault', ['bool', 'float', 'day', 'time', 'field', 'kind', 'order', 'duplicate', 'sessions_type', 'member'])
+def test_malformed_irrelevant_rule_still_rejected_globally(sample, fault):
+    p = special()
+    if fault == 'bool': p['constraint']['end_day'] = False
+    elif fault == 'float': p['constraint']['begin_time'] = 1700.0
+    elif fault == 'day': p['constraint']['end_day'] = 7
+    elif fault == 'time': p['constraint']['end_time'] = 1260
+    elif fault == 'field': p['constraint']['extra'] = 0
+    elif fault == 'kind': p['date']['kind'] = 'Utc'
+    elif fault == 'sessions_type': p['sessions'] = {}
+    elif fault == 'member': p['sessions'] = [{'begin_day': 3}]
+    e, seal, _ = with_special(sample, p)
+    if fault in ('order', 'duplicate'):
+        rules = json.loads(e['request']['trading_hours']['calendar_rules_json'])
+        if fault == 'order': rules['partials'].reverse()
+        else: rules['partials'].insert(0, deepcopy(p))
+        install_rules(e, rules)
+    with pytest.raises(ValueError): v.validate_contract(*reseal(e, seal))
+
+
+def test_recurring_end_day_semantics_not_relaxed(sample):
+    e, seal, _ = with_special(sample, special())
+    rules = json.loads(e['request']['trading_hours']['calendar_rules_json'])
+    rules['sessions'][0]['end_day'] = (rules['sessions'][0]['trading_day'] + 1) % 7
+    install_rules(e, rules)
+    with pytest.raises(ValueError, match='UNSUPPORTED_SESSION_SHAPE'): v.validate_contract(*reseal(e, seal))
+
+
+@pytest.mark.parametrize('kind', ['early', 'holiday'])
+def test_in_scope_supported_rules_change_exact_independent_expectation(sample, kind):
+    e, seal, original = deepcopy(sample); day = v.tick_of(datetime(2026, 9, 16))
+    rules = json.loads(e['request']['trading_hours']['calendar_rules_json'])
+    if kind == 'early':
+        rules['partials'].append(special('2026-09-16', early=True))
+        rules['partials'].sort(key=lambda p: p['date']['ticks'])
+    else:
+        rules['holidays'].append(special('2026-09-16')['date']); rules['holidays'].sort(key=lambda p: p['ticks'])
+    install_rules(e, rules); result = v.validate_contract(*reseal(e, seal))
+    expected = list(original['expected_intervals'])
+    i = next(i for i, t in enumerate(expected) if t[4] == day)
+    if kind == 'early':
+        t = expected[i]; expected[i] = (*t[:2], v.tick_of(datetime(2026, 9, 16, 17)), *t[3:])
+    else: expected.pop(i)
+    assert result['expected_intervals'] == expected
+    assert result['summary']['reused_coverage_match'] is result['summary']['fresh_coverage_match'] is False
+
+
+@pytest.mark.parametrize('edit', ['remove', 'change'])
+@pytest.mark.parametrize('binding', ['stale_seal', 'stale_rule_hash', 'stale_snapshot', 'all_valid'])
+def test_irrelevance_does_not_remove_evidence_binding(sample, edit, binding):
+    e, seal, original = with_special(sample, special()); _, sealed = reseal(e, seal)
+    old_hours = deepcopy(e['request']['trading_hours'])
+    rules = json.loads(old_hours['calendar_rules_json'])
+    if edit == 'remove': rules['partials'].pop(0)
+    else: rules['partials'][0]['constraint']['begin_time'] = 1800
+    install_rules(e, rules)
+    if binding == 'stale_rule_hash': e['request']['trading_hours']['calendar_rules_sha256'] = old_hours['calendar_rules_sha256']
+    elif binding == 'stale_snapshot': e['bars_after']['trading_hours'] = old_hours
+    raw, new_sealed = reseal(e, seal)
+    if binding == 'all_valid':
+        assert v.validate_contract(raw, new_sealed)['summary'] == original['summary']
+    else:
+        with pytest.raises(ValueError): v.validate_contract(raw, sealed if binding == 'stale_seal' else new_sealed)
+
+
+def test_native_observations_cannot_change_special_relevance(sample):
+    e, seal, _ = with_special(sample, special()); hours = e['request']['trading_hours']
+    before = v.validate_contract(*reseal(e, seal))
+    for path in e['cursor']['paths']:
+        for c in path['calls']:
+            c.update(returned=False, phase='RETURNED_FALSE', begin=None, end=None, trading_day=None,
+                     begin_read_attempts=0, end_read_attempts=0, trading_day_read_attempts=0)
+    after = v.validate_contract(*reseal(e, seal))
+    assert after['expected_intervals'] == before['expected_intervals']
+    assert after['summary']['reused_coverage_match'] is after['summary']['fresh_coverage_match'] is False
+    assert e['request']['trading_hours'] == hours
+    rules = json.loads(hours['calendar_rules_json']); rules['partials'][0] = special('2026-09-16')
+    rules['partials'].sort(key=lambda p: p['date']['ticks']); install_rules(e, rules)
+    with pytest.raises(ValueError, match='UNSUPPORTED_SPECIAL_SESSION'): v.validate_contract(*reseal(e, seal))
+
+
+def test_original_native_artifact_hashes_when_available():
+    capture = Path('D:/ARMS_AI_R57_CAPTURE/20260924_233411')
+    if not capture.exists():
+        pytest.skip('Operator capture not available; never substitute a fixture')
+    for name, expected in [(EVIDENCE, '1f455401f1fc3705898fff27e56c21fdbf9365751451656ebf0a15edaada6129'),
+                           (SEAL, '6a59311bb91f0a9b57f8c9644429eb05c3e44e658c09de68869f72bca34c7713')]:
+        assert sha256((capture / name).read_bytes()).hexdigest() == expected

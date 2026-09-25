@@ -155,11 +155,15 @@ def hhmm(value):
     return timedelta(hours=value // 100, minutes=value % 100)
 
 
-def session(value):
+def session_structure(value):
     keys(value, 'begin_day begin_time end_day end_time trading_day')
     for k in ('begin_day', 'end_day', 'trading_day'):
         integer(value[k], 0, 6)
     hhmm(value['begin_time']); hhmm(value['end_time'])
+
+
+def session(value):
+    session_structure(value)
     need(value['end_day'] == value['trading_day'], 'UNSUPPORTED_SESSION_SHAPE')
 
 
@@ -250,13 +254,88 @@ def calendar(value):
         t = time_fact(p['date'], 'Unspecified')
         need(t % DAY == 0 and t > previous and t not in holidays, 'PARTIAL_DATE'); previous = t
         boolean(p['early']); boolean(p['late'])
-        need(p['early'] is True and p['late'] is False and type(p['sessions']) is list and p['sessions'] == [], 'UNSUPPORTED_SPECIAL_SESSION')
-        session(p['constraint']); partials[t] = p['constraint']
+        need(type(p['sessions']) is list and len(p['sessions']) <= 32, 'SPECIAL_SESSION_LIST')
+        if p['constraint'] is not None:
+            session_structure(p['constraint'])
+        for s in p['sessions']:
+            session_structure(s)
+        partials[t] = p
     return rules['sessions'], set(holidays), partials, CapturedZone(zone)
+
+
+def special_influence(p, sessions, zone):
+    """Enclose a single-endpoint edit, never evaluate its unsupported semantics.
+
+    Proof is deliberately limited to one ordinary session per trading weekday,
+    no replacement, and one active endpoint on the named trading date. Include
+    the preceding/current/following recurring groups and the active endpoint.
+    Splits, unknown mappings and missing offset coverage have no finite proof.
+    """
+    c = p['constraint']
+    if c is None or p['sessions'] or p['early'] == p['late']:
+        return None
+    by_day = {s['trading_day']: s for s in sessions}
+    if len(by_day) != len(sessions):
+        return None
+    d = date_value(p['date']['clock'][:10]); weekday = (d.weekday() + 1) % 7
+    endpoint = 'end' if p['early'] else 'begin'
+    if weekday not in by_day or c['trading_day'] != weekday or c[endpoint + '_day'] != weekday:
+        return None
+    # Establish the local order of the recurring groups, including week wrap.
+    # A single group can cross midnight, but cannot span multiple trading days.
+    for s in sessions:
+        lag = (s['trading_day'] - s['begin_day']) % 7
+        if lag > 1 or hhmm(s['end_time']) + timedelta(days=lag) <= hhmm(s['begin_time']):
+            return None
+        preceding = min(i for i in range(1, 8) if (s['trading_day'] - i) % 7 in by_day)
+        prior = by_day[(s['trading_day'] - preceding) % 7]
+        if hhmm(prior['end_time']) - timedelta(days=preceding) >= hhmm(s['begin_time']) - timedelta(days=lag):
+            return None
+    try:
+        before = min(i for i in range(1, 8) if (weekday - i) % 7 in by_day)
+        after = min(i for i in range(1, 8) if (weekday + i) % 7 in by_day)
+        points = [d + hhmm(c[endpoint + '_time'])]
+        for offset in (-before, 0, after):
+            day = d + timedelta(days=offset); s = by_day[(weekday + offset) % 7]
+            points.extend((day - timedelta(days=(s['trading_day'] - s['begin_day']) % 7) + hhmm(s['begin_time']),
+                           day + hhmm(s['end_time'])))
+        low, high = min(points), max(points)
+        # Use *possible* offsets over the entire envelope, not a guessed DST
+        # fold or the machine zone. Captured rule date extents may cover years
+        # outside the exact wall evaluator's 2025..2027 range.
+        day = low.replace(hour=0, minute=0, second=0, microsecond=0)
+        offsets = {zone.base}
+        while day <= high:
+            rules = [r for r in zone.rules if date_value(r['start']) <= day <= date_value(r['end'])]
+            if len(rules) != 1:
+                return None
+            offsets.add(zone.base + rules[0]['delta_ticks'])
+            day += timedelta(days=1)
+        return tick_of(low) - max(offsets), tick_of(high) - min(offsets)
+    except OverflowError:
+        return None
+
+
+def special_relevant(bounds, initial, through):
+    return bounds is None or (bounds[1] >= initial and bounds[0] < through)
+
+
+def scoped_partials(sessions, partials, zone, initial, through):
+    result = {}
+    for t, p in partials.items():
+        bounds = special_influence(p, sessions, zone)
+        if not special_relevant(bounds, initial, through):
+            continue
+        need(bounds is not None and p['early'] and not p['late'] and not p['sessions'],
+             'UNSUPPORTED_SPECIAL_SESSION')
+        c = p['constraint']; session(c)
+        result[t] = c
+    return result
 
 
 def expected_calendar(hours, initial, through):
     sessions, holidays, partials, zone = calendar(hours)
+    partials = scoped_partials(sessions, partials, zone, initial, through)
     day = datetime(1, 1, 1) + timedelta(days=initial // DAY - 8)
     last = datetime(1, 1, 1) + timedelta(days=through // DAY + 8)
     expected = []

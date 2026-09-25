@@ -110,8 +110,68 @@ this is not conversion of any query or bar timestamp.
 The supported fail-closed calendar shape follows the reviewed backend scope:
 session end day equals trading day; full holidays suppress that trading date;
 early-end partial holidays may shorten the configured end, with no late begin
-or replacement-session collection. Unsupported exceptions, duplicate rules,
-overlapping calendars and invalid bounds reject verification.
+or replacement-session collection. Unsupported relevant exceptions, duplicate
+rules, overlapping calendars and invalid bounds reject verification.
+
+### R5.7-C special-session relevance
+
+Global validation and semantic support are separate. Every raw partial remains
+in the captured JSON, exact-byte calendar hash and body/seal binding, including
+irrelevant partials. All dates, ordering, uniqueness, flags, constraint fields
+and replacement-session fields receive strict structural validation. A nullable
+constraint or replacement list is structurally representable, not evidence of
+supported evaluator semantics. Recurring sessions still require
+`end_day == trading_day`; generic constraints do not. Inactive constraint fields
+are validated but never normalized or interpreted as active endpoints.
+
+The old global early-only predicate rejected the captured 2024-12-25 late-open
+record before computing coverage. Reusing recurring validation also rejected
+its inactive `end_day=0` versus `trading_day=3`. Neither rejection established
+that this distant record could influence the September 2026 comparison.
+
+`special_influence()` proves a finite envelope only for a single endpoint edit:
+exactly one of early/late, no replacement sessions, a nonnull constraint whose
+active endpoint and trading weekday map to the named date, and one ordered,
+nonoverlapping recurring session per trading weekday. Each recurring session
+can cross midnight once. Split groups, longer groups, unknown mappings,
+combined edits and replacements deliberately have no finite proof.
+
+For this supported proof shape, the envelope encloses the complete preceding,
+current and following recurring trading-date groups plus the active constraint
+endpoint. Weekday lookup comes from the captured schedule, including week wrap;
+these are not arbitrary date padding or a partial-date membership test. Closed
+dates do not shrink the enclosure. The groups cover crossing sessions and the
+neighbor that a late start after the ordinary end might affect. Min/max possible
+UTC offsets are derived from the captured base and daylight deltas, requiring
+continuous captured adjustment-rule coverage over the entire local enclosure.
+Its rule date extents may prove offset bounds outside 2025..2027 without asking
+the exact wall-time evaluator to evaluate those years. No machine timezone or
+native observed session enters this calculation.
+
+For local extremes `a,b` and possible offsets `O`, the UTC enclosure is
+`L=ticks(a)-max(O), U=ticks(b)-min(O)`. A rule is potentially relevant exactly
+when `U >= C0 && L < C1`. Touching C0 is relevant; touching only C1 is not.
+Failure to prove the finite enclosure (including unavailable offsets or date
+overflow) is relevant and fails closed. Relevant late-open, replacement and
+combined semantics remain unsupported; relevant early-close constraints still
+must satisfy the existing end-day, shortening and bound-order checks. Only the
+derived evaluator selection excludes proven irrelevant records; raw evidence
+is untouched. The existing recurring-date enumeration padding is not used as
+the relevance proof.
+
+For the captured 2024-12-25 late-open shape, the enclosure includes local
+2024-12-23 17:00 through 2024-12-26 16:00. Captured possible offsets -06:00/-05:00
+give UTC bounds 2024-12-23 22:00 through 2024-12-26 22:00, disjoint from the
+September 2026 comparison. This proves irrelevance for this window, not support
+for evaluating a late-open session in another window.
+
+R5.7-C changes only this verifier, its Python test file and this document. No C#,
+exporter, pins, raw capture, installation or admission behavior changes. Tests
+exercise the captured late-open structure, relevant and neighboring failures,
+unknown influence, both tick boundaries, malformed irrelevant records, exact
+early-close/full-holiday expectations, strict recurring semantics, all binding
+layers and observation independence. Synthetic mutations occur only in copies;
+an optional read-only hash check verifies the operator capture when present.
 
 The timezone evaluator supports a positive integral-minute daylight delta,
 northern start-before-end transitions, and one applicable adjustment rule
@@ -201,7 +261,8 @@ expectations, mismatch/false/duplicate cases, lifecycle races, artifact integrit
 and adversarial resealing. An installed-SDK compilation test performs no native
 execution. Synthetic results never count as native strategy evidence.
 
-Next gate is adversarial review of these six new files. Any installation or
+The R5.7-C next gate is adversarial review of the verifier relevance proof and
+its tests/documentation against the unchanged native artifacts. Any installation or
 native run needs separate authorization. Later runs may cover ordinary/weekend,
 closure/early-close, spring DST and fall DST in separate explicit ranges, one
 request and fresh output each. Calendar/date availability must be checked before
