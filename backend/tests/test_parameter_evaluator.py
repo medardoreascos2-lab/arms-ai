@@ -30,10 +30,16 @@ class DummyEngine:
         self.expected_candles = expected_candles
         self.result = result
         self.calls = 0
+        self.single_pass_calls = 0
 
     def run(self, candles):
         assert candles == self.expected_candles
         self.calls += 1
+        return self.result
+
+    def run_single_pass(self, candles):
+        assert candles == self.expected_candles
+        self.single_pass_calls += 1
         return self.result
 
 
@@ -81,7 +87,8 @@ def test_parameter_evaluator_returns_standardized_metrics():
     assert evaluation.max_drawdown == 5.0
     assert evaluation.win_rate == 60.0
     assert evaluation.result is result
-    assert engine.calls == 1
+    assert engine.single_pass_calls == 1
+    assert engine.calls == 0
 
 
 def test_parameter_evaluator_preserves_parameters_copy():
@@ -181,4 +188,111 @@ def test_parameter_evaluator_requires_statistics():
         evaluator.evaluate(
             parameters={},
             candles=[1],
+        )
+
+
+def test_parameter_evaluator_fails_closed_without_single_pass():
+
+    class LegacyOnlyEngine:
+
+        def run(
+            self,
+            candles,
+        ):
+            raise AssertionError(
+                "legacy run() must not be used"
+            )
+
+    evaluator = ParameterEvaluator(
+        engine_factory=lambda parameters: (
+            LegacyOnlyEngine()
+        ),
+    )
+
+    with pytest.raises(
+        TypeError,
+        match="run_single_pass",
+    ):
+        evaluator.evaluate(
+            parameters={},
+            candles=[1],
+        )
+
+
+def test_parameter_evaluator_propagates_oos_warmup_boundary():
+
+    class WarmupAwareEngine:
+
+        minimum_candles = 5
+
+        def __init__(self):
+            self.calls = []
+
+        def run_single_pass(
+            self,
+            candles,
+            *,
+            minimum_candles=None,
+        ):
+            self.calls.append(
+                {
+                    "candles": list(candles),
+                    "minimum_candles":
+                        minimum_candles,
+                }
+            )
+
+            return DummyBacktestResult(
+                statistics=DummyStatistics(
+                    net_profit=25.0,
+                    profit_factor=2.5,
+                    max_drawdown=5.0,
+                    win_rate=60.0,
+                )
+            )
+
+    candles = list(
+        range(20)
+    )
+
+    engine = WarmupAwareEngine()
+
+    evaluator = ParameterEvaluator(
+        engine_factory=lambda parameters: engine,
+    )
+
+    evaluator.evaluate(
+        parameters={
+            "ema_period": 50,
+        },
+        candles=candles,
+        warmup_count=10,
+    )
+
+    assert engine.calls == [
+        {
+            "candles": candles,
+            "minimum_candles": 11,
+        }
+    ]
+
+
+def test_parameter_evaluator_rejects_warmup_without_oos_data():
+
+    evaluator = ParameterEvaluator(
+        engine_factory=lambda parameters: None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="warmup_count",
+    ):
+        evaluator.evaluate(
+            parameters={},
+            candles=[
+                1,
+                2,
+                3,
+            ],
+            warmup_count=3,
         )

@@ -77,6 +77,12 @@ from backend.backtesting.walk_forward_optimization_result_v2 import (
 from backend.backtesting.walk_forward_optimizer_v2 import (
     WalkForwardOptimizerV2,
 )
+from backend.backtesting.parameter_evaluator import (
+    ParameterEvaluator,
+)
+from backend.backtesting.parameter_backtest_engine_factory_v2 import (
+    ParameterBacktestEngineFactoryV2,
+)
 from backend.backtesting.walk_forward_pipeline_v2 import (
     WalkForwardPipelineV2,
 )
@@ -84,6 +90,7 @@ from backend.backtesting.walk_forward_window_generator_v2 import (
     WalkForwardWindowGeneratorV2,
 )
 from backend.config_settings import ArmsSettings
+from backend.config.api_settings import APISettings
 
 _PARAMETER_SETS = [
     {"ema": 10},
@@ -199,14 +206,32 @@ class _RealTrainingOptimizer:
 class _RealTestingEvaluator:
     """Real per-window testing evaluator over the actual testing candles."""
 
-    def evaluate(self, *, testing_items, parameters, output_directory):
+    def evaluate(
+        self,
+        *,
+        testing_items,
+        testing_warmup_size,
+        parameters,
+        output_directory,
+    ):
+        settings = APISettings()
 
-        backtest_result = _run_real_engine(
-            testing_items,
-            ema_period=int(parameters["ema"]),
+        evaluator = ParameterEvaluator(
+            ParameterBacktestEngineFactoryV2(
+                csv_path=None,
+                settings=settings,
+            )
         )
 
-        score, metrics = _score_metrics(backtest_result)
+        evaluation = evaluator.evaluate(
+            parameters=dict(parameters),
+            candles=testing_items,
+            warmup_count=int(testing_warmup_size),
+        )
+
+        score, metrics = _score_metrics(
+            evaluation.result
+        )
 
         return {
             "score": score,

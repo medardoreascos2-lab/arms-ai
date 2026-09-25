@@ -152,7 +152,7 @@
       "consequence": "RESEARCH_OR_CERTIFICATION_METADATA_NOT_LIVE_CLOCK_AUTHORITY",
       "calls": [
         {
-          "line": 270,
+          "line": 300,
           "call": "datetime.now",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }

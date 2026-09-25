@@ -135,6 +135,7 @@ def test_preserves_window_boundaries():
             "testing_end": 7,
             "training_items": items[1:5],
             "testing_items": items[5:7],
+            "testing_warmup_size": 0,
         },
     ]
 
@@ -325,3 +326,88 @@ def test_rejects_out_of_range_boundaries():
                 },
             ],
         )
+
+
+def test_reports_actual_testing_warmup_size():
+
+    items = build_items()
+
+    windows = [
+        {
+            "window_index": 0,
+            "training_start": 0,
+            "training_end": 6,
+            "testing_start": 6,
+            "testing_end": 10,
+        },
+    ]
+
+    dataset = (
+        WalkForwardDatasetSplitterV2(
+            warmup_size=3,
+        )
+        .split(
+            items=items,
+            windows=windows,
+        )[0]
+    )
+
+    assert dataset[
+        "testing_warmup_size"
+    ] == 3
+
+    assert [
+        item["index"]
+        for item in dataset[
+            "testing_items"
+        ]
+    ] == [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+    ]
+
+
+def test_clamps_testing_warmup_at_dataset_start():
+
+    items = build_items()
+
+    windows = [
+        {
+            "window_index": 0,
+            "training_start": 0,
+            "training_end": 2,
+            "testing_start": 2,
+            "testing_end": 4,
+        },
+    ]
+
+    dataset = (
+        WalkForwardDatasetSplitterV2(
+            warmup_size=50,
+        )
+        .split(
+            items=items,
+            windows=windows,
+        )[0]
+    )
+
+    assert dataset[
+        "testing_warmup_size"
+    ] == 2
+
+    assert [
+        item["index"]
+        for item in dataset[
+            "testing_items"
+        ]
+    ] == [
+        0,
+        1,
+        2,
+        3,
+    ]

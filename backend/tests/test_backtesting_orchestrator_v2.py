@@ -20,6 +20,7 @@ class FakeBacktestEngine:
     def __init__(self):
 
         self.candles_received = None
+        self.single_pass_candles_received = None
         self.file_path_received = None
 
     @staticmethod
@@ -56,6 +57,17 @@ class FakeBacktestEngine:
     ):
 
         self.candles_received = candles
+        return self._build_result()
+
+    def run_single_pass(
+        self,
+        candles,
+    ):
+
+        self.single_pass_candles_received = (
+            candles
+        )
+
         return self._build_result()
 
     def run_from_csv(
@@ -167,6 +179,10 @@ class FakeCertificationPipelineFactory:
         *,
         backtest_score,
         output_directory,
+        items=None,
+        parameter_sets=None,
+        trade_pnls=None,
+        starting_balance=None,
     ):
 
         self.backtest_score_received = (
@@ -244,7 +260,16 @@ def test_runs_complete_orchestration_from_candles(
         BacktestCompositeScoreResultV2,
     )
 
-    assert backtest_engine.candles_received == candles
+    assert (
+        backtest_engine
+        .single_pass_candles_received
+        == candles
+    )
+
+    assert (
+        backtest_engine.candles_received
+        is None
+    )
 
     assert score_engine.metrics_received == {
         "net_pnl": 1200.0,
@@ -409,4 +434,160 @@ def test_rejects_invalid_dependencies():
             backtest_engine=FakeBacktestEngine(),
             score_engine=FakeScoreEngine(),
             certification_pipeline_factory=object(),
+        )
+
+
+def test_orchestrator_forwards_empirical_evidence_v17(
+    tmp_path,
+):
+    """V17: certification factory must receive this run's evidence."""
+
+    class EmpiricalBacktestEngine(
+        FakeBacktestEngine
+    ):
+
+        @staticmethod
+        def _build_result():
+
+            result = (
+                FakeBacktestEngine
+                ._build_result()
+            )
+
+            result.initial_balance = 17000.0
+
+            result.trades = [
+                type(
+                    "Trade",
+                    (),
+                    {"pnl": 125.0},
+                )(),
+                type(
+                    "Trade",
+                    (),
+                    {"pnl": -25.0},
+                )(),
+                type(
+                    "Trade",
+                    (),
+                    {"pnl": None},
+                )(),
+            ]
+
+            return result
+
+    class EmpiricalCertificationFactory:
+
+        def __init__(self):
+            self.received = None
+
+        def __call__(
+            self,
+            *,
+            backtest_score,
+            output_directory,
+            items=None,
+            trade_pnls=None,
+            starting_balance=None,
+        ):
+            self.received = {
+                "backtest_score":
+                    backtest_score,
+                "output_directory":
+                    Path(output_directory),
+                "items":
+                    items,
+                "trade_pnls":
+                    trade_pnls,
+                "starting_balance":
+                    starting_balance,
+            }
+
+            return FakeCertificationPipeline(
+                backtest_score=(
+                    backtest_score
+                ),
+                output_directory=(
+                    output_directory
+                ),
+            )
+
+    candles = [
+        object(),
+        object(),
+        object(),
+    ]
+
+    factory = (
+        EmpiricalCertificationFactory()
+    )
+
+    orchestrator = BacktestingOrchestratorV2(
+        backtest_engine=(
+            EmpiricalBacktestEngine()
+        ),
+        score_engine=FakeScoreEngine(),
+        certification_pipeline_factory=(
+            factory
+        ),
+    )
+
+    orchestrator.run(
+        candles=candles,
+        output_directory=tmp_path,
+    )
+
+    assert factory.received[
+        "items"
+    ] is candles
+
+    assert factory.received[
+        "trade_pnls"
+    ] == [
+        125.0,
+        -25.0,
+    ]
+
+    assert factory.received[
+        "starting_balance"
+    ] == 17000.0
+
+
+def test_candle_orchestration_fails_closed_without_single_pass(
+    tmp_path,
+):
+
+    class LegacyOnlyBacktestEngine:
+
+        def run(
+            self,
+            *,
+            candles,
+        ):
+            raise AssertionError(
+                "legacy run() must not be used"
+            )
+
+        def run_from_csv(
+            self,
+            *,
+            file_path,
+        ):
+            return FakeBacktestEngine._build_result()
+
+    orchestrator = BacktestingOrchestratorV2(
+        backtest_engine=LegacyOnlyBacktestEngine(),
+        score_engine=FakeScoreEngine(),
+        certification_pipeline_factory=(
+            FakeCertificationPipelineFactory()
+        ),
+    )
+
+    with pytest.raises(
+        TypeError,
+        match="run_single_pass",
+    ):
+        orchestrator.run(
+            candles=[object()],
+            output_directory=tmp_path,
         )

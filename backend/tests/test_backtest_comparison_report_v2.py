@@ -186,3 +186,102 @@ def test_rejects_invalid_metric():
         pass
     else:
         raise AssertionError()
+
+
+def test_zero_loss_profitable_strategy_uses_semantic_profit_factor_for_scoring():
+    report = BacktestReportV2(
+        candles_processed=5600,
+        trade_history=[
+            {
+                "trade_id": f"T{i}"
+            }
+            for i in range(10)
+        ],
+        performance_metrics={
+            "total_trades": 10,
+            "net_pnl": 12000.0,
+            "win_rate": 1.0,
+            "gross_profit": 12000.0,
+            "gross_loss": 0.0,
+            "profit_factor": None,
+            "maximum_drawdown": 0.0,
+            "expectancy": 1200.0,
+        },
+    )
+
+    pipeline_result = BacktestPipelineResultV2(
+        candles_processed=5600,
+        report=report,
+        json_path="a.json",
+        html_path="a.html",
+    )
+
+    batch = BacktestBatchResultV2(
+        total_runs=1,
+        successful_runs=1,
+        failed_runs=0,
+        results=[
+            {
+                "name": "ZERO_LOSS",
+                "success": True,
+                "pipeline_result": (
+                    pipeline_result
+                ),
+            }
+        ],
+        errors=[],
+        total_candles_processed=5600,
+        total_trades=10,
+        total_net_pnl=12000.0,
+    )
+
+    comparison = (
+        BacktestComparisonReportV2
+        .from_batch_result(
+            batch
+        )
+    )
+
+    # Public/reportable semantics stay unchanged.
+    assert (
+        comparison.strategies[0][
+            "profit_factor"
+        ]
+        is None
+    )
+
+    assert (
+        comparison.strategies[0][
+            "gross_profit"
+        ]
+        == 12000.0
+    )
+
+    assert (
+        comparison.strategies[0][
+            "gross_loss"
+        ]
+        == 0.0
+    )
+
+    from backend.backtesting.backtest_composite_score_v2 import (
+        BacktestCompositeScoreV2,
+    )
+
+    ranking = comparison.rank_by_score(
+        BacktestCompositeScoreV2()
+    )
+
+    assert ranking[0]["score"] == 100.0
+    assert ranking[0]["grade"] == "A+"
+
+    # Ranking result must also preserve public PF.
+    assert (
+        ranking[0]["profit_factor"]
+        is None
+    )
+
+    assert (
+        "LOW_PROFIT_FACTOR"
+        not in ranking[0]["weaknesses"]
+    )

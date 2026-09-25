@@ -34,6 +34,10 @@ class ValidationPipelineExecutionAdapterV2:
         validation_pipeline,
         backtest_score: float,
         output_directory,
+        items=None,
+        parameter_sets=None,
+        trade_pnls=None,
+        starting_balance=None,
     ) -> None:
 
         if not callable(
@@ -59,18 +63,41 @@ class ValidationPipelineExecutionAdapterV2:
             output_directory
         )
 
+        self.items = items
+        self.parameter_sets = parameter_sets
+        self.trade_pnls = trade_pnls
+        self.starting_balance = starting_balance
+
         self.last_result = None
 
     def run(self):
 
+        run_kwargs = {
+            "backtest_score": self.backtest_score,
+            "output_directory": self.output_directory,
+        }
+
+        if self.items is not None:
+            run_kwargs["items"] = self.items
+
+        if self.parameter_sets is not None:
+            run_kwargs["parameter_sets"] = (
+                self.parameter_sets
+            )
+
+        if self.trade_pnls is not None:
+            run_kwargs["trade_pnls"] = (
+                self.trade_pnls
+            )
+
+        if self.starting_balance is not None:
+            run_kwargs["starting_balance"] = (
+                self.starting_balance
+            )
+
         self.last_result = (
             self.validation_pipeline.run(
-                backtest_score=(
-                    self.backtest_score
-                ),
-                output_directory=(
-                    self.output_directory
-                ),
+                **run_kwargs
             )
         )
 
@@ -164,6 +191,10 @@ def create_backtesting_orchestrator_v2(
         *,
         backtest_score,
         output_directory,
+        items=None,
+        parameter_sets=None,
+        trade_pnls=None,
+        starting_balance=None,
     ) -> StrategyCertificationPipelineV2:
 
         validation_pipeline = (
@@ -187,6 +218,16 @@ def create_backtesting_orchestrator_v2(
                 ),
                 output_directory=(
                     output_directory
+                ),
+                items=items,
+                parameter_sets=(
+                    parameter_sets
+                ),
+                trade_pnls=(
+                    trade_pnls
+                ),
+                starting_balance=(
+                    starting_balance
                 ),
             )
         )

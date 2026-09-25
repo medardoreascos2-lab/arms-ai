@@ -36,10 +36,36 @@ class ParameterEvaluator:
         self,
         parameters: dict[str, Any],
         candles: list[Any],
+        warmup_count: int = 0,
     ) -> ParameterEvaluation:
         if not candles:
             raise ValueError(
                 "ParameterEvaluator requiere candles."
+            )
+
+        if (
+            not isinstance(
+                warmup_count,
+                int,
+            )
+            or isinstance(
+                warmup_count,
+                bool,
+            )
+        ):
+            raise TypeError(
+                "warmup_count debe ser int."
+            )
+
+        if warmup_count < 0:
+            raise ValueError(
+                "warmup_count no puede ser negativo."
+            )
+
+        if warmup_count >= len(candles):
+            raise ValueError(
+                "warmup_count debe dejar al menos "
+                "una candle OOS."
             )
 
         parameters_copy = dict(parameters)
@@ -48,9 +74,32 @@ class ParameterEvaluator:
             parameters_copy
         )
 
-        result = engine.run(
-            candles=candles,
+        run_single_pass = getattr(
+            engine,
+            "run_single_pass",
+            None,
         )
+
+        if not callable(
+            run_single_pass
+        ):
+            raise TypeError(
+                "El engine debe implementar "
+                "run_single_pass() para evaluación "
+                "causal de candles."
+            )
+
+        if warmup_count > 0:
+            result = run_single_pass(
+                candles,
+                minimum_candles=(
+                    warmup_count + 1
+                ),
+            )
+        else:
+            result = run_single_pass(
+                candles
+            )
 
         statistics = getattr(
             result,

@@ -5,6 +5,9 @@ from typing import Any
 from backend.backtesting.backtest_composite_score_v2 import (
     BacktestCompositeScoreV2,
 )
+from backend.backtesting.backtest_score_metrics_v2 import (
+    build_backtest_score_metrics_v2,
+)
 
 
 class ParameterEvaluatorAdapterV2:
@@ -37,12 +40,16 @@ class ParameterEvaluatorAdapterV2:
         testing_items,
         parameters,
         output_directory,
+        testing_warmup_size: int = 0,
     ) -> dict[str, Any]:
 
         result = (
             self.evaluator.evaluate(
                 parameters=parameters,
                 candles=testing_items,
+                warmup_count=(
+                    testing_warmup_size
+                ),
             )
         )
 
@@ -54,47 +61,22 @@ class ParameterEvaluatorAdapterV2:
         )
 
 
-        total_trades = 0
-
-        if statistics is not None:
-            total_trades = int(
-                getattr(
-                    statistics,
-                    "total_trades",
-                    0,
-                )
+        score_metrics = (
+            build_backtest_score_metrics_v2(
+                statistics
             )
+        )
+
+        total_trades = int(
+            score_metrics[
+                "total_trades"
+            ]
+        )
 
 
         score_result = (
             self.score_engine.calculate(
-                metrics={
-                    "net_pnl": (
-                        result.net_profit
-                    ),
-                    "win_rate": (
-                        result.win_rate
-                    ),
-                    "profit_factor": (
-                        result.profit_factor
-                        or 0.0
-                    ),
-                    "expectancy": float(
-                        getattr(
-                            statistics,
-                            "expectancy",
-                            0.0,
-                        )
-                    )
-                    if statistics
-                    else 0.0,
-                    "maximum_drawdown": (
-                        result.max_drawdown
-                    ),
-                    "total_trades": (
-                        total_trades
-                    ),
-                }
+                metrics=score_metrics
             )
         )
 

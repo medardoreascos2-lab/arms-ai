@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 148,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 148,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 149,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 149,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -986,6 +986,45 @@
       "caller_evidence": "Static importing modules; calls contains exact source call expressions. Runtime call-order and publication tests verify operational wiring.",
       "downstream_consumers": [
         "backend/backtesting/strategy_backtest_factory_v2.py"
+      ]
+    },
+    {
+      "id": "backend/backtesting/backtesting_orchestrator_factory_v2.py:ValidationPipelineExecutionAdapterV2.__init__",
+      "path": "backend/backtesting/backtesting_orchestrator_factory_v2.py",
+      "function": "ValidationPipelineExecutionAdapterV2.__init__",
+      "input": "self, *, validation_pipeline, backtest_score: float, output_directory, items=None, parameter_sets=None, trade_pnls=None, starting_balance=None",
+      "source_sha256": "f95db1323123aa8be0a61b8f11bc7853ecef8447b44a9002ebe0d27b65b7c33a",
+      "writes": [
+        "self.starting_balance",
+        "self.trade_pnls"
+      ],
+      "calls": [
+        "Path",
+        "TypeError",
+        "callable",
+        "float",
+        "getattr"
+      ],
+      "output_fields": [],
+      "owner": "backend.backtesting.backtesting_orchestrator_factory_v2.ValidationPipelineExecutionAdapterV2",
+      "classification": "OTHER_JUSTIFIED",
+      "output": "Retains empirical validation inputs and delegates them to the validation pipeline; no canonical financial booking authority.",
+      "mutates_fill_state": false,
+      "mutates_position_state": false,
+      "mutates_portfolio": false,
+      "mutates_account_pnl": false,
+      "mutates_journal": false,
+      "mutates_history": false,
+      "account_scoped": false,
+      "persisted": false,
+      "recovery_relevant": false,
+      "callers": [
+        "BacktestingOrchestratorV2 certification composition"
+      ],
+      "caller_evidence": "Adapter construction and validation delegation are covered by backtesting/certification integration tests; stored PnLs and starting balance are empirical validation inputs only.",
+      "downstream_consumers": [
+        "StrategyValidationPipelineV2",
+        "StrategyCertificationPipelineV2"
       ]
     },
     {

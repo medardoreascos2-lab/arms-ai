@@ -1,7 +1,9 @@
+import pytest
+
 from backend.api.app import create_app
 
 
-def test_strategy_certification_pipeline_respects_certification_status():
+def test_strategy_certification_entrypoint_fails_closed_on_insufficient_fixed_dataset():
 
     app = create_app()
 
@@ -15,34 +17,10 @@ def test_strategy_certification_pipeline_respects_certification_status():
         .strategy_certification_pipeline_v2
     )
 
-    result = pipeline.run()
+    with pytest.raises(
+        ValueError,
+        match="trade_pnls no puede estar vacío",
+    ):
+        pipeline.run()
 
-    assert result is not None
-    assert result.certification is not None
-
-    status = (
-        result.certification.status
-    )
-
-    strategies = (
-        registry.list()
-    )
-
-    if status == "CERTIFIED":
-
-        assert len(
-            strategies
-        ) >= 1
-
-        assert strategies[0][
-            "status"
-        ] == "CERTIFIED"
-
-    else:
-
-        assert status in {
-            "PROVISIONAL",
-            "REJECTED",
-        }
-
-        assert strategies == []
+    assert registry.list() == []

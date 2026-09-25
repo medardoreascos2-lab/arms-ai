@@ -285,4 +285,4 @@ def test_clock_inventory_extension_preserves_every_prior_assessment_field():
     assert len(startup)==1 and startup[0]['introduced_by']=='backend/tests/analysis_startup_sprint15yr1.json'
     review['direct_clock_dependencies'].remove(startup[0])
     original=sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-    assert original=='439139eb808ea2440a34e0d757df5f73e217bd6004ec1b723a8cb3e9bddc4459'
+    assert original=='22e8082774db2630d3398f6fc0a03e81b86df6f05b8eaf078a492ef12fb6d9d4'

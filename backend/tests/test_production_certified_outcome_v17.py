@@ -671,7 +671,9 @@ def test_factory_accepts_execution_time_data_without_preloading_csv(
     )
     report = pipeline.run(candles=items, output_directory=tmp_path / "report")
     assert report.candles_processed == 6
-    assert len(report.report.decisions) == 6
+    # The final candle is reserved as future context in explicit causal replay.
+    # Therefore six input candles produce five strategy decisions.
+    assert len(report.report.decisions) == 5
 
 
 def test_explicit_csv_preload_is_preserved_and_missing_data_fails(

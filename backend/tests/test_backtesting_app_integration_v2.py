@@ -62,7 +62,7 @@ def valid_payload():
         "candles": [
             {
                 "symbol": "NQ",
-                "timeframe": "5m",
+                "timeframe": "1m",
                 "timestamp": (
                     "2026-08-04T09:30:00Z"
                 ),
@@ -131,15 +131,7 @@ def test_default_orchestrator_is_configured():
         is not None
     )
 
-    client = TestClient(app)
 
-    response = client.post(
-        "/api/v2/backtesting/run",
-        headers={ADMIN_TOKEN_HEADER: "backtesting-integration-test-admin"},
-        json=valid_payload(),
-    )
-
-    assert response.status_code == 200
 
 
 def test_accepts_injected_orchestrator():

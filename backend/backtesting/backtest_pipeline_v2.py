@@ -157,6 +157,8 @@ class BacktestPipelineV2:
             output_directory
         )
 
+        normalized_candles = None
+
         if candles is not None:
 
             if not isinstance(
@@ -174,14 +176,42 @@ class BacktestPipelineV2:
                 for candle in candles
             ]
 
+            if any(
+                normalized_candles[index].timestamp
+                <= normalized_candles[
+                    index - 1
+                ].timestamp
+                for index in range(
+                    1,
+                    len(normalized_candles),
+                )
+            ):
+                raise ValueError(
+                    "candles must be strictly "
+                    "chronological."
+                )
+
             self.backtest_session_v2.backtest_runner_v2.replay_engine_v2.load(
                 normalized_candles
             )
 
 
-        candles_processed = int(
-            self.backtest_session_v2.run()
-        )
+        if normalized_candles is not None:
+
+            candles_processed = int(
+                self.backtest_session_v2.run(
+                    execution_candles=(
+                        normalized_candles
+                    ),
+                    minimum_candles=1,
+                )
+            )
+
+        else:
+
+            candles_processed = int(
+                self.backtest_session_v2.run()
+            )
 
         if candles_processed < 0:
             raise ValueError(

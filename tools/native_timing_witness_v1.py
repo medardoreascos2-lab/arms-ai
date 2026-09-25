@@ -292,7 +292,7 @@ def write_json(path,value):
                 atomic_publish(tmp,path)
                 return
             except OSError as error:
-                if getattr(error,'winerror',None) not in (5,32,33) or attempt==20: raise
+                if getattr(error,'winerror',None) not in (5,32,33,1175) or attempt==20: raise
                 time.sleep(.025)
     finally:
         # Only this invocation's unique temporary file may be cleaned up.

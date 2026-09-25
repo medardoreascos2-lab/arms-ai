@@ -163,3 +163,64 @@ def test_rejects_invalid_monte_carlo_pipeline():
             ),
             monte_carlo_pipeline=object(),
         )
+
+
+def test_validation_adapter_forwards_empirical_evidence_v17(
+    tmp_path,
+):
+    """V17: certification must consume the current empirical dataset."""
+
+    from backend.backtesting.backtesting_orchestrator_factory_v2 import (
+        ValidationPipelineExecutionAdapterV2,
+    )
+
+    class CaptureValidationPipeline:
+
+        def __init__(self):
+            self.received = None
+
+        def run(self, **kwargs):
+            self.received = dict(kwargs)
+            return object()
+
+    validation_pipeline = CaptureValidationPipeline()
+
+    items = [
+        {"close": 100.0},
+        {"close": 101.0},
+    ]
+
+    parameter_sets = [
+        {
+            "ema": 5,
+            "stop_loss": 30,
+            "take_profit": 60,
+        }
+    ]
+
+    trade_pnls = [
+        125.0,
+        -25.0,
+        200.0,
+    ]
+
+    adapter = ValidationPipelineExecutionAdapterV2(
+        validation_pipeline=validation_pipeline,
+        backtest_score=94.0,
+        output_directory=tmp_path,
+        items=items,
+        parameter_sets=parameter_sets,
+        trade_pnls=trade_pnls,
+        starting_balance=17000.0,
+    )
+
+    adapter.run()
+
+    assert validation_pipeline.received == {
+        "backtest_score": 94.0,
+        "output_directory": tmp_path,
+        "items": items,
+        "parameter_sets": parameter_sets,
+        "trade_pnls": trade_pnls,
+        "starting_balance": 17000.0,
+    }

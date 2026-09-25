@@ -97,15 +97,20 @@ class WalkForwardDatasetSplitterV2:
                 ]
             )
 
-            testing_start = max(
+            testing_slice_start = max(
                 0,
                 window["testing_start"]
                 - self.warmup_size,
             )
 
+            testing_warmup_size = (
+                window["testing_start"]
+                - testing_slice_start
+            )
+
             testing_items = deepcopy(
                 normalized_items[
-                    testing_start:
+                    testing_slice_start:
                     window["testing_end"]
                 ]
             )
@@ -129,6 +134,9 @@ class WalkForwardDatasetSplitterV2:
                     ),
                     "training_items": training_items,
                     "testing_items": testing_items,
+                    "testing_warmup_size": (
+                        testing_warmup_size
+                    ),
                 }
             )
 

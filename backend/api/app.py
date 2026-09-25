@@ -1510,14 +1510,14 @@ def create_app(
         WalkForwardPipelineV2(
             window_generator=(
                 WalkForwardWindowGeneratorV2(
-                    training_size=300,
-                    testing_size=100,
-                    step_size=100,
+                    training_size=5600,
+                    testing_size=5600,
+                    step_size=5600,
                 )
             ),
             dataset_splitter=(
                 WalkForwardDatasetSplitterV2(
-                    warmup_size=50,
+                    warmup_size=600,
                 )
             ),
             walk_forward_optimizer=(

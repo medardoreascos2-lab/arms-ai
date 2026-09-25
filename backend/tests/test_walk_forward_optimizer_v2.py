@@ -104,6 +104,7 @@ class FakeTestingEvaluatorV2:
         testing_items,
         parameters,
         output_directory,
+        testing_warmup_size=0,
     ):
         self.calls.append(
             {
@@ -115,6 +116,9 @@ class FakeTestingEvaluatorV2:
                 ),
                 "output_directory": Path(
                     output_directory
+                ),
+                "testing_warmup_size": (
+                    testing_warmup_size
                 ),
             }
         )
@@ -281,6 +285,7 @@ def test_continues_when_window_fails(
             testing_items,
             parameters,
             output_directory,
+            testing_warmup_size=0,
         ):
             self.calls += 1
 
@@ -347,6 +352,7 @@ def test_stops_when_window_fails(
             testing_items,
             parameters,
             output_directory,
+            testing_warmup_size=0,
         ):
             raise RuntimeError(
                 "testing failed"

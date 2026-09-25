@@ -136,7 +136,12 @@ class BacktestEngine:
 
         return result
 
-    def run_single_pass(self, candles: list[Candle]) -> BacktestResult:
+    def run_single_pass(
+        self,
+        candles: list[Candle],
+        *,
+        minimum_candles: int | None = None,
+    ) -> BacktestResult:
         """Explicit production replay; legacy run() keeps its growing windows.
 
         Plan authorization counters retain their existing meaning and are not
@@ -152,8 +157,41 @@ class BacktestEngine:
 
         if not isinstance(self.pipeline, BacktestEnginePipelineAdapterV2):
             raise TypeError("run_single_pass requires BacktestEnginePipelineAdapterV2.")
+        if minimum_candles is None:
+            effective_minimum_candles = (
+                self.minimum_candles
+            )
+        else:
+            if (
+                not isinstance(
+                    minimum_candles,
+                    int,
+                )
+                or isinstance(
+                    minimum_candles,
+                    bool,
+                )
+            ):
+                raise TypeError(
+                    "minimum_candles debe ser int."
+                )
+
+            if minimum_candles <= 0:
+                raise ValueError(
+                    "minimum_candles debe ser "
+                    "mayor que cero."
+                )
+
+            effective_minimum_candles = max(
+                self.minimum_candles,
+                minimum_candles,
+            )
+
         context = self.pipeline.run_single_pass(
-            candles=candles, minimum_candles=self.minimum_candles,
+            candles=candles,
+            minimum_candles=(
+                effective_minimum_candles
+            ),
         )
         result = BacktestResult(
             total_candles=len(candles), initial_balance=self.initial_balance,

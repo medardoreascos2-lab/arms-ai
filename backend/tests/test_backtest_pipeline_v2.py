@@ -15,10 +15,50 @@ class FakeBacktestSessionV2:
 
     def __init__(self) -> None:
         self.run_calls = 0
+        self.run_kwargs = []
         self.build_report_calls = []
+        self.loaded_candles = []
 
-    def run(self) -> int:
+        class Replay:
+
+            def __init__(
+                replay_self,
+                owner,
+            ):
+                replay_self.owner = owner
+
+            def load(
+                replay_self,
+                candles,
+            ):
+                replay_self.owner.loaded_candles.append(
+                    list(candles)
+                )
+
+        class Runner:
+            pass
+
+        self.backtest_runner_v2 = Runner()
+
+        self.backtest_runner_v2.replay_engine_v2 = (
+            Replay(self)
+        )
+
+    def run(
+        self,
+        *,
+        execution_candles=None,
+        minimum_candles=1,
+    ) -> int:
         self.run_calls += 1
+        self.run_kwargs.append(
+            {
+                "execution_candles":
+                    execution_candles,
+                "minimum_candles":
+                    minimum_candles,
+            }
+        )
         return 5
 
     def build_report(
@@ -150,6 +190,14 @@ def test_pipeline_runs_session_and_exports_report(
     )
 
     assert session.run_calls == 1
+
+    assert session.run_kwargs == [
+        {
+            "execution_candles": None,
+            "minimum_candles": 1,
+        }
+    ]
+
     assert session.build_report_calls == [5]
 
     assert len(json_exporter.calls) == 1
@@ -239,3 +287,103 @@ def test_pipeline_rejects_invalid_exporter():
             json_exporter_v2=object(),
             html_exporter_v2=FakeExporterV2(),
         )
+
+
+def test_pipeline_uses_explicit_single_pass_when_candles_are_supplied(
+    tmp_path,
+):
+
+    from datetime import datetime, timedelta
+
+    from backend.models.candle import Candle
+
+    pipeline, session, _, _ = build_pipeline()
+
+    candles = [
+        Candle(
+            symbol="NQ",
+            timeframe="1m",
+            open=20000.0 + index,
+            high=20001.0 + index,
+            low=19999.0 + index,
+            close=20000.5 + index,
+            volume=1000.0,
+            timestamp=(
+                datetime(2026, 1, 1)
+                + timedelta(minutes=index)
+            ),
+        )
+        for index in range(5)
+    ]
+
+    pipeline.run(
+        output_directory=tmp_path,
+        candles=candles,
+    )
+
+    assert session.run_calls == 1
+
+    assert session.loaded_candles == [
+        candles
+    ]
+
+    assert (
+        session.run_kwargs[0][
+            "execution_candles"
+        ]
+        == candles
+    )
+
+    assert (
+        session.run_kwargs[0][
+            "minimum_candles"
+        ]
+        == 1
+    )
+
+
+def test_pipeline_rejects_unsorted_candles_before_execution(
+    tmp_path,
+):
+
+    from datetime import datetime, timedelta
+
+    from backend.models.candle import Candle
+
+    pipeline, session, _, _ = build_pipeline()
+
+    first = Candle(
+        symbol="NQ",
+        timeframe="1m",
+        open=20000.0,
+        high=20001.0,
+        low=19999.0,
+        close=20000.5,
+        volume=1000.0,
+        timestamp=datetime(2026, 1, 1, 0, 1),
+    )
+
+    second = Candle(
+        symbol="NQ",
+        timeframe="1m",
+        open=20001.0,
+        high=20002.0,
+        low=20000.0,
+        close=20001.5,
+        volume=1000.0,
+        timestamp=datetime(2026, 1, 1, 0, 0),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="chronological",
+    ):
+        pipeline.run(
+            output_directory=tmp_path,
+            candles=[
+                first,
+                second,
+            ],
+        )
+
+    assert session.run_calls == 0

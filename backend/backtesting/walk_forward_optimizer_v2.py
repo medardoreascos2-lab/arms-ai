@@ -229,6 +229,12 @@ class WalkForwardOptimizerV2:
                         testing_items=deepcopy(
                             dataset["testing_items"]
                         ),
+                        testing_warmup_size=int(
+                            dataset.get(
+                                "testing_warmup_size",
+                                0,
+                            )
+                        ),
                         parameters=deepcopy(
                             best_parameters
                         ),

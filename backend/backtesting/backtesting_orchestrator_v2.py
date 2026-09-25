@@ -7,6 +7,9 @@ from typing import Any
 from backend.backtesting.backtest_composite_score_v2 import (
     BacktestCompositeScoreResultV2,
 )
+from backend.backtesting.backtest_score_metrics_v2 import (
+    build_backtest_score_metrics_v2,
+)
 from backend.backtesting.institutional_backtesting_report_v2 import (
     InstitutionalBacktestingReportV2,
 )
@@ -292,26 +295,6 @@ class BacktestingOrchestratorV2:
 
         self.last_score_result = None
 
-    @staticmethod
-    def _normalize_win_rate(
-        value,
-    ) -> float:
-
-        normalized = float(value)
-
-        if normalized > 1.0:
-            normalized = (
-                normalized / 100.0
-            )
-
-        return max(
-            0.0,
-            min(
-                1.0,
-                normalized,
-            ),
-        )
-
     @classmethod
     def _build_score_metrics(
         cls,
@@ -324,64 +307,9 @@ class BacktestingOrchestratorV2:
             None,
         )
 
-        if statistics is None:
-            raise ValueError(
-                "backtest_result requiere statistics."
-            )
-
-        profit_factor = getattr(
-            statistics,
-            "profit_factor",
-            None,
+        return build_backtest_score_metrics_v2(
+            statistics
         )
-
-        if profit_factor is None:
-            profit_factor = 0.0
-
-        return {
-            "net_pnl": float(
-                getattr(
-                    statistics,
-                    "net_profit",
-                    0.0,
-                )
-            ),
-            "win_rate": (
-                cls._normalize_win_rate(
-                    getattr(
-                        statistics,
-                        "win_rate",
-                        0.0,
-                    )
-                )
-            ),
-            "profit_factor": float(
-                profit_factor
-            ),
-            "expectancy": float(
-                getattr(
-                    statistics,
-                    "expectancy",
-                    0.0,
-                )
-            ),
-            "maximum_drawdown": abs(
-                float(
-                    getattr(
-                        statistics,
-                        "max_drawdown",
-                        0.0,
-                    )
-                )
-            ),
-            "total_trades": int(
-                getattr(
-                    statistics,
-                    "total_trades",
-                    0,
-                )
-            ),
-        }
 
     def _run_backtest(
         self,
@@ -400,9 +328,26 @@ class BacktestingOrchestratorV2:
             )
 
         if has_candles:
-            result = self.backtest_engine.run(
-                candles=candles,
+
+            run_single_pass = getattr(
+                self.backtest_engine,
+                "run_single_pass",
+                None,
             )
+
+            if not callable(
+                run_single_pass
+            ):
+                raise TypeError(
+                    "backtest_engine debe implementar "
+                    "run_single_pass() para ejecución "
+                    "causal de candles."
+                )
+
+            result = run_single_pass(
+                candles
+            )
+
         else:
             result = (
                 self.backtest_engine
@@ -463,6 +408,36 @@ class BacktestingOrchestratorV2:
                 "BacktestCompositeScoreResultV2."
             )
 
+        empirical_items = (
+            candles
+            if candles is not None
+            else None
+        )
+
+        empirical_trade_pnls = [
+            float(trade.pnl)
+            for trade in backtest_result.trades
+            if isinstance(
+                getattr(
+                    trade,
+                    "pnl",
+                    None,
+                ),
+                (
+                    int,
+                    float,
+                ),
+            )
+            and not isinstance(
+                getattr(
+                    trade,
+                    "pnl",
+                    None,
+                ),
+                bool,
+            )
+        ]
+
         certification_pipeline = (
             self.certification_pipeline_factory(
                 backtest_score=(
@@ -470,6 +445,14 @@ class BacktestingOrchestratorV2:
                 ),
                 output_directory=(
                     output_path
+                ),
+                items=empirical_items,
+                trade_pnls=(
+                    empirical_trade_pnls
+                ),
+                starting_balance=float(
+                    backtest_result
+                    .initial_balance
                 ),
             )
         )

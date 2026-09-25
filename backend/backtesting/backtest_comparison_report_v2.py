@@ -11,6 +11,10 @@ from backend.backtesting.backtest_composite_score_v2 import (
     BacktestCompositeScoreV2,
 )
 
+from backend.backtesting.backtest_score_metrics_v2 import (
+    normalize_backtest_win_rate_v2,
+)
+
 from backend.backtesting.backtest_pipeline_v2 import (
     BacktestPipelineResultV2,
 )
@@ -169,6 +173,18 @@ class BacktestComparisonReportV2:
                             0.0,
                         )
                     ),
+                    "gross_profit": float(
+                        metrics.get(
+                            "gross_profit",
+                            0.0,
+                        )
+                    ),
+                    "gross_loss": float(
+                        metrics.get(
+                            "gross_loss",
+                            0.0,
+                        )
+                    ),
                     "expectancy": float(
                         metrics.get(
                             "expectancy",
@@ -201,6 +217,49 @@ class BacktestComparisonReportV2:
         return float(
             value
         )
+
+    @staticmethod
+    def _scoring_profit_factor(
+        strategy: dict[str, Any],
+    ) -> float:
+        value = strategy.get(
+            "profit_factor"
+        )
+
+        if value is not None:
+            return float(value)
+
+        total_trades = int(
+            strategy.get(
+                "total_trades",
+                0,
+            )
+        )
+
+        gross_profit = float(
+            strategy.get(
+                "gross_profit",
+                0.0,
+            )
+        )
+
+        gross_loss = abs(
+            float(
+                strategy.get(
+                    "gross_loss",
+                    0.0,
+                )
+            )
+        )
+
+        if (
+            total_trades > 0
+            and gross_profit > 0.0
+            and gross_loss == 0.0
+        ):
+            return float("inf")
+
+        return 0.0
 
     @classmethod
     def _validate_metric(
@@ -312,13 +371,18 @@ class BacktestComparisonReportV2:
                         "net_pnl",
                         0.0,
                     ),
-                    "win_rate": strategy.get(
-                        "win_rate",
-                        0.0,
+                    "win_rate": (
+                        normalize_backtest_win_rate_v2(
+                            strategy.get(
+                                "win_rate",
+                                0.0,
+                            )
+                        )
                     ),
-                    "profit_factor": strategy.get(
-                        "profit_factor",
-                        0.0,
+                    "profit_factor": (
+                        self._scoring_profit_factor(
+                            strategy
+                        )
                     ),
                     "maximum_drawdown": strategy.get(
                         "maximum_drawdown",
