@@ -96,8 +96,19 @@ def envelope(value, schema, extra):
         raise ValueError('R57_RUN_ID') from exc
 
 
-def request(value):
-    fixed = dict(instrument='NQ DEC26', master='NQ', expiry='2026-12-01', tick_size=.25,
+def profile_contract(profile):
+    # This closed policy is verifier-owned; evidence supplies facts, not policy.
+    need(type(profile) is str, 'PROFILE')
+    if profile == 'NQ_DEC26':
+        return 'NQ DEC26', '2026-12-01', None
+    if profile == 'NQ_MAR26_DST':
+        return 'NQ MAR26', '2026-03-01', '2026-03-06'
+    need(False, 'PROFILE')
+
+
+def request(value, profile=None):
+    instrument, expiry, required_date = profile_contract('NQ_DEC26' if profile is None else profile)
+    fixed = dict(instrument=instrument, master='NQ', expiry=expiry, tick_size=.25,
                  point_value=20, period='Minute', period_value=1, market_data='Last',
                  lookup='Repository', merge='DoNotMerge', reset=True, dividend_adjusted=False,
                  split_adjusted=False, application_timezone='UTC')
@@ -108,12 +119,15 @@ def request(value):
     dates = []
     for side in ('from', 'through'):
         text = value['configured_' + side]
+        need(required_date is None or text == required_date, 'PROFILE_DATE')
         need(type(text) is str and re.fullmatch(r'2026-\d{2}-\d{2}', text) is not None, 'DATE')
         date = datetime.strptime(text, '%Y-%m-%d'); dates.append(date)
         need(time_fact(value['submitted_' + side], 'Unspecified') == tick_of(date), 'SUBMITTED_DATE')
         need(time_fact(value['actual_' + side]) == tick_of(date), 'ACTUAL_DATE')
     need(0 <= (dates[1] - dates[0]).days <= 14, 'DATE_RANGE')
     calendar(value['trading_hours'])
+    if profile is not None:
+        integer(value['trading_hours']['version'], 5119, 5119)
     need(value['sdk_version'] == '8.1.8.2', 'SDK')
     need(type(value['sdk_assembly']) is str and 0 < len(value['sdk_assembly']) <= 512, 'SDK')
     assembly = [part.strip() for part in value['sdk_assembly'].split(',')]
@@ -131,12 +145,13 @@ def request(value):
     return tick_of(dates[0] - timedelta(days=2)), tick_of(dates[1] + timedelta(days=8))
 
 
-def snapshot(value, hours):
+def snapshot(value, hours, profile=None):
+    instrument, expiry, _ = profile_contract('NQ_DEC26' if profile is None else profile)
     keys(value, 'identity callback_request_identity_verified count first last instrument expiry period period_value market_data trading_hours snapshot_algorithm snapshot_sha256')
     need(value['identity'] == 'RETURNED_BARS_1' and value['callback_request_identity_verified'] is True, 'BARS_IDENTITY')
     integer(value['count'], 3, 10002)
     time_fact(value['first']); time_fact(value['last'])
-    need(value['instrument'] == 'NQ DEC26' and value['expiry'] == '2026-12-01'
+    need(value['instrument'] == instrument and value['expiry'] == expiry
          and value['period'] == 'Minute' and integer(value['period_value'], 1, 1) == 1
          and value['market_data'] == 'Last', 'BARS_CONTRACT')
     calendar(value['trading_hours']); need(value['trading_hours'] == hours, 'RETURNED_CALENDAR')
@@ -517,20 +532,34 @@ def cursor_contract(value, initial, through, hours, request_fact):
 
 def validate_contract(raw, seal_raw):
     evidence, seal = decode(raw, MAX_BYTES), decode(seal_raw, 4096)
-    envelope(evidence, 'arms.r57.historical-utc-calendar-cursor.v1',
-             'request bars_before bars_after source_preserved snapshot_preserved request_preserved cursor initial_query calendar_through request_attempts request_constructor_attempts cursor_attempts')
-    envelope(seal, 'arms.r57.historical-utc-calendar-cursor.seal.v1', 'evidence_sha256 bytes complete')
+    need(type(evidence) is dict and type(seal) is dict, 'ENVELOPE')
+    schema = evidence.get('schema')
+    need(schema in ('arms.r57.historical-utc-calendar-cursor.v1',
+                    'arms.r57.historical-utc-calendar-cursor.v2'), 'SCHEMA')
+    v2 = schema.endswith('.v2')
+    extra = ' diagnostic_profile' if v2 else ''
+    envelope(evidence, schema,
+             'request bars_before bars_after source_preserved snapshot_preserved request_preserved cursor initial_query calendar_through request_attempts request_constructor_attempts cursor_attempts' + extra)
+    envelope(seal, 'arms.r57.historical-utc-calendar-cursor.seal.' + ('v2' if v2 else 'v1'),
+             'evidence_sha256 bytes complete' + extra)
+    profile = evidence['diagnostic_profile'] if v2 else None
+    if v2:
+        profile_contract(profile)
+        need(type(seal['diagnostic_profile']) is str and seal['diagnostic_profile'] == profile, 'SEAL_PROFILE')
     digest(seal['evidence_sha256'])
     need(seal['run_id'] == evidence['run_id'] and seal['complete'] is True, 'SEAL')
     need(integer(seal['bytes'], 1, MAX_BYTES) == len(raw) and seal['evidence_sha256'] == sha256(raw).hexdigest(), 'HASH_BINDING')
     for k in ('request_attempts', 'request_constructor_attempts', 'cursor_attempts'): integer(evidence[k], 1, 1)
     for k in ('source_preserved', 'snapshot_preserved', 'request_preserved'): need(evidence[k] is True, 'PRESERVATION')
-    initial, through = request(evidence['request'])
+    initial, through = request(evidence['request'], profile)
     need(time_fact(evidence['initial_query'], 'Utc') == initial and time_fact(evidence['calendar_through'], 'Utc') == through, 'COVERAGE')
-    for k in ('bars_before', 'bars_after'): snapshot(evidence[k], evidence['request']['trading_hours'])
+    for k in ('bars_before', 'bars_after'): snapshot(evidence[k], evidence['request']['trading_hours'], profile)
     need(evidence['bars_before'] == evidence['bars_after'], 'SNAPSHOT_CHANGED')
     analysis = cursor_contract(evidence['cursor'], initial, through, evidence['request']['trading_hours'], evidence['request'])
-    return dict(status='PASS_R57_HISTORICAL_UTC_CALENDAR_CURSOR_CONTRACT_ONLY', **analysis, **FLAGS)
+    result = dict(status='PASS_R57_HISTORICAL_UTC_CALENDAR_CURSOR_CONTRACT_ONLY', **analysis, **FLAGS)
+    if v2:
+        result['diagnostic_profile'] = profile
+    return result
 
 
 def bounded_read(path, limit):

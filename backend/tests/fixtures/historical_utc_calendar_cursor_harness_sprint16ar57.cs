@@ -22,8 +22,19 @@ namespace NinjaTrader.Cbi
     {
         public string FullName = "NQ DEC26"; public MasterInstrument MasterInstrument = new MasterInstrument();
         public DateTime Expiry = new DateTime(2026,12,1);
+        public static Instrument Expected()
+        { return new Instrument { FullName = Harness.MarProfile ? "NQ MAR26" : "NQ DEC26", Expiry = new DateTime(2026, Harness.MarProfile ? 3 : 12, 1) }; }
         public static Instrument GetInstrument(string name)
-        { Harness.Check(name == "NQ DEC26", "instrument"); return new Instrument(); }
+        {
+            Harness.LookupNames.Add(name);
+            Instrument value = Expected(); Harness.Check(name == value.FullName, "instrument");
+            if (Harness.Mode == "lookup_name") value.FullName = Harness.MarProfile ? "NQ DEC26" : "NQ MAR26";
+            if (Harness.Mode == "lookup_expiry") value.Expiry = value.Expiry.AddDays(1);
+            if (Harness.Mode == "lookup_master") value.MasterInstrument.Name = "ES";
+            if (Harness.Mode == "lookup_tick") value.MasterInstrument.TickSize = .5;
+            if (Harness.Mode == "lookup_point") value.MasterInstrument.PointValue = 50;
+            return value;
+        }
     }
 }
 namespace NinjaTrader.Data
@@ -51,7 +62,13 @@ namespace NinjaTrader.Data
                 PartialHolidays.Add(d, new PartialHoliday { IsEarlyEnd = true, Constraint = new Session { EndDay = d.DayOfWeek, TradingDay = d.DayOfWeek, EndTime = 1200 } });
         }
         public static TradingHours Get(string name)
-        { Harness.Check(name == "CME US Index Futures ETH", "hours"); return new TradingHours(); }
+        {
+            Harness.Check(name == "CME US Index Futures ETH", "hours"); var hours = new TradingHours();
+            if (Harness.Mode == "calendar_name") hours.Name = "OTHER";
+            if (Harness.Mode == "calendar_version") hours.Version = 5120;
+            if (Harness.Mode == "calendar_timezone") hours.TimeZoneInfo = TimeZoneInfo.Utc;
+            return hours;
+        }
     }
     public class Bars
     {
@@ -59,7 +76,7 @@ namespace NinjaTrader.Data
         public TradingHours TradingHours = new TradingHours(); public int Count = 5;
         public int Mutation;
         public DateTime GetTime(int i)
-        { return new DateTime(2026,9,16,12,0,0,DateTimeKind.Unspecified).AddMinutes(i + (Mutation == 2 ? 1 : 0)); }
+        { return Harness.From.AddHours(12).AddMinutes(i + (Mutation == 2 ? 1 : 0)); }
         public double GetOpen(int i) { return 20000 + (Mutation == 1 ? 1 : 0); }
         public double GetHigh(int i) { return 20002; }
         public double GetLow(int i) { return 19999; }
@@ -115,6 +132,7 @@ namespace NinjaTrader.Data
             if (Harness.Mode == "replace_bars") BarsRequest.Last.Bars = new Bars();
             if (Harness.Mode == "mutate_request") BarsRequest.Last.MergePolicy = MergePolicy.MergeBackAdjusted;
             if (Harness.Mode == "change_properties") Harness.Host.ThroughUtcDate = "2026-09-22";
+            if (Harness.Mode == "profile_change_during") Harness.ChangeProfile();
             if (Harness.Mode == "terminate_during_call")
             { Harness.InCall = true; try { Harness.Host.Step(NinjaTrader.NinjaScript.State.Terminated); } finally { Harness.InCall = false; } }
             if (Harness.Mode == "reentrant") BarsRequest.Last.Fire();
@@ -152,6 +170,9 @@ namespace NinjaTrader.Data
             Harness.Check(from == Harness.From && through == Harness.Through
                 && from.Kind == DateTimeKind.Unspecified && through.Kind == DateTimeKind.Unspecified, "date contract");
             if (Harness.Mode == "request_create_throw") throw new InvalidOperationException(Harness.Secret);
+            if (Harness.Mode == "request_name") Instrument.FullName = "NQ OTHER";
+            if (Harness.Mode == "request_expiry") Instrument.Expiry = Instrument.Expiry.AddDays(1);
+            if (Harness.Mode == "request_master") Instrument.MasterInstrument.Name = "ES";
         }
         public void Request(Action<BarsRequest, ErrorCode, string> delivery)
         {
@@ -161,6 +182,15 @@ namespace NinjaTrader.Data
                 && IsResetOnNewTradingDay && !IsDividendAdjusted && !IsSplitAdjusted, "request contract");
             Bars = new Bars { Instrument = Instrument, BarsPeriod = BarsPeriod, TradingHours = TradingHours };
             Harness.ExpectedBars = Bars;
+            if (Harness.Mode.StartsWith("returned_"))
+            {
+                Bars.Instrument = NinjaTrader.Cbi.Instrument.Expected();
+                if (Harness.Mode == "returned_name") Bars.Instrument.FullName = "NQ OTHER";
+                if (Harness.Mode == "returned_expiry") Bars.Instrument.Expiry = Bars.Instrument.Expiry.AddDays(1);
+                if (Harness.Mode == "returned_master") Bars.Instrument.MasterInstrument.Name = "ES";
+            }
+            if (Harness.Mode == "returned_calendar_rules")
+            { Bars.TradingHours = new TradingHours(); Bars.TradingHours.Sessions[0].EndTime = 1500; }
             if (Harness.Mode == "wrong_returned_hours") Bars.TradingHours = new TradingHours { Version = 2 };
             if (Harness.Mode == "bad_count") Bars.Count = 2;
             if (Harness.Mode == "request_throw") throw new InvalidOperationException(Harness.Secret);
@@ -200,6 +230,13 @@ namespace NinjaTrader.NinjaScript.Indicators
 public static class Harness
 {
     public static string Mode, Folder;
+    public static bool MarProfile;
+    public static List<string> LookupNames = new List<string>();
+    public static void ChangeProfile()
+    {
+        Host.DiagnosticProfile = MarProfile ? NinjaTrader.NinjaScript.Indicators.ArmsHistoricalUtcCalendarCursorProfileV1.NQ_DEC26
+            : NinjaTrader.NinjaScript.Indicators.ArmsHistoricalUtcCalendarCursorProfileV1.NQ_MAR26_DST;
+    }
     public static DateTime From = new DateTime(2026,9,16), Through = new DateTime(2026,9,21);
     public static bool InCall; public static DateTime DirectInitial; public static List<object> CallFacts = new List<object>();
     public const string Secret = "PRIVATE_PROVIDER_SENTINEL";
@@ -226,6 +263,7 @@ public static class Harness
     }
     private static void Observe(string point)
     {
+        if (Mode == "profile_change_before_seal" && point == "BEFORE_SEAL_COMMIT") ChangeProfile();
         if (point == "TERMINATION_INTENT")
         { Check(Host.OfflineTerminationIntent, "termination not visible"); intentObserved = true; Intent.Set(); }
         else Pause(point);
@@ -256,6 +294,8 @@ public static class Harness
     public static int Main(string[] args)
     {
         Mode = args[0]; Folder = args[1];
+        MarProfile = Mode.StartsWith("mar_");
+        if (MarProfile) { Mode = Mode.Substring(4); From = Through = new DateTime(2026,3,6); }
         if (Mode == "other_dates") { From = new DateTime(2026,11,25); Through = new DateTime(2026,11,27); }
         if (Mode == "max_range") Through = From.AddDays(14);
         if (Mode == "min_range") Through = From;
@@ -283,20 +323,27 @@ public static class Harness
             Host = new NinjaTrader.NinjaScript.Indicators.Host(); Host.Step(NinjaTrader.NinjaScript.State.SetDefaults);
             Host.OfflineCheckpoint = Observe;
             Check(!Host.ProbeEnabled && !Host.RepositoryPrerequisitesConfirmed && Host.OutputDirectory == ""
-                && Host.FromUtcDate == "" && Host.ThroughUtcDate == "", "defaults");
+                && Host.FromUtcDate == "" && Host.ThroughUtcDate == ""
+                && Host.DiagnosticProfile == NinjaTrader.NinjaScript.Indicators.ArmsHistoricalUtcCalendarCursorProfileV1.NQ_DEC26, "defaults");
+            Check(Enum.GetNames(typeof(NinjaTrader.NinjaScript.Indicators.ArmsHistoricalUtcCalendarCursorProfileV1)).Length == 2, "closed profiles");
+            if (MarProfile) Host.DiagnosticProfile = NinjaTrader.NinjaScript.Indicators.ArmsHistoricalUtcCalendarCursorProfileV1.NQ_MAR26_DST;
+            if (Mode == "profile_unknown") Host.DiagnosticProfile = (NinjaTrader.NinjaScript.Indicators.ArmsHistoricalUtcCalendarCursorProfileV1)99;
             if (Mode == "disabled_rearm") Host.Step(NinjaTrader.NinjaScript.State.DataLoaded);
             if (Mode != "disabled")
             {
                 Host.ProbeEnabled = true; Host.RepositoryPrerequisitesConfirmed = Mode != "unconfirmed";
                 Host.OutputDirectory = Folder; Host.FromUtcDate = Mode == "bad_date" ? "" : From.ToString("yyyy-MM-dd");
                 Host.ThroughUtcDate = Through.ToString("yyyy-MM-dd");
+                if (Mode == "wrong_from") Host.FromUtcDate = "2026-03-05";
+                if (Mode == "wrong_through") Host.ThroughUtcDate = "2026-03-07";
             }
             if (Mode == "wrong_zone") NinjaTrader.Core.Globals.GeneralOptions.TimeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
             if (Mode == "playback") NinjaTrader.Cbi.Connection.PlaybackConnection = new NinjaTrader.Cbi.Connection();
             Host.Step(NinjaTrader.NinjaScript.State.Configure); Host.Step(NinjaTrader.NinjaScript.State.DataLoaded);
             if (Mode == "clone") Host.Clone().Step(NinjaTrader.NinjaScript.State.Terminated);
             var request = NinjaTrader.Data.BarsRequest.Last;
-            if (request != null && Mode != "pending" && Mode != "request_create_throw")
+            if (Mode == "profile_change_before_callback") ChangeProfile();
+            if (request != null && Requests > 0 && Mode != "pending" && Mode != "request_create_throw")
             {
                 if (Mode.StartsWith("concurrent_")) ConcurrentCallback(request);
                 else if (Mode == "async") { var thread = new System.Threading.Thread(request.Fire); thread.Start(); thread.Join(); }
@@ -314,6 +361,7 @@ public static class Harness
             begins = BeginReads, ends = EndReads, day_reads = DayReads, day_values = DayValues, operations = Operations,
             intent_observed = intentObserved, termination_waited = terminationWaited, pauses = pauses,
             body_at_pause = bodyAtPause, seal_at_pause = sealAtPause,
+            lookup_names = LookupNames,
             queries = Queries, call_facts = CallFacts, prints = Prints, direct = direct }));
         return 0;
     }

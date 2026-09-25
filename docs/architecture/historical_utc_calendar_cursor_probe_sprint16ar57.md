@@ -32,10 +32,11 @@ not load or launch NinjaTrader.
 
 ## Request and schedule contract
 
-One BarsRequest: NQ DEC26, expiry 2026-12-01, master NQ, tick size .25, point value
-20; Minute/1/Last; Repository lookup; DoNotMerge; reset on new trading day;
+One BarsRequest under a closed diagnostic profile (default NQ_DEC26), master NQ,
+tick size .25, point value 20; Minute/1/Last; Repository lookup; DoNotMerge; reset on new trading day;
 dividend/split adjustments false. TradingHours is CME US Index Futures ETH with
-Central Standard Time. Application timezone must be UTC; playback is rejected.
+Central Standard Time, version 5119 for newly authored v2 captures. Application
+timezone must be UTC; playback is rejected.
 Request identity, callback identity, returned instrument/period/calendar and SDK
 version 8.1.8.2 are checked. Full assembly identity and MVID are recorded, not
 represented as attestation.
@@ -45,6 +46,77 @@ From UTC date, Through UTC date, operator repository/connection confirmation.
 Dates parse as Unspecified date identifiers, just as the historical request.
 Both configured dates must be in 2026, ordered, with a span of at most 14 days.
 No timestamp coming from Bars is relabeled or converted.
+
+### R5.7-E2 closed diagnostic profiles
+
+The operator-visible `Diagnostic profile` property is the two-value enum
+`ArmsHistoricalUtcCalendarCursorProfileV1`. It is not a free-form instrument input.
+
+| Profile | Exact native instrument | Exact expiry field | Configured date contract |
+| --- | --- | --- | --- |
+| NQ_DEC26 | NQ DEC26 | 2026-12-01 | Existing 2026 dates, ordered, span 0..14 days |
+| NQ_MAR26_DST | NQ MAR26 | 2026-03-01 | From and Through both exactly 2026-03-06 |
+
+NQ_DEC26 remains the default; enabling and repository confirmation remain false
+by default. Unknown enum values and wrong MAR26 dates reject before instrument
+lookup or BarsRequest construction. Start resolves one immutable profile object
+containing identity, master, expiry and the date restriction. The selected UI
+property is checked against that frozen identity during context checks, including
+the final publication gate. A subsequent property change aborts completion; it
+cannot retarget the active request, create a fallback request or reinterpret
+previous observations. Existing date-property and cancellation guards remain.
+
+The closed profile table validates the lookup result, request instrument and
+returned Bars independently. Matching two incorrect instruments is insufficient.
+Calendar name/version/timezone are checked before submission and throughout the
+returned-Bars snapshot lifecycle. Exact captured calendar/timezone JSON and their
+hashes must agree between requested and returned calendars. All existing period,
+lookup, merge, reset, adjustment, SDK and UTC-application restrictions remain.
+
+`HistoricalUtcCalendarCursorDiagnosticV1.cs` is unchanged, with SHA256
+`f7e4ded5f99d9488ec8b7f2349c47d1d9ee05b1a7c77d6438796acbfc0ffea72`.
+There is no DST branch or instrument selection in cursor traversal. The MAR26
+profile uses C0=2026-03-04T00:00:00Z and C1=2026-03-14T00:00:00Z: 11 queries per
+path, 12 total iterator constructions and 22 calls for complete traversal.
+
+The captured timezone rule, not native observations, determines the DST change.
+Offline expectations include Friday 2026-03-06 at 2026-03-05 23:00Z through
+2026-03-06 22:00Z, and Monday 2026-03-09 at 2026-03-08 22:00Z through
+2026-03-09 21:00Z. These values are test assertions, never hardcoded verifier
+answers. A future MAR26 capture can provide bounded calendar-algorithm evidence;
+it cannot certify the exact DEC26 historical request or enter backend admission.
+
+### Evidence version dispatch and legacy compatibility
+
+New host runs under either profile publish body schema
+`arms.r57.historical-utc-calendar-cursor.v2` and seal schema
+`arms.r57.historical-utc-calendar-cursor.seal.v2`. Both closed envelopes contain
+`diagnostic_profile`; the seal must name exactly the body's profile and bind its
+exact bytes, length and run ID. Artifact filenames and publication protocol are
+unchanged. v2 verifier output includes the validated profile identity.
+
+The verifier explicitly dispatches by body schema. Legacy v1 requires its exact
+old body and seal schemas, without a profile field, and retains its exact DEC26
+instrument/date/calendar validation. In particular, v1 retains its existing
+strictly typed calendar-version range; the new 5119 requirement applies to v2.
+Legacy MAR26 claims and profile fields injected into v1 are rejected. Existing
+v1 body/seal bytes need no migration, normalization or resealing.
+
+v2 requires a supported profile and uses the verifier's own closed policy table
+for instrument, expiry and MAR26 dates. It additionally pins calendar version
+5119 for both profiles. Request and both snapshots must match policy, not merely
+one another. Unknown profiles, missing fields, mixed schema versions and
+profile/body/seal contradictions fail closed even after recomputing hashes.
+Calendar reconstruction, relevance, cursor accounting, deduplication, ordered
+coverage equality and authority flags are shared unchanged between versions.
+
+Behavioral tests cover both profiles, pre-request rejection, wrong request and
+returned identities, calendar drift, profile mutation at callback/traversal/seal
+boundaries, DST bounds, preserved lifecycle/comparison behavior, strict types,
+resealed contradictions and legacy captures. The fixture remains explicitly
+synthetic. Installed-SDK compilation writes temporary assemblies only and never
+loads NinjaTrader. Existing ordinary and early-close native captures are read
+and verified without writes when available; their absence is an explicit skip.
 
 Before any iterator construction:
 
@@ -261,8 +333,8 @@ expectations, mismatch/false/duplicate cases, lifecycle races, artifact integrit
 and adversarial resealing. An installed-SDK compilation test performs no native
 execution. Synthetic results never count as native strategy evidence.
 
-The R5.7-C next gate is adversarial review of the verifier relevance proof and
-its tests/documentation against the unchanged native artifacts. Any installation or
+The R5.7-E2 next gate is adversarial review of the closed profiles, version
+dispatch, frozen-run guards and unchanged legacy artifacts. Any installation or
 native run needs separate authorization. Later runs may cover ordinary/weekend,
 closure/early-close, spring DST and fall DST in separate explicit ranges, one
 request and fresh output each. Calendar/date availability must be checked before

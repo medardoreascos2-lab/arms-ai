@@ -169,7 +169,8 @@ def test_partial_path_stops_and_cannot_publish_completion(binary, tmp_path, mode
     assert evidence['cursor']['traversal_complete'] is False
     with pytest.raises(v.IncompleteCaptureError): v.verify_completed_capture(tmp_path)
     # A forged final seal cannot turn a valid partial prefix into a complete capture.
-    seal = dict(v.FLAGS, schema='arms.r57.historical-utc-calendar-cursor.seal.v1', run_id=evidence['run_id'], complete=True)
+    seal = dict(v.FLAGS, schema='arms.r57.historical-utc-calendar-cursor.seal.v2',
+                diagnostic_profile=evidence['diagnostic_profile'], run_id=evidence['run_id'], complete=True)
     raw, seal_raw = reseal(evidence, seal)
     result = v.validate_contract(raw, seal_raw)
     assert result['publication_eligible'] is False
@@ -361,6 +362,8 @@ def test_no_production_conversion_or_execution_surface():
 
 def test_existing_tracked_sources_unchanged():
     allowed = {'tools/verify_historical_utc_calendar_cursor_v1.py',
+               'integrations/ninjatrader/ArmsHistoricalUtcCalendarCursorProbeV1.cs',
+               'backend/tests/fixtures/historical_utc_calendar_cursor_harness_sprint16ar57.cs',
                'backend/tests/test_historical_utc_calendar_cursor_probe_sprint16ar57.py',
                'docs/architecture/historical_utc_calendar_cursor_probe_sprint16ar57.md'}
     assert set(checked(['git', 'diff', '--name-only']).stdout.splitlines()) <= allowed
@@ -550,3 +553,218 @@ def test_original_native_artifact_hashes_when_available():
     for name, expected in [(EVIDENCE, '1f455401f1fc3705898fff27e56c21fdbf9365751451656ebf0a15edaada6129'),
                            (SEAL, '6a59311bb91f0a9b57f8c9644429eb05c3e44e658c09de68869f72bca34c7713')]:
         assert sha256((capture / name).read_bytes()).hexdigest() == expected
+
+
+@pytest.fixture(scope='module')
+def mar_sample(binary, tmp_path_factory):
+    folder = tmp_path_factory.mktemp('r57-mar-sample')
+    _, evidence, report = run(binary, folder, 'mar_success')
+    return evidence, json.loads((folder / SEAL).read_bytes()), report
+
+
+@pytest.mark.parametrize('prefix,profile,instrument,expiry', [
+    ('', 'NQ_DEC26', 'NQ DEC26', '2026-12-01'),
+    ('mar_', 'NQ_MAR26_DST', 'NQ MAR26', '2026-03-01')])
+def test_closed_profile_host_request_and_publication(binary, tmp_path, prefix, profile, instrument, expiry):
+    counts, e, report = run(binary, tmp_path, prefix + 'success')
+    assert counts['lookup_names'] == [instrument]
+    assert counts['request_constructors'] == counts['requests'] == counts['disposes'] == 1
+    assert e['schema'] == 'arms.r57.historical-utc-calendar-cursor.v2'
+    seal = json.loads((tmp_path / SEAL).read_bytes())
+    assert seal['schema'] == 'arms.r57.historical-utc-calendar-cursor.seal.v2'
+    assert e['diagnostic_profile'] == seal['diagnostic_profile'] == report['diagnostic_profile'] == profile
+    request = e['request']
+    assert request['instrument'] == instrument and request['expiry'] == expiry and request['master'] == 'NQ'
+    assert {k: request[k] for k in ('period', 'period_value', 'market_data', 'lookup', 'merge', 'reset', 'dividend_adjusted', 'split_adjusted')} == dict(
+        period='Minute', period_value=1, market_data='Last', lookup='Repository', merge='DoNotMerge',
+        reset=True, dividend_adjusted=False, split_adjusted=False)
+    for name in ('bars_before', 'bars_after'):
+        assert e[name]['instrument'] == instrument and e[name]['expiry'] == expiry
+        assert e[name]['trading_hours'] == request['trading_hours']
+    assert request['trading_hours']['version'] == 5119
+    for path in e['cursor']['paths']:
+        assert all(c['source'] == 'RETURNED_REPOSITORY_BARS' and c['bars_identity'] == 'RETURNED_BARS_1' for c in path['constructors'])
+    assert report['summary']['reused_coverage_match'] is report['summary']['fresh_coverage_match'] is True
+    assert report['summary']['fresh_reused_mismatch_count'] == 0
+    assert report['summary']['false_followed_by_success_count'] > 0
+
+
+@pytest.mark.parametrize('mode', ['disabled', 'profile_unknown', 'lookup_name', 'lookup_expiry', 'lookup_master', 'lookup_tick', 'lookup_point'])
+@pytest.mark.parametrize('prefix', ['', 'mar_'])
+def test_profile_preconstruction_rejections(binary, tmp_path, prefix, mode):
+    counts, e, report = run(binary, tmp_path, prefix + mode)
+    assert counts['request_constructors'] == counts['requests'] == counts['constructors'] == counts['calls'] == 0
+    assert e is report is None and not (tmp_path / SEAL).exists()
+    if mode in ('disabled', 'profile_unknown'): assert counts['lookup_names'] == []
+
+
+@pytest.mark.parametrize('mode', ['wrong_from', 'wrong_through'])
+def test_mar_date_rejected_before_lookup_or_request(binary, tmp_path, mode):
+    counts, _, report = run(binary, tmp_path, 'mar_' + mode)
+    assert counts['lookup_names'] == []
+    assert counts['request_constructors'] == counts['requests'] == counts['calls'] == 0
+    assert report is None
+
+
+@pytest.mark.parametrize('mode', ['request_name', 'request_expiry', 'request_master', 'calendar_name', 'calendar_version',
+                                 'calendar_timezone', 'returned_name', 'returned_expiry', 'returned_master',
+                                 'wrong_returned_hours', 'returned_calendar_rules'])
+@pytest.mark.parametrize('prefix', ['', 'mar_'])
+def test_profile_identity_and_calendar_guards_before_traversal(binary, tmp_path, prefix, mode):
+    counts, _, report = run(binary, tmp_path, prefix + mode)
+    assert counts['request_constructors'] == 1
+    assert counts['requests'] == (1 if mode.startswith('returned_') or mode == 'wrong_returned_hours' else 0)
+    assert counts['constructors'] == counts['calls'] == 0
+    assert report is None and not (tmp_path / SEAL).exists()
+
+
+@pytest.mark.parametrize('mode,calls', [('profile_change_before_callback', 0), ('profile_change_during', 1),
+                                      ('profile_change_before_seal', None)])
+@pytest.mark.parametrize('prefix', ['', 'mar_'])
+def test_profile_is_frozen_changes_fail_without_retarget_or_seal(binary, tmp_path, prefix, mode, calls):
+    counts, e, report = run(binary, tmp_path, prefix + mode)
+    instrument = 'NQ MAR26' if prefix else 'NQ DEC26'
+    assert counts['lookup_names'] == [instrument]
+    assert counts['request_constructors'] == counts['requests'] == counts['disposes'] == 1
+    expected_calls = (22 if prefix else 32) if calls is None else calls
+    assert counts['calls'] == expected_calls
+    assert report is None and not (tmp_path / SEAL).exists()
+    if e is not None:
+        assert e['request']['instrument'] == instrument
+        assert e['diagnostic_profile'] == ('NQ_MAR26_DST' if prefix else 'NQ_DEC26')
+
+
+def test_mar_schedule_and_independent_dst_expectation(mar_sample):
+    e, _, report = mar_sample
+    assert e['request']['configured_from'] == e['request']['configured_through'] == '2026-03-06'
+    initial, through = v.request(e['request'], 'NQ_MAR26_DST')
+    assert initial == v.tick_of(datetime(2026, 3, 4)) and through == v.tick_of(datetime(2026, 3, 14))
+    assert len(e['cursor']['schedule']) == 11
+    assert [q['ticks'] for q in e['cursor']['schedule']] == list(range(initial, through + v.DAY, v.DAY))
+    assert report['summary']['total_constructor_attempts'] == 12
+    assert report['summary']['total_getnextsession_attempts'] == 22
+    expected = {t[4]: t for t in report['expected_intervals']}
+    for date, begin, end in [(datetime(2026, 3, 6), datetime(2026, 3, 5, 23), datetime(2026, 3, 6, 22)),
+                             (datetime(2026, 3, 9), datetime(2026, 3, 8, 22), datetime(2026, 3, 9, 21))]:
+        assert expected[v.tick_of(date)] == (v.tick_of(begin), 'Utc', v.tick_of(end), 'Utc', v.tick_of(date), 'Unspecified')
+    assert len(expected) == 8
+    tags = {r['date']: r['tags'] for r in report['date_classes']}
+    assert all('DST_TRANSITION_WINDOW' in tags[d] for d in ('2026-03-07', '2026-03-08', '2026-03-09'))
+    assert 'SATURDAY' in tags['2026-03-07'] and 'SUNDAY' in tags['2026-03-08']
+
+
+@pytest.mark.parametrize('which', ['dec', 'mar'])
+@pytest.mark.parametrize('fault', ['missing_profile', 'unknown_profile', 'null_profile', 'bool_profile', 'number_profile',
+    'object_profile', 'missing_seal_profile', 'seal_profile', 'body_profile', 'v1_seal', 'unknown_schema',
+    'request_instrument', 'request_expiry', 'request_master', 'before_instrument', 'after_expiry',
+    'period', 'period_bool', 'market_data', 'lookup', 'merge', 'reset', 'dividend', 'split',
+    'calendar_version', 'calendar_version_bool', 'calendar_name', 'calendar_timezone', 'authority', 'ticks_bool',
+    'snapshot_calendar', 'extra_request_profile', 'stale_seal'])
+def test_v2_resealed_profile_contradictions(sample, mar_sample, which, fault):
+    e, seal, _ = deepcopy(mar_sample if which == 'mar' else sample)
+    req = e['request']; other = 'NQ_DEC26' if which == 'mar' else 'NQ_MAR26_DST'
+    if fault == 'missing_profile': del e['diagnostic_profile']
+    elif fault == 'unknown_profile': e['diagnostic_profile'] = 'NQ_OTHER'
+    elif fault == 'null_profile': e['diagnostic_profile'] = None
+    elif fault == 'bool_profile': e['diagnostic_profile'] = True
+    elif fault == 'number_profile': e['diagnostic_profile'] = 0
+    elif fault == 'object_profile': e['diagnostic_profile'] = {'instrument': req['instrument']}
+    elif fault == 'missing_seal_profile': del seal['diagnostic_profile']
+    elif fault == 'seal_profile': seal['diagnostic_profile'] = other
+    elif fault == 'body_profile': e['diagnostic_profile'] = seal['diagnostic_profile'] = other
+    elif fault == 'v1_seal': seal['schema'] = 'arms.r57.historical-utc-calendar-cursor.seal.v1'
+    elif fault == 'unknown_schema': e['schema'] = 'arms.r57.historical-utc-calendar-cursor.v3'
+    elif fault == 'request_instrument': req['instrument'] = 'NQ 03-26' if which == 'mar' else 'NQ MAR26'
+    elif fault == 'request_expiry': req['expiry'] = '2026-03-02' if which == 'mar' else '2026-03-01'
+    elif fault == 'request_master': req['master'] = 'ES'
+    elif fault == 'before_instrument': e['bars_before']['instrument'] = 'NQ OTHER'
+    elif fault == 'after_expiry': e['bars_after']['expiry'] = '2026-01-01'
+    elif fault == 'period': req['period'] = 'Tick'
+    elif fault == 'period_bool': req['period_value'] = True
+    elif fault == 'market_data': req['market_data'] = 'Bid'
+    elif fault == 'lookup': req['lookup'] = 'Provider'
+    elif fault == 'merge': req['merge'] = 'MergeBackAdjusted'
+    elif fault == 'reset': req['reset'] = False
+    elif fault == 'dividend': req['dividend_adjusted'] = True
+    elif fault == 'split': req['split_adjusted'] = True
+    elif fault.startswith('calendar_'):
+        field, value = {'calendar_version': ('version', 5120), 'calendar_version_bool': ('version', True),
+                        'calendar_name': ('name', 'OTHER'), 'calendar_timezone': ('timezone', 'UTC')}[fault]
+        req['trading_hours'][field] = value
+        for k in ('bars_before', 'bars_after'): e[k]['trading_hours'] = deepcopy(req['trading_hours'])
+    elif fault == 'authority': e['execution_authority'] = True
+    elif fault == 'ticks_bool': e['cursor']['schedule'][0]['ticks'] = True
+    elif fault == 'snapshot_calendar': e['bars_after']['trading_hours']['version'] = 5120
+    elif fault == 'extra_request_profile': req['diagnostic_profile'] = other
+    elif fault == 'stale_seal':
+        raw, sealed = reseal(e, seal)
+        with pytest.raises(ValueError, match='HASH_BINDING'): v.validate_contract(raw + b' ', sealed)
+        return
+    with pytest.raises(ValueError): v.validate_contract(*reseal(e, seal))
+
+
+@pytest.mark.parametrize('side', ['from', 'through'])
+def test_mar_verifier_date_rejection_is_profile_policy(mar_sample, side):
+    e, seal, _ = deepcopy(mar_sample)
+    e['request']['configured_' + side] = '2026-03-07'
+    with pytest.raises(ValueError, match='PROFILE_DATE'): v.validate_contract(*reseal(e, seal))
+
+
+@pytest.mark.parametrize('mode', ['false', 'bounds_difference', 'different', 'missing', 'extra', 'duplicate',
+                                 'concurrent_traversal', 'concurrent_body', 'concurrent_seal', 'terminate_during_call'])
+def test_mar_retains_comparison_and_lifecycle_behavior(binary, tmp_path, mode):
+    counts, _, report = run(binary, tmp_path, 'mar_' + mode)
+    if mode.startswith('concurrent_') or mode == 'terminate_during_call':
+        assert report is None and not (tmp_path / SEAL).exists()
+        if mode.startswith('concurrent_'): assert counts['intent_observed'] and counts['termination_waited']
+    else:
+        assert report['summary']['reused_coverage_match'] is (mode == 'duplicate' or mode == 'different')
+        assert report['summary']['fresh_coverage_match'] is (mode == 'duplicate')
+        if mode == 'different': assert report['summary']['fresh_reused_mismatch_count'] > 0
+
+
+def legacy_pair(e, seal):
+    e, seal = deepcopy(e), deepcopy(seal)
+    e['schema'] = 'arms.r57.historical-utc-calendar-cursor.v1'
+    seal['schema'] = 'arms.r57.historical-utc-calendar-cursor.seal.v1'
+    del e['diagnostic_profile']; del seal['diagnostic_profile']
+    return e, seal
+
+
+def test_v1_dispatch_preserves_existing_dec_contract(sample, mar_sample):
+    e, seal = legacy_pair(*sample[:2])
+    original = v.validate_contract(*reseal(e, seal))
+    assert 'diagnostic_profile' not in original
+    assert original['summary'] == sample[2]['summary']
+    # v1 previously allowed any strictly typed nonnegative version; v2 pins 5119.
+    for obj in (e['request'], e['bars_before'], e['bars_after']): obj['trading_hours']['version'] = 5120
+    assert v.validate_contract(*reseal(e, seal))['summary'] == original['summary']
+    mar, mar_seal = legacy_pair(*mar_sample[:2])
+    with pytest.raises(ValueError, match='REQUEST_CONTRACT'): v.validate_contract(*reseal(mar, mar_seal))
+
+
+@pytest.mark.parametrize('side', ['body', 'seal'])
+def test_v1_profile_injection_not_accepted(sample, side):
+    e, seal = legacy_pair(*sample[:2])
+    (e if side == 'body' else seal)['diagnostic_profile'] = 'NQ_DEC26'
+    with pytest.raises(ValueError, match='ENVELOPE'): v.validate_contract(*reseal(e, seal))
+
+
+@pytest.mark.parametrize('folder,body_hash,seal_hash', [
+    ('D:/ARMS_AI_R57_CAPTURE/20260924_233411', '1f455401f1fc3705898fff27e56c21fdbf9365751451656ebf0a15edaada6129',
+     '6a59311bb91f0a9b57f8c9644429eb05c3e44e658c09de68869f72bca34c7713'),
+    ('D:/ARMS_AI_R57_EARLY_CLOSE_CAPTURE/20260925_012758', '23c30d899cc037c06361b027e90a8a91e74b96ad5360fbb8190a5510b29b126c',
+     '36fa1a8e780d1348c01fd841c82614102b7629ab080cced997e854254da4fa63')])
+def test_legacy_native_captures_unchanged_when_available(folder, body_hash, seal_hash):
+    path = Path(folder)
+    if not path.exists(): pytest.skip('Operator capture not available; never substitute synthetic evidence')
+    before = [(path / n).read_bytes() for n in (EVIDENCE, SEAL)]
+    assert [sha256(b).hexdigest() for b in before] == [body_hash, seal_hash]
+    report = v.verify_completed_capture(path)
+    assert report['summary']['reused_coverage_match'] is report['summary']['fresh_coverage_match'] is True
+    assert 'diagnostic_profile' not in report
+    assert [(path / n).read_bytes() for n in (EVIDENCE, SEAL)] == before
+
+
+def test_cursor_core_bytes_remain_identical():
+    assert sha256(CORE.read_bytes()).hexdigest() == 'f7e4ded5f99d9488ec8b7f2349c47d1d9ee05b1a7c77d6438796acbfc0ffea72'

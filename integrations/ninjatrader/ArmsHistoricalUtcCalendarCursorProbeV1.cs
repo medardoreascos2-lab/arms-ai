@@ -15,8 +15,32 @@ using Arms.AI.Diagnostics.R57;
 
 namespace NinjaTrader.NinjaScript.Indicators
 {
+    public enum ArmsHistoricalUtcCalendarCursorProfileV1 { NQ_DEC26, NQ_MAR26_DST }
+
     public class ArmsHistoricalUtcCalendarCursorProbeV1 : Indicator
     {
+        private sealed class ProfileContract
+        {
+            internal readonly ArmsHistoricalUtcCalendarCursorProfileV1 Id;
+            internal readonly string InstrumentName, Master, Expiry, RequiredDate;
+            internal ProfileContract(ArmsHistoricalUtcCalendarCursorProfileV1 id, string instrument, string expiry, string date)
+            { Id = id; InstrumentName = instrument; Master = "NQ"; Expiry = expiry; RequiredDate = date; }
+        }
+        private static readonly ProfileContract Dec26 = new ProfileContract(
+            ArmsHistoricalUtcCalendarCursorProfileV1.NQ_DEC26, "NQ DEC26", "2026-12-01", null);
+        private static readonly ProfileContract Mar26 = new ProfileContract(
+            ArmsHistoricalUtcCalendarCursorProfileV1.NQ_MAR26_DST, "NQ MAR26", "2026-03-01", "2026-03-06");
+        private ProfileContract profile;
+
+        private static ProfileContract ResolveProfile(ArmsHistoricalUtcCalendarCursorProfileV1 selected)
+        {
+            switch (selected)
+            {
+                case ArmsHistoricalUtcCalendarCursorProfileV1.NQ_DEC26: return Dec26;
+                case ArmsHistoricalUtcCalendarCursorProfileV1.NQ_MAR26_DST: return Mar26;
+                default: throw new InvalidOperationException();
+            }
+        }
         private readonly object sync = new object();
         // This gate covers only cancellation admission / the final rename, never
         // cursor, hashing, writes, flushes or the ordinary state lock.
@@ -36,6 +60,10 @@ namespace NinjaTrader.NinjaScript.Indicators
         private const int MaximumEvidenceBytes = 1048576;
         private const string EvidenceName = "historical-utc-calendar-cursor.json";
         private const string SealName = "historical-utc-calendar-cursor.done.json";
+
+        [NinjaScriptProperty]
+        [Display(Name = "Diagnostic profile", Order = 0, GroupName = "ARMS UTC diagnostic")]
+        public ArmsHistoricalUtcCalendarCursorProfileV1 DiagnosticProfile { get; set; }
 
         [NinjaScriptProperty]
         [Display(Name = "Probe enabled", Order = 1, GroupName = "ARMS UTC diagnostic")]
@@ -70,6 +98,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                     Description = "Bounded historical UTC diagnostic; no execution authority.";
                     IsOverlay = true; IsChartOnly = true;
                     ProbeEnabled = RepositoryPrerequisitesConfirmed = false;
+                    DiagnosticProfile = ArmsHistoricalUtcCalendarCursorProfileV1.NQ_DEC26;
                     OutputDirectory = FromUtcDate = ThroughUtcDate = "";
                 }
                 else if (observedState == State.Terminated)
@@ -126,7 +155,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         }
         private static Dictionary<string, object> Calendar(TradingHours hours)
         {
-            Need(hours != null && hours.Name == "CME US Index Futures ETH" && hours.TimeZoneInfo != null
+            Need(hours != null && hours.Name == "CME US Index Futures ETH" && hours.Version == 5119 && hours.TimeZoneInfo != null
                 && hours.TimeZoneInfo.Id == "Central Standard Time");
             Need(hours.Sessions != null && hours.Sessions.Count <= 4096 && hours.Holidays != null
                 && hours.Holidays.Count <= 4096 && hours.PartialHolidays != null && hours.PartialHolidays.Count <= 4096);
@@ -162,10 +191,11 @@ namespace NinjaTrader.NinjaScript.Indicators
                 "timezone_rules_json", zone, "timezone_rules_sha256", HashText(zone),
                 "calendar_rules_json", rules, "calendar_rules_sha256", HashText(rules));
         }
-        private static void InstrumentContract(Instrument value)
+        private void InstrumentContract(Instrument value)
         {
-            Need(value != null && value.FullName == "NQ DEC26" && value.MasterInstrument.Name == "NQ"
-                && value.Expiry.ToString("yyyy-MM-dd") == "2026-12-01"
+            Need(profile != null && value != null && value.MasterInstrument != null
+                && value.FullName == profile.InstrumentName && value.MasterInstrument.Name == profile.Master
+                && value.Expiry.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) == profile.Expiry
                 && value.MasterInstrument.TickSize == .25 && value.MasterInstrument.PointValue == 20);
         }
         private static void PeriodContract(BarsPeriod period)
@@ -173,7 +203,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         private void EnvironmentContract()
         {
             Need(!CancellationRequested && !terminal && !terminated && ProbeEnabled && RepositoryPrerequisitesConfirmed && OutputDirectory == output
-                && FromUtcDate == fromText && ThroughUtcDate == throughText);
+                && FromUtcDate == fromText && ThroughUtcDate == throughText
+                && profile != null && DiagnosticProfile == profile.Id);
             Need(Core.Globals.GeneralOptions.TimeZoneInfo.Id == "UTC" && Connection.PlaybackConnection == null);
         }
         private Dictionary<string, object> RequestFact()
@@ -247,15 +278,17 @@ namespace NinjaTrader.NinjaScript.Indicators
         private void Start()
         {
             output = OutputDirectory; fromText = FromUtcDate; throughText = ThroughUtcDate;
+            profile = ResolveProfile(DiagnosticProfile); // Frozen policy; never derived from returned metadata.
             EnvironmentContract();
             from = DateTime.ParseExact(fromText, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             through = DateTime.ParseExact(throughText, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             Need(from.Year == 2026 && through.Year == 2026 && through >= from && (through - from).TotalDays <= 14);
+            Need(profile.RequiredDate == null || (fromText == profile.RequiredDate && throughText == profile.RequiredDate));
             output = DirectoryContract(output); Need(Directory.GetFileSystemEntries(output).Length == 0);
             runId = Guid.NewGuid().ToString("D");
             reservation = new FileStream(Path.Combine(output, EvidenceName + ".tmp"), FileMode.CreateNew,
                 FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough);
-            var instrument = Instrument.GetInstrument("NQ DEC26"); InstrumentContract(instrument);
+            var instrument = Instrument.GetInstrument(profile.InstrumentName); InstrumentContract(instrument);
             constructorAttempts++;
             request = new BarsRequest(instrument, from, through);
             request.BarsPeriod = new BarsPeriod { BarsPeriodType = BarsPeriodType.Minute, Value = 1, MarketDataType = MarketDataType.Last };
@@ -297,7 +330,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         }
         private Dictionary<string, object> Envelope(string schema)
         {
-            return Map("schema", schema, "run_id", runId, "classification", "DIAGNOSTIC_ONLY", "origin", "OPERATOR_NATIVE_RUN_UNATTESTED",
+            return Map("schema", schema, "diagnostic_profile", profile.Id.ToString(), "run_id", runId, "classification", "DIAGNOSTIC_ONLY", "origin", "OPERATOR_NATIVE_RUN_UNATTESTED",
                 "native_provenance_attested", false, "certification_evidence", false, "runtime_admission", false, "execution_authority", false,
                 "exporter_invoked", false, "exporter_change", false, "stored_timestamp_mutation", false, "bars_mutation", false,
                 "trading_hours_mutation", false, "paper_execution", false, "live_execution", false);
@@ -318,7 +351,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             // Dispose exactly once, before any completion seal. Failed cleanup cannot look complete.
             var prior = request; request = null; prior.Dispose();
             EnvironmentContract();
-            var evidence = Envelope("arms.r57.historical-utc-calendar-cursor.v1");
+            var evidence = Envelope("arms.r57.historical-utc-calendar-cursor.v2");
             evidence.Add("request", requestFact); evidence.Add("bars_before", before); evidence.Add("bars_after", after);
             evidence.Add("source_preserved", true); evidence.Add("snapshot_preserved", true); evidence.Add("request_preserved", true);
             evidence.Add("cursor", cursor);
@@ -327,7 +360,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             evidence.Add("request_attempts", requestAttempts); evidence.Add("request_constructor_attempts", constructorAttempts);
             evidence.Add("cursor_attempts", cursorAttempts);
             byte[] raw = Encoding.UTF8.GetBytes(Json(evidence) + "\n"); Need(raw.Length <= MaximumEvidenceBytes);
-            var seal = Envelope("arms.r57.historical-utc-calendar-cursor.seal.v1");
+            var seal = Envelope("arms.r57.historical-utc-calendar-cursor.seal.v2");
             seal.Add("evidence_sha256", Hash(raw)); seal.Add("bytes", raw.Length); seal.Add("complete", true);
             byte[] sealRaw = Encoding.UTF8.GetBytes(Json(seal) + "\n"); Need(sealRaw.Length <= 4096);
             string folder = DirectoryContract(output);
