@@ -4,8 +4,8 @@
   "counting": "Function-level decision/authority inventory, including discovered observational and compatibility candidates. Persistent block writer/clearer counts count direct account-state writers, not callers or ephemeral result reasons. Discovery is repository-wide decision vocabulary plus explicit reviewed boolean/exception/delegation boundaries.",
   "canonical_risk_owner": "RiskManagerV2, composed by TradeLifecycleServiceV2 under AccountStateManagerV2 and runtime admission vetoes",
   "certificate": {
-    "TOTAL_RISK_DECISION_POINTS": 191,
-    "CLASSIFIED_RISK_DECISION_POINTS": 191,
+    "TOTAL_RISK_DECISION_POINTS": 194,
+    "CLASSIFIED_RISK_DECISION_POINTS": 194,
     "UNCLASSIFIED_RISK_DECISION_POINTS": 0,
     "BLOCK_WRITERS": 7,
     "BLOCK_CLEARERS": 4,
@@ -8495,6 +8495,112 @@
       ],
       "caller_evidence": "test_operational_paper_sprint15.py and test_operational_soak_sprint15.py",
       "downstream_effect": "Fresh calendar, feed, news and intent gates before unchanged risk authority; no clearing account blocks",
+      "persistent_block_writer": false,
+      "persistent_block_clearer": false
+    },
+    {
+      "path": "backend/market_data/analysis_startup_v1.py",
+      "function": "AnalysisStartupV1.snapshot",
+      "source_sha256": "5b89b60217742a7c7f4a3561dee9ca593886c4df4f9d73c57b5622ec1bf305f9",
+      "inputs": "self",
+      "calls": [
+        "dict",
+        "self.adapter.snapshot",
+        "value.update"
+      ],
+      "output_fields": [],
+      "id": "backend/market_data/analysis_startup_v1.py:AnalysisStartupV1.snapshot",
+      "classification": "OBSERVATIONAL_ONLY",
+      "owner": "AnalysisStartupV1 startup/readiness projection",
+      "callers": [
+        "Explicit analysis startup/dashboard consumers"
+      ],
+      "caller_evidence": "Startup snapshot exposes bounded analysis health and inherited adapter projection only.",
+      "output": "Read-only startup/analysis projection with PAPER entry disabled, SIM execution disabled and LIVE authority false.",
+      "downstream_effect": "Observational startup/readiness status only. Cannot size, unblock, submit orders or grant execution authority.",
+      "persisted_or_ephemeral": "Ephemeral startup/readiness projection; no execution persistence.",
+      "can_block": false,
+      "can_size": false,
+      "can_unblock": false,
+      "account_scoped": false,
+      "runtime_scoped": true,
+      "strategy_scoped": false,
+      "execution_scoped": false,
+      "persistent_block_writer": false,
+      "persistent_block_clearer": false
+    },
+    {
+      "path": "backend/market_data/analysis_time_profile_v1.py",
+      "function": "MarketAnalysisTimeProfileV1.snapshot",
+      "source_sha256": "b71801fe059589909832f1ccae59cfb600fa07b8261575331d1a12f7e9f366a4",
+      "inputs": "self",
+      "calls": [
+        "deepcopy",
+        "dict",
+        "len",
+        "max",
+        "self._now",
+        "self.htf.history",
+        "self.htf.history(tf)[-1].timestamp.isoformat",
+        "self.origins.get"
+      ],
+      "output_fields": [
+        "15m",
+        "1h",
+        "1m"
+      ],
+      "id": "backend/market_data/analysis_time_profile_v1.py:MarketAnalysisTimeProfileV1.snapshot",
+      "classification": "OBSERVATIONAL_ONLY",
+      "owner": "MarketAnalysisTimeProfileV1 source-relative analysis projection",
+      "callers": [
+        "backend/market_data/fresh_native_adapter_v1.py"
+      ],
+      "caller_evidence": "FreshNativeAdapterV1 delegates its read-only snapshot to the source-relative analysis profile.",
+      "output": "Read-only source-relative analysis/readiness projection; PAPER/SIM/LIVE execution authority remains disabled.",
+      "downstream_effect": "Observational analysis only. Stale, revoked or incomplete transport produces blocked/unknown projection; no order, account, sizing or execution authority.",
+      "persisted_or_ephemeral": "Ephemeral in-memory analysis projection; no persisted execution authority.",
+      "can_block": false,
+      "can_size": false,
+      "can_unblock": false,
+      "account_scoped": false,
+      "runtime_scoped": true,
+      "strategy_scoped": false,
+      "execution_scoped": false,
+      "persistent_block_writer": false,
+      "persistent_block_clearer": false
+    },
+    {
+      "path": "backend/market_data/fresh_native_adapter_v1.py",
+      "function": "FreshNativeAdapterV1.snapshot",
+      "source_sha256": "68582e7039cd5fbcae621ff6c5ffb187926916143915f7267b64e608b471a9ac",
+      "inputs": "self",
+      "calls": [
+        "bool",
+        "component.update",
+        "self.poll",
+        "self.profile.snapshot",
+        "self.revoke",
+        "value.update",
+        "value['components'].values"
+      ],
+      "output_fields": [],
+      "id": "backend/market_data/fresh_native_adapter_v1.py:FreshNativeAdapterV1.snapshot",
+      "classification": "OBSERVATIONAL_ONLY",
+      "owner": "FreshNativeAdapterV1 read-only native stream projection",
+      "callers": [
+        "backend/market_data/analysis_startup_v1.py"
+      ],
+      "caller_evidence": "AnalysisStartupV1 consumes the adapter snapshot for analysis-only startup/readiness projection.",
+      "output": "Read-only adapter and analysis readiness projection; order_submit_reachable remains false.",
+      "downstream_effect": "Observational projection with fail-closed revocation/blocking. Does not grant PAPER, SIM, LIVE, account or broker authority.",
+      "persisted_or_ephemeral": "Ephemeral local file-tail/readiness projection; no order queue or broker state.",
+      "can_block": false,
+      "can_size": false,
+      "can_unblock": false,
+      "account_scoped": false,
+      "runtime_scoped": true,
+      "strategy_scoped": false,
+      "execution_scoped": false,
       "persistent_block_writer": false,
       "persistent_block_clearer": false
     }
