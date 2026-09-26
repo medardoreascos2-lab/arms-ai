@@ -1458,9 +1458,20 @@ class TradeLifecycleServiceV2(
             # 6. EJECUTAR ORDEN MEDIANTE BROKER
             # ======================================
 
+            client_order_id = None
+            if str(self.broker_connector_v2.execution_mode).strip().upper() == "SIM":
+                durability = getattr(self, "_durability", None)
+                operation = getattr(durability, "operation", None)
+                if not isinstance(operation, dict):
+                    raise RuntimeError("SIM durable operation identity required.")
+                client_order_id = str(operation.get("operation_id", "")).strip()
+                if not client_order_id:
+                    raise RuntimeError("SIM durable operation identity required.")
+
             execution = (
                 self.broker_connector_v2.submit_order(
                     prepared_order=prepared_order,
+                    client_order_id=client_order_id,
                 )
             )
 
@@ -2035,14 +2046,13 @@ class TradeLifecycleServiceV2(
         updated_position: dict[str, object],
         current_price: float,
     ) -> dict[str, object]:
-        if isinstance(self.broker_connector_v2, PaperBrokerConnectorV2):
-            broker_id = updated_position.get("broker_position_id")
-            if broker_id:
-                closed = self.broker_connector_v2.close_position(
-                    position_id=broker_id, current_price=float(updated_position["exit_price"]),
-                    reason=str(updated_position["close_reason"]))
-                if not closed.get("closed") and closed.get("status") != "ALREADY_CLOSED":
-                    raise RuntimeError("PAPER close synchronization failed.")
+        broker_id = updated_position.get("broker_position_id")
+        if broker_id:
+            closed = self.broker_connector_v2.close_position(
+                position_id=broker_id, current_price=float(updated_position["exit_price"]),
+                reason=str(updated_position["close_reason"]))
+            if not closed.get("closed") and closed.get("status") != "ALREADY_CLOSED":
+                raise RuntimeError("Broker close synchronization failed.")
         self._sync_protection_and_oco_after_close(
             position=dict(
                 updated_position

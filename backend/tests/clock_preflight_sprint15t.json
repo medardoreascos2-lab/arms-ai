@@ -738,7 +738,7 @@
           "authority": "MONOTONIC_ELAPSED"
         },
         {
-          "line": 1774,
+          "line": 1785,
           "call": "datetime.now",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
