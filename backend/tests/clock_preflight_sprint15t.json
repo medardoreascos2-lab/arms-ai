@@ -205,13 +205,8 @@
       "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
       "calls": [
         {
-          "line": 108,
+          "line": 110,
           "call": "datetime.now",
-          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
-        },
-        {
-          "line": 124,
-          "call": "clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
@@ -220,19 +215,19 @@
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
-          "line": 150,
+          "line": 128,
           "call": "clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
-          "line": 156,
+          "line": 152,
           "call": "clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
-          "line": 164,
-          "call": "time.monotonic",
-          "authority": "MONOTONIC_ELAPSED"
+          "line": 158,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
           "line": 166,
@@ -240,27 +235,32 @@
           "authority": "MONOTONIC_ELAPSED"
         },
         {
-          "line": 167,
-          "call": "clock",
-          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
-        },
-        {
-          "line": 195,
-          "call": "clock",
-          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
-        },
-        {
-          "line": 196,
+          "line": 168,
           "call": "time.monotonic",
           "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 169,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
           "line": 197,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 198,
           "call": "time.monotonic",
           "authority": "MONOTONIC_ELAPSED"
         },
         {
-          "line": 204,
+          "line": 199,
+          "call": "time.monotonic",
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "line": 243,
           "call": "clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }

@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 
 from backend.backtesting.current_paper_runtime_v1 import CurrentPaperServiceV1
 from backend.backtesting.operational_paper_v1 import OperationalPaperV1
+from backend.backtesting.paper_session_close_service_v2 import PaperSessionCloseServiceV2
 from backend.backtesting.paper_research_v1 import PaperResearchConfigV1
 from backend.config.api_settings import APISettings
 from backend.market_data.current_candle_authority_v1 import CurrentCandleAuthorityV1, CurrentFeedContractV1
@@ -103,6 +104,7 @@ def main(argv=None):
     parser.add_argument('--preflight-only',action='store_true')
     args=parser.parse_args(argv)
     op=server=worker=sock=None
+    session_close=None
     created=False
     run=Path(args.run_directory)
     clock=lambda:datetime.now(timezone.utc)
@@ -200,10 +202,54 @@ def main(argv=None):
             time.sleep(.25)
         op.enabled=False
         if op.runtime is not None: op.runtime.control('disable')
-        report=op.report()
-        report.update(watcher_id=identity,native_session=market.stem,ended_at=clock().isoformat(),
-            bound_seconds=args.seconds,open_positions_at_end=len(op.get_snapshot().get('active_simulated_positions') or []),
-            end_policy='STOP_NO_FORCED_EXIT_NO_AUTOMATIC_RESUME')
+
+        paper_runtime = (
+            op.runtime._paper.runtime
+            if op.runtime is not None
+            and op.runtime._paper is not None
+            else None
+        )
+        active_positions = (
+            paper_runtime.lifecycle.get_active_positions()
+            if paper_runtime is not None else []
+        )
+        prices_by_symbol = {}
+        if active_positions:
+            current_candle = paper_runtime.current.candle()
+            if current_candle is None:
+                raise ValueError('SESSION_CLOSE_CANONICAL_PRICE_REQUIRED')
+            canonical_close = float(current_candle.close)
+            if canonical_close <= 0:
+                raise ValueError('SESSION_CLOSE_CANONICAL_PRICE_REQUIRED')
+            prices_by_symbol = {
+                str(position['symbol']).strip().upper(): canonical_close
+                for position in active_positions
+            }
+
+        close_service = PaperSessionCloseServiceV2(
+            operational_paper=op
+        )
+        session_close = close_service.close_session(
+            prices_by_symbol=prices_by_symbol,
+            policy='FLAT',
+        )
+
+        report=dict(
+            session_close['final_operational_report']
+        )
+        report.update(
+            watcher_id=identity,
+            native_session=market.stem,
+            ended_at=clock().isoformat(),
+            bound_seconds=args.seconds,
+            open_positions_at_end=0,
+            end_policy='FLAT_SESSION_CLOSE',
+            session_close={
+                key: value
+                for key, value in session_close.items()
+                if key != 'final_operational_report'
+            },
+        )
         write_new(run/'report.json',report)
         print('BOUNDED_LOCAL_PAPER_OBSERVATION_COMPLETE',flush=True)
     except (Exception,KeyboardInterrupt):
@@ -231,8 +277,21 @@ def main(argv=None):
             if sock is not None: sock.close()
         except Exception: clean=False
         if created:
-            try: write_new(run/'cleanup.json',dict(status='PASS' if clean else 'FAILED_REVIEW_REQUIRED',
-                automatic_resume=False,forced_exit=False,broker_order_calls=0))
+            try: write_new(run/'cleanup.json',dict(
+                status='PASS' if clean else 'FAILED_REVIEW_REQUIRED',
+                automatic_resume=False,
+                forced_exit=False,
+                session_close_policy=(
+                    'FLAT'
+                    if session_close is not None
+                    and session_close.get('status') == 'SESSION_CLOSED'
+                    else None
+                ),
+                session_close_applied=bool(
+                    session_close is not None
+                    and session_close.get('status') == 'SESSION_CLOSED'
+                ),
+                broker_order_calls=0))
             except Exception: clean=False
         if not clean:
             print('CLEANUP_FAILED_REVIEW_REQUIRED',flush=True)

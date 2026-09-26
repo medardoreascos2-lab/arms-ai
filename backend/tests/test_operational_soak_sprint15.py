@@ -138,11 +138,300 @@ def test_bounded_launcher_fresh_selection_report_and_expiry(api_settings,tmp_pat
         assert report['native_session']==session
         assert published[0]['execution_mode']=='LOCAL_PAPER'
         assert report['broker_order_calls']==0
+        assert report['end_policy']=='FLAT_SESSION_CLOSE'
+        assert report['open_positions_at_end']==0
+        assert report['session_close']['success'] is True
+        assert report['session_close']['status']=='SESSION_CLOSED'
+        assert report['session_close']['policy']=='FLAT'
+        assert report['session_close']['remaining_positions']==0
     else:
         with pytest.raises(SystemExit): cli.main(argv)
         assert (run/'failure.json').exists()
         assert not (run/'active.json').exists()
         assert not (run/'paper.sqlite').exists()
-    assert json.loads((run/'cleanup.json').read_text())['status']=='PASS'
+    cleanup=json.loads((run/'cleanup.json').read_text())
+    assert cleanup['status']=='PASS'
+    if activate:
+        assert cleanup['session_close_policy']=='FLAT'
+        assert cleanup['session_close_applied'] is True
     assert old.read_text()=='PRESERVED'
     assert old.name in json.loads((run/'waiting.json').read_text())['excluded_files']
+
+
+def test_launcher_session_close_flattens_real_open_paper_position(
+    api_settings,
+    tmp_path,
+    monkeypatch,
+):
+    """End-of-soak FLAT policy closes a real canonical PAPER position."""
+    from datetime import timedelta
+    from fastapi.testclient import TestClient
+    import uvicorn
+
+    from backend.tests.test_paper_runtime_sprint08 import witness
+
+    elapsed = [0.0]
+    origin = datetime(2026, 9, 21, 0, 0, tzinfo=timezone.utc)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return origin + timedelta(seconds=elapsed[0])
+
+    monkeypatch.setattr(cli, "datetime", Clock)
+
+    reviewed = spec()
+    spec_path = tmp_path / "spec.json"
+    spec_path.write_text(json.dumps(reviewed))
+    monkeypatch.setattr(cli, "review", lambda *args: reviewed)
+
+    directory = tmp_path / "evidence"
+    directory.mkdir()
+
+    news_path = tmp_path / "certified-news.json"
+    news_path.write_text(
+        json.dumps(
+            {
+                "snapshot_version": "r47d-certified-news-v1",
+                "generated_at": (
+                    origin - timedelta(minutes=1)
+                ).isoformat(),
+                "coverage_start": (
+                    origin - timedelta(minutes=1)
+                ).isoformat(),
+                "coverage_end": (
+                    origin + timedelta(minutes=10)
+                ).isoformat(),
+                "high_impact_events": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv(
+        "ARMS_CERTIFIED_ECONOMIC_NEWS_PATH",
+        str(news_path),
+    )
+
+    session = "00000000-0000-4000-8000-000000000099"
+    market = directory / (session + ".jsonl")
+    seq = [0]
+
+    def emit(kind, payload):
+        with market.open("a") as stream:
+            stream.write(
+                json.dumps(
+                    dict(
+                        schema="arms.nt.market.v1",
+                        session=session,
+                        sequence=seq[0],
+                        kind=kind,
+                        event_time=Clock.now().isoformat(),
+                        payload=payload,
+                    )
+                )
+                + "\n"
+            )
+        seq[0] += 1
+
+    def schedule(_):
+        elapsed[0] += 1
+
+        if not market.exists():
+            payload = dict(
+                provider="Provider31",
+                contract="NQ DEC26",
+                expiry="2026-12-01",
+                instrument="NQ",
+                tick_size=.25,
+                point_value=20,
+                timeframe="1m",
+                trading_hours_template="CME US Index Futures ETH",
+                source_timezone="UTC",
+                bar_label="CLOSE",
+                realtime=True,
+                read_only=True,
+            )
+            emit("HELLO", payload)
+
+            connection = dict(
+                same_source=True,
+                source_present=True,
+                callback_present=True,
+                source_snapshot_stable=True,
+                callback_provider="Provider31",
+                source_provider="Provider31",
+                decision="CONTINUE",
+                callback_previous_price_status="Connecting",
+                callback_previous_connection_status="Connecting",
+            )
+
+            for key in (
+                "callback_price_status",
+                "callback_connection_status",
+                "source_price_status",
+                "source_connection_status",
+                "source_price_status_after",
+                "source_connection_status_after",
+            ):
+                connection[key] = "Connected"
+
+            market.with_suffix(".connection.jsonl").write_text(
+                json.dumps(
+                    dict(
+                        schema="arms.nt.connection-diagnostic.v1",
+                        session=session,
+                        sequence=0,
+                        kind="CONNECTION_STATUS",
+                        event_time=Clock.now().isoformat(),
+                        callback_received_time=Clock.now().isoformat(),
+                        payload=connection,
+                    )
+                )
+                + "\n"
+            )
+
+        elif elapsed[0] % 60 == 0:
+            emit(
+                "CLOSED",
+                dict(
+                    bar_time=Clock.now().isoformat(),
+                    open=10000,
+                    high=10000,
+                    low=10000,
+                    close=10000,
+                    volume=10,
+                ),
+            )
+
+        elif elapsed[0] % 5 == 0:
+            emit("HEARTBEAT", dict(connected=True))
+
+    monkeypatch.setattr(
+        cli,
+        "time",
+        SimpleNamespace(
+            monotonic=lambda: elapsed[0],
+            sleep=schedule,
+        ),
+    )
+
+    class Server:
+        def __init__(self, config):
+            self.config = config
+            self.should_exit = False
+
+        def run(self, **kwargs):
+            pass
+
+    class Worker:
+        def __init__(self, target, **kwargs):
+            self.server = target.__self__
+
+        def start(self):
+            with TestClient(self.server.config.app):
+                pass
+
+        def is_alive(self):
+            return True
+
+        def join(self, **kwargs):
+            pass
+
+    monkeypatch.setattr(uvicorn, "Server", Server)
+    monkeypatch.setattr(cli, "Thread", Worker)
+
+    captured = {}
+    real_operational_paper = cli.OperationalPaperV1
+
+    def build_operational_paper(*args, **kwargs):
+        op = real_operational_paper(*args, **kwargs)
+        captured["op"] = op
+        return op
+
+    monkeypatch.setattr(
+        cli,
+        "OperationalPaperV1",
+        build_operational_paper,
+    )
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+
+    run = tmp_path / "run"
+
+    argv = [
+        "--spec",
+        str(spec_path),
+        "--directory",
+        str(directory),
+        "--run-directory",
+        str(run),
+        "--seconds",
+        "365",
+        "--activation-seconds",
+        "30",
+        "--port",
+        str(port),
+        "--enable-local-paper",
+    ]
+
+    # Install the execution witness as soon as the operational runtime exists.
+    original_poll = real_operational_paper.poll
+    installed = [False]
+
+    def poll_with_witness(self):
+        result = original_poll(self)
+        if self.runtime is not None and not installed[0]:
+            witness(self.runtime)
+            installed[0] = True
+        return result
+
+    monkeypatch.setattr(
+        real_operational_paper,
+        "poll",
+        poll_with_witness,
+    )
+
+    cli.main(argv)
+
+    report = json.loads((run / "report.json").read_text())
+
+    assert installed[0] is True
+    assert report["end_policy"] == "FLAT_SESSION_CLOSE"
+    assert report["session_close"]["success"] is True
+    assert report["session_close"]["status"] == "SESSION_CLOSED"
+    assert report["session_close"]["policy"] == "FLAT"
+    assert report["session_close"]["closed_positions"] == 1
+    assert report["session_close"]["remaining_positions"] == 0
+
+    assert report["paper_trades_opened"] == 1
+    assert report["paper_trades_closed"] == 1
+    assert report["open_positions_at_end"] == 0
+    assert not any(report["reconciliation"].values())
+
+    op = captured["op"]
+    runtime = op.runtime._paper.runtime
+
+    assert runtime.lifecycle.get_active_positions() == []
+    assert runtime.portfolio.get_open_positions() == []
+    assert len(runtime.completed) == 1
+
+    closed = runtime.completed[-1]
+
+    assert closed["exit_trigger"] == "SESSION_CLOSE"
+    assert closed["trigger_price"] == 10000
+
+    expected_fill = (
+        10000
+        - runtime.costs.slippage_points
+    )
+    assert closed["executed_exit"] == expected_fill
+
+    assert op.stopped is True
+
+    cleanup = json.loads((run / "cleanup.json").read_text())
+    assert cleanup["status"] == "PASS"
+    assert cleanup["session_close_policy"] == "FLAT"
+    assert cleanup["session_close_applied"] is True

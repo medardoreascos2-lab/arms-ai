@@ -253,6 +253,10 @@ class PaperSessionCloseServiceV2:
 
             runtime._save()
 
+            final_operational_report = deepcopy(
+                op.report()
+            )
+
             op.close()
 
             report = {
@@ -265,6 +269,9 @@ class PaperSessionCloseServiceV2:
                 "remaining_positions": 0,
                 "reconciliation": deepcopy(
                     reconciliation
+                ),
+                "final_operational_report": (
+                    final_operational_report
                 ),
             }
 
