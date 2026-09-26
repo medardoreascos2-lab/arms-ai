@@ -287,6 +287,180 @@ class PositionManagerV2:
             ),
         }
 
+    def close_position(
+        self,
+        *,
+        position: dict[str, object],
+        current_price: float,
+        reason: str,
+    ) -> dict[str, object]:
+        if not isinstance(
+            position,
+            dict,
+        ):
+            raise TypeError(
+                "position debe ser un dict."
+            )
+
+        position_status = (
+            str(
+                position.get(
+                    "status",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+        )
+
+        if position_status != "OPEN":
+            raise ValueError(
+                "position debe estar OPEN."
+            )
+
+        normalized_current_price = float(
+            current_price
+        )
+
+        if normalized_current_price <= 0:
+            raise ValueError(
+                "current_price debe ser "
+                "mayor que cero."
+            )
+
+        normalized_reason = (
+            str(reason)
+            .strip()
+            .upper()
+        )
+
+        if not normalized_reason:
+            raise ValueError(
+                "reason es obligatorio."
+            )
+
+        direction = (
+            str(
+                position.get(
+                    "direction",
+                    "",
+                )
+            )
+            .strip()
+            .upper()
+        )
+
+        if (
+            direction
+            not in self.VALID_DIRECTIONS
+        ):
+            raise ValueError(
+                "direction debe ser "
+                "LONG o SHORT."
+            )
+
+        entry_price = float(
+            position.get(
+                "entry_price",
+                0.0,
+            )
+        )
+
+        quantity = float(
+            position.get(
+                "quantity",
+                0.0,
+            )
+        )
+
+        point_value = float(
+            position.get(
+                "point_value",
+                self.point_value,
+            )
+        )
+
+        if entry_price <= 0:
+            raise ValueError(
+                "entry_price debe ser "
+                "mayor que cero."
+            )
+
+        if quantity <= 0:
+            raise ValueError(
+                "quantity debe ser "
+                "mayor que cero."
+            )
+
+        if point_value <= 0:
+            raise ValueError(
+                "point_value debe ser "
+                "mayor que cero."
+            )
+
+        if direction == "LONG":
+            closing_points = (
+                normalized_current_price
+                - entry_price
+            )
+        else:
+            closing_points = (
+                entry_price
+                - normalized_current_price
+            )
+
+        closing_points = round(
+            closing_points,
+            10,
+        )
+
+        closing_pnl = round(
+            closing_points
+            * quantity
+            * point_value,
+            10,
+        )
+
+        previous_realized_pnl = float(
+            position.get(
+                "realized_pnl",
+                0.0,
+            )
+            or 0.0
+        )
+
+        realized_pnl = round(
+            previous_realized_pnl
+            + closing_pnl,
+            10,
+        )
+
+        closed = dict(
+            position
+        )
+
+        closed["status"] = "CLOSED"
+        closed["current_price"] = (
+            normalized_current_price
+        )
+        closed["exit_price"] = (
+            normalized_current_price
+        )
+        closed["close_reason"] = (
+            normalized_reason
+        )
+        closed["unrealized_points"] = 0.0
+        closed["unrealized_pnl"] = 0.0
+        closed["realized_pnl"] = (
+            realized_pnl
+        )
+        closed["total_pnl"] = (
+            realized_pnl
+        )
+
+        return closed
+
+
     def update_position(
         self,
         *,

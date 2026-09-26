@@ -73,6 +73,120 @@ class _HistoricalPositionManager(PositionManagerV2):
             result.update(unrealized_pnl=gross)
         return result
 
+    def close_position(
+        self,
+        *,
+        position,
+        current_price,
+        reason,
+    ):
+        r = self.runtime
+        bar = r.current.candle()
+
+        if (
+            position["status"] != "OPEN"
+            or position["symbol"] != "NQ"
+        ):
+            raise ValueError(
+                "only open NQ historical positions are supported"
+            )
+
+        normalized_price = float(
+            current_price
+        )
+
+        if normalized_price != float(
+            bar.close
+        ):
+            raise ValueError(
+                "session close must use the current eligible bar close"
+            )
+
+        normalized_reason = (
+            str(reason)
+            .strip()
+            .upper()
+        )
+
+        if not normalized_reason:
+            raise ValueError(
+                "reason is required"
+            )
+
+        long = (
+            position["direction"]
+            == "LONG"
+        )
+
+        sign = 1 if long else -1
+
+        trigger_price = normalized_price
+
+        fill = (
+            trigger_price
+            - sign * r.costs.slippage_points
+        )
+
+        points = (
+            sign
+            * (
+                fill
+                - position["entry_price"]
+            )
+        )
+
+        gross = round(
+            points
+            * position["quantity"]
+            * position["point_value"],
+            10,
+        )
+
+        fees = (
+            r.costs.roundtrip_fee
+            * position["quantity"]
+        )
+
+        previous_realized = float(
+            position.get(
+                "realized_pnl",
+                0.0,
+            )
+            or 0.0
+        )
+
+        net_close = round(
+            gross - fees,
+            10,
+        )
+
+        realized = round(
+            previous_realized
+            + net_close,
+            10,
+        )
+
+        result = dict(
+            position
+        )
+
+        result.update(
+            status="CLOSED",
+            current_price=fill,
+            exit_price=fill,
+            close_reason=normalized_reason,
+            trigger_price=trigger_price,
+            gross_pnl=gross,
+            execution_fees=fees,
+            realized_pnl=realized,
+            total_pnl=realized,
+            unrealized_points=0.0,
+            unrealized_pnl=0.0,
+            closed_at=r.current.available_at,
+        )
+
+        return result
+
 
 class _HistoricalJournal(TradeJournalV2):
     def __init__(self, runtime):

@@ -96,7 +96,7 @@
     "backend\\tests\\research_sprint07r\\JUN25_80_C0.json": "d8f34993185c9758ee81844264f83a89ff8f47f163ab2744015ad47075535b86",
     "backend\\tests\\research_sprint07r\\JUN25_80_5_C0.json": "8729876509d5ffb05d924018921ac19aa5e2e12a4a4126c802d56cfc531cd2a4"
   },
-  "execution_sha256": "cfd9313eb847206742531d91f62205e97bb508afde83dfbcf823e21a60271aef",
+  "execution_sha256": "3616e24ab47cdf13e01bdf2127e5a182f902282babb0172a16119061df7664e6",
   "research_code_sha256": {
     "backend/tests/research_historical_accounting_sprint07r.py": "05063f140bc4a8baff1b5eb59156e6dd8e8b078d747a7bd4d26ac8bb978f3c6f",
     "backend/tests/research_historical_realism_sprint07r.py": "95a4f684c90dec203c1e10cf2a5e80c35a9b40d317f644423982cad4b2adaf52"

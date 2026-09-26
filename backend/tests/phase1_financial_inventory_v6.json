@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 149,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 149,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 151,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 151,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -6208,14 +6208,13 @@
       ]
     },
     {
-      "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.update_position",
+      "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2._finalize_closed_position",
       "path": "backend/services/trade_lifecycle_service_v2.py",
-      "function": "TradeLifecycleServiceV2.update_position",
-      "input": "self, *, position_id: str, current_price: float",
-      "source_sha256": "bb6cef52a11883f5653fed02d6f1a878caa132bcb6aed29fec99610d68fdc125",
+      "function": "TradeLifecycleServiceV2._finalize_closed_position",
+      "input": "self, *, normalized_position_id: str, current_position: dict[str, object], updated_position: dict[str, object], current_price: float",
+      "source_sha256": "b7cc8c0c321aa3a9164a0048dc520f2c8c32c5d0d1db84cfbe4df17c62fe6f73",
       "writes": [
-        "self._active_positions",
-        "self._active_positions[normalized_position_id]"
+        "self._active_positions"
       ],
       "calls": [
         "RuntimeError",
@@ -6227,7 +6226,6 @@
         "isinstance",
         "profile.get",
         "self._active_positions.pop",
-        "self._sync_open_position_state",
         "self._sync_protection_and_oco_after_close",
         "self.broker_connector_v2.close_position",
         "self.dashboard_event_publisher_v2.publish_portfolio_updated",
@@ -6236,15 +6234,108 @@
         "self.get_performance_metrics",
         "self.instrument_profile_engine.get_profile",
         "self.portfolio_manager_v2.close_position",
-        "self.position_manager.update_position",
         "self.trade_history_manager.record",
         "self.trade_journal_v2.close_trade",
+        "str",
+        "str(updated_position.get('symbol', current_position.get('symbol', ''))).strip",
+        "str(updated_position.get('symbol', current_position.get('symbol', ''))).strip().upper",
+        "updated_position.get"
+      ],
+      "output_fields": [
+        "active_position_removed",
+        "closed",
+        "performance_metrics",
+        "position",
+        "status",
+        "trade_record",
+        "updated"
+      ],
+      "owner": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+      "classification": "CANONICAL_POSITION_OWNER",
+      "output": "Owns operational active positions and coordinates one financial application per PAPER order/broker-position identity; delegates calculations, portfolio/account, journal/history and protection updates.",
+      "mutates_fill_state": false,
+      "mutates_position_state": true,
+      "mutates_portfolio": true,
+      "mutates_account_pnl": true,
+      "mutates_journal": true,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "caller_evidence": "R46 PAPER session-close tests verify canonical lifecycle handoff, financial synchronization, reconciliation, fail-closed behavior and idempotency.",
+      "downstream_consumers": [
+        "PortfolioManagerV2",
+        "TradeJournalV2",
+        "TradeHistoryManagerV2",
+        "dashboard projections",
+        "ExecutionStateStoreV2"
+      ],
+      "callers": [
+        "TradeLifecycleServiceV2.update_position",
+        "TradeLifecycleServiceV2.close_active_position"
+      ]
+    },
+    {
+      "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.close_active_position",
+      "path": "backend/services/trade_lifecycle_service_v2.py",
+      "function": "TradeLifecycleServiceV2.close_active_position",
+      "input": "self, *, position_id: str, current_price: float, reason: str='SESSION_CLOSE'",
+      "source_sha256": "85e08fe280347f47a423640f094ee34eb470f74d9dd2afad9947ddb5c1d91675",
+      "writes": [],
+      "calls": [
+        "ValueError",
+        "dict",
+        "float",
+        "self._finalize_closed_position",
+        "self.position_manager.close_position",
+        "str",
+        "str(position_id).strip"
+      ],
+      "output_fields": [],
+      "owner": "backend.services.trade_lifecycle_service_v2.TradeLifecycleServiceV2",
+      "classification": "CANONICAL_POSITION_OWNER",
+      "output": "Owns operational active positions and coordinates one financial application per PAPER order/broker-position identity; delegates calculations, portfolio/account, journal/history and protection updates.",
+      "mutates_fill_state": false,
+      "mutates_position_state": true,
+      "mutates_portfolio": true,
+      "mutates_account_pnl": true,
+      "mutates_journal": true,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "caller_evidence": "R46 PAPER session-close tests verify canonical lifecycle handoff, financial synchronization, reconciliation, fail-closed behavior and idempotency.",
+      "downstream_consumers": [
+        "PortfolioManagerV2",
+        "TradeJournalV2",
+        "TradeHistoryManagerV2",
+        "dashboard projections",
+        "ExecutionStateStoreV2"
+      ],
+      "callers": [
+        "PaperSessionCloseServiceV2.close_session"
+      ]
+    },
+    {
+      "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.update_position",
+      "path": "backend/services/trade_lifecycle_service_v2.py",
+      "function": "TradeLifecycleServiceV2.update_position",
+      "input": "self, *, position_id: str, current_price: float",
+      "source_sha256": "33e2eb297c95acedf82d51df1192b4615879bc0922e61647b4e14c5be27afd3e",
+      "writes": [
+        "self._active_positions[normalized_position_id]"
+      ],
+      "calls": [
+        "ValueError",
+        "dict",
+        "self._finalize_closed_position",
+        "self._sync_open_position_state",
+        "self.dashboard_event_publisher_v2.publish_position_updated",
+        "self.position_manager.update_position",
         "str",
         "str(position_id).strip",
         "str(updated_position.get('status', '')).strip",
         "str(updated_position.get('status', '')).strip().upper",
-        "str(updated_position.get('symbol', current_position.get('symbol', ''))).strip",
-        "str(updated_position.get('symbol', current_position.get('symbol', ''))).strip().upper",
         "updated_position.get"
       ],
       "output_fields": [

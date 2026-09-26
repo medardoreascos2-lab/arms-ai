@@ -398,3 +398,118 @@ def test_open_position_initializes_realized_pnl_to_zero():
 
     assert position["opened"] is True
     assert position["realized_pnl"] == 0.0
+
+
+def test_session_close_closes_long_position_at_explicit_price():
+    manager = build_manager()
+
+    position = manager.open_position(
+        execution=build_filled_buy_execution(),
+    )
+
+    result = manager.close_position(
+        position=position,
+        current_price=105.25,
+        reason="SESSION_CLOSE",
+    )
+
+    assert result["status"] == "CLOSED"
+    assert result["close_reason"] == "SESSION_CLOSE"
+    assert result["current_price"] == 105.25
+    assert result["exit_price"] == 105.25
+    assert result["unrealized_points"] == 0.0
+    assert result["unrealized_pnl"] == 0.0
+    assert result["realized_pnl"] == 20.0
+    assert result["total_pnl"] == 20.0
+
+
+def test_session_close_closes_short_position_at_explicit_price():
+    manager = build_manager()
+
+    execution = build_filled_buy_execution()
+    execution.update(
+        {
+            "side": "SELL",
+            "filled_price": 100.0,
+            "stop_loss": 105.0,
+            "take_profit": 90.0,
+        }
+    )
+
+    position = manager.open_position(
+        execution=execution,
+    )
+
+    result = manager.close_position(
+        position=position,
+        current_price=95.0,
+        reason="SESSION_CLOSE",
+    )
+
+    assert result["status"] == "CLOSED"
+    assert result["close_reason"] == "SESSION_CLOSE"
+    assert result["exit_price"] == 95.0
+    assert result["realized_pnl"] == 20.0
+    assert result["total_pnl"] == 20.0
+    assert result["unrealized_pnl"] == 0.0
+
+
+def test_session_close_preserves_previous_realized_pnl():
+    manager = build_manager()
+
+    position = manager.open_position(
+        execution=build_filled_buy_execution(),
+    )
+
+    position["realized_pnl"] = 7.5
+
+    result = manager.close_position(
+        position=position,
+        current_price=105.25,
+        reason="SESSION_CLOSE",
+    )
+
+    assert result["realized_pnl"] == 27.5
+    assert result["total_pnl"] == 27.5
+    assert result["unrealized_pnl"] == 0.0
+
+
+def test_session_close_rejects_non_open_position():
+    manager = build_manager()
+
+    position = manager.open_position(
+        execution=build_filled_buy_execution(),
+    )
+
+    closed = manager.update_position(
+        position=position,
+        current_price=110.0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="position",
+    ):
+        manager.close_position(
+            position=closed,
+            current_price=110.0,
+            reason="SESSION_CLOSE",
+        )
+
+
+def test_session_close_rejects_invalid_price():
+    manager = build_manager()
+
+    position = manager.open_position(
+        execution=build_filled_buy_execution(),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="current_price",
+    ):
+        manager.close_position(
+            position=position,
+            current_price=0.0,
+            reason="SESSION_CLOSE",
+        )

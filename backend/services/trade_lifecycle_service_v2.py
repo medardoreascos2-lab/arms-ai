@@ -2027,6 +2027,240 @@ class TradeLifecycleServiceV2(
             protection.update(quantity=position["quantity"], stop_price=position["stop_loss"],
                               take_profit_price=position["take_profit"])
 
+    def _finalize_closed_position(
+        self,
+        *,
+        normalized_position_id: str,
+        current_position: dict[str, object],
+        updated_position: dict[str, object],
+        current_price: float,
+    ) -> dict[str, object]:
+        if isinstance(self.broker_connector_v2, PaperBrokerConnectorV2):
+            broker_id = updated_position.get("broker_position_id")
+            if broker_id:
+                closed = self.broker_connector_v2.close_position(
+                    position_id=broker_id, current_price=float(updated_position["exit_price"]),
+                    reason=str(updated_position["close_reason"]))
+                if not closed.get("closed") and closed.get("status") != "ALREADY_CLOSED":
+                    raise RuntimeError("PAPER close synchronization failed.")
+        self._sync_protection_and_oco_after_close(
+            position=dict(
+                updated_position
+            ),
+        )
+
+        updated_position[
+            "realized_pnl"
+        ] = float(
+            updated_position.get(
+                "total_pnl",
+                updated_position.get(
+                    "realized_pnl",
+                    0.0,
+                ),
+            )
+            or 0.0
+        )
+
+        trade_record = (
+            self.trade_history_manager.record(
+                position=updated_position,
+            )
+        )
+
+        # V40: synchronize the closed position with
+        # the shared Portfolio and Trade Journal.
+        if self.portfolio_manager_v2 is not None:
+            self.portfolio_manager_v2.close_position(
+                position_id=normalized_position_id,
+                exit_price=float(
+                    updated_position.get(
+                        "exit_price",
+                        current_price,
+                    )
+                ),
+                realized_pnl=float(
+                    updated_position.get(
+                        "realized_pnl",
+                        0.0,
+                    )
+                ),
+            )
+
+        if self.trade_journal_v2 is not None:
+            journal_trade_id = (
+                "journal-"
+                + normalized_position_id
+            )
+
+            point_value = updated_position.get(
+                "point_value"
+            )
+
+            if point_value is None:
+                profile = (
+                    self.instrument_profile_engine
+                    .get_profile(
+                        symbol=(
+                            str(
+                                updated_position.get(
+                                    "symbol",
+                                    current_position.get(
+                                        "symbol",
+                                        "",
+                                    ),
+                                )
+                            )
+                            .strip()
+                            .upper()
+                        )
+                    )
+                )
+
+                if isinstance(profile, dict):
+                    point_value = profile.get(
+                        "point_value"
+                    )
+
+            if point_value is None:
+                raise ValueError(
+                    "point_value no pudo resolverse "
+                    "para el instrumento cerrado."
+                )
+
+            self.trade_journal_v2.close_trade(
+                trade_id=journal_trade_id,
+                result=str(
+                    updated_position.get(
+                        "close_reason",
+                        "CLOSED",
+                    )
+                ),
+                pnl=float(
+                    updated_position.get(
+                        "realized_pnl",
+                        0.0,
+                    )
+                ),
+                exit_price=float(
+                    updated_position.get(
+                        "exit_price",
+                        current_price,
+                    )
+                ),
+                exit_reason=str(
+                    updated_position.get(
+                        "close_reason",
+                        "CLOSED",
+                    )
+                ),
+                point_value=float(point_value),
+            )
+
+        if self.trade_journal_v2 is not None:
+            for trade in self.trade_journal_v2.trades:
+                if trade.position_id == normalized_position_id:
+                    trade.remaining_quantity = 0.0
+        self._active_positions.pop(
+            normalized_position_id,
+            None,
+        )
+
+        active_position_removed = True
+        updated_position["unrealized_pnl"] = 0.0
+
+        performance_metrics = (
+            self.get_performance_metrics()
+        )
+
+
+        if (
+            self.dashboard_event_publisher_v2
+            is not None
+        ):
+            self.dashboard_event_publisher_v2.publish_trade_closed(
+                trade=dict(
+                    updated_position
+                ),
+            )
+
+            self.dashboard_event_publisher_v2.publish_position_updated(
+                position=dict(
+                    updated_position
+                ),
+            )
+
+            if (
+                performance_metrics
+                is not None
+            ):
+                self.dashboard_event_publisher_v2.publish_portfolio_updated(
+                    portfolio=dict(
+                        performance_metrics
+                    ),
+                )
+
+        return {
+            "updated": True,
+            "closed": True,
+            "status": "CLOSED",
+            "position": updated_position,
+            "trade_record": trade_record,
+            "performance_metrics": performance_metrics,
+            "active_position_removed": active_position_removed,
+        }
+
+
+    @durable_mutation
+    def close_active_position(
+        self,
+        *,
+        position_id: str,
+        current_price: float,
+        reason: str = "SESSION_CLOSE",
+    ) -> dict[str, object]:
+        normalized_position_id = (
+            str(position_id)
+            .strip()
+        )
+
+        if not normalized_position_id:
+            raise ValueError(
+                "position_id es obligatorio."
+            )
+
+        if (
+            normalized_position_id
+            not in self._active_positions
+        ):
+            raise ValueError(
+                "position_id no existe."
+            )
+
+        current_position = dict(
+            self._active_positions[
+                normalized_position_id
+            ]
+        )
+
+        updated_position = (
+            self.position_manager.close_position(
+                position=current_position,
+                current_price=current_price,
+                reason=reason,
+            )
+        )
+
+        return self._finalize_closed_position(
+            normalized_position_id=(
+                normalized_position_id
+            ),
+            current_position=current_position,
+            updated_position=updated_position,
+            current_price=float(current_price),
+        )
+
+
     @durable_mutation
     def update_position(
         self,
@@ -2082,170 +2316,14 @@ class TradeLifecycleServiceV2(
 
         if updated_status == "CLOSED":
             # Only reconcile the in-memory PAPER adapter; LIVE is unchanged.
-            if isinstance(self.broker_connector_v2, PaperBrokerConnectorV2):
-                broker_id = updated_position.get("broker_position_id")
-                if broker_id:
-                    closed = self.broker_connector_v2.close_position(
-                        position_id=broker_id, current_price=float(updated_position["exit_price"]),
-                        reason=str(updated_position["close_reason"]))
-                    if not closed.get("closed") and closed.get("status") != "ALREADY_CLOSED":
-                        raise RuntimeError("PAPER close synchronization failed.")
-            self._sync_protection_and_oco_after_close(
-                position=dict(
-                    updated_position
+            return self._finalize_closed_position(
+                normalized_position_id=(
+                    normalized_position_id
                 ),
+                current_position=current_position,
+                updated_position=updated_position,
+                current_price=current_price,
             )
-
-            updated_position[
-                "realized_pnl"
-            ] = float(
-                updated_position.get(
-                    "total_pnl",
-                    updated_position.get(
-                        "realized_pnl",
-                        0.0,
-                    ),
-                )
-                or 0.0
-            )
-
-            trade_record = (
-                self.trade_history_manager.record(
-                    position=updated_position,
-                )
-            )
-
-            # V40: synchronize the closed position with
-            # the shared Portfolio and Trade Journal.
-            if self.portfolio_manager_v2 is not None:
-                self.portfolio_manager_v2.close_position(
-                    position_id=normalized_position_id,
-                    exit_price=float(
-                        updated_position.get(
-                            "exit_price",
-                            current_price,
-                        )
-                    ),
-                    realized_pnl=float(
-                        updated_position.get(
-                            "realized_pnl",
-                            0.0,
-                        )
-                    ),
-                )
-
-            if self.trade_journal_v2 is not None:
-                journal_trade_id = (
-                    "journal-"
-                    + normalized_position_id
-                )
-
-                point_value = updated_position.get(
-                    "point_value"
-                )
-
-                if point_value is None:
-                    profile = (
-                        self.instrument_profile_engine
-                        .get_profile(
-                            symbol=(
-                                str(
-                                    updated_position.get(
-                                        "symbol",
-                                        current_position.get(
-                                            "symbol",
-                                            "",
-                                        ),
-                                    )
-                                )
-                                .strip()
-                                .upper()
-                            )
-                        )
-                    )
-
-                    if isinstance(profile, dict):
-                        point_value = profile.get(
-                            "point_value"
-                        )
-
-                if point_value is None:
-                    raise ValueError(
-                        "point_value no pudo resolverse "
-                        "para el instrumento cerrado."
-                    )
-
-                self.trade_journal_v2.close_trade(
-                    trade_id=journal_trade_id,
-                    result=str(
-                        updated_position.get(
-                            "close_reason",
-                            "CLOSED",
-                        )
-                    ),
-                    pnl=float(
-                        updated_position.get(
-                            "realized_pnl",
-                            0.0,
-                        )
-                    ),
-                    exit_price=float(
-                        updated_position.get(
-                            "exit_price",
-                            current_price,
-                        )
-                    ),
-                    exit_reason=str(
-                        updated_position.get(
-                            "close_reason",
-                            "CLOSED",
-                        )
-                    ),
-                    point_value=float(point_value),
-                )
-
-            if self.trade_journal_v2 is not None:
-                for trade in self.trade_journal_v2.trades:
-                    if trade.position_id == normalized_position_id:
-                        trade.remaining_quantity = 0.0
-            self._active_positions.pop(
-                normalized_position_id,
-                None,
-            )
-
-            active_position_removed = True
-            updated_position["unrealized_pnl"] = 0.0
-
-            performance_metrics = (
-                self.get_performance_metrics()
-            )
-
-
-            if (
-                self.dashboard_event_publisher_v2
-                is not None
-            ):
-                self.dashboard_event_publisher_v2.publish_trade_closed(
-                    trade=dict(
-                        updated_position
-                    ),
-                )
-
-                self.dashboard_event_publisher_v2.publish_position_updated(
-                    position=dict(
-                        updated_position
-                    ),
-                )
-
-                if (
-                    performance_metrics
-                    is not None
-                ):
-                    self.dashboard_event_publisher_v2.publish_portfolio_updated(
-                        portfolio=dict(
-                            performance_metrics
-                        ),
-                    )
 
         else:
             self._active_positions[

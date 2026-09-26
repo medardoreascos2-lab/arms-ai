@@ -4783,10 +4783,129 @@
       "unauthorized_execution_entry": false
     },
     {
-      "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.update_position",
+      "id": "backend/backtesting/historical_accounting_v1.py:_HistoricalPositionManager.close_position",
+      "path": "backend/backtesting/historical_accounting_v1.py",
+      "function": "_HistoricalPositionManager.close_position",
+      "source_sha256": "784c71b0b24386e61214f23d406645ab6ed12dbf4c9e143e12165aba3da1e0d8",
+      "calls": [
+        "ValueError",
+        "dict",
+        "float",
+        "position.get",
+        "r.current.candle",
+        "result.update",
+        "round",
+        "str",
+        "str(reason).strip",
+        "str(reason).strip().upper"
+      ],
+      "execution_calls": [],
+      "classification": "EXECUTION_APPLICATION_FACADE",
+      "owner": "_HistoricalPositionManager",
+      "callers": "TradeLifecycleServiceV2 through isolated historical/PAPER composition",
+      "lexical_caller_candidates": [
+        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.close_active_position"
+      ],
+      "downstream_effects": "Applies canonical historical/PAPER close pricing, slippage, fees and realization evidence; lifecycle owns broker/portfolio/account/journal handoff.",
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/backtesting/paper_session_close_service_v2.py:PaperSessionCloseServiceV2.close_session",
+      "path": "backend/backtesting/paper_session_close_service_v2.py",
+      "function": "PaperSessionCloseServiceV2.close_session",
+      "source_sha256": "1815cc24f01df2fb473950a5410fd06b063973e24dc26b94b12bc3b56dd962cd",
+      "calls": [
+        "RuntimeError",
+        "TypeError",
+        "ValueError",
+        "_encode",
+        "accounting.portfolio.get_open_positions",
+        "accounting.record_close",
+        "any",
+        "closed_positions.append",
+        "deepcopy",
+        "dict",
+        "float",
+        "isinstance",
+        "len",
+        "lifecycle.close_active_position",
+        "lifecycle.get_active_positions",
+        "op.close",
+        "op.reconcile",
+        "position.get",
+        "reconciliation.values",
+        "runtime._db.execute",
+        "runtime._publish",
+        "runtime._save",
+        "runtime.control",
+        "self._latch_recovery",
+        "str",
+        "str(policy).strip",
+        "str(policy).strip().upper",
+        "str(position.get('symbol', '')).strip",
+        "str(position.get('symbol', '')).strip().upper",
+        "str(position['symbol']).strip",
+        "str(position['symbol']).strip().upper"
+      ],
+      "execution_calls": [
+        "close_active_position",
+        "execute"
+      ],
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "owner": "PaperSessionCloseServiceV2 delegates FLAT close to TradeLifecycleServiceV2 and existing PAPER accounting",
+      "callers": [
+        "Explicit local PAPER session-close coordinator"
+      ],
+      "downstream_effects": [
+        "Blocks new PAPER entries before close",
+        "Delegates position closure to canonical lifecycle",
+        "Requires FLAT lifecycle/portfolio and zero reconciliation differences",
+        "Persists final PAPER checkpoint before shutdown; no LIVE authority"
+      ],
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/execution/position_manager_v2.py:PositionManagerV2.close_position",
+      "path": "backend/execution/position_manager_v2.py",
+      "function": "PositionManagerV2.close_position",
+      "source_sha256": "c9c37541777fcb794b8ec4d7c35d11f9f868ed6735c07db262d8294b679ddb76",
+      "calls": [
+        "TypeError",
+        "ValueError",
+        "dict",
+        "float",
+        "isinstance",
+        "position.get",
+        "round",
+        "str",
+        "str(position.get('direction', '')).strip",
+        "str(position.get('direction', '')).strip().upper",
+        "str(position.get('status', '')).strip",
+        "str(position.get('status', '')).strip().upper",
+        "str(reason).strip",
+        "str(reason).strip().upper"
+      ],
+      "execution_calls": [],
+      "classification": "EXECUTION_APPLICATION_FACADE",
+      "owner": "PositionManagerV2",
+      "callers": "TradeLifecycleServiceV2",
+      "lexical_caller_candidates": [
+        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.close_active_position"
+      ],
+      "downstream_effects": "Transforms an OPEN position into an explicit closed position representation; lifecycle owns broker and financial synchronization.",
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2._finalize_closed_position",
       "path": "backend/services/trade_lifecycle_service_v2.py",
-      "function": "TradeLifecycleServiceV2.update_position",
-      "source_sha256": "bb6cef52a11883f5653fed02d6f1a878caa132bcb6aed29fec99610d68fdc125",
+      "function": "TradeLifecycleServiceV2._finalize_closed_position",
+      "source_sha256": "b7cc8c0c321aa3a9164a0048dc520f2c8c32c5d0d1db84cfbe4df17c62fe6f73",
       "calls": [
         "RuntimeError",
         "ValueError",
@@ -4797,7 +4916,6 @@
         "isinstance",
         "profile.get",
         "self._active_positions.pop",
-        "self._sync_open_position_state",
         "self._sync_protection_and_oco_after_close",
         "self.broker_connector_v2.close_position",
         "self.dashboard_event_publisher_v2.publish_portfolio_updated",
@@ -4806,13 +4924,9 @@
         "self.get_performance_metrics",
         "self.instrument_profile_engine.get_profile",
         "self.portfolio_manager_v2.close_position",
-        "self.position_manager.update_position",
         "self.trade_history_manager.record",
         "self.trade_journal_v2.close_trade",
         "str",
-        "str(position_id).strip",
-        "str(updated_position.get('status', '')).strip",
-        "str(updated_position.get('status', '')).strip().upper",
         "str(updated_position.get('symbol', current_position.get('symbol', ''))).strip",
         "str(updated_position.get('symbol', current_position.get('symbol', ''))).strip().upper",
         "updated_position.get"
@@ -4821,6 +4935,65 @@
         "close_position",
         "close_trade"
       ],
+      "classification": "CANONICAL_EXECUTION_OWNER",
+      "owner": "TradeLifecycleServiceV2",
+      "callers": "Internal canonical close finalizer used by update_position and close_active_position",
+      "lexical_caller_candidates": [
+        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.update_position",
+        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.close_active_position"
+      ],
+      "downstream_effects": "Canonical PAPER close handoff to broker adapter, protection/OCO, history, portfolio/account, journal and dashboard under shared durability.",
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.close_active_position",
+      "path": "backend/services/trade_lifecycle_service_v2.py",
+      "function": "TradeLifecycleServiceV2.close_active_position",
+      "source_sha256": "85e08fe280347f47a423640f094ee34eb470f74d9dd2afad9947ddb5c1d91675",
+      "calls": [
+        "ValueError",
+        "dict",
+        "float",
+        "self._finalize_closed_position",
+        "self.position_manager.close_position",
+        "str",
+        "str(position_id).strip"
+      ],
+      "execution_calls": [
+        "close_position"
+      ],
+      "classification": "CANONICAL_EXECUTION_OWNER",
+      "owner": "TradeLifecycleServiceV2",
+      "callers": "PaperSessionCloseServiceV2; explicit PAPER session close",
+      "lexical_caller_candidates": [
+        "backend/backtesting/paper_session_close_service_v2.py:PaperSessionCloseServiceV2.close_session"
+      ],
+      "downstream_effects": "Explicit durable PAPER position close using PositionManagerV2/_HistoricalPositionManager followed by the canonical lifecycle financial finalizer.",
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.update_position",
+      "path": "backend/services/trade_lifecycle_service_v2.py",
+      "function": "TradeLifecycleServiceV2.update_position",
+      "source_sha256": "33e2eb297c95acedf82d51df1192b4615879bc0922e61647b4e14c5be27afd3e",
+      "calls": [
+        "ValueError",
+        "dict",
+        "self._finalize_closed_position",
+        "self._sync_open_position_state",
+        "self.dashboard_event_publisher_v2.publish_position_updated",
+        "self.position_manager.update_position",
+        "str",
+        "str(position_id).strip",
+        "str(updated_position.get('status', '')).strip",
+        "str(updated_position.get('status', '')).strip().upper",
+        "updated_position.get"
+      ],
+      "execution_calls": [],
       "classification": "CANONICAL_EXECUTION_OWNER",
       "owner": "TradeLifecycleServiceV2",
       "callers": "Trade submit API; live analysis; canonical backtest signal target; monitor; recovery",
@@ -6472,8 +6645,8 @@
     "CANONICAL_RUNTIME_OWNER": "backend.services.runtime_context_v2.build_runtime_context",
     "CANONICAL_EXECUTION_OWNER": "TradeLifecycleServiceV2",
     "CANONICAL_ORDER_LIFECYCLE_OWNER": "TradeLifecycleServiceV2",
-    "TOTAL_EXECUTION_DECISION_POINTS": 141,
-    "CLASSIFIED_EXECUTION_DECISION_POINTS": 141,
+    "TOTAL_EXECUTION_DECISION_POINTS": 146,
+    "CLASSIFIED_EXECUTION_DECISION_POINTS": 146,
     "UNCLASSIFIED_EXECUTION_DECISION_POINTS": 0,
     "DIRECT_BROKER_BYPASS": 0,
     "UNAUTHORIZED_EXECUTION_ENTRY": 0,
