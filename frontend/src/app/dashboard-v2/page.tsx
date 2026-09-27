@@ -40,6 +40,7 @@ import ExecutionPipelineCard from "@/components/dashboard-v2/ExecutionPipelineCa
 import AIDecisionEngineCard from "@/components/dashboard-v2/AIDecisionEngineCard";
 import TradeJournalCard from "@/components/dashboard-v2/TradeJournalCard";
 import StrategyRankingCard from "@/components/dashboard-v2/StrategyRankingCard";
+import AICopilotCard from "@/components/dashboard-v2/AICopilotCard";
 
 
 type MetricItem = {
@@ -1773,6 +1774,10 @@ export default function DashboardV2Page() {
 
         </section>
 
+
+        <section className="mt-6">
+          <AICopilotCard />
+        </section>
 
         <section className="mt-6 grid gap-6 xl:grid-cols-2">
           <DataPanel title="Runtime PAPER" data={context} />
