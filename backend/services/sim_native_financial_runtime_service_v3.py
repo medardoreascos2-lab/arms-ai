@@ -12,6 +12,8 @@ from backend.services.sim_native_command_spool_v2 import SimNativeCommandSpoolV2
 from backend.services.sim_native_financial_projection_v3 import SimNativeFinancialProjectionV3
 from backend.services.sim_native_financial_checkpoint_v3 import execution_values, native_phase
 from backend.services.sim_native_financial_diagnostic_v3 import SimNativeFinancialDiagnosticV3, stage, phase_generation
+from backend.services.sim_native_admission_runtime_evidence_v3 import SimNativeAdmissionRuntimeEvidenceV3
+from backend.services.first_controlled_trade_preflight_v3 import FirstControlledTradePreflightV3
 
 
 def admission_not_composed():
@@ -27,6 +29,7 @@ class SimNativeFinancialRuntimeServiceV3:
         self._integration = None
         self._projection = None
         self._configuration = None
+        self._first_trade_preflight = None
         self._diagnostic = SimNativeFinancialDiagnosticV3()
         self._view = self.unavailable()
         self.cadence_seconds = None
@@ -86,6 +89,11 @@ class SimNativeFinancialRuntimeServiceV3:
                         recovery_timeout_us=policy.recovery_timeout_us)
                 with stage("CONFIG_VERIFY"):
                     self._verify()  # No financial writes before verified config.
+                evidence = SimNativeAdmissionRuntimeEvidenceV3(runtime=self._runtime,
+                    configuration=self._configuration, policy=policy, clock=lambda: self.clock())
+                self._runtime.lifecycle.native_admission_producer_v3.runtime_evidence = evidence
+                self._first_trade_preflight = FirstControlledTradePreflightV3(
+                    evidence=evidence, read_financial=self.get_snapshot)
                 with stage("CHECKPOINT_START"):
                     self._safe_checkpoint_paths()
                     self._runtime.store.start()
@@ -130,6 +138,14 @@ class SimNativeFinancialRuntimeServiceV3:
                 self._record_failure(exc)
                 self._integration = None
                 self._runtime.store._durability.release()
+
+    def get_first_trade_preflight(self):
+        # Serialization with the owner prevents a concurrent financial observation
+        # from changing quiescence during this read. No ingestion/admission here.
+        with self._lock:
+            if self._first_trade_preflight is None:
+                return FirstControlledTradePreflightV3.unavailable()
+            return self._first_trade_preflight.get_snapshot()
 
     def _safe_checkpoint_paths(self):
         path = self._runtime.store.account_namespace

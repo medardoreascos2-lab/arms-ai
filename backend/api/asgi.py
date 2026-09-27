@@ -134,7 +134,11 @@ def create_asgi_app(
 
         def child_application(runtime, manager, directory):
             child = AccountRuntimeCoordinatorV2._application(runtime, manager, directory)
-            child.include_router(create_sim_native_financial_router_v3(read_native_financial))
+            def read_native_preflight():
+                from backend.services.first_controlled_trade_preflight_v3 import FirstControlledTradePreflightV3
+                service = holder.get("service")
+                return service.get_first_trade_preflight() if service is not None else FirstControlledTradePreflightV3.unavailable()
+            child.include_router(create_sim_native_financial_router_v3(read_native_financial, read_native_preflight))
             return child
 
         coordinator = AccountRuntimeCoordinatorV2(

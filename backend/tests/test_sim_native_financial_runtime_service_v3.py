@@ -76,7 +76,7 @@ def test_no_operation_is_durable_and_get_has_no_side_effects(environment):
         owner = svc._runtime
         svc.start()
         assert svc._runtime is owner
-        with pytest.raises(RuntimeError, match="ADMISSION_NOT_COMPOSED"):
+        with pytest.raises(RuntimeError, match="ADMISSION_EVIDENCE_UNAVAILABLE"):
             owner.lifecycle.native_admission_producer_v3.runtime_evidence()
     finally:
         svc.stop(); svc.stop()
