@@ -297,8 +297,8 @@ class NativeSimFinancialCheckpointV3(ExecutionStateStoreV2):
             for value in observations.values():
                 role, price, order_id = execution_values(value)
                 if (phase.get("order_id." + role) != order_id or phase.get("entry_filled") != "1"
-                        or (role == "RECOVERY_CLOSE" and phase.get("flatten_intent") != "1")
-                        or (role != "RECOVERY_CLOSE" and phase.get("submit." + role) != "1")
+                        or phase.get("submit." + role) != "1"
+                        or (role == "RECOVERY_CLOSE" and phase.get("recovery_id") != "a3." + self.admission_digest[:32] + ".R")
                         or (role != "ENTRY" and phase.get("exit_filled") != "1")):
                     raise ValueError("native execution/order/operation evidence mismatch")
             if any(observations.get(k) != v for k, v in self._native["executions"].items()):

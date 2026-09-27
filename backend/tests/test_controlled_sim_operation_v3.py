@@ -157,15 +157,17 @@ def test_protection_rejection_is_explicit(binary, tmp_path, mode):
 def test_adverse_fill_never_widens_or_replaces_stop(binary, tmp_path, mode):
     result = run(binary, tmp_path, mode)
     assert result["status"] == "ADVERSE_FILL_RECOVERY_REQUIRED"
-    assert result["create"] == result["submit"] == 1 and result["flatten"] == 1
+    assert result["create"] == result["submit"] == 2 and result["flatten"] == 0
+    assert result["orders"][-1]["role"] == "RECOVERY_CLOSE"
 
 
 @pytest.mark.parametrize("mode", ["timeout", "cancel_race", "duplicate_recovery", "already_flat", "recovery_disconnect"])
 def test_recovery_is_idempotent_and_waits_for_terminal_evidence(binary, tmp_path, mode):
     result = run(binary, tmp_path, mode)
     assert result["cancel"] == 1
-    assert result["flatten"] == (0 if mode in {"already_flat", "recovery_disconnect"} else 1)
-    assert result["create"] == result["submit"] == 3
+    assert result["flatten"] == 0
+    assert result["create"] == result["submit"] == (3 if mode in {"already_flat", "recovery_disconnect", "cancel_race"} else 4)
+    if mode == "cancel_race": assert result["status"] == "RECONCILIATION_REQUIRED"
     assert result["status"] != "COMPLETED"  # no financial checkpoint receipt
 
 

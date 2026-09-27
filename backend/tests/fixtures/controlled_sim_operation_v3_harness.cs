@@ -98,7 +98,7 @@ internal static class ControlledSimHarness
                 if(mode=="recovery_disconnect") account.State.Connected=false;
                 if(mode=="already_flat") account.State.PositionQuantity=0;
                 account.State.ActiveOrderNames=new string[0];
-                operation.Tick(); // absent orders without terminal callbacks must NOT flatten
+                if(mode=="cancel_race") operation.Tick(); // Missing terminal proof requires reconciliation, never a guessed close.
                 operation.OrderUpdate("PROTECTIVE_STOP","Cancelled","stop-native");
                 operation.OrderUpdate("PROFIT_TARGET","Cancelled","target-native");
                 operation.Tick();operation.Tick();

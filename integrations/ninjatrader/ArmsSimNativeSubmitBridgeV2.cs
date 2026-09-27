@@ -13,7 +13,7 @@ using NinjaTrader.NinjaScript;
 
 namespace NinjaTrader.NinjaScript.Indicators
 {
-    public class ArmsSimNativeSubmitBridgeV2 : Indicator
+    public partial class ArmsSimNativeSubmitBridgeV2 : Indicator
     {
         private const string SIM_EXECUTION_AUTHORITY = "DISABLED";
         private const bool EXTERNAL_ORDER_AUTHORITY = false;
@@ -431,6 +431,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 runtimeSnapshotHeartbeatTerminated = true;
                 StopRuntimeSnapshotHeartbeat();
+                DisposeControlledV3();
 
                 if (selectedAccount != null)
                 {
@@ -652,6 +653,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private void AttemptOneShotSubmit()
         {
+            if (controlledKey != null) { AttemptControlledV3(); return; }
             ValidateSelectedAccount();
 
             if (submitAttempted)
@@ -2529,113 +2531,117 @@ namespace NinjaTrader.NinjaScript.Indicators
                     activeOrders.Add(order);
             }
 
-            int nonFlatPositions = 0;
-
-            foreach (
-                Position position
-                in selectedAccount.Positions
-            )
-            {
-                if (
-                    position == null
-                    || position.Instrument == null
-                    || !ReferenceEquals(
-                        position.Instrument,
-                        instrument
-                    )
-                )
-                    continue;
-
-                if (
-                    position.MarketPosition
-                    != MarketPosition.Flat
-                )
-                {
-                    nonFlatPositions++;
-                }
-            }
-
-            if (nonFlatPositions > 1)
-            {
-                throw new InvalidOperationException(
-                    "Target instrument position state is ambiguous."
-                );
-            }
-
-            bool targetAlreadyFlat =
-                nonFlatPositions == 0;
-
-            if (targetAlreadyFlat)
-            {
-                Print(
-                    "Target instrument already flat."
-                );
-
-                Print(
-                    "ARMS_SIM_EMERGENCY_ALREADY_FLAT_NO_MUTATION "
-                    + "instrument="
-                    + InstrumentName.Trim()
-                );
-            }
-
-            // One-shot latch is set before any native mutation.
-            // No automatic retry is allowed after this point.
+            // Manual/operator only; controlled recovery uses a named order.
+            if (controlledOperation != null)
+                throw new InvalidOperationException("Controlled operation requires named recovery.");
             emergencyFlattenAttempted = true;
-
             ConsumeEmergencyFlattenActivation();
-
-            // R48U hard stop:
-            // account/order/position state may be inspected,
-            // but Cancel/Flatten remain unreachable.
             if (!NATIVE_EMERGENCY_FLATTEN_ENABLED)
-            {
-                throw new InvalidOperationException(
-                    "Native SIM emergency flatten remains disabled."
-                );
-            }
-
+                throw new InvalidOperationException("Native SIM emergency flatten remains disabled.");
+            manualEmergencyOrders = activeOrders;
+            emergencyFlattenInstrumentName = InstrumentName.Trim();
+            // Baseline is only a reconciliation ledger, never a completion
+            // decision. Fresh position state must agree with subsequent fills.
+            lock (selectedAccount.Executions)
+                foreach (Execution execution in selectedAccount.Executions)
+                    if (execution.Order != null && execution.Order.Instrument != null && execution.Order.Instrument.FullName == emergencyFlattenInstrumentName)
+                    {
+                        manualKnownExecutions[execution.ExecutionId] = ManualExecutionQuantity(execution);
+                        // An affected order filled before the baseline settled.
+                        // The position collection may still show its older FLAT
+                        // value; do not claim a coherent starting ledger.
+                        if (manualEmergencyOrders.Contains(execution.Order)) manualBaselineUncertain = true;
+                    }
+            lock (selectedAccount.Positions)
+                foreach (Position position in selectedAccount.Positions)
+                    if (position.Instrument != null && position.Instrument.FullName == emergencyFlattenInstrumentName)
+                        manualExpectedPosition += position.MarketPosition == MarketPosition.Long ? position.Quantity : position.MarketPosition == MarketPosition.Short ? -position.Quantity : 0;
+            emergencyFlattenAwaitingConfirmation = true;
+            StartControlledService();
+            Print("ARMS_SIM_EMERGENCY_FLATTEN_PENDING_CONFIRMATION instrument=" + emergencyFlattenInstrumentName);
             if (activeOrders.Count > 0)
             {
-                Print(
-                    "ARMS_SIM_EMERGENCY_CANCEL_CALL "
-                    + "instrument="
-                    + InstrumentName.Trim()
-                    + " count="
-                    + activeOrders.Count
-                );
-
-                selectedAccount.Cancel(
-                    activeOrders
-                );
+                Print("ARMS_SIM_EMERGENCY_CANCEL_CALL instrument=" + emergencyFlattenInstrumentName + " count=" + activeOrders.Count);
+                selectedAccount.Cancel(activeOrders);
             }
+            AdvanceManualEmergencyRecovery();
+        }
 
-            if (targetAlreadyFlat)
-                return;
-
-            emergencyFlattenInstrumentName =
-                InstrumentName.Trim();
-
-            emergencyFlattenAwaitingConfirmation =
-                true;
-
-            Print(
-                "ARMS_SIM_EMERGENCY_FLATTEN_PENDING_CONFIRMATION "
-                + "instrument="
-                + emergencyFlattenInstrumentName
-            );
-
-            Print(
-                "ARMS_SIM_EMERGENCY_FLATTEN_CALL "
-                + "instrument="
-                + emergencyFlattenInstrumentName
-            );
-
-            selectedAccount.Flatten(
-                new List<NinjaTrader.Cbi.Instrument>
+        private readonly object manualEmergencySync = new object();
+        private List<Order> manualEmergencyOrders = new List<Order>();
+        private bool manualFlattenIntent;
+        private readonly Dictionary<string, int> manualKnownExecutions = new Dictionary<string, int>(StringComparer.Ordinal);
+        private int manualExpectedPosition;
+        private bool manualBaselineUncertain;
+        private static int ManualExecutionQuantity(Execution execution)
+        {
+            if (string.IsNullOrEmpty(execution.ExecutionId) || execution.Quantity <= 0)
+                throw new InvalidOperationException("Invalid manual execution identity/quantity.");
+            return execution.Order.OrderAction == OrderAction.Buy || execution.Order.OrderAction == OrderAction.BuyToCover ? execution.Quantity : -execution.Quantity;
+        }
+        private void AdvanceManualEmergencyRecovery()
+        {
+            lock (manualEmergencySync)
+            {
+                if (!emergencyFlattenAwaitingConfirmation) return;
+                ValidateSelectedAccount();
+                if (manualBaselineUncertain)
+                { Print("ARMS_SIM_EMERGENCY_RECONCILIATION_REQUIRED baseline_position_unproven"); return; }
+                if (!NATIVE_EMERGENCY_FLATTEN_ENABLED || selectedAccount.ConnectionStatus != ConnectionStatus.Connected)
+                    return;
+                foreach (Order order in manualEmergencyOrders)
                 {
-                    instrument
+                    if (!ControlledTerminal(order.OrderState)) return;
+                    int reconciled = 0;
+                    var ids = new Dictionary<string, int>(StringComparer.Ordinal);
+                    lock (selectedAccount.Executions)
+                        foreach (Execution execution in selectedAccount.Executions)
+                            if (ReferenceEquals(execution.Order, order))
+                            {
+                                int prior;
+                                if (ids.TryGetValue(execution.ExecutionId, out prior))
+                                { if (prior != execution.Quantity) throw new InvalidOperationException("Conflicting manual recovery evidence."); }
+                                else { ids.Add(execution.ExecutionId, execution.Quantity); reconciled += execution.Quantity; }
+                            }
+                    if (reconciled != order.Filled) return;
                 }
-            );
+                lock (selectedAccount.Orders)
+                    foreach (Order order in selectedAccount.Orders)
+                        if (order.Instrument != null && order.Instrument.FullName == emergencyFlattenInstrumentName && !ControlledTerminal(order.OrderState))
+                            return;
+                lock (selectedAccount.Executions)
+                    foreach (Execution execution in selectedAccount.Executions)
+                        if (execution.Order != null && execution.Order.Instrument != null && execution.Order.Instrument.FullName == emergencyFlattenInstrumentName)
+                        {
+                            int prior, signed = ManualExecutionQuantity(execution);
+                            if (manualKnownExecutions.TryGetValue(execution.ExecutionId, out prior))
+                            { if (prior != signed) throw new InvalidOperationException("Conflicting manual execution."); }
+                            else { manualKnownExecutions.Add(execution.ExecutionId, signed); manualExpectedPosition += signed; }
+                        }
+                Position remaining = null;
+                lock (selectedAccount.Positions)
+                    foreach (Position position in selectedAccount.Positions)
+                        if (position.Instrument != null && position.Instrument.FullName == emergencyFlattenInstrumentName && position.MarketPosition != MarketPosition.Flat)
+                        {
+                            if (remaining != null) throw new InvalidOperationException("Ambiguous manual recovery position.");
+                            remaining = position;
+                        }
+                int freshQuantity = remaining == null ? 0 : remaining.MarketPosition == MarketPosition.Long ? remaining.Quantity : -remaining.Quantity;
+                if (freshQuantity != manualExpectedPosition) return; // Position callback still lags fills.
+                if (remaining == null)
+                {
+                    emergencyFlattenAwaitingConfirmation = false;
+                    Print("Target instrument already flat.");
+                    if (manualEmergencyOrders.Count == 0 && !manualFlattenIntent)
+                        Print("ARMS_SIM_EMERGENCY_ALREADY_FLAT_NO_MUTATION instrument=" + emergencyFlattenInstrumentName);
+                    Print("ARMS_SIM_EMERGENCY_FLATTEN_CONFIRMED instrument=" + emergencyFlattenInstrumentName + " market_position=Flat unresolved_orders=0");
+                    return;
+                }
+                if (manualFlattenIntent) return;
+                manualFlattenIntent = true;
+                Print("ARMS_SIM_EMERGENCY_FLATTEN_CALL instrument=" + emergencyFlattenInstrumentName);
+                selectedAccount.Flatten(new List<NinjaTrader.Cbi.Instrument> { remaining.Instrument });
+            }
         }
 
         private void ValidateFlatPreflight(
@@ -2989,14 +2995,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             )
                 return;
 
-            emergencyFlattenAwaitingConfirmation = false;
-
-            Print(
-                "ARMS_SIM_EMERGENCY_FLATTEN_CONFIRMED "
-                + "instrument="
-                + emergencyFlattenInstrumentName
-                + " market_position=Flat"
-            );
+            ScheduleControlledReconciliation();
         }
 
         private void OnNativeOrderUpdate(
@@ -3022,6 +3021,10 @@ namespace NinjaTrader.NinjaScript.Indicators
                 )
             )
                 return;
+
+            if (order.Instrument != null && order.Instrument.FullName == InstrumentName)
+                QueueControlledOrder(order);
+            ScheduleControlledReconciliation();
 
             string orderId =
                 order.OrderId ?? string.Empty;
@@ -3099,6 +3102,10 @@ namespace NinjaTrader.NinjaScript.Indicators
                 )
             )
                 return;
+
+            if (execution.Order != null && execution.Order.Instrument != null && execution.Order.Instrument.FullName == InstrumentName)
+                QueueControlledExecution(execution);
+            ScheduleControlledReconciliation();
 
             string executionId =
                 execution.ExecutionId

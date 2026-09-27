@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 154,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 154,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 157,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 157,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -7405,7 +7405,7 @@
       "path": "backend/services/sim_native_financial_checkpoint_v3.py",
       "function": "NativeSimFinancialCheckpointV3.apply_phase",
       "input": "self, wire: bytes",
-      "source_sha256": "761278a4211725e5f0ec95fba54a9589e8323dae862d9955c6bff1474eff98fb",
+      "source_sha256": "aec53a2ff41f42c3becf682635c9ad613ab6883b02be5de666223d0bf987cf34",
       "writes": [],
       "calls": [
         "Decimal",
@@ -7475,6 +7475,136 @@
         "Bound SIM_NATIVE canonical account, portfolio and journal",
         "Durable financial checkpoint",
         "Dashboard outbox after commit"
+      ]
+    },
+    {
+      "id": "backend/services/sim_native_integration_v3.py:NativeSimIntegrationV3.submit_signal",
+      "owner": "NativeSimIntegrationV3 delegates only to isolated canonical SIM_NATIVE owners",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Authenticated native evidence application or post-commit dashboard projection; no SDK authority",
+      "mutates_fill_state": false,
+      "mutates_position_state": false,
+      "mutates_portfolio": false,
+      "mutates_account_pnl": false,
+      "mutates_journal": false,
+      "mutates_history": false,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "Explicit NativeSimRuntimeV3.integration facade"
+      ],
+      "caller_evidence": "Phase 5R compiled bridge to durable financial checkpoint and restart tests",
+      "downstream_consumers": [
+        "Bound native financial checkpoint",
+        "Canonical journal and portfolio",
+        "Post-commit dashboard outbox"
+      ],
+      "path": "backend/services/sim_native_integration_v3.py",
+      "function": "NativeSimIntegrationV3.submit_signal",
+      "input": "self, **request",
+      "source_sha256": "4f4d2fce721db96cea40f462738b8d21108a3ad7797c91c4a2623af9b850a2d8",
+      "writes": [],
+      "calls": [
+        "result.get",
+        "self.publish_admitted",
+        "self.runtime.lifecycle.submit_signal"
+      ],
+      "output_fields": []
+    },
+    {
+      "id": "backend/services/sim_native_integration_v3.py:NativeSimIntegrationV3.reconcile",
+      "owner": "NativeSimIntegrationV3 delegates only to isolated canonical SIM_NATIVE owners",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Authenticated native evidence application or post-commit dashboard projection; no SDK authority",
+      "mutates_fill_state": true,
+      "mutates_position_state": true,
+      "mutates_portfolio": true,
+      "mutates_account_pnl": true,
+      "mutates_journal": true,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "Explicit NativeSimRuntimeV3.integration facade"
+      ],
+      "caller_evidence": "Phase 5R compiled bridge to durable financial checkpoint and restart tests",
+      "downstream_consumers": [
+        "Bound native financial checkpoint",
+        "Canonical journal and portfolio",
+        "Post-commit dashboard outbox"
+      ],
+      "path": "backend/services/sim_native_integration_v3.py",
+      "function": "NativeSimIntegrationV3.reconcile",
+      "input": "self",
+      "source_sha256": "c663b67a0cc33601774790d153203f60df7029e691b326f3f298a1b79b317fee",
+      "writes": [],
+      "calls": [
+        "ValueError",
+        "any",
+        "enumerate",
+        "int",
+        "k.startswith",
+        "native_phase",
+        "path.read_bytes",
+        "phase.get",
+        "phase.items",
+        "self._create",
+        "self.phase_directory.glob",
+        "sorted",
+        "store._native['executions'].get",
+        "store.apply_phase",
+        "store.binding.assert_claims",
+        "store.publish_pending"
+      ],
+      "output_fields": []
+    },
+    {
+      "id": "backend/services/sim_native_integration_v3.py:NativeSimIntegrationV3._publish_dashboard",
+      "owner": "NativeSimIntegrationV3 delegates only to isolated canonical SIM_NATIVE owners",
+      "classification": "OBSERVATIONAL_PROJECTION",
+      "output": "Authenticated native evidence application or post-commit dashboard projection; no SDK authority",
+      "mutates_fill_state": false,
+      "mutates_position_state": false,
+      "mutates_portfolio": false,
+      "mutates_account_pnl": false,
+      "mutates_journal": false,
+      "mutates_history": false,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "Explicit NativeSimRuntimeV3.integration facade"
+      ],
+      "caller_evidence": "Phase 5R compiled bridge to durable financial checkpoint and restart tests",
+      "downstream_consumers": [
+        "Bound native financial checkpoint",
+        "Canonical journal and portfolio",
+        "Post-commit dashboard outbox"
+      ],
+      "path": "backend/services/sim_native_integration_v3.py",
+      "function": "NativeSimIntegrationV3._publish_dashboard",
+      "input": "self, *, event_id, event",
+      "source_sha256": "56d6105e8a165cca9057a47127ae9e9f9936602397c54da40060d01cd78a1a73",
+      "writes": [],
+      "calls": [
+        "RuntimeError",
+        "execution_values",
+        "next",
+        "publish",
+        "result.get",
+        "store._native['executions'].values",
+        "store._position",
+        "store.trade_lifecycle_service.portfolio_manager_v2.capture_risk_state",
+        "store.trade_lifecycle_service.portfolio_manager_v2.get_closed_positions"
+      ],
+      "output_fields": [
+        "event_id",
+        "execution_domain",
+        "order_role",
+        "portfolio",
+        "position_id"
       ]
     }
   ],

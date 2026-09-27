@@ -179,6 +179,12 @@ class NativeSimRuntimeV3:
     store: NativeSimFinancialCheckpointV3
     manager: object
 
+    def integration(self, *, spool, activation_directory, phase_directory, receipt_directory, event_bus):
+        """Explicit write/reconciliation facade; never mounted on a read endpoint."""
+        from backend.services.sim_native_integration_v3 import NativeSimIntegrationV3
+        return NativeSimIntegrationV3(runtime=self, spool=spool, activation_directory=activation_directory,
+            phase_directory=phase_directory, receipt_directory=receipt_directory, event_bus=event_bus)
+
 
 def build_native_sim_runtime(*, binding: SimNativeAccountV3, namespace_root, authority_key: bytes,
                              runtime_evidence, protection_timeout_us: int, recovery_timeout_us: int,

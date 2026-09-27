@@ -313,6 +313,13 @@ def test_clock_inventory_extension_preserves_every_prior_assessment_field():
         'consequence':'DISABLED_SIM_NATIVE_ADMISSION_USES_CANONICAL_RUNTIME_CLOCK; NO_EXTERNAL_CLOCK_AUTHORITY_OR_NATIVE_SUBMIT',
         'calls':[{'line':131,'call':'admission.clock','authority':'HOST_WALL_OR_INJECTED_CLOCK'}]}
     review['direct_clock_dependencies'].remove(native_admission)
+    # Phase 5R rechecks that same clock at authenticated command publication;
+    # it does not retroactively extend this historical certificate.
+    native_publication,=[row for row in review['direct_clock_dependencies']
+                         if row['path']=='backend/services/sim_native_integration_v3.py']
+    assert native_publication['introduced_by']=='SIM_E2E_PHASE5R'
+    assert [call['call'] for call in native_publication['calls']]==['self.runtime.lifecycle.runtime_admission_v2.clock']
+    review['direct_clock_dependencies'].remove(native_publication)
     lifecycle,=[row for row in review['direct_clock_dependencies']
                 if row['path']=='backend/services/trade_lifecycle_service_v2.py']
     shifted,=[call for call in lifecycle['calls'] if call['call']=='datetime.now']

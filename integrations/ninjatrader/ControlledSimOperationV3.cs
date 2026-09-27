@@ -1,5 +1,4 @@
-// Offline state model for future integration into ArmsSimNativeSubmitBridgeV2.
-// Not wired into the SDK owner by this backend account-authority package.
+// Durable operation model consumed only by the existing Account bridge.
 // No NinjaTrader SDK, account discovery, network, or ambient execution authority.
 using System;
 using System.Collections.Generic;
@@ -37,7 +36,6 @@ namespace Arms.NativeSim
         object Create(ControlledOrderV3 order);
         void Submit(object order);
         void Cancel(string[] names);
-        void Flatten(string instrument);
     }
 
     public sealed class ControlledAdmissionV3
@@ -167,15 +165,47 @@ namespace Arms.NativeSim
         private string Prefix { get { return "a3."+admission.Digest.Substring(0,32); } }
         public string OrderName(string role)
         {
-            string suffix=role=="ENTRY"?"E":role=="PROTECTIVE_STOP"?"S":role=="PROFIT_TARGET"?"T":null;
+            string suffix=role=="ENTRY"?"E":role=="PROTECTIVE_STOP"?"S":role=="PROFIT_TARGET"?"T":role=="RECOVERY_CLOSE"?"R":null;
             if(suffix==null) throw new InvalidDataException("Unknown controlled order role.");
             return Prefix+"."+suffix;
         }
         public string RoleForName(string name)
         {
-            foreach(string role in new[]{"ENTRY","PROTECTIVE_STOP","PROFIT_TARGET"})
+            foreach(string role in new[]{"ENTRY","PROTECTIVE_STOP","PROFIT_TARGET","RECOVERY_CLOSE"})
                 if(OrderName(role)==name) return role;
             return null;
+        }
+        public void UnassignedEvidence()
+        { lock(sync) { Recover("RECONCILIATION_REQUIRED"); } }
+        public bool HasExecution(string executionId)
+        { lock(sync) { return Get("execution."+executionId)!=""; } }
+        private static string BaselineKey(string id)
+        { using(var sha=SHA256.Create()) return "baseline_execution."+ControlledAdmissionV3.Hex(sha.ComputeHash(Encoding.UTF8.GetBytes(id))); }
+        public void RecordExecutionBaseline(IEnumerable<string> ids)
+        {
+            lock(sync)
+            {
+                if(Get("consumed")=="1" || Get("status")!="ADMITTED" || Get("baseline_recorded")=="1")
+                    throw new InvalidDataException("Execution baseline cannot change after admission.");
+                foreach(string id in ids)
+                { if(string.IsNullOrEmpty(id)) throw new InvalidDataException("Missing baseline execution identity."); state[BaselineKey(id)]=id; }
+                state["baseline_recorded"]="1"; Save("EXECUTION_BASELINE");
+            }
+        }
+        public bool IsBaselineExecution(string id)
+        { lock(sync) { return !string.IsNullOrEmpty(id) && Get(BaselineKey(id))==id; } }
+        public bool MatchesOrderIdentity(string name, string nativeId)
+        { lock(sync) { string role=RoleForName(name); return role!=null && !string.IsNullOrEmpty(nativeId) && Get("order_id."+role)==nativeId; } }
+        public void BindCreatedOrder(string role, string nativeId)
+        {
+            lock(sync)
+            {
+                OrderName(role);
+                if(Get("create."+role)!="1" || string.IsNullOrEmpty(nativeId) ||
+                    (Get("order_id."+role)!="" && Get("order_id."+role)!=nativeId))
+                    throw new InvalidDataException("Unverifiable created native identity.");
+                state["order_id."+role]=nativeId; Save("NATIVE_ORDER_BOUND");
+            }
         }
         public ControlledOperationV3(ControlledAdmissionV3 admission, IControlledAccountV3 account,
             Func<long> clock, byte[] trustedKey, string directory, string instrument)
@@ -210,9 +240,11 @@ namespace Arms.NativeSim
                     state["status"]="ADMITTED";
                     Save("ADMITTED");
                 }
-                else if(Get("consumed")=="1" && Get("status")!="COMPLETED")
+                else if(Get("consumed")=="1" && Get("status")!="COMPLETED" && Get("status")!="RECOVERY_COMPLETE")
                 {
-                    if(Get("entry_filled")=="1" && Get("exit_filled")!="1")
+                    if(Get("create.RECOVERY_CLOSE")=="1" && Get("exit_filled")!="1")
+                    { state["status"]="RECONCILIATION_REQUIRED"; Save("RESTART_RECOVERY_UNKNOWN"); }
+                    else if(Get("entry_filled")=="1" && Get("exit_filled")!="1")
                         Recover("PROTECTION_RECOVERY_REQUIRED");
                     else if(Get("submit.ENTRY")=="1" && Get("entry_filled")!="1")
                     { state["status"]="UNKNOWN_SUBMIT_OUTCOME"; Save("RESTART_UNKNOWN"); }
@@ -276,7 +308,7 @@ namespace Arms.NativeSim
                     throw new InvalidDataException("Native account authority changed.");
             }
             if(snapshot==null || snapshot.Account!="Sim101" || snapshot.Provider!="Simulator" ||
-                snapshot.Instrument!=instrument || snapshot.Generation!=admission.Number("runtime_generation") ||
+                snapshot.Instrument!=instrument || snapshot.Generation!=admission.Number("runtime_generation") || snapshot.RiskVersion!=admission["risk_version"] ||
                 snapshot.ActiveOrderNames==null || !snapshot.Connected ||
                 snapshot.ObservedUs>now || now-snapshot.ObservedUs>admission.Number("max_runtime_age_us") ||
                 snapshot.PositionQuantity<0 || snapshot.PositionQuantity>1 ||
@@ -317,21 +349,28 @@ namespace Arms.NativeSim
         private void SubmitRole(string role, decimal price)
         {
             if(Get("create."+role)=="1") throw new InvalidOperationException("Native role already attempted.");
-            state["create."+role]="1"; Save(role=="ENTRY"?"CREATE_INTENT":"CREATE_INTENT_"+role);
+            state["create."+role]="1"; Save(role=="ENTRY"?"CREATE_INTENT":role=="RECOVERY_CLOSE"?"RECOVERY_CREATE_INTENT":"CREATE_INTENT_"+role);
             var order=new ControlledOrderV3 { Role=role,Name=OrderName(role),Instrument=instrument,Quantity=1,
-                Type=role=="ENTRY"?"MARKET":role=="PROTECTIVE_STOP"?"STOP_MARKET":"LIMIT",
+                Type=role=="ENTRY" || role=="RECOVERY_CLOSE"?"MARKET":role=="PROTECTIVE_STOP"?"STOP_MARKET":"LIMIT",
                 Action=role=="ENTRY"?admission["side"]:admission["side"]=="BUY"?"SELL":"BUY_TO_COVER",
-                Oco=role=="ENTRY"?"":Prefix+".O",Price=price };
+                Oco=role=="ENTRY" || role=="RECOVERY_CLOSE"?"":Prefix+".O",Price=price };
             object native=account.Create(order);
             if(native==null) throw new InvalidOperationException("Native creation returned no order.");
-            state["created."+role]="1"; Save(role=="ENTRY"?"CREATED":"CREATED_"+role);
-            state["submit."+role]="1"; Save(role=="ENTRY"?"SUBMIT_INTENT":"SUBMIT_INTENT_"+role);
+            state["created."+role]="1"; Save(role=="ENTRY"?"CREATED":role=="RECOVERY_CLOSE"?"RECOVERY_CREATED":"CREATED_"+role);
+            state["submit."+role]="1"; Save(role=="ENTRY"?"SUBMIT_INTENT":role=="RECOVERY_CLOSE"?"RECOVERY_SUBMIT_INTENT":"SUBMIT_INTENT_"+role);
             account.Submit(native);
-            Save(role=="ENTRY"?"SUBMIT_RETURNED":"SUBMIT_RETURNED_"+role);
+            Save(role=="ENTRY"?"SUBMIT_RETURNED":role=="RECOVERY_CLOSE"?"RECOVERY_SUBMIT_RETURNED":"SUBMIT_RETURNED_"+role);
         }
         private void Recover(string reason)
         {
+            // A later Cancelled/Rejected label must not clear a contradictory
+            // identity/ownership fence and silently re-enable automatic recovery.
+            bool newFence=reason=="RECONCILIATION_REQUIRED" && Get("reconciliation_fence")!="1";
+            if(reason=="RECONCILIATION_REQUIRED") state["reconciliation_fence"]="1";
+            if(Get("reconciliation_fence")=="1") reason="RECONCILIATION_REQUIRED";
+            if(!newFence && Get("status")==reason && Get("recovery_started_us")!="") return;
             state["status"]=reason;
+            state["recovery_id"]=OrderName("RECOVERY_CLOSE");
             if(Get("recovery_started_us")=="") state["recovery_started_us"]=Now.ToString(CultureInfo.InvariantCulture);
             Save(reason);
         }
@@ -353,7 +392,8 @@ namespace Arms.NativeSim
                 }
                 if(Get("order_id."+role)!="" && Get("order_id."+role)!=nativeOrderId)
                 { Recover("RECONCILIATION_REQUIRED"); return; }
-                if(quantity!=1 || price<=0 || (role=="RECOVERY_CLOSE"?Get("flatten_intent")!="1":Get("submit."+role)!="1") ||
+                if(quantity!=1 || price<=0 || Get("submit."+role)!="1" ||
+                    (role=="RECOVERY_CLOSE" && Get("recovery_id")!=OrderName(role)) ||
                     (role=="ENTRY" && Get("entry_filled")=="1") ||
                     (role!="ENTRY" && (Get("entry_filled")!="1" || Get("exit_filled")=="1")))
                 { Recover("RECONCILIATION_REQUIRED"); return; }
@@ -383,12 +423,12 @@ namespace Arms.NativeSim
                 {
                     state["exit_filled"]="1"; state["exit_price"]=price.ToString(CultureInfo.InvariantCulture);
                     state["status"]="EXIT_RECONCILIATION_REQUIRED";
-                    Save("NATIVE_EVIDENCE");
+                    Save(role=="RECOVERY_CLOSE"?"RECOVERY_NATIVE_EVIDENCE":"NATIVE_EVIDENCE");
                     Recover("EXIT_RECONCILIATION_REQUIRED");
                 }
             }
         }
-        public void OrderUpdate(string role, string status, string nativeOrderId)
+        public void OrderUpdate(string role, string status, string nativeOrderId, int filled = 0)
         {
             lock(sync)
             {
@@ -397,13 +437,18 @@ namespace Arms.NativeSim
                 if(Get("order_id."+role)!="" && Get("order_id."+role)!=nativeOrderId)
                 { Recover("RECONCILIATION_REQUIRED"); return; }
                 state["order_id."+role]=nativeOrderId;
-                if(!new[]{"Initialized","Submitted","Accepted","Working","PartFilled","Filled","Cancelled","Rejected"}.Contains(status))
+                if(filled<0 || filled>1) { Recover("RECONCILIATION_REQUIRED"); return; }
+                string priorFilled=Get("order_filled."+role);
+                if(filled==1 || status=="Filled") state["order_filled."+role]="1";
+                if(!new[]{"Initialized","Submitted","Accepted","Working","PartFilled","Filled","Cancelled","Rejected","CancelPending","CancelSubmitted","ChangePending","ChangeSubmitted","TriggerPending"}.Contains(status))
                 { Recover("RECONCILIATION_REQUIRED"); return; }
                 // Do not regress terminal observations when callbacks are reordered.
                 string previous=Get("order."+role);
+                if(previous==status && priorFilled==Get("order_filled."+role)) return;
                 if(previous=="Filled" || previous=="Cancelled" || previous=="Rejected")
                 {
-                    if(status==previous || new[]{"Initialized","Submitted","Accepted","Working","PartFilled"}.Contains(status)) return;
+                    if(status==previous || new[]{"Initialized","Submitted","Accepted","Working","PartFilled"}.Contains(status))
+                    { if(priorFilled!=Get("order_filled."+role)) Save("NATIVE_EVIDENCE"); return; }
                     Recover("RECONCILIATION_REQUIRED"); return;
                 }
                 state["order."+role]=status; Save("NATIVE_EVIDENCE");
@@ -424,46 +469,69 @@ namespace Arms.NativeSim
                 if(Get("status")=="EXPOSED_AWAITING_PROTECTION" &&
                     Now-long.Parse(Get("protection_started_us"),CultureInfo.InvariantCulture)>=admission.Number("protection_timeout_us"))
                     Recover("PROTECTION_RECOVERY_REQUIRED");
-                if(Get("consumed")!="1" || Get("status")=="COMPLETED") return;
+                if(Get("consumed")!="1" || Get("status")=="COMPLETED" || Get("status")=="RECOVERY_COMPLETE") return;
                 ControlledSnapshotV3 snapshot;
                 try { snapshot=FreshSnapshot(); }
                 catch { Recover("PROTECTION_RECOVERY_REQUIRED"); return; }
                 if(Get("status")=="PROTECTED" || Get("status")=="EXPOSED_AWAITING_PROTECTION") return;
-                if(Get("status")=="RECONCILIATION_REQUIRED") return;
+                if(Get("status")=="RECONCILIATION_REQUIRED" || Get("reconciliation_fence")=="1") return;
                 // Uncertain entry outcomes are evidence-only. They never authorize
                 // another entry or a directional flatten on an unproven position.
                 if(Get("entry_filled")!="1") return;
                 if(Get("recovery_started_us")=="") Recover("PROTECTION_RECOVERY_REQUIRED");
                 if(Now-long.Parse(Get("recovery_started_us"),CultureInfo.InvariantCulture)>=admission.Number("recovery_timeout_us"))
-                { state["status"]="RECOVERY_REQUIRED"; Save("RECOVERY_TIMEOUT"); return; }
+                { if(Get("status")!="RECOVERY_REQUIRED") {state["status"]="RECOVERY_REQUIRED"; Save("RECOVERY_TIMEOUT");} return; }
                 if(snapshot.ActiveOrderNames.Any(n=>RoleForName(n)==null))
                 { Recover("RECONCILIATION_REQUIRED"); return; }
+                if(Get("create.RECOVERY_CLOSE")=="1" && Get("exit_filled")!="1") return;
                 if(snapshot.ActiveOrderNames.Length>0)
                 {
+                    if(snapshot.ActiveOrderNames.Any(n=>RoleForName(n)!="PROTECTIVE_STOP" && RoleForName(n)!="PROFIT_TARGET"))
+                    { Recover("RECONCILIATION_REQUIRED"); return; }
                     if(Get("cancel_intent")!="1")
                     {
                         state["cancel_intent"]="1";
                         state["cancel_names"]=string.Join("|",snapshot.ActiveOrderNames.OrderBy(n=>n,StringComparer.Ordinal));
-                        Save("CANCEL_INTENT"); account.Cancel(snapshot.ActiveOrderNames);
+                        Save("CANCEL_REQUESTED");
+                        try { account.Cancel(snapshot.ActiveOrderNames); Save("CANCEL_RECONCILING"); }
+                        catch { Recover("RECONCILIATION_REQUIRED"); throw; }
                     }
                     return;
                 }
                 // A fresh empty inventory alone is insufficient if cancellation
                 // evidence is still unresolved. Incorporate executions first.
                 foreach(string name in Get("cancel_names").Split('|').Where(n=>n.Length>0))
-                    if(!new[]{"Cancelled","Filled","Rejected"}.Contains(Get("order."+RoleForName(name)))) return;
+                    if(!new[]{"Cancelled","Filled","Rejected"}.Contains(Get("order."+RoleForName(name))))
+                    { Recover("RECONCILIATION_REQUIRED"); return; }
+                // Missing inventory is not cancellation proof. A fill label (or
+                // cancelled order with a fill) must be reconciled to executions.
+                foreach(string role in new[]{"PROTECTIVE_STOP","PROFIT_TARGET"})
+                {
+                    if(Get("create."+role)=="1" && !new[]{"Cancelled","Filled","Rejected"}.Contains(Get("order."+role)))
+                    { Recover("RECONCILIATION_REQUIRED"); return; }
+                    if(Get("order_filled."+role)=="1" && !state.Any(p=>p.Key.StartsWith("execution.",StringComparison.Ordinal) && p.Value.StartsWith(role+"|",StringComparison.Ordinal)))
+                    { Recover("RECONCILIATION_REQUIRED"); return; }
+                }
                 snapshot=FreshSnapshot();
                 if(snapshot.ActiveOrderNames.Length!=0) return;
+                string positionEvidence=snapshot.PositionQuantity.ToString(CultureInfo.InvariantCulture)+"|"+snapshot.PositionSide;
+                if(Get("position_rechecked")!=positionEvidence)
+                { state["position_rechecked"]=positionEvidence; Save("POSITION_RECHECKED"); }
                 if(snapshot.PositionQuantity==1)
                 {
-                    if(Get("flatten_intent")!="1")
-                    { state["flatten_intent"]="1"; Save("FLATTEN_INTENT"); account.Flatten(instrument); }
+                    if(Get("exit_filled")=="1") { Recover("RECONCILIATION_REQUIRED"); return; }
+                    if(Get("create.RECOVERY_CLOSE")=="1") return;
+                    // FreshSnapshot already proves quantity, side, account and
+                    // generation against the authoritative entry execution.
+                    state["recovery_id"]=OrderName("RECOVERY_CLOSE");
+                    try { SubmitRole("RECOVERY_CLOSE",0m); }
+                    catch { Recover("RECONCILIATION_REQUIRED"); throw; }
                     return;
                 }
                 // The backend must attest durable financial reconciliation before
                 // a flat inventory can be declared financially complete.
                 if(Get("financial_complete")!="1") return;
-                state["status"]="COMPLETED"; Save("COMPLETED");
+                state["status"]="RECOVERY_COMPLETE"; Save("RECOVERY_COMPLETE");
             }
         }
         public void FinancialApplied(string admissionDigest, string executionsDigest, string checkpointDigest, string authenticator)
@@ -480,10 +548,11 @@ namespace Arms.NativeSim
                     !ControlledAdmissionV3.Equal(authenticator,ControlledAdmissionV3.Mac(key,
                         Encoding.UTF8.GetBytes("arms.native.financial.v3\0"+payload))))
                     throw new InvalidDataException("Unverifiable financial checkpoint receipt.");
-                if(Get("financial_checkpoint")==checkpointDigest) return;
+                if(Get("financial_executions")==executionsDigest) return;
                 state["financial_checkpoint"]=checkpointDigest;
+                state["financial_executions"]=executionsDigest;
                 state["financial_complete"]=Get("exit_filled")=="1"?"1":"0";
-                Save("FINANCIAL_APPLIED");
+                Save(Get("order_id.RECOVERY_CLOSE")!=""?"RECOVERY_FINANCIAL_APPLIED":"FINANCIAL_APPLIED");
             }
         }
         public void Dispose() { writer.Dispose(); Array.Clear(key,0,key.Length); }

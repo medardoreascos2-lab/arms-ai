@@ -379,7 +379,18 @@ def test_existing_tracked_sources_unchanged():
                'backend/services/trade_lifecycle_service_v2.py',
                'backend/tests/phase1_risk_authority_inventory_v5.py',
                'backend/tests/phase1_runtime_execution_inventory_v7.py',
-               'backend/tests/test_analysis_time_sprint15x.py'}
+               'backend/tests/test_analysis_time_sprint15x.py',
+               # Phase 5R reviewed SIM integration; historical exporter/core untouched.
+               'backend/services/sim_native_financial_checkpoint_v3.py',
+               'backend/services/sim_native_runtime_v3.py',
+               'backend/services/sim_native_integration_v3.py',
+               'backend/tests/phase1_financial_inventory_v6.py',
+               'backend/tests/test_controlled_sim_operation_v3.py',
+               'backend/tests/test_sim_native_integration_v3.py',
+               'backend/tests/fixtures/native_bridge_v3_harness.cs',
+               'backend/tests/fixtures/controlled_sim_operation_v3_harness.cs',
+               'integrations/ninjatrader/ControlledSimOperationV3.cs',
+               'integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.ControlledV3.cs'}
     assert set(checked(['git', 'diff', '--name-only']).stdout.splitlines()) <= allowed
     assert checked(['git', 'diff', '--cached', '--name-only']).stdout.strip() == ''
 

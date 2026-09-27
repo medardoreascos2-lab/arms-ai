@@ -34,9 +34,10 @@ EXECUTION = {
 }
 # Startup/recovery/publication and fill/mark handlers have non-order names.
 EXPLICIT = {
+    "backend/services/sim_native_integration_v3.py": {"submit_signal", "publish_admitted", "reconcile", "_publish_dashboard"},
+    "backend/services/sim_native_runtime_v3.py": {"_disabled", "produce", "validate_signal", "integration"},
     "backend/accounts/sim_native_account_v3.py": {"resolve", "assert_claims"},
     "backend/services/sim_admission_envelope_v3.py": {"issue", "persist"},
-    "backend/services/sim_native_runtime_v3.py": {"_disabled", "produce", "validate_signal"},
     "backend/services/sim_native_financial_checkpoint_v3.py": {"record_admission", "_restore_validated", "restore_state", "rollback_state", "start", "apply_phase", "receipt", "publish_pending"},
     "backend/backtesting/operational_paper_v1.py": {"_frame", "poll", "close", "get_snapshot", "_accepted_frame", "reconcile"},
     "backend/backtesting/operational_paper_soak_v1.py": {"main"},
