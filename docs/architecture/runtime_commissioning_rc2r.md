@@ -148,13 +148,43 @@ the installed .NET Framework `System.Security.dll` (normally
 `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\System.Security.dll`). This is a
 framework reference, not another deployed ARMS source or a new package. Compile
 and verify the resulting reference read-only with the gate. No installed
-project/reference is changed during this offline task. The automated check accepts
-only a plain unconditional `Reference Include="System.Security"` in an
-unconditional top-level `ItemGroup`. It does not evaluate MSBuild conditions:
-even a literal true condition requires review, and unknown conditions fail
-closed. Conditional ancestors, references inside targets/Choose branches,
-reference removal/update/exclusion operations, and redirection metadata such
-as HintPath or aliases fail closed. Malformed/unreadable project XML also fails.
+project/reference is changed during this offline task.
+
+RC3A-R1 read-only inspection captured this actual editor-generated subtree:
+
+```xml
+<Reference Include="System.Security"><HintPath>C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Security.dll</HintPath></Reference>
+```
+
+Its parent `ItemGroup` has no attributes; the root is `Project
+Sdk="Microsoft.NET.Sdk"`. Reference, parent, root and HintPath have no Condition.
+The prior blanket metadata rejection incorrectly rejected this framework path.
+
+The gate now requires exactly one unconditional System.Security reference in a
+top-level unconditional ItemGroup, with exactly one HintPath child. Missing or
+empty HintPath fails; the old bare-reference positive fixtures now use the
+observed editor form. All prior D3 negative cases remain enforced. No other
+metadata is allowed: Aliases, Private, SpecificVersion, EmbedInteropTypes,
+unknown attributes, extra children, nested nodes and conflicting or identical
+duplicate references fail closed. This exception applies only to System.Security.
+
+The approved DLL location is derived from `%WINDIR%`, under
+`Microsoft.NET\Framework64\v4.0.30319\System.Security.dll`. The gate requires
+that exact existing framework location and filename, rejects traversal,
+relative/UNC paths and reparse redirection, and inspects the assembly using the
+installed Windows PowerShell's metadata-only `AssemblyName.GetAssemblyName`.
+The identity must be `System.Security, Version=4.0.0.0, Culture=neutral,
+PublicKeyToken=b03f5f7f11d50a3a`. It does not load or execute the candidate assembly.
+An arbitrary copy of the genuine DLL in a repository, Custom or another
+directory is not approved. Missing files, unavailable metadata inspection and
+identity mismatches fail closed. The file and installed project remain read-only.
+
+Conditions are never evaluated: even literal true is outside the unconditional
+contract. Conditional references/ancestors/HintPath, references inside targets
+or Choose branches, and reference removal/update/exclusion operations fail.
+Errors distinguish missing reference, missing HintPath, conditional context,
+unapproved metadata/path, duplicates and invalid assembly identity; invalid
+metadata is not mislabeled as a missing reference. Malformed/unreadable XML fails.
 Native build evidence is still required; the static gate does not execute or
 claim to evaluate imported MSBuild targets.
 

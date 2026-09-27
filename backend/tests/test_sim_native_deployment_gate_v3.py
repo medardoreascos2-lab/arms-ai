@@ -1,13 +1,133 @@
 from pathlib import Path
 import hashlib
 import json
+import os
 import shutil
 
 import pytest
 
 from tools.sim_native_deployment_gate_v3 import SOURCES, main as gate_main, verify
+from tools import sim_native_deployment_gate_v3 as gate
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def editor_reference():
+    # Exact observed editor shape; Windows root is host-derived.
+    path = Path(os.environ["WINDIR"])/"Microsoft.NET/Framework64/v4.0.30319/System.Security.dll"
+    assert path.is_file()
+    return '<Reference Include="System.Security"><HintPath>' + str(path) + '</HintPath></Reference>'
+
+
+def test_exact_editor_hintpath_is_accepted(tmp_path):
+    custom, project = installation(tmp_path)
+    assert editor_reference() in project.read_text()
+    before = project.read_bytes()
+    result = verify(ROOT, custom, project)
+    assert result["ready"], result["errors"]
+    assert project.read_bytes() == before
+
+
+@pytest.mark.parametrize("case", ["empty", "wrong_filename", "arbitrary", "repository", "custom", "traversal",
+    "relative", "unc", "nonexistent", "reparse", "wrong_identity", "identity_failure"])
+def test_framework_hintpath_authenticity(tmp_path, monkeypatch, case):
+    approved = Path(os.environ["WINDIR"])/"Microsoft.NET/Framework64/v4.0.30319/System.Security.dll"
+    path = str(approved)
+    if case == "empty":
+        path = ""
+    elif case == "wrong_filename":
+        path = str(approved.with_name("System.dll"))
+    elif case in {"arbitrary", "repository", "custom"}:
+        roots = {"arbitrary":tmp_path/"other", "repository":tmp_path/"repo", "custom":tmp_path/"NinjaTrader/bin/Custom"}
+        alternate = roots[case]/"System.Security.dll"
+        alternate.parent.mkdir(parents=True)
+        # Even an exact copy of the real DLL is not an approved location.
+        shutil.copyfile(approved, alternate)
+        path = str(alternate)
+    elif case == "traversal":
+        path = str(approved.parent) + "\\..\\v4.0.30319\\System.Security.dll"
+    elif case == "relative":
+        path = "System.Security.dll"
+    elif case == "unc":
+        path = "\\\\localhost\\C$\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\System.Security.dll"
+    elif case == "nonexistent":
+        # Do not delete or alter the framework installation.
+        original = Path.is_file
+        monkeypatch.setattr(Path, "is_file", lambda p: False if p == approved else original(p))
+    elif case == "reparse":
+        original = Path.is_junction
+        monkeypatch.setattr(Path, "is_junction", lambda p: p == approved.parent or original(p))
+    else:
+        from types import SimpleNamespace
+        monkeypatch.setattr(gate.subprocess, "run", lambda *a, **kw: SimpleNamespace(
+            returncode=1 if case == "identity_failure" else 0, stdout="Other.Assembly"))
+    assert gate.framework_hintpath_error(path) is not None
+
+
+def test_real_framework_identity_metadata_is_accepted():
+    approved = Path(os.environ["WINDIR"])/"Microsoft.NET/Framework64/v4.0.30319/System.Security.dll"
+    before = hashlib.sha256(approved.read_bytes()).hexdigest()
+    assert gate.framework_hintpath_error(str(approved)) is None
+    assert hashlib.sha256(approved.read_bytes()).hexdigest() == before
+
+
+@pytest.mark.parametrize("case", ["reference_false", "reference_unknown", "group_false", "group_unknown",
+    "hint_false", "hint_unknown", "empty_hint", "aliases", "private", "specific_version", "interop",
+    "custom_child", "reference_attribute", "hint_attribute", "nested", "duplicate_hint", "duplicate_valid",
+    "duplicate_conflicting", "duplicate_conditional", "foreign_namespace", "text", "tail"])
+def test_editor_reference_rejects_conditions_metadata_and_duplicates(tmp_path, case):
+    custom, project = installation(tmp_path)
+    reference = editor_reference()
+    if case.startswith("reference_") and case != "reference_attribute":
+        condition = "false" if case.endswith("false") else "'$(Unknown)' == 'yes'"
+        reference = reference.replace('<Reference ', '<Reference Condition="' + condition + '" ')
+    elif case.startswith("group_"):
+        condition = "false" if case.endswith("false") else "'$(Unknown)' == 'yes'"
+        reference = '</ItemGroup><ItemGroup Condition="' + condition + '">' + reference + '</ItemGroup><ItemGroup>'
+    elif case.startswith("hint_") and case != "hint_attribute":
+        condition = "false" if case.endswith("false") else "'$(Unknown)' == 'yes'"
+        reference = reference.replace('<HintPath>', '<HintPath Condition="' + condition + '">')
+    elif case == "empty_hint":
+        reference = '<Reference Include="System.Security"><HintPath> </HintPath></Reference>'
+    elif case in {"aliases", "private", "specific_version", "interop", "custom_child"}:
+        name = {"aliases":"Aliases", "private":"Private", "specific_version":"SpecificVersion",
+                "interop":"EmbedInteropTypes", "custom_child":"Unknown"}[case]
+        reference = reference.replace('</Reference>', '<'+name+'>true</'+name+'></Reference>')
+    elif case in {"reference_attribute", "hint_attribute"}:
+        tag = 'Reference Include' if case == "reference_attribute" else 'HintPath'
+        reference = reference.replace('<'+tag, '<'+tag.split()[0]+' Unknown="value"'+(' Include' if case == "reference_attribute" else ''))
+    elif case == "nested":
+        reference = reference.replace('</HintPath>', '<Nested /></HintPath>')
+    elif case == "duplicate_hint":
+        reference = reference.replace('</Reference>', '<HintPath>other.dll</HintPath></Reference>')
+    elif case.startswith("duplicate_"):
+        second = editor_reference()
+        if case == "duplicate_conflicting":
+            second = '<Reference Include="System.Security"><HintPath>other.dll</HintPath></Reference>'
+        elif case == "duplicate_conditional":
+            second = second.replace('<Reference ', '<Reference Condition="false" ')
+        reference += second
+    elif case == "foreign_namespace":
+        reference = reference.replace('<HintPath>', '<HintPath xmlns="urn:unapproved">')
+    elif case == "text":
+        reference = reference.replace('<HintPath>', 'unknown<HintPath>')
+    elif case == "tail":
+        reference = reference.replace('</HintPath>', '</HintPath>unknown')
+    project.write_text(project.read_text().replace(editor_reference(), reference))
+    before = project.read_bytes()
+    result = verify(ROOT, custom, project)
+    assert not result["ready"]
+    assert any(error.startswith("DPAPI_REFERENCE_") for error in result["errors"])
+    assert not any("MISSING" in error for error in result["errors"])
+    assert project.read_bytes() == before
+
+
+def test_missing_hintpath_is_not_a_missing_reference(tmp_path):
+    custom, project = installation(tmp_path)
+    project.write_text(project.read_text().replace(editor_reference(), '<Reference Include="System.Security" />'))
+    result = verify(ROOT, custom, project)
+    assert not result["ready"]
+    assert result["errors"] == ["DPAPI_REFERENCE_HINTPATH_MISSING:System.Security"]
 
 
 @pytest.mark.parametrize("defect", ["D1", "D2", "D3"])
@@ -20,7 +140,7 @@ def test_review_defects_fail_closed(tmp_path, defect):
         with main.open("a") as file:
             file.write("\n#region NinjaScript generated code\nnamespace Unapproved { public class ExtraExecutableCode { public static int Run() { return 1; } } }\n#endregion\n")
     else:
-        project.write_text(project.read_text().replace('<Reference Include="System.Security" />',
+        project.write_text(project.read_text().replace(editor_reference(),
             '<Reference Include="System.Security" Condition="false" />'))
     result = verify(ROOT, custom, project)
     assert not result["ready"], f"{defect} was incorrectly accepted: {result['errors']}"
@@ -35,7 +155,7 @@ def installation(tmp_path):
         shutil.copyfile(ROOT/"integrations/ninjatrader"/name, target)
         includes.append(f'<Compile Include="{folder}/{name}" />')
     project = custom/"NinjaTrader.Custom.csproj"
-    project.write_text('<Project><ItemGroup><Reference Include="System.Security" />'+"".join(includes)+"</ItemGroup></Project>")
+    project.write_text('<Project><ItemGroup>'+editor_reference()+"".join(includes)+"</ItemGroup></Project>")
     return custom, project
 
 
@@ -65,7 +185,7 @@ def test_deployment_rejects_ambiguous_sources(tmp_path, case):
     elif case == "stale_reference":
         project.write_text(project.read_text().replace("</ItemGroup>", '<Reference Include="NinjaTrader.Custom" /></ItemGroup>'))
     elif case == "missing_dpapi_reference":
-        project.write_text(project.read_text().replace('<Reference Include="System.Security" />', ""))
+        project.write_text(project.read_text().replace(editor_reference(), ""))
     else:
         text = project.read_text()
         include = '<Compile Include="Indicators/ArmsSimNativeSubmitBridgeV2.cs" />'
@@ -147,7 +267,7 @@ def test_d2_no_generated_suffix_is_ignored(tmp_path, suffix):
 def test_d3_system_security_must_be_provably_active(tmp_path, case):
     custom, project = installation(tmp_path)
     text = project.read_text()
-    reference = '<Reference Include="System.Security" />'
+    reference = editor_reference()
     changes = {
         "missing": "",
         "typo": '<Reference Include="System.Securty" />',

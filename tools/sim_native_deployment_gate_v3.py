@@ -65,6 +65,44 @@ def compile_offline(repo: Path, custom: Path, sdk: Path, output: Path):
     return assembly, result.stdout+result.stderr
 
 
+def framework_hintpath_error(value):
+    """Validate this host's .NET Framework 4 x64 DLL without loading its code."""
+    error = "DPAPI_REFERENCE_HINTPATH_UNAPPROVED:System.Security"
+    try:
+        windows = Path(os.environ["WINDIR"])
+        if os.name != "nt" or not windows.is_absolute():
+            return error
+        expected = windows / "Microsoft.NET/Framework64/v4.0.30319/System.Security.dll"
+        text = (value or "").strip()
+        path = Path(text)
+        if (not text or not path.is_absolute() or text.startswith(("\\\\", "//"))
+                or any(part in (".", "..") for part in re.split(r"[\\/]", text))
+                or path.name != "System.Security.dll"
+                or str(path).casefold() != str(expected).casefold()):
+            return error
+        # No reparse redirection, even if the final resolved filename matches.
+        for parent in (path, *path.parents):
+            if parent.is_symlink() or parent.is_junction():
+                return error
+        if not path.is_file() or path.resolve(strict=True) != expected.resolve(strict=True):
+            return error
+        # Use the installed Windows PowerShell and metadata-only GetAssemblyName.
+        # The path is an environment value, never interpolated into shell code.
+        environment = dict(os.environ, ARMS_GATE_FRAMEWORK_ASSEMBLY=str(path))
+        result = subprocess.run([
+            str(windows / "System32/WindowsPowerShell/v1.0/powershell.exe"),
+            "-NoProfile", "-NonInteractive", "-Command",
+            "$ErrorActionPreference='Stop';[Reflection.AssemblyName]::GetAssemblyName($env:ARMS_GATE_FRAMEWORK_ASSEMBLY).FullName"
+        ], capture_output=True, text=True, timeout=15, env=environment,
+            creationflags=subprocess.CREATE_NO_WINDOW)
+        identity = "System.Security, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"
+        if result.returncode or result.stdout.strip() != identity:
+            return "DPAPI_REFERENCE_ASSEMBLY_IDENTITY_INVALID:System.Security"
+    except (KeyError, OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+        return error
+    return None
+
+
 def verify(repo: Path, custom: Path, project: Path):
     """Certify exact pre-deployment destinations, never generated source variants.
 
@@ -112,7 +150,7 @@ def verify(repo: Path, custom: Path, project: Path):
         return {"phase": "PRE_DEPLOYMENT_SOURCE_GATE", "ready": False, "errors": errors, "manifest": rows}
     includes = []
     parents = {child: parent for parent in tree.iter() for child in parent}
-    active_security = False
+    security_references = []
     for element in tree.iter():
         if element.tag.split("}")[-1] != "Reference":
             continue
@@ -122,20 +160,38 @@ def verify(repo: Path, custom: Path, project: Path):
             errors.append("REFERENCE_MODIFICATION_REQUIRES_REVIEW")
         if element.attrib.get("Include", "").split(",")[0] != "System.Security":
             continue
+        security_references.append(element)
         group = parents.get(element)
         root = tree.getroot()
         if (group is None or group.tag.split("}")[-1] != "ItemGroup" or parents.get(group) is not root
-                or root.tag.split("}")[-1] != "Project"
-                or any("Condition" in node.attrib for node in (element, group, root))):
-            errors.append("DPAPI_REFERENCE_NOT_PROVABLY_ACTIVE:System.Security")
-        elif set(element.attrib) != {"Include"} or len(element):
-            # Require the plain framework reference, not a HintPath/alias or
-            # metadata that could redirect or exclude it from compilation.
-            errors.append("DPAPI_REFERENCE_METADATA_REQUIRES_REVIEW:System.Security")
+                or root.tag not in ("Project", "{http://schemas.microsoft.com/developer/msbuild/2003}Project")
+                or group.tag != root.tag.replace("Project", "ItemGroup")
+                or element.tag != root.tag.replace("Project", "Reference")):
+            errors.append("DPAPI_REFERENCE_CONTEXT_UNAPPROVED:System.Security")
+        elif any("Condition" in node.attrib for node in (element, group, root)):
+            errors.append("DPAPI_REFERENCE_CONDITIONAL:System.Security")
+        elif element.attrib != {"Include": "System.Security"} or (element.text or "").strip():
+            errors.append("DPAPI_REFERENCE_METADATA_UNAPPROVED:System.Security")
+        elif not len(element):
+            errors.append("DPAPI_REFERENCE_HINTPATH_MISSING:System.Security")
         else:
-            active_security = True
-    if not active_security:
-        errors.append("DPAPI_FRAMEWORK_REFERENCE_MISSING_OR_INACTIVE:System.Security")
+            children = list(element)
+            if len(children) != 1 or children[0].tag != element.tag.replace("Reference", "HintPath"):
+                errors.append("DPAPI_REFERENCE_METADATA_UNAPPROVED:System.Security")
+                continue
+            hint = children[0]
+            if "Condition" in hint.attrib:
+                errors.append("DPAPI_REFERENCE_CONDITIONAL:System.Security")
+            elif hint.attrib or len(hint) or (hint.tail or "").strip():
+                errors.append("DPAPI_REFERENCE_METADATA_UNAPPROVED:System.Security")
+            else:
+                error = framework_hintpath_error(hint.text)
+                if error:
+                    errors.append(error)
+    if not security_references:
+        errors.append("DPAPI_FRAMEWORK_REFERENCE_MISSING:System.Security")
+    elif len(security_references) != 1:
+        errors.append("DPAPI_REFERENCE_DUPLICATE:System.Security")
     for element in tree.iter():
         if element.tag.split("}")[-1] == "Compile" and "Include" in element.attrib:
             value = element.attrib["Include"]
