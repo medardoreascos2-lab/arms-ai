@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Windows.Threading;
 
 using NinjaTrader.Cbi;
 using NinjaTrader.Data;
@@ -38,6 +39,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         private Account selectedAccount;
         private bool submitAttempted;
         private string validatedSubmitActivationPath;
+        private DispatcherTimer runtimeSnapshotTimer;
+        private bool runtimeSnapshotHeartbeatTerminated;
         private bool emergencyFlattenAttempted;
         private bool emergencyFlattenAwaitingConfirmation;
         private string emergencyFlattenInstrumentName;
@@ -286,6 +289,8 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
             else if (State == State.DataLoaded)
             {
+                runtimeSnapshotHeartbeatTerminated = false;
+
                 selectedAccount = ResolveSelectedAccount();
 
                 ValidateSelectedAccount();
@@ -418,8 +423,15 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (RequestEmergencyFlatten)
                     AttemptEmergencyFlatten();
             }
+            else if (State == State.Realtime)
+            {
+                StartRuntimeSnapshotHeartbeat();
+            }
             else if (State == State.Terminated)
             {
+                runtimeSnapshotHeartbeatTerminated = true;
+                StopRuntimeSnapshotHeartbeat();
+
                 if (selectedAccount != null)
                 {
                     selectedAccount.OrderUpdate -=
@@ -433,6 +445,103 @@ namespace NinjaTrader.NinjaScript.Indicators
                 }
 
                 selectedAccount = null;
+            }
+        }
+
+        private void StartRuntimeSnapshotHeartbeat()
+        {
+            if (
+                runtimeSnapshotHeartbeatTerminated
+                || string.IsNullOrWhiteSpace(
+                    RuntimeSnapshotDirectory
+                )
+            )
+            {
+                return;
+            }
+
+            if (runtimeSnapshotTimer != null)
+            {
+                return;
+            }
+
+            if (ChartControl == null)
+            {
+                throw new InvalidOperationException(
+                    "Runtime snapshot heartbeat requires ChartControl."
+                );
+            }
+
+            ChartControl.Dispatcher.InvokeAsync(
+                new Action(
+                    () =>
+                    {
+                        if (
+                            runtimeSnapshotHeartbeatTerminated
+                            || runtimeSnapshotTimer != null
+                        )
+                        {
+                            return;
+                        }
+
+                        runtimeSnapshotTimer =
+                            new DispatcherTimer
+                            {
+                                Interval = TimeSpan.FromSeconds(5)
+                            };
+
+                        runtimeSnapshotTimer.Tick +=
+                            OnRuntimeSnapshotHeartbeat;
+
+                        runtimeSnapshotTimer.Start();
+                    }
+                )
+            );
+        }
+
+        private void StopRuntimeSnapshotHeartbeat()
+        {
+            if (runtimeSnapshotTimer == null)
+            {
+                return;
+            }
+
+            runtimeSnapshotTimer.Stop();
+
+            runtimeSnapshotTimer.Tick -=
+                OnRuntimeSnapshotHeartbeat;
+
+            runtimeSnapshotTimer = null;
+        }
+
+        private void OnRuntimeSnapshotHeartbeat(
+            object sender,
+            EventArgs e
+        )
+        {
+            if (
+                runtimeSnapshotHeartbeatTerminated
+                || State != State.Realtime
+                || selectedAccount == null
+                || string.IsNullOrWhiteSpace(
+                    RuntimeSnapshotDirectory
+                )
+            )
+            {
+                return;
+            }
+
+            try
+            {
+                WriteRuntimeReadinessSnapshot();
+            }
+            catch (Exception error)
+            {
+                Print(
+                    "ARMS_SIM_RUNTIME_SNAPSHOT_HEARTBEAT_ERROR"
+                    + " error="
+                    + error.GetType().Name
+                );
             }
         }
 
