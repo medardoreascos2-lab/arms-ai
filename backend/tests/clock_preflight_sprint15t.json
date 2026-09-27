@@ -899,6 +899,18 @@
           "authority": "INJECTED_UTC_CLOCK_FOR_EVIDENCE_AGE_VALIDATION_ONLY"
         }
       ]
+    },
+    {
+      "path": "backend/services/sim_native_runtime_snapshot_reader_v2.py",
+      "consequence": "SIM_NATIVE_RUNTIME_SNAPSHOT_FRESHNESS",
+      "calls": [
+        {
+          "line": 242,
+          "call": "self._clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ],
+      "introduced_by": "R48X12C"
     }
   ],
   "indirect_time_dependencies": [

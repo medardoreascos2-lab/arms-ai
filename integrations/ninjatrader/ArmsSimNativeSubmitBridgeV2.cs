@@ -37,6 +37,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private Account selectedAccount;
         private bool submitAttempted;
+        private string validatedSubmitActivationPath;
         private bool emergencyFlattenAttempted;
         private bool emergencyFlattenAwaitingConfirmation;
         private string emergencyFlattenInstrumentName;
@@ -240,6 +241,18 @@ namespace NinjaTrader.NinjaScript.Indicators
             set;
         }
 
+        [NinjaScriptProperty]
+        [Display(
+            Name = "RuntimeSnapshotDirectory",
+            Order = 15,
+            GroupName = "ARMS SIM"
+        )]
+        public string RuntimeSnapshotDirectory
+        {
+            get;
+            set;
+        }
+
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)
@@ -269,6 +282,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 RequestEmergencyFlatten = false;
                 EmergencyActivationDirectory = string.Empty;
                 EmergencyActivationId = string.Empty;
+                RuntimeSnapshotDirectory = string.Empty;
             }
             else if (State == State.DataLoaded)
             {
@@ -385,6 +399,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                     + physicalTestSessionWindow
                     + physicalTestNextSessionWindow
                 );
+
+                WriteRuntimeReadinessSnapshot();
 
                 if (
                     RequestOneShotSubmit
@@ -685,6 +701,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 );
             }
 
+            ConsumeSubmitActivation();
+
             Order nativeOrder =
                 selectedAccount.CreateOrder(
                     instrument,
@@ -745,6 +763,22 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 throw new InvalidOperationException(
                     "Activation evidence is required."
+                );
+            }
+
+            string consumedPath =
+                Path.Combine(
+                    Path.GetFullPath(
+                        ActivationDirectory.Trim()
+                    ),
+                    CommandId.Trim()
+                    + ".arm.json.consumed"
+                );
+
+            if (File.Exists(consumedPath))
+            {
+                throw new InvalidOperationException(
+                    "Submit activation evidence was already consumed."
                 );
             }
 
@@ -812,6 +846,65 @@ namespace NinjaTrader.NinjaScript.Indicators
                 throw new InvalidOperationException(
                     "Activation account is invalid."
                 );
+            }
+
+            validatedSubmitActivationPath =
+                activationPath;
+        }
+
+        private void ConsumeSubmitActivation()
+        {
+            if (
+                string.IsNullOrWhiteSpace(
+                    validatedSubmitActivationPath
+                )
+            )
+            {
+                throw new InvalidOperationException(
+                    "Validated submit activation is unavailable."
+                );
+            }
+
+            string consumedPath =
+                validatedSubmitActivationPath
+                + ".consumed";
+
+            byte[] marker =
+                System.Text.Encoding.UTF8.GetBytes(
+                    "consumed\n"
+                );
+
+            try
+            {
+                using (
+                    FileStream stream =
+                        new FileStream(
+                            consumedPath,
+                            FileMode.CreateNew,
+                            FileAccess.Write,
+                            FileShare.None
+                        )
+                )
+                {
+                    stream.Write(
+                        marker,
+                        0,
+                        marker.Length
+                    );
+
+                    stream.Flush(true);
+                }
+            }
+            catch (IOException)
+            {
+                if (File.Exists(consumedPath))
+                {
+                    throw new InvalidOperationException(
+                        "Submit activation evidence was already consumed."
+                    );
+                }
+
+                throw;
             }
         }
 
@@ -1873,6 +1966,284 @@ namespace NinjaTrader.NinjaScript.Indicators
                 return
                     " session_begin=SESSION_WINDOW_UNKNOWN"
                     + " session_end=SESSION_WINDOW_UNKNOWN";
+            }
+        }
+
+        private void WriteRuntimeReadinessSnapshot()
+        {
+            // Snapshot emission is optional until an operator provides
+            // an explicit local directory. No broker mutation occurs.
+            if (
+                string.IsNullOrWhiteSpace(
+                    RuntimeSnapshotDirectory
+                )
+            )
+            {
+                return;
+            }
+
+            ValidateDirectory(
+                RuntimeSnapshotDirectory,
+                "RuntimeSnapshotDirectory"
+            );
+
+            ValidateSelectedAccount();
+
+            string accountName =
+                selectedAccount.Name ?? string.Empty;
+
+            if (accountName != "Sim101")
+            {
+                throw new InvalidOperationException(
+                    "Runtime snapshot requires Sim101."
+                );
+            }
+
+            if (
+                selectedAccount.Provider
+                != Provider.Simulator
+            )
+            {
+                throw new InvalidOperationException(
+                    "Runtime snapshot requires Provider.Simulator."
+                );
+            }
+
+            string instrumentName =
+                string.IsNullOrWhiteSpace(
+                    InstrumentName
+                )
+                ? string.Empty
+                : InstrumentName.Trim();
+
+            NinjaTrader.Cbi.Instrument instrument =
+                NinjaTrader.Cbi.Instrument.GetInstrument(
+                    instrumentName,
+                    true
+                );
+
+            if (instrument == null)
+            {
+                throw new InvalidOperationException(
+                    "Runtime snapshot instrument was not found."
+                );
+            }
+
+            string readiness =
+                EvaluatePhysicalTestReadiness(
+                    instrument
+                );
+
+            string positionState = "FLAT";
+            int matchingPositionCount = 0;
+
+            foreach (
+                Position position
+                in selectedAccount.Positions
+            )
+            {
+                if (
+                    position == null
+                    || position.Instrument == null
+                    || !ReferenceEquals(
+                        position.Instrument,
+                        instrument
+                    )
+                )
+                {
+                    continue;
+                }
+
+                matchingPositionCount++;
+
+                if (
+                    position.MarketPosition
+                    != MarketPosition.Flat
+                )
+                {
+                    string observedPosition =
+                        position.MarketPosition
+                        .ToString()
+                        .Trim()
+                        .ToUpperInvariant();
+
+                    if (
+                        positionState != "FLAT"
+                        && positionState
+                            != observedPosition
+                    )
+                    {
+                        positionState =
+                            "UNKNOWN";
+                    }
+                    else
+                    {
+                        positionState =
+                            observedPosition;
+                    }
+                }
+            }
+
+            if (matchingPositionCount > 1)
+            {
+                // Multiple native rows for the target instrument are
+                // treated as ambiguous rather than assumed safe.
+                positionState = "UNKNOWN";
+            }
+
+            int activeOrderCount = 0;
+
+            foreach (
+                Order order
+                in selectedAccount.Orders
+            )
+            {
+                if (
+                    order == null
+                    || order.Instrument == null
+                    || !ReferenceEquals(
+                        order.Instrument,
+                        instrument
+                    )
+                )
+                {
+                    continue;
+                }
+
+                OrderState state =
+                    order.OrderState;
+
+                bool terminal =
+                    state == OrderState.Cancelled
+                    || state == OrderState.Filled
+                    || state == OrderState.Rejected;
+
+                if (!terminal)
+                {
+                    activeOrderCount++;
+                }
+            }
+
+            string json =
+                "{"
+                + "\"schema\":\"arms.nt.sim-runtime-readiness.v2\","
+                + "\"observed_at\":\""
+                + EscapeJson(
+                    DateTime.UtcNow.ToString(
+                        "o",
+                        CultureInfo.InvariantCulture
+                    )
+                )
+                + "\","
+                + "\"account_name\":\""
+                + EscapeJson(accountName)
+                + "\","
+                + "\"provider\":\""
+                + EscapeJson(
+                    selectedAccount.Provider.ToString()
+                )
+                + "\","
+                + "\"connection_status\":\""
+                + EscapeJson(
+                    selectedAccount.ConnectionStatus.ToString()
+                )
+                + "\","
+                + "\"instrument\":\""
+                + EscapeJson(instrumentName)
+                + "\","
+                + "\"physical_test_readiness\":\""
+                + EscapeJson(readiness)
+                + "\","
+                + "\"position_state\":\""
+                + EscapeJson(positionState)
+                + "\","
+                + "\"active_order_count\":"
+                + activeOrderCount.ToString(
+                    CultureInfo.InvariantCulture
+                )
+                + ","
+                + "\"native_submit_enabled\":"
+                + (
+                    NATIVE_SUBMIT_ENABLED
+                    ? "true"
+                    : "false"
+                )
+                + ","
+                + "\"auto_retry_allowed\":"
+                + (
+                    AUTO_RETRY_ALLOWED
+                    ? "true"
+                    : "false"
+                )
+                + "}\n";
+
+            string directory =
+                Path.GetFullPath(
+                    RuntimeSnapshotDirectory.Trim()
+                );
+
+            string snapshotPath =
+                Path.Combine(
+                    directory,
+                    "sim-native-runtime-snapshot-v2.json"
+                );
+
+            string temporaryPath =
+                snapshotPath
+                + "."
+                + Guid.NewGuid().ToString("N")
+                + ".tmp";
+
+            byte[] payload =
+                new UTF8Encoding(false).GetBytes(
+                    json
+                );
+
+            try
+            {
+                using (
+                    FileStream stream =
+                        new FileStream(
+                            temporaryPath,
+                            FileMode.CreateNew,
+                            FileAccess.Write,
+                            FileShare.None
+                        )
+                )
+                {
+                    stream.Write(
+                        payload,
+                        0,
+                        payload.Length
+                    );
+
+                    stream.Flush(true);
+                }
+
+                if (File.Exists(snapshotPath))
+                {
+                    File.Replace(
+                        temporaryPath,
+                        snapshotPath,
+                        null
+                    );
+                }
+                else
+                {
+                    File.Move(
+                        temporaryPath,
+                        snapshotPath
+                    );
+                }
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(
+                        temporaryPath
+                    );
+                }
             }
         }
 

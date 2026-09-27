@@ -74,7 +74,18 @@ def test_activation_requires_sim101_target():
 def test_activation_is_read_only():
     text = source()
 
-    assert "ReadActivationEvidence(" in text
+    start = text.index(
+        "private void ReadActivationEvidence("
+    )
+
+    end = text.index(
+        "private void ConsumeSubmitActivation()",
+        start,
+    )
+
+    activation_reader = text[start:end]
+
+    assert "ReadActivationEvidence(" in activation_reader
 
     forbidden = (
         "DeleteActivation",
@@ -84,7 +95,7 @@ def test_activation_is_read_only():
     )
 
     for token in forbidden:
-        assert token not in text
+        assert token not in activation_reader
 
 
 def test_activation_is_checked_before_create_order():

@@ -367,6 +367,10 @@ def test_existing_tracked_sources_unchanged():
                'backend/tests/test_historical_utc_calendar_cursor_probe_sprint16ar57.py',
                'docs/architecture/historical_utc_calendar_cursor_probe_sprint16ar57.md',
                # Later reviewed R48W governance extensions.
+               # Reviewed R48X native SIM preflight/runtime governance extensions.
+               'integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.cs',
+               'backend/tests/phase1_risk_authority_inventory_v5.json',
+               'backend/tests/test_sim_native_submit_activation_file_ninjatrader_v2.py',
                'backend/tests/clock_preflight_sprint15t.json',
                'backend/tests/phase1_financial_inventory_v6.json',
                'backend/tests/phase1_runtime_execution_inventory_v7.json',

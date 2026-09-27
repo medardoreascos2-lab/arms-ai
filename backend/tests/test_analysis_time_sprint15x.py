@@ -293,5 +293,15 @@ def test_clock_inventory_extension_preserves_every_prior_assessment_field():
     assert len(native_evidence)==1
     assert native_evidence[0]['introduced_by']=='R48W6F'
     review['direct_clock_dependencies'].remove(native_evidence[0])
+    # R48X12C is a later reviewed native SIM runtime-snapshot
+    # clock dependency. Remove it before reconstructing the
+    # historical pre-extension assessment.
+    native_runtime_snapshot=[
+        row for row in review['direct_clock_dependencies']
+        if row['path']=='backend/services/sim_native_runtime_snapshot_reader_v2.py'
+    ]
+    assert len(native_runtime_snapshot)==1
+    assert native_runtime_snapshot[0]['introduced_by']=='R48X12C'
+    review['direct_clock_dependencies'].remove(native_runtime_snapshot[0])
     original=sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     assert original=='591d35ecb200cdb37cf5495d8df00262f9b284b069f06fddffe2cd39337a4d8a'
