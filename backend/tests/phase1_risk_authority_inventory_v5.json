@@ -4639,11 +4639,12 @@
       "id": "backend/services/durable_execution_state_v2.py:DurableExecutionStateV2.mutation",
       "path": "backend/services/durable_execution_state_v2.py",
       "function": "DurableExecutionStateV2.mutation",
-      "source_sha256": "e41a36877451de6156b72e90daa9713623ce3e4728a4c5fc81db7d3e1a7f23d4",
+      "source_sha256": "bc18a46ea9b71516b2ea680a0522093a6246b2d0de05c704811564ce871f0c15",
       "inputs": "self",
       "calls": [
         "RuntimeError",
         "atomic_write",
+        "financial_stage",
         "seal",
         "self.admission_barrier",
         "self.checkpoint",
@@ -9302,7 +9303,7 @@
       "persistent_block_clearer": false,
       "path": "backend/services/sim_native_financial_checkpoint_v3.py",
       "function": "NativeSimFinancialCheckpointV3.start",
-      "source_sha256": "aeda5369bab2612332c5f48f79897088053471d4c33ecfddce0591992f266584",
+      "source_sha256": "3b5f0bc98816b135bb266868fe700436e7f6c67192d07a3f3ac0f367bee316da",
       "inputs": "self, path: Path | None=None",
       "calls": [
         "Path",
@@ -9315,7 +9316,8 @@
         "self._durability.checkpoint",
         "self._durability.fail_closed",
         "self._durability.release",
-        "self.restore_from_file"
+        "self.restore_from_file",
+        "stage"
       ],
       "output_fields": []
     },
@@ -9705,7 +9707,7 @@
       "persistent_block_clearer": false,
       "path": "backend/services/sim_native_integration_v3.py",
       "function": "NativeSimIntegrationV3.reconcile",
-      "source_sha256": "c663b67a0cc33601774790d153203f60df7029e691b326f3f298a1b79b317fee",
+      "source_sha256": "ed92033f79faaf64f470c85c209c90b5abaf7d2bd9af391e51ef21592c8e9980",
       "inputs": "self",
       "calls": [
         "ValueError",
@@ -9717,9 +9719,11 @@
         "path.read_bytes",
         "phase.get",
         "phase.items",
+        "phase_generation",
         "self._create",
         "self.phase_directory.glob",
         "sorted",
+        "stage",
         "store._native['executions'].get",
         "store.apply_phase",
         "store.binding.assert_claims",
@@ -9749,7 +9753,7 @@
       "persistent_block_clearer": false,
       "path": "backend/services/sim_native_integration_v3.py",
       "function": "NativeSimIntegrationV3._publish_dashboard",
-      "source_sha256": "56d6105e8a165cca9057a47127ae9e9f9936602397c54da40060d01cd78a1a73",
+      "source_sha256": "a2719e2f1b23ff79682c0102155f0f0523de96b9f6ad6d1edaa3c92e485d3e21",
       "inputs": "self, *, event_id, event",
       "calls": [
         "RuntimeError",
@@ -9757,6 +9761,7 @@
         "next",
         "publish",
         "result.get",
+        "stage",
         "store._native['executions'].values",
         "store._position",
         "store.trade_lifecycle_service.portfolio_manager_v2.capture_risk_state",

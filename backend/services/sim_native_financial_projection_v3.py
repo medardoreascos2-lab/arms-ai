@@ -5,6 +5,7 @@ import json
 from backend.services.durable_execution_state_v2 import atomic_write, canonical
 from backend.services.sim_native_authority_v3 import safe_path
 from backend.services.sim_native_financial_checkpoint_v3 import execution_values
+from backend.services.sim_native_financial_diagnostic_v3 import stage
 
 
 class SimNativeFinancialProjectionV3:
@@ -67,6 +68,7 @@ class SimNativeFinancialProjectionV3:
         safe_path(self.path.with_suffix(self.path.suffix + ".tmp"), authority=True)
         atomic_write(self.path, document)
 
+    @stage("PROJECTION_APPLY")
     def publish(self, *, event_type, payload):
         with self.store._durability.admission_barrier():
             self.store.receipt()

@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import RLock
 from uuid import uuid4
 from datetime import datetime, timezone
+from backend.services.sim_native_financial_diagnostic_v3 import stage as financial_stage
 
 
 class AccountAdmissionRejected(RuntimeError):
@@ -262,7 +263,8 @@ class DurableExecutionStateV2:
 
     @account_operation
     def checkpoint(self):
-        return self._checkpoint()
+        with financial_stage("CHECKPOINT_COMMIT"):
+            return self._checkpoint()
 
     def _checkpoint(self):
         if self.failed:
@@ -329,7 +331,8 @@ class DurableExecutionStateV2:
                     self.record_evidence("STARTED", self.store.capture_state())
                 self.depth += 1
                 try:
-                    yield
+                    with financial_stage("PHASE_APPLY"):
+                        yield
                     body_completed = True
                 finally:
                     self.depth -= 1

@@ -12,6 +12,7 @@ from backend.services.sim_native_command_protocol_v2 import SimNativeCommandProt
 from backend.services.sim_native_command_spool_v2 import SimNativeCommandSpoolV2
 from backend.services.sim_native_financial_checkpoint_v3 import execution_values, native_phase
 from backend.dashboard.trade_lifecycle_dashboard_event_publisher_v2 import TradeLifecycleDashboardEventPublisherV2
+from backend.services.sim_native_financial_diagnostic_v3 import stage, phase_generation
 
 
 class NativeSimIntegrationV3:
@@ -73,12 +74,16 @@ class NativeSimIntegrationV3:
     def reconcile(self):
         """Explicit evidence ingestion; no entry publication or broker calls."""
         store = self.runtime.store
-        files = sorted(self.phase_directory.glob("*.state"))
+        with stage("PHASE_DISCOVERY"):
+            files = sorted(self.phase_directory.glob("*.state"))
         for number, path in enumerate(files, 1):
             if path.name != f"{number:08d}.state":
                 raise ValueError("native phase gap")
-            wire = path.read_bytes()
-            phase = native_phase(wire, store._authority_key, store.admission_digest)
+            with stage("PHASE_READ"):
+                wire = path.read_bytes()
+            with stage("PHASE_VERIFY"):
+                phase = native_phase(wire, store._authority_key, store.admission_digest)
+            phase_generation(int(phase["generation"]))
             store.binding.assert_claims(phase)
             if int(phase["generation"]) != number or phase.get("operation_id") != store.admission["operation_id"]:
                 raise ValueError("native phase path/operation mismatch")
@@ -87,9 +92,12 @@ class NativeSimIntegrationV3:
                 if any(store._native["executions"].get(k) != v for k, v in phase.items() if k.startswith("execution.")):
                     raise ValueError("historical native execution conflict")
                 continue
-            receipt = store.apply_phase(wire)
-            self._create(self.receipt_directory / (f"{number:08d}.{receipt['checkpoint_digest']}.receipt.json"), receipt)
-        store.publish_pending(self._publish_dashboard)
+            with stage("PHASE_APPLY"):
+                receipt = store.apply_phase(wire)
+            with stage("RECEIPT_WRITE"):
+                self._create(self.receipt_directory / (f"{number:08d}.{receipt['checkpoint_digest']}.receipt.json"), receipt)
+        with stage("OUTBOX_DELIVERY"):
+            store.publish_pending(self._publish_dashboard)
 
     def _publish_dashboard(self, *, event_id, event):
         store = self.runtime.store
@@ -102,6 +110,7 @@ class NativeSimIntegrationV3:
                  "position_id": store.position_id, "execution_domain": "SIM_NATIVE",
                  "portfolio": store.trade_lifecycle_service.portfolio_manager_v2.capture_risk_state()}
         publish = self.dashboard.publish_trade_opened if role == "ENTRY" else self.dashboard.publish_trade_closed
-        result = publish(trade=trade)
+        with stage("PROJECTION_APPLY"):
+            result = publish(trade=trade)
         if result.get("published") is not True or result.get("listener_errors", 0):
             raise RuntimeError("dashboard delivery not acknowledged; outbox remains pending")

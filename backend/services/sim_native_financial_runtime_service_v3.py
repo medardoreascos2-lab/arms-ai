@@ -11,6 +11,7 @@ from backend.services.sim_native_runtime_v3 import build_native_sim_runtime
 from backend.services.sim_native_command_spool_v2 import SimNativeCommandSpoolV2
 from backend.services.sim_native_financial_projection_v3 import SimNativeFinancialProjectionV3
 from backend.services.sim_native_financial_checkpoint_v3 import execution_values, native_phase
+from backend.services.sim_native_financial_diagnostic_v3 import SimNativeFinancialDiagnosticV3, stage, phase_generation
 
 
 def admission_not_composed():
@@ -26,6 +27,7 @@ class SimNativeFinancialRuntimeServiceV3:
         self._integration = None
         self._projection = None
         self._configuration = None
+        self._diagnostic = SimNativeFinancialDiagnosticV3()
         self._view = self.unavailable()
         self.cadence_seconds = None
 
@@ -42,8 +44,20 @@ class SimNativeFinancialRuntimeServiceV3:
         if values != self._configuration:
             raise ValueError("native configuration changed; explicit restart required")
 
+    def _record_failure(self, exc):
+        runtime = self._runtime
+        try:
+            configuration_generation = int(self._configuration["configuration_generation"]) if self._configuration else None
+        except (KeyError, TypeError, ValueError, OverflowError):
+            configuration_generation = None
+        self._diagnostic.record(exc,
+            runtime_generation=runtime.binding.runtime_generation if runtime else None,
+            configuration_generation=configuration_generation,
+            checkpoint=runtime.store.account_namespace if runtime else None,
+            projection=self._projection.path if self._projection else None)
+
     def start(self):
-        with self._lock:
+        with self._lock, self._diagnostic.operation():
             if self._started:
                 return
             self._started = True
@@ -61,18 +75,24 @@ class SimNativeFinancialRuntimeServiceV3:
                 self._paths = {field: authority.safe_path(root / name, authority=True)
                     for field, name in zip(authority.PATH_FIELDS, ("commands", "activations", "state", "reconciliation"))}
                 self._financial_root = authority.safe_path(root / "financial", authority=True)
-                key = authority.load_authority()
-                self._configuration = authority.read_authenticated_config()
-                self._runtime = build_native_sim_runtime(binding=binding, namespace_root=self._financial_root,
-                    authority_key=key, runtime_evidence=admission_not_composed,
-                    api_settings=policy.api_settings, protection_timeout_us=policy.protection_timeout_us,
-                    recovery_timeout_us=policy.recovery_timeout_us)
-                self._verify()  # No startup filesystem writes before verified config.
-                self._safe_checkpoint_paths()
-                self._runtime.store.start()
+                with stage("AUTHORITY_LOAD"):
+                    key = authority.load_authority()
+                with stage("CONFIG_VERIFY"):
+                    self._configuration = authority.read_authenticated_config()
+                with stage("RUNTIME_BUILD"):
+                    self._runtime = build_native_sim_runtime(binding=binding, namespace_root=self._financial_root,
+                        authority_key=key, runtime_evidence=admission_not_composed,
+                        api_settings=policy.api_settings, protection_timeout_us=policy.protection_timeout_us,
+                        recovery_timeout_us=policy.recovery_timeout_us)
+                with stage("CONFIG_VERIFY"):
+                    self._verify()  # No financial writes before verified config.
+                with stage("CHECKPOINT_START"):
+                    self._safe_checkpoint_paths()
+                    self._runtime.store.start()
                 self._projection = SimNativeFinancialProjectionV3(store=self._runtime.store,
                     path=self._financial_root / "dashboard-projection.json")
-                self._projection.rebuild()
+                with stage("PROJECTION_APPLY"):
+                    self._projection.rebuild()
                 spool = SimNativeCommandSpoolV2(root=self._paths["command_directory"].parent)
                 if spool.commands_dir != self._paths["command_directory"]:
                     raise ValueError("command spool pin mismatch")
@@ -80,27 +100,34 @@ class SimNativeFinancialRuntimeServiceV3:
                     activation_directory=self._paths["activation_directory"], phase_directory=self._paths["state_directory"],
                     receipt_directory=self._paths["reconciliation_directory"], event_bus=self._projection)
                 self.observe()
-            except Exception:
+            except Exception as exc:
                 self._view = self.unavailable()
+                self._record_failure(exc)
                 if self._runtime is not None:
                     self._runtime.store._durability.release()
                 self._integration = None
 
     def observe(self):
         """Called by lifespan worker only, never by GET. Failure latches unavailable."""
-        with self._lock:
+        with self._lock, self._diagnostic.operation():
             if self._integration is None:
                 return
             try:
-                self._verify()
-                for path in (*self._paths.values(), self._financial_root):
-                    authority.safe_path(path, authority=True)
-                self._safe_checkpoint_paths()
-                self._preflight_phases()
-                self._integration.reconcile()
-                self._view = self._capture()
-            except Exception:
+                with stage("CONFIG_VERIFY"):
+                    self._verify()
+                    for path in (*self._paths.values(), self._financial_root):
+                        authority.safe_path(path, authority=True)
+                with stage("CHECKPOINT_START"):
+                    self._safe_checkpoint_paths()
+                with stage("PHASE_VERIFY"):
+                    self._preflight_phases()
+                with stage("PHASE_APPLY"):
+                    self._integration.reconcile()
+                with stage("SERVICE_PUBLISH"):
+                    self._view = self._capture()
+            except Exception as exc:
                 self._view = self.unavailable()
+                self._record_failure(exc)
                 self._integration = None
                 self._runtime.store._durability.release()
 
@@ -113,14 +140,18 @@ class SimNativeFinancialRuntimeServiceV3:
         # Reject a poisoned batch before applying even its earlier valid phases.
         store = self._runtime.store
         previous = {}
-        files = sorted(self._paths["state_directory"].glob("*.state"))
+        with stage("PHASE_DISCOVERY"):
+            files = sorted(self._paths["state_directory"].glob("*.state"))
         for number, path in enumerate(files, 1):
             authority.safe_path(path, authority=True)
             if path.name != f"{number:08d}.state" or path.stat().st_size > 1_048_576:
                 raise ValueError("native phase gap or size")
-            with path.open("rb") as stream:
-                wire = stream.read(1_048_577)
-            phase = native_phase(wire, store._authority_key, store.admission_digest)
+            with stage("PHASE_READ"):
+                with path.open("rb") as stream:
+                    wire = stream.read(1_048_577)
+            with stage("PHASE_VERIFY"):
+                phase = native_phase(wire, store._authority_key, store.admission_digest)
+            phase_generation(int(phase["generation"]))
             store.binding.assert_claims(phase)
             if not store.admission or phase.get("operation_id") != store.admission["operation_id"] or int(phase["generation"]) != number:
                 raise ValueError("unbound native phase")

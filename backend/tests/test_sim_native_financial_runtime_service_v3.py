@@ -126,7 +126,7 @@ def test_authenticated_bridge_replay_restart_and_projection_once(environment, br
     svc.start()
     try:
         value = svc.get_snapshot()
-        assert value["status"] == ("OPEN" if opened else "CLOSED"), (value, failures)
+        assert value["status"] == ("OPEN" if opened else "CLOSED"), (value, svc._diagnostic.latest, failures)
         assert value["entry_price"] == 100
         assert value["stop_loss"] == 90 and value["take_profit"] == 120
         assert value["direction"] == "LONG" and value["quantity"] == 1
@@ -153,6 +153,8 @@ def test_authenticated_bridge_replay_restart_and_projection_once(environment, br
         assert restored._runtime.store.capture_state()["account_portfolio"] == state["account_portfolio"]
         assert len(restored._runtime.lifecycle.trade_journal_v2.trades) == 1
     finally: restored.stop()
+    assert svc._runtime.store._durability._lease is None
+    assert restored._runtime.store._durability._lease is None
 
 
 @pytest.mark.parametrize("has_trade", [False, True])

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from functools import wraps
+from backend.services.sim_native_financial_diagnostic_v3 import stage as financial_stage
 
 from backend.services.recovery_semantic_validation_v2 import validate_semantic_state
 
@@ -1145,21 +1146,24 @@ class ExecutionStateStoreV2:
             )
 
         try:
-            raw_state = json.loads(
-                path.read_text(
-                    encoding="utf-8",
+            with financial_stage("CHECKPOINT_OPEN"):
+                raw_state = json.loads(
+                    path.read_text(
+                        encoding="utf-8",
+                    )
                 )
-            )
         except json.JSONDecodeError as exc:
             raise ValueError(
                 "El archivo de estado no contiene "
                 "JSON válido."
             ) from exc
 
-        generation = verify(raw_state)
+        with financial_stage("CHECKPOINT_VERIFY"):
+            generation = verify(raw_state)
         if self.account_identity is not None and generation < 1:
             raise ValueError("Coordinated recovery requires a durable generation.")
-        state = self.validate_state(state=raw_state)
+        with financial_stage("CHECKPOINT_VERIFY"):
+            state = self.validate_state(state=raw_state)
         self._loaded_checkpoint = (
             path.resolve(), generation, self._checkpoint_fingerprint(raw_state), deepcopy(state))
         return state
@@ -1173,6 +1177,7 @@ class ExecutionStateStoreV2:
             file_path=file_path,
         )
 
-        return self.restore_state(
-            state=state,
-        )
+        with financial_stage("CHECKPOINT_RESTORE"):
+            return self.restore_state(
+                state=state,
+            )

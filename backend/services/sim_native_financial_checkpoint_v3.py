@@ -259,7 +259,9 @@ class NativeSimFinancialCheckpointV3(ExecutionStateStoreV2):
     def start(self, path: Path | None = None):
         """Use the existing lease, PENDING fence, fsync, and committed checkpoint."""
         path = self.account_namespace if path is None else Path(path)
-        self._durability.acquire(path)
+        from backend.services.sim_native_financial_diagnostic_v3 import stage
+        with stage("CHECKPOINT_OPEN"):
+            self._durability.acquire(path)
         try:
             if path.with_suffix(path.suffix + ".tmp").exists():
                 raise ValueError("incomplete native financial checkpoint")
