@@ -44,8 +44,8 @@ def test_search_logs_found():
 def test_search_logs_begin_end():
     text = source()
 
-    assert '" begin="' in text
-    assert '" end="' in text
+    assert '" session_begin="' in text
+    assert '" session_end="' in text
 
 
 def test_search_is_read_only():

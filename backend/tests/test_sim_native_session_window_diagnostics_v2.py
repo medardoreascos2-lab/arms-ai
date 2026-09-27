@@ -26,14 +26,16 @@ def test_diagnostic_prints_trading_hours_name():
 def test_diagnostic_prints_timezone():
     text = source()
 
-    assert '" timezone="' in text
+    assert '" application_timezone="' in text
+    assert '" trading_hours_timezone="' in text
     assert "tradingHours.TimeZone" in text
 
 
-def test_diagnostic_prints_now_local():
+def test_diagnostic_prints_application_now():
     text = source()
 
-    assert '" now_local="' in text
+    assert '" application_now="' in text
+    assert '" now_local="' not in text
 
 
 def test_diagnostic_prints_is_in_session():
@@ -51,8 +53,8 @@ def test_diagnostic_prints_get_next_session_result():
 def test_diagnostic_prints_actual_begin_end():
     text = source()
 
-    assert '" actual_begin="' in text
-    assert '" actual_end="' in text
+    assert '" session_begin="' in text
+    assert '" session_end="' in text
 
 
 def test_entry_stays_disabled():

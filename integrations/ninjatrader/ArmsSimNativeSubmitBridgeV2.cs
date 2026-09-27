@@ -409,7 +409,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                         physicalTestNextSessionWindow =
                             ResolveNextPhysicalTestSessionWindow(
                                 windowInstrument.MasterInstrument.TradingHours,
-                                DateTime.Now
+                                PhysicalTestApplicationNow()
                             );
                     }
                 }
@@ -1824,9 +1824,18 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
+        private DateTime PhysicalTestApplicationNow()
+        {
+            // SessionIterator inputs and bounds use the configured application
+            // clock, which may differ from both Windows and TradingHours time.
+            if (NinjaTrader.Core.Globals.GeneralOptions.TimeZoneInfo == null)
+                throw new InvalidOperationException("Application timezone unavailable.");
+            return NinjaTrader.Core.Globals.Now;
+        }
+
         private string ResolveNextPhysicalTestSessionWindow(
             TradingHours tradingHours,
-            DateTime nowLocal
+            DateTime applicationNow
         )
         {
             if (tradingHours == null)
@@ -1843,7 +1852,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             )
             {
                 DateTime candidateDay =
-                    nowLocal.AddDays(
+                    applicationNow.AddDays(
                         dayOffset
                     );
 
@@ -1897,7 +1906,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private void PrintNextSessionSearchDiagnostics(
             TradingHours tradingHours,
-            DateTime nowLocal
+            DateTime applicationNow
         )
         {
             if (tradingHours == null)
@@ -1910,7 +1919,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             )
             {
                 DateTime candidateDay =
-                    nowLocal.AddDays(
+                    applicationNow.AddDays(
                         dayOffset
                     );
 
@@ -1958,6 +1967,12 @@ namespace NinjaTrader.NinjaScript.Indicators
 
                 Print(
                     "ARMS_SIM_NEXT_SESSION_SEARCH"
+                    + " application_timezone="
+                    + NinjaTrader.Core.Globals.GeneralOptions.TimeZoneInfo.Id
+                    + " trading_hours_timezone="
+                    + tradingHours.TimeZone
+                    + " application_now="
+                    + applicationNow.ToString("o", CultureInfo.InvariantCulture)
                     + " day_offset="
                     + dayOffset
                     + " candidate="
@@ -1967,9 +1982,9 @@ namespace NinjaTrader.NinjaScript.Indicators
                     )
                     + " found="
                     + found
-                    + " begin="
+                    + " session_begin="
                     + begin
-                    + " end="
+                    + " session_end="
                     + end
                 );
             }
@@ -1979,139 +1994,55 @@ namespace NinjaTrader.NinjaScript.Indicators
             NinjaTrader.Cbi.Instrument instrument
         )
         {
+            string applicationTimezone = "UNKNOWN";
+            string applicationNowText = "UNKNOWN";
+            string tradingHoursTimezone = "UNKNOWN";
             try
             {
-                if (
-                    instrument == null
-                    || instrument.MasterInstrument == null
-                    || instrument.MasterInstrument.TradingHours == null
-                )
-                {
-                    Print(
-                        "ARMS_SIM_SESSION_WINDOW_DIAGNOSTIC"
-                        + " trading_hours=UNKNOWN"
-                        + " timezone=UNKNOWN"
-                        + " now_local="
-                        + DateTime.Now.ToString(
-                            "o",
-                            CultureInfo.InvariantCulture
-                        )
-                        + " is_in_session=UNKNOWN"
-                        + " next_session_found=False"
-                        + " actual_begin=SESSION_WINDOW_UNKNOWN"
-                        + " actual_end=SESSION_WINDOW_UNKNOWN"
-                    );
+                DateTime applicationNow = PhysicalTestApplicationNow();
+                applicationTimezone = NinjaTrader.Core.Globals.GeneralOptions.TimeZoneInfo.Id;
+                applicationNowText = applicationNow.ToString("o", CultureInfo.InvariantCulture);
+                if (instrument == null || instrument.MasterInstrument == null
+                    || instrument.MasterInstrument.TradingHours == null)
+                    throw new InvalidOperationException("Session template unavailable.");
 
-                    return
-                        " session_begin=SESSION_WINDOW_UNKNOWN"
-                        + " session_end=SESSION_WINDOW_UNKNOWN";
-                }
-
-                TradingHours tradingHours =
-                    instrument.MasterInstrument.TradingHours;
-
-                SessionIterator sessionIterator =
-                    new SessionIterator(
-                        tradingHours
-                    );
-
-                DateTime nowLocal =
-                    DateTime.Now;
-
-                PrintNextSessionSearchDiagnostics(
-                    tradingHours,
-                    nowLocal
-                );
-
-                bool isInSession =
-                    sessionIterator.IsInSession(
-                        nowLocal,
-                        false,
-                        true
-                    );
-
-                bool found =
-                    sessionIterator.GetNextSession(
-                        nowLocal,
-                        false
-                    );
-
-                string actualBegin =
-                    "SESSION_WINDOW_UNKNOWN";
-
-                string actualEnd =
-                    "SESSION_WINDOW_UNKNOWN";
-
+                TradingHours tradingHours = instrument.MasterInstrument.TradingHours;
+                tradingHoursTimezone = tradingHours.TimeZone.ToString();
+                SessionIterator sessionIterator = new SessionIterator(tradingHours);
+                PrintNextSessionSearchDiagnostics(tradingHours, applicationNow);
+                bool isInSession = sessionIterator.IsInSession(applicationNow, false, true);
+                bool found = sessionIterator.GetNextSession(applicationNow, false);
+                string actualBegin = "SESSION_WINDOW_UNKNOWN";
+                string actualEnd = "SESSION_WINDOW_UNKNOWN";
                 if (found)
                 {
-                    actualBegin =
-                        sessionIterator.ActualSessionBegin.ToString(
-                            "o",
-                            CultureInfo.InvariantCulture
-                        );
-
-                    actualEnd =
-                        sessionIterator.ActualSessionEnd.ToString(
-                            "o",
-                            CultureInfo.InvariantCulture
-                        );
+                    actualBegin = sessionIterator.ActualSessionBegin.ToString("o", CultureInfo.InvariantCulture);
+                    actualEnd = sessionIterator.ActualSessionEnd.ToString("o", CultureInfo.InvariantCulture);
                 }
-
-                Print(
-                    "ARMS_SIM_SESSION_WINDOW_DIAGNOSTIC"
-                    + " trading_hours="
-                    + tradingHours.Name
-                    + " timezone="
-                    + tradingHours.TimeZone
-                    + " now_local="
-                    + nowLocal.ToString(
-                        "o",
-                        CultureInfo.InvariantCulture
-                    )
-                    + " is_in_session="
-                    + isInSession
-                    + " next_session_found="
-                    + found
-                    + " actual_begin="
-                    + actualBegin
-                    + " actual_end="
-                    + actualEnd
-                );
-
-                if (!found)
-                {
-                    return
-                        " session_begin=SESSION_WINDOW_UNKNOWN"
-                        + " session_end=SESSION_WINDOW_UNKNOWN";
-                }
-
-                return
-                    " session_begin="
-                    + actualBegin
-                    + " session_end="
-                    + actualEnd;
+                Print("ARMS_SIM_SESSION_WINDOW_DIAGNOSTIC"
+                    + " trading_hours=" + tradingHours.Name
+                    + " application_timezone=" + applicationTimezone
+                    + " trading_hours_timezone=" + tradingHoursTimezone
+                    + " application_now=" + applicationNowText
+                    + " is_in_session=" + isInSession
+                    + " next_session_found=" + found
+                    + " session_begin=" + actualBegin
+                    + " session_end=" + actualEnd);
+                return " session_begin=" + actualBegin + " session_end=" + actualEnd;
             }
             catch (Exception ex)
             {
-                Print(
-                    "ARMS_SIM_SESSION_WINDOW_DIAGNOSTIC"
+                Print("ARMS_SIM_SESSION_WINDOW_DIAGNOSTIC"
                     + " trading_hours=UNKNOWN"
-                    + " timezone=UNKNOWN"
-                    + " now_local="
-                    + DateTime.Now.ToString(
-                        "o",
-                        CultureInfo.InvariantCulture
-                    )
+                    + " application_timezone=" + applicationTimezone
+                    + " trading_hours_timezone=" + tradingHoursTimezone
+                    + " application_now=" + applicationNowText
                     + " is_in_session=UNKNOWN"
                     + " next_session_found=False"
-                    + " actual_begin=SESSION_WINDOW_UNKNOWN"
-                    + " actual_end=SESSION_WINDOW_UNKNOWN"
-                    + " error="
-                    + ex.GetType().Name
-                );
-
-                return
-                    " session_begin=SESSION_WINDOW_UNKNOWN"
+                    + " session_begin=SESSION_WINDOW_UNKNOWN"
+                    + " session_end=SESSION_WINDOW_UNKNOWN"
+                    + " error=" + ex.GetType().Name);
+                return " session_begin=SESSION_WINDOW_UNKNOWN"
                     + " session_end=SESSION_WINDOW_UNKNOWN";
             }
         }
@@ -2428,12 +2359,12 @@ namespace NinjaTrader.NinjaScript.Indicators
                         tradingHours
                     );
 
-                DateTime nowLocal =
-                    DateTime.Now;
+                DateTime applicationNow =
+                    PhysicalTestApplicationNow();
 
                 bool isInSession =
                     sessionIterator.IsInSession(
-                        nowLocal,
+                        applicationNow,
                         false,
                         true
                     );
