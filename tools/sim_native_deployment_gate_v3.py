@@ -1,4 +1,4 @@
-"""Read-only four-source deployment gate; never copies, edits or runs NinjaTrader."""
+"""Explicit manifest, pre-deployment, and manual post-compile gates; read-only."""
 from __future__ import annotations
 
 import argparse
@@ -66,6 +66,11 @@ def compile_offline(repo: Path, custom: Path, sdk: Path, output: Path):
 
 
 def verify(repo: Path, custom: Path, project: Path):
+    """Certify exact pre-deployment destinations, never generated source variants.
+
+    Project checks are conservative static checks, not an MSBuild evaluator.
+    Conditional or indirect framework references require manual resolution.
+    """
     rows = manifest(repo, custom)
     errors = []
     expected_paths = {Path(row["destination"]).resolve(): row for row in rows}
@@ -91,27 +96,46 @@ def verify(repo: Path, custom: Path, project: Path):
     for name in MODEL_TYPES:
         if counts[name] != 1:
             errors.append("MODEL_TYPE_COUNT:"+name+":"+str(counts[name]))
-    # Native editor may append generated wrappers to the indicator owner. Match
-    # its approved source prefix and separately reject duplicate owner declarations.
-    marker = "#region NinjaScript generated code"
+    # The manifest hashes the entire byte stream, including BOM/newlines/suffixes.
+    # Declaration inspection supplements this check; it never relaxes identity.
     for row in rows:
         path = Path(row["destination"])
-        if not path.exists():
+        if row["deployed_sha256"] is None:
             errors.append("MISSING_SOURCE:"+str(path))
             continue
-        expected = Path(row["source"]).read_text(encoding="utf-8-sig").strip()
-        actual = path.read_text(encoding="utf-8-sig")
-        if path.name == "ArmsSimNativeSubmitBridgeV2.cs":
-            actual = actual.split(marker, 1)[0]
-        if actual.strip() != expected:
-            errors.append("STALE_OR_MODIFIED_SOURCE:"+str(path))
-    tree = ET.parse(project)
+        if row["deployed_sha256"] != row["expected_sha256"]:
+            errors.append("SOURCE_SHA256_MISMATCH:"+str(path))
+    try:
+        tree = ET.parse(project)
+    except (ET.ParseError, OSError):
+        errors.append("PROJECT_XML_INVALID_OR_UNREADABLE")
+        return {"phase": "PRE_DEPLOYMENT_SOURCE_GATE", "ready": False, "errors": errors, "manifest": rows}
     includes = []
-    references = {element.attrib.get("Include", "").split(",")[0] for element in tree.iter()
-                  if element.tag.split("}")[-1] == "Reference"}
-    if "System.Security" not in references:
-        errors.append("DPAPI_FRAMEWORK_REFERENCE_MISSING:System.Security")
     parents = {child: parent for parent in tree.iter() for child in parent}
+    active_security = False
+    for element in tree.iter():
+        if element.tag.split("}")[-1] != "Reference":
+            continue
+        # Removal/update/exclusion can invalidate an otherwise unconditional
+        # reference. Do not guess at properties, wildcards or evaluation order.
+        if any(name in element.attrib for name in ("Remove", "Update", "Exclude")):
+            errors.append("REFERENCE_MODIFICATION_REQUIRES_REVIEW")
+        if element.attrib.get("Include", "").split(",")[0] != "System.Security":
+            continue
+        group = parents.get(element)
+        root = tree.getroot()
+        if (group is None or group.tag.split("}")[-1] != "ItemGroup" or parents.get(group) is not root
+                or root.tag.split("}")[-1] != "Project"
+                or any("Condition" in node.attrib for node in (element, group, root))):
+            errors.append("DPAPI_REFERENCE_NOT_PROVABLY_ACTIVE:System.Security")
+        elif set(element.attrib) != {"Include"} or len(element):
+            # Require the plain framework reference, not a HintPath/alias or
+            # metadata that could redirect or exclude it from compilation.
+            errors.append("DPAPI_REFERENCE_METADATA_REQUIRES_REVIEW:System.Security")
+        else:
+            active_security = True
+    if not active_security:
+        errors.append("DPAPI_FRAMEWORK_REFERENCE_MISSING_OR_INACTIVE:System.Security")
     for element in tree.iter():
         if element.tag.split("}")[-1] == "Compile" and "Include" in element.attrib:
             value = element.attrib["Include"]
@@ -135,15 +159,29 @@ def verify(repo: Path, custom: Path, project: Path):
     for flag in ("NATIVE_SUBMIT_ENABLED", "AUTO_RETRY_ALLOWED"):
         if not re.search(r'\bconst\s+bool\s+'+flag+r'\s*=\s*false\s*;', code_only(main)):
             errors.append("SAFETY_CONSTANT:"+flag)
-    return {"ready": not errors, "errors": errors, "manifest": rows}
+    return {"phase": "PRE_DEPLOYMENT_SOURCE_GATE", "ready": not errors, "errors": errors, "manifest": rows}
 
 
-if __name__ == "__main__":
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--phase", choices=("manifest", "pre-deployment", "post-compile"), required=True)
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--custom", type=Path, required=True)
     parser.add_argument("--project", type=Path)
-    args = parser.parse_args()
-    result = verify(args.repo, args.custom, args.project) if args.project else {"manifest": manifest(args.repo, args.custom)}
+    args = parser.parse_args(argv)
+    if args.phase != "manifest" and args.project is None:
+        parser.error("--project is required for destination and post-compile checks")
+    if args.phase == "manifest":
+        result = {"phase": "REPOSITORY_MANIFEST", "status": "INVENTORY_ONLY", "manifest": manifest(args.repo, args.custom)}
+    else:
+        result = verify(args.repo, args.custom, args.project)
+        if args.phase == "post-compile":
+            result["phase"] = "POST_NINJASCRIPT_COMPILE_GATE"
+            result["ready"] = False
+            result["errors"].append("MANUAL_COMMISSIONING_REQUIRED:GENERATED_SOURCE_AND_NATIVE_BUILD")
     print(json.dumps(result, indent=2))
-    raise SystemExit(0 if result.get("ready", True) else 1)
+    return 0 if result.get("ready", args.phase == "manifest") else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

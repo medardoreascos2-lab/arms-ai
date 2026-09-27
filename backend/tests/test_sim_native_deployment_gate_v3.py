@@ -1,11 +1,29 @@
 from pathlib import Path
+import hashlib
+import json
 import shutil
 
 import pytest
 
-from tools.sim_native_deployment_gate_v3 import SOURCES, verify
+from tools.sim_native_deployment_gate_v3 import SOURCES, main as gate_main, verify
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.mark.parametrize("defect", ["D1", "D2", "D3"])
+def test_review_defects_fail_closed(tmp_path, defect):
+    custom, project = installation(tmp_path)
+    main = custom/"Indicators/ArmsSimNativeSubmitBridgeV2.cs"
+    if defect == "D1":
+        main.write_bytes(main.read_bytes() + b"\n")
+    elif defect == "D2":
+        with main.open("a") as file:
+            file.write("\n#region NinjaScript generated code\nnamespace Unapproved { public class ExtraExecutableCode { public static int Run() { return 1; } } }\n#endregion\n")
+    else:
+        project.write_text(project.read_text().replace('<Reference Include="System.Security" />',
+            '<Reference Include="System.Security" Condition="false" />'))
+    result = verify(ROOT, custom, project)
+    assert not result["ready"], f"{defect} was incorrectly accepted: {result['errors']}"
 
 
 def installation(tmp_path):
@@ -55,12 +73,166 @@ def test_deployment_rejects_ambiguous_sources(tmp_path, case):
     assert not verify(ROOT, custom, project)["ready"]
 
 
-def test_generated_wrapper_does_not_duplicate_owner(tmp_path):
+def test_generated_wrapper_is_not_approved_pre_deployment_source(tmp_path):
     custom, project = installation(tmp_path)
     main = custom/"Indicators/ArmsSimNativeSubmitBridgeV2.cs"
     with main.open("a") as file:
         file.write("\n#region NinjaScript generated code\nnamespace NinjaTrader.NinjaScript.Indicators { public partial class Indicator { } }\n#endregion")
-    assert verify(ROOT, custom, project)["ready"]
+    assert not verify(ROOT, custom, project)["ready"]
     with main.open("a") as file:
         file.write("\npublic partial class ArmsSimNativeSubmitBridgeV2 {}")
     assert not verify(ROOT, custom, project)["ready"]
+
+
+@pytest.mark.parametrize("name,folder", SOURCES.items())
+@pytest.mark.parametrize("mutation", ["exact", "append_newline", "remove_newline", "line_endings", "whitespace", "bom", "character"])
+def test_d1_exact_bytes_for_each_source(tmp_path, name, folder, mutation):
+    custom, project = installation(tmp_path)
+    target = custom/folder/name
+    source = ROOT/"integrations/ninjatrader"/name
+    original = source.read_bytes()
+    changed = original
+    if mutation == "append_newline":
+        changed += b"\n"
+    elif mutation == "remove_newline":
+        assert original.endswith(b"\n")
+        changed = original[:-1]
+    elif mutation == "line_endings":
+        changed = original.replace(b"\r\n", b"\n") if b"\r\n" in original else original.replace(b"\n", b"\r\n")
+    elif mutation == "whitespace":
+        changed += b" "
+    elif mutation == "bom":
+        assert not original.startswith(b"\xef\xbb\xbf")
+        changed = b"\xef\xbb\xbf" + original
+    elif mutation == "character":
+        changed = original.replace(b"using System;", b"using Xystem;", 1)
+    if mutation != "exact":
+        assert changed != original
+    target.write_bytes(changed)
+    before = {p:p.read_bytes() for p in custom.rglob("*") if p.is_file()}
+    result = verify(ROOT, custom, project)
+    assert result["ready"] is (mutation == "exact")
+    row = next(row for row in result["manifest"] if Path(row["destination"]).name == name)
+    assert row["expected_sha256"] == hashlib.sha256(original).hexdigest()
+    assert row["deployed_sha256"] == hashlib.sha256(changed).hexdigest()
+    if mutation != "exact":
+        assert any(error.startswith("SOURCE_SHA256_MISMATCH:") for error in result["errors"])
+    assert source.read_bytes() == original
+    assert before == {p:p.read_bytes() for p in custom.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("suffix", [
+    "namespace Unapproved { public class ExtraExecutableCode { public static int Run() { return 1; } } }",
+    "public void UnexpectedMethod() { }",
+    "public void Mutate() { selectedAccount.Submit(orders); selectedAccount.Cancel(orders); selectedAccount.Flatten(instruments); }",
+    "public partial class ArmsSimNativeSubmitBridgeV2 {}",
+    "public class ControlledSimOperationV3 {}",
+    "public class ControlledOperationV3 {}",
+    "public class NativeTestHarness {}",
+])
+def test_d2_no_generated_suffix_is_ignored(tmp_path, suffix):
+    custom, project = installation(tmp_path)
+    main = custom/"Indicators/ArmsSimNativeSubmitBridgeV2.cs"
+    changed = main.read_bytes() + ("\n#region NinjaScript generated code\n" + suffix + "\n#endregion\n").encode()
+    main.write_bytes(changed)
+    result = verify(ROOT, custom, project)
+    assert not result["ready"]
+    assert any(error.startswith("SOURCE_SHA256_MISMATCH:") for error in result["errors"])
+    assert main.read_bytes() == changed
+
+
+@pytest.mark.parametrize("case", ["missing", "typo", "comment", "false", "resolved_false", "unknown",
+    "true_unproven", "inactive_group", "unknown_group", "unrelated_target", "choose", "removed",
+    "metadata", "malformed"])
+def test_d3_system_security_must_be_provably_active(tmp_path, case):
+    custom, project = installation(tmp_path)
+    text = project.read_text()
+    reference = '<Reference Include="System.Security" />'
+    changes = {
+        "missing": "",
+        "typo": '<Reference Include="System.Securty" />',
+        "comment": '<!--' + reference + '-->',
+        "false": '<Reference Include="System.Security" Condition="false" />',
+        "resolved_false": '<Reference Include="System.Security" Condition="\'Debug\' == \'Release\'" />',
+        "unknown": '<Reference Include="System.Security" Condition="\'$(Unknown)\' == \'yes\'" />',
+        "true_unproven": '<Reference Include="System.Security" Condition="true" />',
+        "inactive_group": '</ItemGroup><ItemGroup Condition="false">' + reference + '</ItemGroup><ItemGroup>',
+        "unknown_group": '</ItemGroup><ItemGroup Condition="\'$(Configuration)\' == \'Release\'">' + reference + '</ItemGroup><ItemGroup>',
+        "unrelated_target": '</ItemGroup><Target Name="Unused"><ItemGroup>' + reference + '</ItemGroup></Target><ItemGroup>',
+        "choose": '</ItemGroup><Choose><When Condition="false"><ItemGroup>' + reference + '</ItemGroup></When></Choose><ItemGroup>',
+        "removed": reference + '<Reference Remove="System.Security" />',
+        "metadata": '<Reference Include="System.Security"><HintPath>unapproved.dll</HintPath></Reference>',
+    }
+    text = '<Project><ItemGroup>' if case == "malformed" else text.replace(reference, changes[case])
+    project.write_text(text)
+    before = project.read_bytes()
+    result = verify(ROOT, custom, project)
+    assert not result["ready"]
+    assert any(error.startswith(("DPAPI_", "REFERENCE_MODIFICATION_", "PROJECT_XML_")) for error in result["errors"])
+    assert project.read_bytes() == before
+
+
+@pytest.mark.parametrize("name,folder", SOURCES.items())
+@pytest.mark.parametrize("case", ["missing", "wrong_destination"])
+def test_missing_or_wrong_destination_for_every_source(tmp_path, name, folder, case):
+    custom, project = installation(tmp_path)
+    target = custom/folder/name
+    if case == "missing":
+        target.unlink()
+    else:
+        target.rename(custom/("Indicators" if folder == "AddOns" else "AddOns")/name)
+    assert not verify(ROOT, custom, project)["ready"]
+
+
+@pytest.mark.parametrize("flag", ["NATIVE_SUBMIT_ENABLED", "AUTO_RETRY_ALLOWED"])
+def test_changed_safety_constant_rejected_in_source_and_destination(tmp_path, flag):
+    custom, project = installation(tmp_path)
+    main = custom/"Indicators/ArmsSimNativeSubmitBridgeV2.cs"
+    main.write_text(main.read_text().replace("const bool " + flag + " = false;", "const bool " + flag + " = true;"))
+    assert not verify(ROOT, custom, project)["ready"]
+    # Even matching manifest/destination bytes cannot approve enabled constants.
+    repo = tmp_path/"repo"
+    source = repo/"integrations/ninjatrader"
+    source.mkdir(parents=True)
+    for name, folder in SOURCES.items():
+        shutil.copyfile(custom/folder/name, source/name)
+    result = verify(repo, custom, project)
+    assert not result["ready"]
+    assert "SAFETY_CONSTANT:" + flag in result["errors"]
+
+
+def test_backup_must_be_outside_active_custom_tree(tmp_path):
+    custom, project = installation(tmp_path)
+    backup = tmp_path/"backup"
+    shutil.copytree(custom, backup)
+    assert verify(ROOT, custom, project)["ready"]
+    shutil.copytree(backup, custom/"backup")
+    assert not verify(ROOT, custom, project)["ready"]
+
+
+@pytest.mark.parametrize("phase,exit_code", [("manifest", 0), ("pre-deployment", 0), ("post-compile", 1)])
+def test_cli_phase_contracts(tmp_path, capsys, phase, exit_code):
+    custom, project = installation(tmp_path)
+    args = ["--phase", phase, "--repo", str(ROOT), "--custom", str(custom)]
+    if phase != "manifest":
+        args += ["--project", str(project)]
+    assert gate_main(args) == exit_code
+    result = json.loads(capsys.readouterr().out)
+    if phase == "manifest":
+        assert result["phase"] == "REPOSITORY_MANIFEST"
+        assert result["status"] == "INVENTORY_ONLY"
+        assert "ready" not in result
+    elif phase == "pre-deployment":
+        assert result["phase"] == "PRE_DEPLOYMENT_SOURCE_GATE"
+        assert result["ready"]
+    else:
+        assert result["phase"] == "POST_NINJASCRIPT_COMPILE_GATE"
+        assert not result["ready"]
+        assert result["errors"] == ["MANUAL_COMMISSIONING_REQUIRED:GENERATED_SOURCE_AND_NATIVE_BUILD"]
+
+
+@pytest.mark.parametrize("args", [[], ["--phase", "pre-deployment"], ["--phase", "post-compile"]])
+def test_cli_requires_explicit_phase_and_project(tmp_path, args):
+    with pytest.raises(SystemExit) as error:
+        gate_main(["--repo", str(ROOT), "--custom", str(tmp_path), *args])
+    assert error.value.code == 2

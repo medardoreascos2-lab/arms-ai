@@ -94,18 +94,48 @@ is a deployment dependency. Backup must be outside the entire active Custom
 tree. Replace the old non-partial owner in place, never retain a renamed `.cs`
 backup there.
 
-`tools/sim_native_deployment_gate_v3.py` emits exact source/destination hashes
-and COPY/REPLACE/ALREADY_CURRENT actions. With `--project` it additionally checks
-all active source declarations, exact production bodies, the three intended
-owner partials, unique helper/model declarations, absence of harnesses, both
-false constants and exactly one explicit project inclusion per source.
+`tools/sim_native_deployment_gate_v3.py` requires an explicit `--phase`:
+
+- `--phase manifest --repo <approved-checkout> --custom <Custom>` inventories the exact
+  source/destination SHA256 values and COPY/REPLACE/ALREADY_CURRENT actions.
+  This is `REPOSITORY_MANIFEST` / `INVENTORY_ONLY`, not destination readiness.
+  Establish the approved repository commit separately; hashes derived from an
+  arbitrary checkout do not prove that checkout is approved.
+- `--phase pre-deployment --repo <approved-checkout> --custom <Custom> --project <csproj>`
+  is `PRE_DEPLOYMENT_SOURCE_GATE`. It requires every destination to match the
+  manifest SHA256 over the complete file bytes. BOM, whitespace, line endings
+  and generated suffixes are never normalized or ignored. Expected and actual
+  hashes remain in the report; the gate never rewrites files. It also checks
+  exact destinations, all active source declarations, the three intended owner
+  partials, unique helper/model declarations, absence of harnesses, both false
+  constants and exactly one explicit project inclusion per source.
+- `--phase post-compile` takes the same path arguments as `pre-deployment`, retains those
+  checks, and always returns not-ready/nonzero with
+  `MANUAL_COMMISSIONING_REQUIRED:GENERATED_SOURCE_AND_NATIVE_BUILD`. It cannot
+  certify a native compile or approve generated source variants offline.
+
+No phase is inferred from the presence of `--project`.
+
+Read-only inspection during RC2R3 found generated Indicator, MarketAnalyzerColumn
+and Strategy wrappers in installed standard indicator `Indicators/@APZ.cs`.
+The installed ARMS owner had no generated suffix. These existing files establish
+conventions, not deterministic output from compiling the changed ARMS source.
+No NinjaTrader compile was performed. Therefore post-compile source acceptance
+remains a manual commissioning gate: retain the approved pre-deployment hashes,
+capture and review complete before/after source bytes and actual build evidence,
+and stop on unexplained additions. A separately approved generated artifact or
+proven strict validator is needed before automated post-compile certification.
+Never discard everything following a generated-code marker or overwrite a
+changed source merely to obtain matching hashes.
 
 Future authorized manual discovery sequence: remove the running owner, close
 NinjaTrader, back up outside Custom, deploy these files, restart, open
 New > NinjaScript Editor, add/verify the framework reference below, and compile
 (F5). Inspect the regenerated
-NinjaTrader.Custom.csproj read-only and run the gate with its exact path. Require
-all four includes exactly once and zero compile errors. If any include is
+NinjaTrader.Custom.csproj read-only and use the explicit post-compile phase to
+report the outstanding manual gate. Require all four includes exactly once,
+the active framework reference, reviewed complete sources and zero compile
+errors. If any include is
 missing, stop before re-adding the indicator and obtain a supported explicit
 source-registration action; do not silently edit the installed project or
 exclude a companion to obtain a green compile. This offline task cannot attest
@@ -118,7 +148,15 @@ the installed .NET Framework `System.Security.dll` (normally
 `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\System.Security.dll`). This is a
 framework reference, not another deployed ARMS source or a new package. Compile
 and verify the resulting reference read-only with the gate. No installed
-project/reference is changed during this offline task.
+project/reference is changed during this offline task. The automated check accepts
+only a plain unconditional `Reference Include="System.Security"` in an
+unconditional top-level `ItemGroup`. It does not evaluate MSBuild conditions:
+even a literal true condition requires review, and unknown conditions fail
+closed. Conditional ancestors, references inside targets/Choose branches,
+reference removal/update/exclusion operations, and redirection metadata such
+as HintPath or aliases fail closed. Malformed/unreadable project XML also fails.
+Native build evidence is still required; the static gate does not execute or
+claim to evaluate imported MSBuild targets.
 
 `compile_offline` compiles every production body against installed SDK metadata.
 Only the installed Indicator base is accessed through the NTBase assembly
