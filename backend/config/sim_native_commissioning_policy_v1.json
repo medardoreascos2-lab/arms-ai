@@ -1,0 +1,18 @@
+{
+  "schema": "ARMS_SIM_NATIVE_COMMISSIONING_POLICY_V1",
+  "version": 1,
+  "api_settings": {
+    "maximum_quote_age_seconds": 30.0,
+    "minimum_reward_risk_ratio": 2.0,
+    "minimum_stop_points": 1.0,
+    "maximum_stop_points": 100.0,
+    "maximum_spread_points": 5.0,
+    "minimum_atr_points": 1.0,
+    "minimum_a_plus_probability": 0.80,
+    "minimum_a_plus_confluence_score": 0.80,
+    "maximum_signal_age_seconds": 30,
+    "maximum_open_positions": 1
+  },
+  "protection_timeout_us": 10000000,
+  "recovery_timeout_us": 60000000
+}
