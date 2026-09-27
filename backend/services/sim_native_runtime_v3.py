@@ -116,6 +116,12 @@ class NativeAdmissionProducerV3:
         self.authority = NativeAdmissionAuthorityV3(key=key, account_binding=binding,
             execution_scope_guard=lifecycle.runtime_admission_v2.require_execution_scope)
 
+    def risk_version(self):
+        """The same policy identity used for configuration and admission."""
+        self.store._durability.account_switch_safety._assert_identity()
+        return digest({"profile": self.binding.risk_profile_digest,
+                       "policy": self.store._durability.account_switch_safety.policy_digest})
+
     def produce(self, *, signal, risk_evaluation, execution_risk_gate, quote):
         lifecycle = self.store.trade_lifecycle_service
         admission = lifecycle.runtime_admission_v2
@@ -146,8 +152,7 @@ class NativeAdmissionProducerV3:
         from backend.instruments.instrument_profile_engine import InstrumentProfileEngine
         point = InstrumentProfileEngine().get_profile(symbol=self.binding.instrument_root)["point_value"]
         plan = {k: signal[k] for k in ("symbol", "direction", "contracts", "entry_price", "stop_loss", "take_profit")}
-        risk_version = digest({"profile": self.binding.risk_profile_digest,
-                               "policy": self.store._durability.account_switch_safety.policy_digest})
+        risk_version = self.risk_version()
         values = {**self.binding.claims(), "account": "Sim101", "provider": "Simulator", "instrument": self.binding.instrument,
             "runtime_generation": str(self.binding.runtime_generation), "admission_id": uuid4().hex,
             "signal_id": signal["submission_id"], "plan_id": digest(plan), "operation_id": operation["operation_id"],

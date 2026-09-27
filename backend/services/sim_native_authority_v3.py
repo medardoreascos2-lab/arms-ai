@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import stat
 import subprocess
 import uuid
 
@@ -44,7 +45,8 @@ def safe_path(value, *, authority=False) -> Path:
     if authority and (any("onedrive" in part.lower() for part in path.parts) or "custom" in [p.lower() for p in path.parts]):
         raise ValueError("cloud/Custom storage prohibited")
     for parent in (path, *path.parents):
-        if parent.exists() and (parent.is_symlink() or getattr(parent, "is_junction", lambda: False)()):
+        if parent.exists() and (parent.is_symlink() or getattr(parent, "is_junction", lambda: False)()
+                or getattr(parent.lstat(), "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT):
             raise ValueError("redirected path prohibited")
     return resolved
 
@@ -86,9 +88,17 @@ def _restrict_directory(path: Path):
     encoded_path = base64.b64encode(str(path).encode("utf-8")).decode("ascii")
     script = """$ErrorActionPreference='Stop'
 $p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('%s'))
+$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
+$existing=Get-Acl -LiteralPath $p
+$rules=@($existing.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
+$expected=@($sid.Value,'S-1-5-18')
+$private=$existing.AreAccessRulesProtected -and $existing.GetOwner([Security.Principal.SecurityIdentifier]).Value -eq $sid.Value -and $rules.Count -eq 2
+foreach($rule in $rules) {
+ if($rule.IdentityReference.Value -notin $expected -or $rule.AccessControlType -ne 'Allow' -or $rule.FileSystemRights -ne 'FullControl' -or $rule.InheritanceFlags -ne 'ContainerInherit,ObjectInherit' -or $rule.PropagationFlags -ne 'None' -or $rule.IsInherited) { $private=$false }
+}
+if($private -and @($rules.IdentityReference.Value | Select-Object -Unique).Count -eq 2) { exit 0 }
 $acl=New-Object Security.AccessControl.DirectorySecurity
 $acl.SetAccessRuleProtection($true,$false)
-$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
 foreach($identity in @($sid,(New-Object Security.Principal.SecurityIdentifier('S-1-5-18')))) {
  $rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
  $acl.AddAccessRule($rule)
@@ -158,8 +168,48 @@ def canonical(values: dict[str, str]) -> bytes:
     return json.dumps(values, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
+def read_authenticated_config(root=None):
+    """Authenticate exact canonical bytes; freshness is checked by verify_config."""
+    path = safe_path(root, authority=True) if root is not None else authority_root()
+    key = load_authority(path)
+    payload = safe_path(path / "controlled-v3-config.json", authority=True).read_bytes()
+    signature = safe_path(path / "controlled-v3-config.sig", authority=True).read_bytes()
+    if not hmac.compare_digest(signature, hmac.new(key, DOMAIN + payload, hashlib.sha256).hexdigest().encode("ascii")):
+        raise ValueError("configuration signature invalid")
+    values = json.loads(payload)
+    if canonical(values) != payload or values.get("authority_id") != authority_id(key):
+        raise ValueError("configuration canonical bytes or authority invalid")
+    generation = values.get("configuration_generation", "")
+    if (not generation.isascii() or not generation.isdecimal() or int(generation) < 1
+            or str(int(generation)) != generation):
+        raise ValueError("configuration generation invalid")
+    return values
+
+
+def verify_config(*, binding, paths, risk_version, configuration_generation, now_us, root=None):
+    """Read-only verification; never renews, provisions, or repairs artifacts."""
+    values = read_authenticated_config(root)
+    binding.manager()
+    expected = {**binding.claims(), **{k: str(safe_path(paths[k], authority=True)) for k in PATH_FIELDS},
+        "schema": SCHEMA, "version": "3", "configuration_generation": str(configuration_generation),
+        "native_account": binding.native_account_name, "provider": binding.provider,
+        "instrument": binding.instrument, "runtime_generation": str(binding.runtime_generation), "risk_version": risk_version}
+    if set(values) != set(expected) | {"authority_id", "issued_at", "issued_us", "expires_us"} or any(values.get(k) != v for k,v in expected.items()):
+        raise ValueError("configuration pins or schema mismatch")
+    if (len({values[k].casefold() for k in PATH_FIELDS}) != 4
+            or any(not Path(values[k]).is_dir() for k in PATH_FIELDS)):
+        raise ValueError("configuration directories invalid")
+    issued, expires = int(values["issued_us"]), int(values["expires_us"])
+    if (type(now_us) is not int or not 0 < issued <= now_us < expires
+            or str(issued) != values["issued_us"] or str(expires) != values["expires_us"]
+            or values["issued_at"] != (datetime(1970, 1, 1, tzinfo=timezone.utc)+timedelta(microseconds=issued)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")):
+        raise ValueError("configuration validity invalid or expired")
+    return values
+
+
 def publish_config(*, binding: SimNativeAccountV3, configuration_generation: int,
-                   risk_version: str, paths: dict, issued_us: int, expires_us: int, root=None):
+                   risk_version: str, paths: dict, issued_us: int, expires_us: int, root=None,
+                   require_next_generation=False):
     """Explicit authoritative backend call; no defaults for freshness or identity.
 
     Expected generation/fingerprint/account/path pins must also be configured on
@@ -189,6 +239,7 @@ def publish_config(*, binding: SimNativeAccountV3, configuration_generation: int
     try:
         config = path / "controlled-v3-config.json"
         sig = path / "controlled-v3-config.sig"
+        generation = 0
         if config.exists() or sig.exists():
             old = config.read_bytes()
             if not hmac.compare_digest(sig.read_bytes(), hmac.new(key, DOMAIN + old, hashlib.sha256).hexdigest().encode()):
@@ -198,6 +249,8 @@ def publish_config(*, binding: SimNativeAccountV3, configuration_generation: int
                 if old == payload:
                     return values
                 raise ValueError("configuration generation cannot be reused or rolled back")
+        if require_next_generation and configuration_generation != generation + 1:
+            raise ValueError("next explicit configuration must use prior generation plus one")
         _atomic(config, payload)
         _atomic(sig, signature)  # Readers reject a torn pair; signature commits exact bytes.
     finally:
