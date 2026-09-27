@@ -707,6 +707,18 @@
       ]
     },
     {
+      "path": "backend/services/sim_native_runtime_v3.py",
+      "introduced_by": "SIM_E2E_PHASE4",
+      "consequence": "DISABLED_SIM_NATIVE_ADMISSION_USES_CANONICAL_RUNTIME_CLOCK; NO_EXTERNAL_CLOCK_AUTHORITY_OR_NATIVE_SUBMIT",
+      "calls": [
+        {
+          "line": 131,
+          "call": "admission.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
       "path": "backend/services/startup_coordinator_v2.py",
       "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
       "calls": [
@@ -738,7 +750,7 @@
           "authority": "MONOTONIC_ELAPSED"
         },
         {
-          "line": 1785,
+          "line": 1792,
           "call": "datetime.now",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }

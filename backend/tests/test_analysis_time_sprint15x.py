@@ -303,5 +303,20 @@ def test_clock_inventory_extension_preserves_every_prior_assessment_field():
     assert len(native_runtime_snapshot)==1
     assert native_runtime_snapshot[0]['introduced_by']=='R48X12C'
     review['direct_clock_dependencies'].remove(native_runtime_snapshot[0])
+    # Phase 4 delegates to the canonical admission clock without extending the
+    # historical clock certificate. Reconstruct its exact pre-extension input.
+    native_admission,=[row for row in review['direct_clock_dependencies']
+                       if row['path']=='backend/services/sim_native_runtime_v3.py']
+    assert native_admission=={
+        'path':'backend/services/sim_native_runtime_v3.py',
+        'introduced_by':'SIM_E2E_PHASE4',
+        'consequence':'DISABLED_SIM_NATIVE_ADMISSION_USES_CANONICAL_RUNTIME_CLOCK; NO_EXTERNAL_CLOCK_AUTHORITY_OR_NATIVE_SUBMIT',
+        'calls':[{'line':131,'call':'admission.clock','authority':'HOST_WALL_OR_INJECTED_CLOCK'}]}
+    review['direct_clock_dependencies'].remove(native_admission)
+    lifecycle,=[row for row in review['direct_clock_dependencies']
+                if row['path']=='backend/services/trade_lifecycle_service_v2.py']
+    shifted,=[call for call in lifecycle['calls'] if call['call']=='datetime.now']
+    assert shifted['line']==1792  # Seven-line post-gate admission branch.
+    shifted['line']=1785
     original=sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     assert original=='591d35ecb200cdb37cf5495d8df00262f9b284b069f06fddffe2cd39337a4d8a'

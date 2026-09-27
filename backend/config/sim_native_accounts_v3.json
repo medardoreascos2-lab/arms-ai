@@ -1,0 +1,19 @@
+{
+  "version": 3,
+  "accounts": [
+    {
+      "backend_account_id": "SIM_NATIVE-917E15181DBB4F8F8D625716795704A3",
+      "execution_domain": "SIM_NATIVE",
+      "provider": "Simulator",
+      "native_account_name": "Sim101",
+      "risk_profile_id": "TOPSTEP_150K",
+      "ledger_id": "SIM_NATIVE-917E15181DBB4F8F8D625716795704A3",
+      "journal_account_id": "SIM_NATIVE-917E15181DBB4F8F8D625716795704A3",
+      "instrument": "NQ DEC26",
+      "instrument_root": "NQ",
+      "enabled": true,
+      "execution_capability": "DISABLED",
+      "runtime_generation": 1
+    }
+  ]
+}

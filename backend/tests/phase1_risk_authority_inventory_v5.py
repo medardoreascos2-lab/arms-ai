@@ -9,6 +9,10 @@ VOCABULARY = {"BLOCKED", "BLOCK", "APPROVED", "ALLOW_TRADE", "BLOCK_TRADE",
               "DO_NOT_EXECUTE", "risk_approved", "sizing_approved", "EXECUTE"}
 # These owners decide through booleans/exceptions/delegation rather than result vocabulary.
 EXPLICIT = {
+ "backend/accounts/sim_native_account_v3.py": {"__post_init__", "resolve", "assert_claims", "manager"},
+ "backend/services/sim_admission_envelope_v3.py": {"issue", "verify", "persist"},
+ "backend/services/sim_native_runtime_v3.py": {"_assert_identity", "validate_signal", "build_native_sim_runtime"},
+ "backend/services/sim_native_financial_checkpoint_v3.py": {"_assert_owners", "_decode_admission", "record_admission", "validate_state", "start", "apply_phase", "restore_state", "receipt"},
  "backend/backtesting/operational_paper_v1.py": {"__init__", "_accepted_frame", "poll", "_news_status", "close"},
  "backend/backtesting/operational_paper_soak_v1.py": {"review", "validate_runway", "fresh_candidate", "main"},
  "backend/market_data/ninjatrader_market_reader_v1.py": {"__init__", "_frame", "_fail", "poll", "close"},

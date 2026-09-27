@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 152,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 152,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 154,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 154,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -5961,7 +5961,7 @@
       "path": "backend/services/trade_lifecycle_service_v2.py",
       "function": "TradeLifecycleServiceV2.submit_signal",
       "input": "self, *, signal: dict[str, object], order_type: str, risk_context: dict[str, object] | None=None, order_context: dict[str, object] | None=None",
-      "source_sha256": "1d7f738b733c791a83010681ec115720a19c56cac5cb012a8ec6c59cc74c3e6f",
+      "source_sha256": "b03e6d967c78fb6cb48db9398cf3e1af59d1e74ee57f84a926f9c441d326d7d6",
       "writes": [
         "self._active_positions[active_position_id]"
       ],
@@ -5989,6 +5989,7 @@
         "len",
         "list",
         "min",
+        "native_producer.produce",
         "nullcontext",
         "opened_position.get",
         "operation.get",
@@ -7357,6 +7358,123 @@
       "downstream_consumers": [
         "Native SIM transport acknowledgement",
         "Native evidence/reconciliation boundary"
+      ]
+    },
+    {
+      "id": "backend/services/sim_native_financial_checkpoint_v3.py:NativeSimFinancialCheckpointV3._restore_validated",
+      "path": "backend/services/sim_native_financial_checkpoint_v3.py",
+      "function": "NativeSimFinancialCheckpointV3._restore_validated",
+      "input": "self, state",
+      "source_sha256": "79c63c169d7d59830d2107f5f1c133daf0db6043557dea4fba036ccf89db4c5f",
+      "writes": [
+        "self.trade_lifecycle_service._active_positions"
+      ],
+      "calls": [
+        "deepcopy",
+        "portfolio.restore_risk_state",
+        "self._decode_admission",
+        "self._native['admission_wire'].encode",
+        "self._restore_records",
+        "self._risk_portfolio"
+      ],
+      "output_fields": [],
+      "owner": "NativeSimFinancialCheckpointV3 delegates to isolated canonical portfolio/account/journal/history owners",
+      "classification": "RECOVERY_REHYDRATION",
+      "output": "Restore validated SIM_NATIVE account checkpoint only",
+      "mutates_fill_state": true,
+      "mutates_position_state": true,
+      "mutates_portfolio": true,
+      "mutates_account_pnl": true,
+      "mutates_journal": true,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "NativeSimFinancialCheckpointV3.restore_state / rollback_state"
+      ],
+      "caller_evidence": "SIM E2E Phase 4 account/domain/profile/generation/operation binding, replay and participant-isolation regressions",
+      "downstream_consumers": [
+        "Bound SIM_NATIVE canonical account, portfolio and journal",
+        "Durable financial checkpoint",
+        "Dashboard outbox after commit"
+      ]
+    },
+    {
+      "id": "backend/services/sim_native_financial_checkpoint_v3.py:NativeSimFinancialCheckpointV3.apply_phase",
+      "path": "backend/services/sim_native_financial_checkpoint_v3.py",
+      "function": "NativeSimFinancialCheckpointV3.apply_phase",
+      "input": "self, wire: bytes",
+      "source_sha256": "761278a4211725e5f0ec95fba54a9589e8323dae862d9955c6bff1474eff98fb",
+      "writes": [],
+      "calls": [
+        "Decimal",
+        "RuntimeError",
+        "ValueError",
+        "any",
+        "deepcopy",
+        "execution_values",
+        "float",
+        "fresh.sort",
+        "hashlib.sha256",
+        "hashlib.sha256(wire).hexdigest",
+        "int",
+        "journal.close_trade",
+        "journal.record_open_trade",
+        "k.startswith",
+        "len",
+        "lifecycle._active_positions.pop",
+        "lifecycle.trade_history_manager.record",
+        "native_phase",
+        "observations.get",
+        "observations.items",
+        "observations.values",
+        "phase.get",
+        "phase.items",
+        "portfolio.add_position",
+        "portfolio.close_position",
+        "portfolio.get_closed_positions",
+        "portfolio.get_open_positions",
+        "self._assert_owners",
+        "self._durability.admission_barrier",
+        "self._durability.mutation",
+        "self._event_id",
+        "self._native.update",
+        "self._native['executions'].items",
+        "self._pnl",
+        "self._position",
+        "self._risk_portfolio",
+        "self.binding.assert_claims",
+        "self.receipt",
+        "str"
+      ],
+      "output_fields": [
+        "admission_digest",
+        "backend_account_id",
+        "execution_domain",
+        "execution_id",
+        "trade_id"
+      ],
+      "owner": "NativeSimFinancialCheckpointV3 delegates to isolated canonical portfolio/account/journal/history owners",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Exactly-once authenticated native execution facts and committed financial receipt; no order authority",
+      "mutates_fill_state": true,
+      "mutates_position_state": true,
+      "mutates_portfolio": true,
+      "mutates_account_pnl": true,
+      "mutates_journal": true,
+      "mutates_history": true,
+      "account_scoped": true,
+      "persisted": true,
+      "recovery_relevant": true,
+      "callers": [
+        "Explicit authenticated native-phase consumer; offline recording harness"
+      ],
+      "caller_evidence": "SIM E2E Phase 4 account/domain/profile/generation/operation binding, replay and participant-isolation regressions",
+      "downstream_consumers": [
+        "Bound SIM_NATIVE canonical account, portfolio and journal",
+        "Durable financial checkpoint",
+        "Dashboard outbox after commit"
       ]
     }
   ],

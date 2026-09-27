@@ -375,6 +375,10 @@ def test_existing_tracked_sources_unchanged():
                'backend/tests/phase1_financial_inventory_v6.json',
                'backend/tests/phase1_runtime_execution_inventory_v7.json',
                'backend/tests/test_phase1_runtime_execution_ownership_v7.py',
+               # Reviewed SIM E2E Phase 4 isolated, submit-disabled account authority.
+               'backend/services/trade_lifecycle_service_v2.py',
+               'backend/tests/phase1_risk_authority_inventory_v5.py',
+               'backend/tests/phase1_runtime_execution_inventory_v7.py',
                'backend/tests/test_analysis_time_sprint15x.py'}
     assert set(checked(['git', 'diff', '--name-only']).stdout.splitlines()) <= allowed
     assert checked(['git', 'diff', '--cached', '--name-only']).stdout.strip() == ''

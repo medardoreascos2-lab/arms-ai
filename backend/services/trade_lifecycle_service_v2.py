@@ -1446,6 +1446,13 @@ class TradeLifecycleServiceV2(
         # lower-level preparation/broker/simulator calls in this context.
         from contextlib import nullcontext
         with admission._execution_scope() if admission is not None else nullcontext():
+            native_producer = getattr(self, "native_admission_producer_v3", None)
+            if native_producer is not None:
+                # Explicit SIM_NATIVE composition issues a durable admission only.
+                # All existing gates above remain mandatory; no order is prepared.
+                return native_producer.produce(signal=working_signal, risk_evaluation=risk_evaluation,
+                    execution_risk_gate=execution_risk_gate_result,
+                    quote=admission.validate_market(symbol=normalized_symbol))
             prepared_order = (
                 self.execution_manager.prepare_order(
                     signal=working_signal,
