@@ -89,6 +89,12 @@ class SimNativeFinancialRuntimeServiceV3:
                         recovery_timeout_us=policy.recovery_timeout_us)
                 with stage("CONFIG_VERIFY"):
                     self._verify()  # No financial writes before verified config.
+                from backend.services.sim_native_market_hours_authority_v1 import SimNativeMarketHoursLifecycleV1
+                def hours_context(now):
+                    self._verify()
+                    return self._configuration, load_policy().policy_id
+                self._runtime.lifecycle.runtime_admission_v2.market_hours_lifecycle = SimNativeMarketHoursLifecycleV1(
+                    context=hours_context, clock=lambda: self.clock())
                 evidence = SimNativeAdmissionRuntimeEvidenceV3(runtime=self._runtime,
                     configuration=self._configuration, policy=policy, clock=lambda: self.clock())
                 self._runtime.lifecycle.native_admission_producer_v3.runtime_evidence = evidence
@@ -146,6 +152,13 @@ class SimNativeFinancialRuntimeServiceV3:
             if self._first_trade_preflight is None:
                 return FirstControlledTradePreflightV3.unavailable()
             return self._first_trade_preflight.get_snapshot()
+
+    def get_market_hours_authority(self):
+        from backend.services.sim_native_market_hours_authority_v1 import SimNativeMarketHoursLifecycleV1
+        with self._lock:
+            if self._integration is None or self._runtime is None:
+                return SimNativeMarketHoursLifecycleV1.unavailable()
+            return self._runtime.lifecycle.runtime_admission_v2.market_hours_lifecycle.get_snapshot()
 
     def _safe_checkpoint_paths(self):
         path = self._runtime.store.account_namespace
