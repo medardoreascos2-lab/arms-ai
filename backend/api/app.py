@@ -655,6 +655,7 @@ from backend.api.admin_authorization_dependency_v2 import (
     require_admin_authorization_v2,
 )
 from backend.config_settings import ArmsSettings
+from backend.api.sim_native_dashboard_api_v3 import create_sim_native_dashboard_router_v3
 from backend.execution.execution_decision_engine import (
     ExecutionDecisionEngine,
 )
@@ -2869,6 +2870,8 @@ def create_app(
             ),
         )
     )
+
+    app.include_router(create_sim_native_dashboard_router_v3())
 
 
     app.include_router(

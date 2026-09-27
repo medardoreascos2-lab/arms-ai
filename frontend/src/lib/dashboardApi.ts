@@ -61,6 +61,12 @@ export async function requestJson(path: string, body?: JsonObject, protectedCall
 const getJson = (path: string) => requestJson(path);
 const postJson = (path: string, body: JsonObject) => requestJson(path, body, true);
 
+export async function getSimNativeRuntime(signal?: AbortSignal): Promise<JsonObject> {
+  const result = await requestJson("/api/v3/dashboard/sim-native-runtime", undefined, false, false, signal);
+  if (result.execution_domain !== "SIM_NATIVE") throw new Error("Observación SIM_NATIVE inválida.");
+  return result;
+}
+
 export function openDashboardWebSocket(): WebSocket {
   if (!adminToken) throw new Error("Introduce la credencial administrativa PAPER.");
   const encoded = btoa(adminToken).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

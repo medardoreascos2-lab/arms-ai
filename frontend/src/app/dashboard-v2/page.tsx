@@ -14,6 +14,7 @@ import { DashboardConnection, type ConnectionStatus } from "@/lib/dashboardConne
 import type { StrategyIntelligence } from "../../../dashboard-v2/strategyIntelligenceApi";
 
 import StrategyIntelligenceCard from "@/components/dashboard-v2/StrategyIntelligenceCard";
+import SimNativeRuntimeCard from "@/components/dashboard-v2/SimNativeRuntimeCard";
 
 import AccountOverviewCard from "@/components/dashboard-v2/AccountOverviewCard";
 import RiskManagementCard from "@/components/dashboard-v2/RiskManagementCard";
@@ -528,6 +529,8 @@ export default function DashboardV2Page() {
             </span>
           </div>
         </header>
+
+        <SimNativeRuntimeCard />
 
         <form className="mt-6 flex flex-wrap gap-3" onSubmit={(event) => {
           event.preventDefault();

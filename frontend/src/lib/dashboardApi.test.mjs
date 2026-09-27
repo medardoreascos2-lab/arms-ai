@@ -55,6 +55,24 @@ test("only protected requests carry the canonical credential", async () => {
   assert.equal(c.calls[1].options.credentials, 'omit');
 });
 
+test("SIM_NATIVE observations use a separate unprivileged abortable GET", async () => {
+  const c = client([{ body: { execution_domain: "SIM_NATIVE", status: "HEALTHY" } }]);
+  const controller = new AbortController();
+  const result = await c.api.getSimNativeRuntime(controller.signal);
+  assert.equal(result.execution_domain, "SIM_NATIVE");
+  assert.equal(c.calls.length, 1);
+  assert.equal(c.calls[0].url, "http://localhost:8000/api/v3/dashboard/sim-native-runtime");
+  assert.equal(c.calls[0].options.method, "GET");
+  assert.equal(c.calls[0].options.body, undefined);
+  assert.equal(c.calls[0].options.headers["X-ARMS-ADMIN-TOKEN"], undefined);
+  assert.equal(c.calls[0].options.signal, controller.signal);
+});
+
+test("SIM_NATIVE reader rejects a PAPER response instead of merging contracts", async () => {
+  const c = client([{ body: { execution_domain: "PAPER" } }]);
+  await assert.rejects(c.api.getSimNativeRuntime(), /SIM_NATIVE/);
+});
+
 test("current monitor can abort a read without credentials or mutation", async () => {
   const c = client([{body:{}}]);
   const controller = new AbortController();
