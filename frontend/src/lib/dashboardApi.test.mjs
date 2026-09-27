@@ -73,6 +73,17 @@ test("SIM_NATIVE reader rejects a PAPER response instead of merging contracts", 
   await assert.rejects(c.api.getSimNativeRuntime(), /SIM_NATIVE/);
 });
 
+test("SIM_NATIVE financial reader is a separate credential-free GET and rejects PAPER", async () => {
+  const c = client([{ body: { execution_domain: "SIM_NATIVE", status: "NO_OPERATION" } }, { body: { execution_domain: "PAPER" } }]);
+  const controller = new AbortController();
+  assert.equal((await c.api.getSimNativeFinancial(controller.signal)).status, "NO_OPERATION");
+  assert.equal(c.calls[0].url, "http://localhost:8000/api/v3/dashboard/sim-native-financial");
+  assert.equal(c.calls[0].options.method, "GET");
+  assert.equal(c.calls[0].options.headers["X-ARMS-ADMIN-TOKEN"], undefined);
+  assert.equal(c.calls[0].options.signal, controller.signal);
+  await assert.rejects(c.api.getSimNativeFinancial(), /SIM_NATIVE/);
+});
+
 test("current monitor can abort a read without credentials or mutation", async () => {
   const c = client([{body:{}}]);
   const controller = new AbortController();

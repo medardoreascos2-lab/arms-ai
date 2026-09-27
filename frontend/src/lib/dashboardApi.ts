@@ -67,6 +67,12 @@ export async function getSimNativeRuntime(signal?: AbortSignal): Promise<JsonObj
   return result;
 }
 
+export async function getSimNativeFinancial(signal?: AbortSignal): Promise<JsonObject> {
+  const result = await requestJson("/api/v3/dashboard/sim-native-financial", undefined, false, false, signal);
+  if (result.execution_domain !== "SIM_NATIVE") throw new Error("Estado financiero SIM_NATIVE inválido.");
+  return result;
+}
+
 export function openDashboardWebSocket(): WebSocket {
   if (!adminToken) throw new Error("Introduce la credencial administrativa PAPER.");
   const encoded = btoa(adminToken).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
