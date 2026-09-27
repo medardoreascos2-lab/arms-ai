@@ -887,6 +887,18 @@
       ],
       "introduced_by": "backend/tests/analysis_startup_sprint15yr1.json",
       "consequence": "HEALTH_GATE_QPC_ONLY; NO_ABSOLUTE_TIME_AUTHORITY; NO_ACTIVATION_BEFORE_FINAL_GATE"
+    },
+    {
+      "path": "backend/market_data/sim_native_evidence_v2.py",
+      "consequence": "SIM_NATIVE_EVIDENCE_FRESHNESS_VALIDATION_ONLY_NO_EXECUTION_AUTHORITY",
+      "introduced_by": "R48W6F",
+      "calls": [
+        {
+          "line": 348,
+          "call": "self.clock",
+          "authority": "INJECTED_UTC_CLOCK_FOR_EVIDENCE_AGE_VALIDATION_ONLY"
+        }
+      ]
     }
   ],
   "indirect_time_dependencies": [

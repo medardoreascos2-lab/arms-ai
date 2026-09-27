@@ -365,7 +365,13 @@ def test_existing_tracked_sources_unchanged():
                'integrations/ninjatrader/ArmsHistoricalUtcCalendarCursorProbeV1.cs',
                'backend/tests/fixtures/historical_utc_calendar_cursor_harness_sprint16ar57.cs',
                'backend/tests/test_historical_utc_calendar_cursor_probe_sprint16ar57.py',
-               'docs/architecture/historical_utc_calendar_cursor_probe_sprint16ar57.md'}
+               'docs/architecture/historical_utc_calendar_cursor_probe_sprint16ar57.md',
+               # Later reviewed R48W governance extensions.
+               'backend/tests/clock_preflight_sprint15t.json',
+               'backend/tests/phase1_financial_inventory_v6.json',
+               'backend/tests/phase1_runtime_execution_inventory_v7.json',
+               'backend/tests/test_phase1_runtime_execution_ownership_v7.py',
+               'backend/tests/test_analysis_time_sprint15x.py'}
     assert set(checked(['git', 'diff', '--name-only']).stdout.splitlines()) <= allowed
     assert checked(['git', 'diff', '--cached', '--name-only']).stdout.strip() == ''
 

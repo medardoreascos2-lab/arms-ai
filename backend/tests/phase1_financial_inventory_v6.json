@@ -3,8 +3,8 @@
   "baseline": "e57c032d09c3bd34558a43e0c80c59600b029b69",
   "counting": "Function-level financial writes/delegations and explicitly reviewed reconciliation candidates, including initialization, legacy and observational state. Nested route handlers/decorators are counted with their enclosing function. Mutation flags include delegated writes; pure calculators return values without ledger mutation. Generated dataclass constructors are schemas, not independently counted owners.",
   "certificate": {
-    "TOTAL_FINANCIAL_MUTATION_POINTS": 151,
-    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 151,
+    "TOTAL_FINANCIAL_MUTATION_POINTS": 152,
+    "CLASSIFIED_FINANCIAL_MUTATION_POINTS": 152,
     "UNCLASSIFIED_FINANCIAL_MUTATION_POINTS": 0,
     "DUPLICATE_FILL_WRITERS": 0,
     "DUPLICATE_POSITION_WRITERS": 0,
@@ -7303,6 +7303,61 @@
       "mutates_account_pnl": false,
       "mutates_journal": false,
       "mutates_history": false
+    },
+    {
+      "id": "backend/connectors/ninjatrader_sim_broker_connector_v2.py:NinjaTraderSimBrokerConnectorV2.close_position",
+      "path": "backend/connectors/ninjatrader_sim_broker_connector_v2.py",
+      "function": "NinjaTraderSimBrokerConnectorV2.close_position",
+      "input": "self, *, position_id: str, current_price: float, reason: str",
+      "source_sha256": "3f05ff309c55ba0e19640f04374dc45f5d2c6ef5023399be2dfdb077a8675144",
+      "writes": [],
+      "calls": [
+        "RuntimeError",
+        "ValueError",
+        "deepcopy",
+        "float",
+        "position.get",
+        "position_id.strip",
+        "reason.strip",
+        "self._binding_state",
+        "self._mutation_authority_state",
+        "self._require_connection",
+        "self._unique_native_position",
+        "self._validate_close_ack",
+        "self.transport.close_position",
+        "str",
+        "str(position.get('status', '')).strip",
+        "str(position.get('status', '')).strip().upper",
+        "type"
+      ],
+      "output_fields": [
+        "closed",
+        "idempotent_replay",
+        "position",
+        "position_id",
+        "status"
+      ],
+      "owner": "NinjaTraderSimBrokerConnectorV2 native SIM transport adapter; operational decision ownership remains TradeLifecycleServiceV2",
+      "classification": "EXECUTION_ADAPTER",
+      "output": "Validated native SIM close acknowledgement; does not own canonical portfolio, account, journal, history, or PnL state.",
+      "mutates_fill_state": false,
+      "mutates_position_state": true,
+      "mutates_portfolio": false,
+      "mutates_account_pnl": false,
+      "mutates_journal": false,
+      "mutates_history": false,
+      "account_scoped": true,
+      "persisted": false,
+      "recovery_relevant": true,
+      "callers": [
+        "No production construction in current runtime; tests only",
+        "Future canonical lifecycle transport wiring requires explicit review"
+      ],
+      "caller_evidence": "R48W6E whole-backend production wiring audit found no construction outside tests.",
+      "downstream_consumers": [
+        "Native SIM transport acknowledgement",
+        "Native evidence/reconciliation boundary"
+      ]
     }
   ],
   "v81_review": {

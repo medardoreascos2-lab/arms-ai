@@ -6655,6 +6655,231 @@
       ],
       "direct_broker_bypass": false,
       "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/connectors/ninjatrader_sim_broker_connector_v2.py:NinjaTraderSimBrokerConnectorV2.submit_order",
+      "path": "backend/connectors/ninjatrader_sim_broker_connector_v2.py",
+      "function": "NinjaTraderSimBrokerConnectorV2.submit_order",
+      "source_sha256": "4922822116fa1a8f848676336a5a3021592b57e5c8e34f9c1d68170778461336",
+      "calls": [
+        "RuntimeError",
+        "TypeError",
+        "ValueError",
+        "client_order_id.strip",
+        "deepcopy",
+        "len",
+        "order.get",
+        "self._ack_authority_state",
+        "self._binding_state",
+        "self._require_connection",
+        "self._validate_ack",
+        "self.get_orders",
+        "self.transport.submit_order",
+        "type"
+      ],
+      "execution_calls": [
+        "submit_order"
+      ],
+      "classification": "EXECUTION_APPLICATION_FACADE",
+      "owner": "NinjaTraderSimBrokerConnectorV2 transport boundary; operational execution owner remains TradeLifecycleServiceV2",
+      "callers": [
+        "No production construction in current runtime; tests only",
+        "Any future production wiring requires explicit ownership review"
+      ],
+      "lexical_caller_candidates": [],
+      "downstream_effects": [
+        "Validates SIM binding/ACK authority and delegates durable native submit to transport.",
+        "No current production construction; cannot independently originate a trade."
+      ],
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/connectors/ninjatrader_sim_broker_connector_v2.py:NinjaTraderSimBrokerConnectorV2.cancel_order",
+      "path": "backend/connectors/ninjatrader_sim_broker_connector_v2.py",
+      "function": "NinjaTraderSimBrokerConnectorV2.cancel_order",
+      "source_sha256": "e39b5230d12ae08d2faf283dea657d8cf6e37e516a9e4c820efe70e9e086273b",
+      "calls": [
+        "RuntimeError",
+        "deepcopy",
+        "order.get",
+        "order_id.strip",
+        "self._binding_state",
+        "self._mutation_authority_state",
+        "self._require_connection",
+        "self._unique_native_order",
+        "self._validate_cancel_ack",
+        "self.transport.cancel_order",
+        "str",
+        "str(order.get('status', '')).strip",
+        "str(order.get('status', '')).strip().upper"
+      ],
+      "execution_calls": [
+        "cancel_order"
+      ],
+      "classification": "EXECUTION_APPLICATION_FACADE",
+      "owner": "NinjaTraderSimBrokerConnectorV2 transport boundary; operational execution owner remains TradeLifecycleServiceV2",
+      "callers": [
+        "No production construction in current runtime; tests only",
+        "Any future production wiring requires explicit ownership review"
+      ],
+      "lexical_caller_candidates": [],
+      "downstream_effects": [
+        "Validates SIM binding/mutation authority and delegates cancellation to native transport.",
+        "No current production construction; cannot independently originate a trade."
+      ],
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/connectors/ninjatrader_sim_broker_connector_v2.py:NinjaTraderSimBrokerConnectorV2.modify_order",
+      "path": "backend/connectors/ninjatrader_sim_broker_connector_v2.py",
+      "function": "NinjaTraderSimBrokerConnectorV2.modify_order",
+      "source_sha256": "fbea77631fa11287182c182765907613797ad634639b2ba6cec5395f87162fb6",
+      "calls": [
+        "RuntimeError",
+        "ValueError",
+        "all",
+        "changes.items",
+        "deepcopy",
+        "order.get",
+        "order_id.strip",
+        "requested.items",
+        "self._binding_state",
+        "self._mutation_authority_state",
+        "self._require_connection",
+        "self._unique_native_order",
+        "self._validate_modify_ack",
+        "self.transport.modify_order",
+        "str",
+        "str(order.get('status', '')).strip",
+        "str(order.get('status', '')).strip().upper"
+      ],
+      "execution_calls": [
+        "modify_order"
+      ],
+      "classification": "EXECUTION_APPLICATION_FACADE",
+      "owner": "NinjaTraderSimBrokerConnectorV2 transport boundary; operational execution owner remains TradeLifecycleServiceV2",
+      "callers": [
+        "No production construction in current runtime; tests only",
+        "Any future production wiring requires explicit ownership review"
+      ],
+      "lexical_caller_candidates": [],
+      "downstream_effects": [
+        "Validates SIM binding/mutation authority and delegates modification to native transport.",
+        "No current production construction; cannot independently originate a trade."
+      ],
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/connectors/ninjatrader_sim_broker_connector_v2.py:NinjaTraderSimBrokerConnectorV2.close_partial",
+      "path": "backend/connectors/ninjatrader_sim_broker_connector_v2.py",
+      "function": "NinjaTraderSimBrokerConnectorV2.close_partial",
+      "source_sha256": "f13619917f3dabf36ddbfc6b011d4fbed012d5f94dc4453d73acebf797e6228c",
+      "calls": [
+        "RuntimeError",
+        "self._binding_state",
+        "self._mutation_authority_state",
+        "self._require_connection"
+      ],
+      "execution_calls": [],
+      "classification": "EXECUTION_APPLICATION_FACADE",
+      "owner": "NinjaTraderSimBrokerConnectorV2 transport boundary; operational execution owner remains TradeLifecycleServiceV2",
+      "callers": [
+        "No production construction in current runtime; tests only",
+        "Any future production wiring requires explicit ownership review"
+      ],
+      "lexical_caller_candidates": [],
+      "downstream_effects": [
+        "Fails closed because durable partial-close identity is not implemented.",
+        "No current production construction; cannot independently originate a trade."
+      ],
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/connectors/ninjatrader_sim_broker_connector_v2.py:NinjaTraderSimBrokerConnectorV2.close_position",
+      "path": "backend/connectors/ninjatrader_sim_broker_connector_v2.py",
+      "function": "NinjaTraderSimBrokerConnectorV2.close_position",
+      "source_sha256": "3f05ff309c55ba0e19640f04374dc45f5d2c6ef5023399be2dfdb077a8675144",
+      "calls": [
+        "RuntimeError",
+        "ValueError",
+        "deepcopy",
+        "float",
+        "position.get",
+        "position_id.strip",
+        "reason.strip",
+        "self._binding_state",
+        "self._mutation_authority_state",
+        "self._require_connection",
+        "self._unique_native_position",
+        "self._validate_close_ack",
+        "self.transport.close_position",
+        "str",
+        "str(position.get('status', '')).strip",
+        "str(position.get('status', '')).strip().upper",
+        "type"
+      ],
+      "execution_calls": [
+        "close_position"
+      ],
+      "classification": "EXECUTION_APPLICATION_FACADE",
+      "owner": "NinjaTraderSimBrokerConnectorV2 transport boundary; operational execution owner remains TradeLifecycleServiceV2",
+      "callers": [
+        "No production construction in current runtime; tests only",
+        "Any future production wiring requires explicit ownership review"
+      ],
+      "lexical_caller_candidates": [],
+      "downstream_effects": [
+        "Validates SIM binding/mutation authority and delegates native position closure to transport.",
+        "No current production construction; cannot independently originate a trade."
+      ],
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
+    },
+    {
+      "id": "backend/services/sim_native_command_consumer_v2.py:SimNativeCommandConsumerV2.consume",
+      "path": "backend/services/sim_native_command_consumer_v2.py",
+      "function": "SimNativeCommandConsumerV2.consume",
+      "source_sha256": "9eabc5bdd6223c9e11a7d9036d909b195142b6b1bd0552062720419998c9dc28",
+      "calls": [
+        "RuntimeError",
+        "ValueError",
+        "command_id.strip",
+        "deepcopy",
+        "self._unknown_report",
+        "self._validate_ack",
+        "self._validate_command",
+        "self.executor.submit_order",
+        "self.spool.read_ack",
+        "self.spool.read_command",
+        "self.spool.write_ack",
+        "type"
+      ],
+      "execution_calls": [
+        "submit_order"
+      ],
+      "classification": "CANONICAL_DELEGATE_OR_DURABLE_EVIDENCE",
+      "owner": "Durable SIM command transport consumer; operational execution decision ownership remains TradeLifecycleServiceV2",
+      "callers": [
+        "No production construction in current runtime; tests only"
+      ],
+      "lexical_caller_candidates": [],
+      "downstream_effects": [
+        "Consumes an already materialized durable SIM command.",
+        "Timeout latches UNKNOWN and prohibits automatic re-execution.",
+        "No current production construction."
+      ],
+      "operational_execution_owner": "TradeLifecycleServiceV2",
+      "direct_broker_bypass": false,
+      "unauthorized_execution_entry": false
     }
   ],
   "certificate": {
@@ -6665,8 +6890,8 @@
     "CANONICAL_RUNTIME_OWNER": "backend.services.runtime_context_v2.build_runtime_context",
     "CANONICAL_EXECUTION_OWNER": "TradeLifecycleServiceV2",
     "CANONICAL_ORDER_LIFECYCLE_OWNER": "TradeLifecycleServiceV2",
-    "TOTAL_EXECUTION_DECISION_POINTS": 146,
-    "CLASSIFIED_EXECUTION_DECISION_POINTS": 146,
+    "TOTAL_EXECUTION_DECISION_POINTS": 152,
+    "CLASSIFIED_EXECUTION_DECISION_POINTS": 152,
     "UNCLASSIFIED_EXECUTION_DECISION_POINTS": 0,
     "DIRECT_BROKER_BYPASS": 0,
     "UNAUTHORIZED_EXECUTION_ENTRY": 0,

@@ -241,16 +241,132 @@ def test_inventory_matches_all_reviewed_production_boundaries():
 
 
 def test_only_canonical_lifecycle_submits_to_broker_and_facades_do_not_book_fills():
+    import ast
+    import json
+    from pathlib import Path
+
     from backend.tests.phase1_runtime_execution_inventory_v7 import discover
+
     _, points = discover()
-    submitters = {ident for ident, row in points.items()
-                  if any(call.endswith(".submit_order") for call in row["calls"])}
-    assert submitters == {
-        "backend/services/trade_lifecycle_service_v2.py:TradeLifecycleServiceV2.submit_signal"}
-    forbidden = {"submit_order", "open_position", "record_open_trade", "close_trade", "prepare_order"}
+
+    canonical = (
+        "backend/services/trade_lifecycle_service_v2.py:"
+        "TradeLifecycleServiceV2.submit_signal"
+    )
+
+    reviewed_transport_submitters = {
+        (
+            "backend/connectors/"
+            "ninjatrader_sim_broker_connector_v2.py:"
+            "NinjaTraderSimBrokerConnectorV2.submit_order"
+        ),
+        (
+            "backend/services/"
+            "sim_native_command_consumer_v2.py:"
+            "SimNativeCommandConsumerV2.consume"
+        ),
+    }
+
+    submitters = {
+        ident
+        for ident, row in points.items()
+        if any(
+            call.endswith(".submit_order")
+            for call in row["calls"]
+        )
+    }
+
+    assert submitters == (
+        {canonical}
+        | reviewed_transport_submitters
+    )
+
+    manifest = json.loads(
+        Path(
+            "backend/tests/"
+            "phase1_runtime_execution_inventory_v7.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    reviewed = {
+        row["id"]: row
+        for row in manifest["execution_points"]
+    }
+
+    for ident in reviewed_transport_submitters:
+        row = reviewed[ident]
+        assert (
+            row["operational_execution_owner"]
+            == "TradeLifecycleServiceV2"
+        )
+        assert row["direct_broker_bypass"] is False
+        assert (
+            row["unauthorized_execution_entry"]
+            is False
+        )
+
+    forbidden_constructors = {
+        "SimNativeCommandConsumerV2",
+        "NinjaTraderSimBrokerConnectorV2",
+    }
+
+    production_constructions = []
+
+    for path in Path("backend").rglob("*.py"):
+        if "tests" in path.parts:
+            continue
+
+        tree = ast.parse(
+            path.read_text(
+                encoding="utf-8-sig"
+            )
+        )
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+
+            if isinstance(node.func, ast.Name):
+                name = node.func.id
+            else:
+                name = getattr(
+                    node.func,
+                    "attr",
+                    None,
+                )
+
+            if name in forbidden_constructors:
+                production_constructions.append(
+                    (
+                        path.as_posix(),
+                        node.lineno,
+                        name,
+                    )
+                )
+
+    assert production_constructions == []
+
+    forbidden = {
+        "submit_order",
+        "open_position",
+        "record_open_trade",
+        "close_trade",
+        "prepare_order",
+    }
+
     for ident, row in points.items():
-        if row["path"].startswith(("backend/api/", "backend/intelligence/", "backend/strategies/")):
-            assert not forbidden.intersection(row["execution_calls"]), ident
+        if row["path"].startswith(
+            (
+                "backend/api/",
+                "backend/intelligence/",
+                "backend/strategies/",
+            )
+        ):
+            assert not forbidden.intersection(
+                row["execution_calls"]
+            ), ident
 
 
 def test_isolated_backtest_lifecycle_cannot_share_operational_ledgers(runtime):
