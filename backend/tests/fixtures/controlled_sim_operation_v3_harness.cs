@@ -33,6 +33,12 @@ internal sealed class RecordingAccount : IControlledAccountV3
         State.ActiveOrderNames=State.ActiveOrderNames.Concat(new[]{spec.Name}).ToArray();
     }
     public void Cancel(string[] names) { Record("CANCEL"); }
+    public void SubmitProtection(object stop,object target)
+    {
+        Record("SUBMIT PROTECTIVE_PAIR");
+        if(FailSubmit) throw new IOException("synthetic uncertain submit");
+        State.ActiveOrderNames=State.ActiveOrderNames.Concat(new[]{((ControlledOrderV3)stop).Name,((ControlledOrderV3)target).Name}).ToArray();
+    }
     public void Flatten(string instrument) { Record("FLATTEN"); }
 }
 

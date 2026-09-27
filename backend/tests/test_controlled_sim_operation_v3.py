@@ -127,7 +127,7 @@ def test_producer_requires_execution_scope_and_does_not_mutate_input(tmp_path):
 def test_one_fill_one_exact_stop_target_pair(binary, tmp_path, mode):
     result = run(binary, tmp_path, mode)
     assert not result["error"], result
-    assert result["create"] == result["submit"] == 3
+    assert result["create"] == 3 and result["submit"] == 2
     entry, stop, target = result["orders"]
     assert stop["role"] == "PROTECTIVE_STOP" and target["role"] == "PROFIT_TARGET"
     assert stop["price"] == 90 and target["price"] == 120
@@ -156,9 +156,9 @@ def test_protection_rejection_is_explicit(binary, tmp_path, mode):
 @pytest.mark.parametrize("mode", ["adverse", "invalid_stop"])
 def test_adverse_fill_never_widens_or_replaces_stop(binary, tmp_path, mode):
     result = run(binary, tmp_path, mode)
-    assert result["status"] == "ADVERSE_FILL_RECOVERY_REQUIRED"
-    assert result["create"] == result["submit"] == 2 and result["flatten"] == 0
-    assert result["orders"][-1]["role"] == "RECOVERY_CLOSE"
+    assert result["status"] == "RECONCILIATION_REQUIRED"
+    assert result["create"] == result["submit"] == 1 and result["flatten"] == 0
+    assert all(o["role"] == "ENTRY" for o in result["orders"])
 
 
 @pytest.mark.parametrize("mode", ["timeout", "cancel_race", "duplicate_recovery", "already_flat", "recovery_disconnect"])
@@ -166,16 +166,17 @@ def test_recovery_is_idempotent_and_waits_for_terminal_evidence(binary, tmp_path
     result = run(binary, tmp_path, mode)
     assert result["cancel"] == 1
     assert result["flatten"] == 0
-    assert result["create"] == result["submit"] == (3 if mode in {"already_flat", "recovery_disconnect", "cancel_race"} else 4)
-    if mode == "cancel_race": assert result["status"] == "RECONCILIATION_REQUIRED"
-    assert result["status"] != "COMPLETED"  # no financial checkpoint receipt
+    assert result["create"] == 3 and result["submit"] == 2
+    assert result["status"] == "RECONCILIATION_REQUIRED"
+    assert not any(o["role"] == "RECOVERY_CLOSE" for o in result["orders"])
 
 
 @pytest.mark.parametrize("mode", ["target_fill", "stop_fill"])
 def test_exit_fill_reconciles_sibling_without_directional_order(binary, tmp_path, mode):
     result = run(binary, tmp_path, mode)
-    assert result["cancel"] == 1 and result["flatten"] == 0
-    assert result["create"] == result["submit"] == 3
+    assert result["cancel"] == 0 and result["flatten"] == 0
+    assert result["create"] == 3 and result["submit"] == 2
+    assert result["status"] == "RECONCILIATION_REQUIRED"
 
 
 @pytest.mark.parametrize("phase", ["CONSUMED", "CREATE_INTENT", "CREATED", "SUBMIT_INTENT", "SUBMIT_RETURNED"])
@@ -194,7 +195,7 @@ def test_production_native_switches_unchanged():
 
 
 @pytest.mark.parametrize("mode,status", [("create_failure", "RECONCILIATION_REQUIRED"),
-                                       ("submit_failure", "UNKNOWN_SUBMIT_OUTCOME")])
+                                       ("submit_failure", "RECONCILIATION_REQUIRED")])
 def test_native_call_exception_persists_uncertainty_and_never_retries(binary, tmp_path, mode, status):
     result = run(binary, tmp_path, mode)
     assert result["error"] and result["status"] == status

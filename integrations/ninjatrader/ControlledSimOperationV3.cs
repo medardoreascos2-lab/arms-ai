@@ -35,6 +35,7 @@ namespace Arms.NativeSim
         ControlledSnapshotV3 Snapshot();
         object Create(ControlledOrderV3 order);
         void Submit(object order);
+        void SubmitProtection(object stop, object target);
         void Cancel(string[] names);
     }
 
@@ -160,6 +161,18 @@ namespace Arms.NativeSim
         public Action<string> AfterPersist; // Offline crash injection; production leaves null.
         public string Status { get { lock(sync) return Get("status"); } }
         public bool EntriesBlocked { get { lock(sync) return Get("consumed")=="1" || faulted; } }
+        public bool ReconciliationRequired { get { lock(sync) return Get("reconciliation_fence")=="1" || faulted; } }
+        public void RequireMutationAuthority()
+        { lock(sync) { if(ReconciliationRequired) throw new InvalidOperationException("Reconciliation fence prohibits native mutation."); } }
+        public void RequireRecoveryAuthority()
+        {
+            lock(sync)
+            {
+                RequireMutationAuthority();
+                if(Get("operator_position")!="1" || Get("operator_deadline_us")=="" || Now>=long.Parse(Get("operator_deadline_us"),CultureInfo.InvariantCulture))
+                {RequirePositionReconciliation();throw new InvalidOperationException("Current operator recovery authority required.");}
+            }
+        }
         private string Get(string name) { string value; return state.TryGetValue(name,out value)?value:""; }
         private long Now { get { return clock(); } }
         private string Prefix { get { return "a3."+admission.Digest.Substring(0,32); } }
@@ -176,6 +189,8 @@ namespace Arms.NativeSim
             return null;
         }
         public void UnassignedEvidence()
+        { lock(sync) { bool newlyUnassigned=Get("unassigned_evidence")!="1";state["unassigned_evidence"]="1"; Recover("RECONCILIATION_REQUIRED");if(newlyUnassigned) Save("UNASSIGNED_EVIDENCE"); } }
+        public void RequirePositionReconciliation()
         { lock(sync) { Recover("RECONCILIATION_REQUIRED"); } }
         public bool HasExecution(string executionId)
         { lock(sync) { return Get("execution."+executionId)!=""; } }
@@ -242,14 +257,7 @@ namespace Arms.NativeSim
                 }
                 else if(Get("consumed")=="1" && Get("status")!="COMPLETED" && Get("status")!="RECOVERY_COMPLETE")
                 {
-                    if(Get("create.RECOVERY_CLOSE")=="1" && Get("exit_filled")!="1")
-                    { state["status"]="RECONCILIATION_REQUIRED"; Save("RESTART_RECOVERY_UNKNOWN"); }
-                    else if(Get("entry_filled")=="1" && Get("exit_filled")!="1")
-                        Recover("PROTECTION_RECOVERY_REQUIRED");
-                    else if(Get("submit.ENTRY")=="1" && Get("entry_filled")!="1")
-                    { state["status"]="UNKNOWN_SUBMIT_OUTCOME"; Save("RESTART_UNKNOWN"); }
-                    else if(Get("entry_filled")!="1")
-                    { state["status"]="RECONCILIATION_REQUIRED"; Save("RESTART_CONSUMED"); }
+                    state["operator_position"]=""; Recover("RECONCILIATION_REQUIRED");
                 }
             }
             catch { writer.Dispose(); throw; }
@@ -339,8 +347,7 @@ namespace Arms.NativeSim
                 {
                     if(!faulted)
                     {
-                        state["status"]=Get("submit.ENTRY")=="1"?"UNKNOWN_SUBMIT_OUTCOME":"RECONCILIATION_REQUIRED";
-                        Save("ENTRY_OUTCOME_UNCERTAIN");
+                        Recover("RECONCILIATION_REQUIRED");
                     }
                     throw;
                 }
@@ -348,6 +355,7 @@ namespace Arms.NativeSim
         }
         private void SubmitRole(string role, decimal price)
         {
+            RequireMutationAuthority();
             if(Get("create."+role)=="1") throw new InvalidOperationException("Native role already attempted.");
             state["create."+role]="1"; Save(role=="ENTRY"?"CREATE_INTENT":role=="RECOVERY_CLOSE"?"RECOVERY_CREATE_INTENT":"CREATE_INTENT_"+role);
             var order=new ControlledOrderV3 { Role=role,Name=OrderName(role),Instrument=instrument,Quantity=1,
@@ -361,12 +369,38 @@ namespace Arms.NativeSim
             account.Submit(native);
             Save(role=="ENTRY"?"SUBMIT_RETURNED":role=="RECOVERY_CLOSE"?"RECOVERY_SUBMIT_RETURNED":"SUBMIT_RETURNED_"+role);
         }
+        private void SubmitProtectionPair(decimal stop, decimal target)
+        {
+            RequireMutationAuthority();
+            var snapshot=FreshSnapshot();
+            if(Get("entry_filled")!="1" || Get("exit_filled")=="1" || snapshot.PositionQuantity!=1 ||
+                snapshot.PositionSide!=admission["side"] || Get("create.PROTECTIVE_STOP")=="1" || Get("create.PROFIT_TARGET")=="1")
+            { Recover("RECONCILIATION_REQUIRED"); return; }
+            var native=new List<object>();
+            foreach(string role in new[]{"PROTECTIVE_STOP","PROFIT_TARGET"})
+            {
+                RequireMutationAuthority();
+                state["create."+role]="1"; Save("CREATE_INTENT_"+role);
+                object value=account.Create(new ControlledOrderV3 {Role=role,Name=OrderName(role),Instrument=instrument,Quantity=1,
+                    Type=role=="PROTECTIVE_STOP"?"STOP_MARKET":"LIMIT",Action=admission["side"]=="BUY"?"SELL":"BUY_TO_COVER",
+                    Oco=Prefix+".O",Price=role=="PROTECTIVE_STOP"?stop:target});
+                if(value==null) throw new InvalidOperationException("Native protective creation returned no order.");
+                native.Add(value); state["created."+role]="1"; Save("CREATED_"+role);
+            }
+            RequireMutationAuthority();
+            snapshot=FreshSnapshot();
+            if(snapshot.PositionQuantity!=1 || Get("exit_filled")=="1") {Recover("RECONCILIATION_REQUIRED");return;}
+            state["submit.PROTECTIVE_STOP"]="1";state["submit.PROFIT_TARGET"]="1";
+            Save("PROTECTIVE_PAIR_SUBMIT_INTENT");
+            account.SubmitProtection(native[0],native[1]);
+            Save("PROTECTIVE_PAIR_SUBMIT_RETURNED");
+        }
         private void Recover(string reason)
         {
             // A later Cancelled/Rejected label must not clear a contradictory
             // identity/ownership fence and silently re-enable automatic recovery.
             bool newFence=reason=="RECONCILIATION_REQUIRED" && Get("reconciliation_fence")!="1";
-            if(reason=="RECONCILIATION_REQUIRED") state["reconciliation_fence"]="1";
+            if(reason=="RECONCILIATION_REQUIRED") {state["reconciliation_fence"]="1";state["operator_position"]="";}
             if(Get("reconciliation_fence")=="1") reason="RECONCILIATION_REQUIRED";
             if(!newFence && Get("status")==reason && Get("recovery_started_us")!="") return;
             state["status"]=reason;
@@ -381,27 +415,29 @@ namespace Arms.NativeSim
                 if(!new[]{"ENTRY","PROTECTIVE_STOP","PROFIT_TARGET","RECOVERY_CLOSE"}.Contains(role) || string.IsNullOrWhiteSpace(nativeOrderId) ||
                     string.IsNullOrWhiteSpace(executionId) ||
                     executionId.Any(c=>!char.IsLetterOrDigit(c) && c!='-' && c!='_' && c!='.'))
-                { Recover("RECONCILIATION_REQUIRED"); return; }
+                { UnassignedEvidence(); return; }
                 string id="execution."+executionId;
                 string value=role+"|"+quantity.ToString(CultureInfo.InvariantCulture)+"|"+price.ToString(CultureInfo.InvariantCulture)+"|"+
                     Convert.ToBase64String(Encoding.UTF8.GetBytes(nativeOrderId));
                 if(Get(id)!="")
                 {
-                    if(Get(id)!=value) Recover("RECONCILIATION_REQUIRED");
+                    if(Get(id)!=value) UnassignedEvidence();
                     return;
                 }
+                if(Get("status")=="RECOVERY_COMPLETE" || Get("status")=="COMPLETED") RequirePositionReconciliation();
                 if(Get("order_id."+role)!="" && Get("order_id."+role)!=nativeOrderId)
-                { Recover("RECONCILIATION_REQUIRED"); return; }
+                { UnassignedEvidence(); return; }
                 if(quantity!=1 || price<=0 || Get("submit."+role)!="1" ||
                     (role=="RECOVERY_CLOSE" && Get("recovery_id")!=OrderName(role)) ||
                     (role=="ENTRY" && Get("entry_filled")=="1") ||
                     (role!="ENTRY" && (Get("entry_filled")!="1" || Get("exit_filled")=="1")))
-                { Recover("RECONCILIATION_REQUIRED"); return; }
+                { UnassignedEvidence(); return; }
                 state[id]=value;
                 state["order_id."+role]=nativeOrderId;
                 if(role=="ENTRY")
                 {
                     state["entry_filled"]="1"; state["entry_price"]=price.ToString(CultureInfo.InvariantCulture);
+                    if(ReconciliationRequired) { Save("NATIVE_EVIDENCE"); return; }
                     state["status"]="EXPOSED_AWAITING_PROTECTION";
                     state["protection_started_us"]=Now.ToString(CultureInfo.InvariantCulture);
                     Save("NATIVE_EVIDENCE");
@@ -413,18 +449,17 @@ namespace Arms.NativeSim
                     {
                         FreshSnapshot();
                         Save("PROTECTION_PENDING");
-                        SubmitRole("PROTECTIVE_STOP",stop);
-                        if(Get("status")!="EXPOSED_AWAITING_PROTECTION") return;
-                        SubmitRole("PROFIT_TARGET",target);
+                        SubmitProtectionPair(stop,target);
                     }
-                    catch { Recover("PROTECTION_RECOVERY_REQUIRED"); throw; }
+                    catch { Recover("RECONCILIATION_REQUIRED"); throw; }
                 }
                 else
                 {
                     state["exit_filled"]="1"; state["exit_price"]=price.ToString(CultureInfo.InvariantCulture);
-                    state["status"]="EXIT_RECONCILIATION_REQUIRED";
+                    state["status"]=ReconciliationRequired?"RECONCILIATION_REQUIRED":"EXIT_RECONCILIATION_REQUIRED";
                     Save(role=="RECOVERY_CLOSE"?"RECOVERY_NATIVE_EVIDENCE":"NATIVE_EVIDENCE");
                     Recover("EXIT_RECONCILIATION_REQUIRED");
+                    RequirePositionReconciliation();
                 }
             }
         }
@@ -433,15 +468,15 @@ namespace Arms.NativeSim
             lock(sync)
             {
                 OrderName(role);
-                if(Get("submit."+role)!="1" || string.IsNullOrWhiteSpace(nativeOrderId)) { Recover("RECONCILIATION_REQUIRED"); return; }
+                if(Get("submit."+role)!="1" || string.IsNullOrWhiteSpace(nativeOrderId)) { UnassignedEvidence(); return; }
                 if(Get("order_id."+role)!="" && Get("order_id."+role)!=nativeOrderId)
-                { Recover("RECONCILIATION_REQUIRED"); return; }
+                { UnassignedEvidence(); return; }
                 state["order_id."+role]=nativeOrderId;
-                if(filled<0 || filled>1) { Recover("RECONCILIATION_REQUIRED"); return; }
+                if(filled<0 || filled>1) { UnassignedEvidence(); return; }
                 string priorFilled=Get("order_filled."+role);
                 if(filled==1 || status=="Filled") state["order_filled."+role]="1";
                 if(!new[]{"Initialized","Submitted","Accepted","Working","PartFilled","Filled","Cancelled","Rejected","CancelPending","CancelSubmitted","ChangePending","ChangeSubmitted","TriggerPending"}.Contains(status))
-                { Recover("RECONCILIATION_REQUIRED"); return; }
+                { UnassignedEvidence(); return; }
                 // Do not regress terminal observations when callbacks are reordered.
                 string previous=Get("order."+role);
                 if(previous==status && priorFilled==Get("order_filled."+role)) return;
@@ -449,13 +484,14 @@ namespace Arms.NativeSim
                 {
                     if(status==previous || new[]{"Initialized","Submitted","Accepted","Working","PartFilled"}.Contains(status))
                     { if(priorFilled!=Get("order_filled."+role)) Save("NATIVE_EVIDENCE"); return; }
-                    Recover("RECONCILIATION_REQUIRED"); return;
+                    UnassignedEvidence(); return;
                 }
                 state["order."+role]=status; Save("NATIVE_EVIDENCE");
+                if(ReconciliationRequired) return;
                 if(role!="ENTRY" && (status=="Rejected" || status=="Cancelled") && Get("exit_filled")!="1")
                     Recover("PROTECTION_RECOVERY_REQUIRED");
                 else if(role=="ENTRY" && (status=="Rejected" || status=="Cancelled") && Get("entry_filled")!="1")
-                { state["status"]="ENTRY_TERMINAL_RECONCILIATION_REQUIRED"; Save("NATIVE_EVIDENCE"); }
+                    RequirePositionReconciliation();
                 else if(Get("status")=="EXPOSED_AWAITING_PROTECTION" &&
                     new[]{"Accepted","Working"}.Contains(Get("order.PROTECTIVE_STOP")) &&
                     new[]{"Accepted","Working"}.Contains(Get("order.PROFIT_TARGET")))
@@ -472,7 +508,7 @@ namespace Arms.NativeSim
                 if(Get("consumed")!="1" || Get("status")=="COMPLETED" || Get("status")=="RECOVERY_COMPLETE") return;
                 ControlledSnapshotV3 snapshot;
                 try { snapshot=FreshSnapshot(); }
-                catch { Recover("PROTECTION_RECOVERY_REQUIRED"); return; }
+                catch { RequirePositionReconciliation(); return; }
                 if(Get("status")=="PROTECTED" || Get("status")=="EXPOSED_AWAITING_PROTECTION") return;
                 if(Get("status")=="RECONCILIATION_REQUIRED" || Get("reconciliation_fence")=="1") return;
                 // Uncertain entry outcomes are evidence-only. They never authorize
@@ -514,6 +550,9 @@ namespace Arms.NativeSim
                 }
                 snapshot=FreshSnapshot();
                 if(snapshot.ActiveOrderNames.Length!=0) return;
+                if(Get("operator_position")=="") {RequirePositionReconciliation();return;}
+                if(Get("operator_position")!=snapshot.PositionQuantity.ToString(CultureInfo.InvariantCulture)) {RequirePositionReconciliation();return;}
+                if(Now>=long.Parse(Get("operator_deadline_us"),CultureInfo.InvariantCulture)) {RequirePositionReconciliation();return;}
                 string positionEvidence=snapshot.PositionQuantity.ToString(CultureInfo.InvariantCulture)+"|"+snapshot.PositionSide;
                 if(Get("position_rechecked")!=positionEvidence)
                 { state["position_rechecked"]=positionEvidence; Save("POSITION_RECHECKED"); }
@@ -555,6 +594,78 @@ namespace Arms.NativeSim
                 Save(Get("order_id.RECOVERY_CLOSE")!=""?"RECOVERY_FINANCIAL_APPLIED":"FINANCIAL_APPLIED");
             }
         }
+        public Dictionary<string,string> ReconciliationContext(string evidenceDigest)
+        {
+            lock(sync)
+            {
+                if(!ReconciliationRequired || Get("recovery_id")=="") throw new InvalidOperationException("Persisted reconciliation required.");
+                var snapshot=FreshSnapshot();
+                var values=new Dictionary<string,string>();
+                foreach(string field in ControlledAdmissionV3.AccountFields.Concat(new[]{"account","provider","instrument","runtime_generation","operation_id"})) values[field]=admission[field];
+                values["recovery_id"]=Get("recovery_id");values["admission_digest"]=admission.Digest;
+                values["checkpoint_digest"]=OperatorReconciliationV3.Hash(StateBytes());
+                values["executions_digest"]=OperatorReconciliationV3.Hash(Encoding.UTF8.GetBytes(string.Concat(state.Where(p=>p.Key.StartsWith("execution.",StringComparison.Ordinal)).OrderBy(p=>p.Key,StringComparer.Ordinal).Select(p=>p.Key+"\t"+p.Value+"\n"))));
+                values["evidence_digest"]=evidenceDigest;
+                values["orders_digest"]=OperatorReconciliationV3.Hash(Encoding.UTF8.GetBytes(string.Concat(state.Where(p=>p.Key.StartsWith("order",StringComparison.Ordinal) || p.Key.StartsWith("create.",StringComparison.Ordinal) || p.Key.StartsWith("submit.",StringComparison.Ordinal)).OrderBy(p=>p.Key,StringComparer.Ordinal).Select(p=>p.Key+"\t"+p.Value+"\n"))));
+                values["position_quantity"]=snapshot.PositionQuantity.ToString(CultureInfo.InvariantCulture);
+                values["position_side"]=snapshot.PositionQuantity==0?"FLAT":snapshot.PositionSide;
+                values["active_orders"]=string.Join("|",snapshot.ActiveOrderNames.OrderBy(n=>n,StringComparer.Ordinal));
+                values["unresolved_orders"]=snapshot.ActiveOrderNames.Length.ToString(CultureInfo.InvariantCulture);
+                return values;
+            }
+        }
+        public void ApplyOperatorReconciliation(Dictionary<string,string> permit,string authenticator,string evidenceDigest,string nativeExecutionsDigest)
+        {
+            lock(sync)
+            {
+                var expected=ReconciliationContext(evidenceDigest);
+                expected["native_executions_digest"]=nativeExecutionsDigest;
+                if(Get("unassigned_evidence")=="1" || expected["active_orders"]!="" ||
+                    (expected["position_quantity"]=="1" && (Get("entry_filled")!="1" || Get("exit_filled")=="1" || Get("create.RECOVERY_CLOSE")=="1")) ||
+                    (expected["position_quantity"]=="0" && Get("entry_filled")=="1" && (Get("exit_filled")!="1" || Get("financial_complete")!="1")))
+                    throw new InvalidDataException("Operator authorization cannot resolve contradictory or unowned exposure.");
+                foreach(string role in new[]{"ENTRY","PROTECTIVE_STOP","PROFIT_TARGET","RECOVERY_CLOSE"})
+                {
+                    bool executed=state.Any(p=>p.Key.StartsWith("execution.",StringComparison.Ordinal) && p.Value.StartsWith(role+"|",StringComparison.Ordinal));
+                    if(Get("create."+role)=="1" && !executed && !new[]{"Cancelled","Rejected"}.Contains(Get("order."+role)))
+                        throw new InvalidDataException("Unresolved native order prevents reconciliation.");
+                    if(Get("order_filled."+role)=="1" && !executed) throw new InvalidDataException("Unresolved fill prevents reconciliation.");
+                }
+                OperatorReconciliationV3.Consume(permit,authenticator,expected,key,Now,directory);
+                Save("RECONCILIATION_PERMIT_CONSUMED"); // Still fenced if the next persistence fails.
+                state["operator_position"]=expected["position_quantity"];
+                state["operator_deadline_us"]=permit["expires_us"];
+                state["recovery_started_us"]=Now.ToString(CultureInfo.InvariantCulture);
+                state["reconciliation_fence"]="0";
+                state["status"]=expected["position_quantity"]=="0"?"RECOVERY_COMPLETE":"OPERATOR_RECONCILED";
+                Save(expected["position_quantity"]=="0"?"RECOVERY_COMPLETE":"OPERATOR_RECONCILED");
+            }
+        }
         public void Dispose() { writer.Dispose(); Array.Clear(key,0,key.Length); }
+    }
+
+    // Narrow extension of the existing canonical HMAC + create-once activation
+    // primitive. No signer, key discovery, implicit approval, or SDK access.
+    public static class OperatorReconciliationV3
+    {
+        public static string Hash(byte[] bytes)
+        {using(var sha=SHA256.Create()) return ControlledAdmissionV3.Hex(sha.ComputeHash(bytes));}
+        public static byte[] Canonical(Dictionary<string,string> values)
+        {return Encoding.UTF8.GetBytes(string.Concat(values.OrderBy(p=>p.Key,StringComparer.Ordinal).Select(p=>p.Key+"\t"+Convert.ToBase64String(Encoding.UTF8.GetBytes(p.Value))+"\n")));}
+        public static void Consume(Dictionary<string,string> permit,string authenticator,Dictionary<string,string> expected,byte[] key,long now,string directory)
+        {
+            if(permit==null || key==null || key.Length<32 || !new HashSet<string>(expected.Keys.Concat(new[]{"nonce","issued_us","expires_us"})).SetEquals(permit.Keys) ||
+                expected.Any(p=>permit[p.Key]!=p.Value) || expected["execution_domain"]!="SIM_NATIVE" || expected["account"]!="Sim101" || expected["provider"]!="Simulator")
+                throw new InvalidDataException("Operator reconciliation identity/evidence mismatch.");
+            long issued,expires;
+            if(!System.Text.RegularExpressions.Regex.IsMatch(permit["nonce"],@"\A[A-Za-z0-9_-]{16,100}\z") ||
+                !long.TryParse(permit["issued_us"],NumberStyles.None,CultureInfo.InvariantCulture,out issued) ||
+                !long.TryParse(permit["expires_us"],NumberStyles.None,CultureInfo.InvariantCulture,out expires) || issued<=0 || issued>now || expires<=now || expires<=issued || expires-issued>300000000 ||
+                !ControlledAdmissionV3.Equal(authenticator,ControlledAdmissionV3.Mac(key,Encoding.UTF8.GetBytes("arms.native.operator-reconciliation.v3\0").Concat(Canonical(permit)).ToArray())))
+                throw new InvalidDataException("Unverifiable or expired operator reconciliation permit.");
+            string marker=Path.Combine(directory,"operator-reconciliation-"+permit["nonce"]+".consumed");
+            using(var file=new FileStream(marker,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+            {byte[] bytes=Canonical(permit);file.Write(bytes,0,bytes.Length);file.Flush(true);}
+        }
     }
 }

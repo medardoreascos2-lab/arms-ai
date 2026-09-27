@@ -25,6 +25,7 @@ def bridge_binary(tmp_path_factory):
     main = (ROOT / "integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.cs").read_text()
     # Compile the actual manual recovery methods too, without loading a platform.
     manual = main[main.index("        private void AttemptEmergencyFlatten()"):main.index("        private void ValidateFlatPreflight(")]
+    manual += main[main.index("        private void OnNativePositionUpdate("):main.index("        private void OnNativeOrderUpdate(")]
     manual_path = directory / "manual.cs"
     manual_path.write_text("using System; using System.Collections.Generic; using NinjaTrader.Cbi;\n"
         "namespace NinjaTrader.NinjaScript.Indicators { public partial class ArmsSimNativeSubmitBridgeV2 {\n" + manual + "\n}}")
@@ -34,6 +35,7 @@ def bridge_binary(tmp_path_factory):
         "/r:System.Core.dll", "/r:System.Web.Extensions.dll", str(manual_path),
         str(ROOT / "integrations/ninjatrader/ControlledSimOperationV3.cs"),
         str(ROOT / "integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.ControlledV3.cs"),
+        str(ROOT / "integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.ReconciliationV3.cs"),
         str(ROOT / "backend/tests/fixtures/native_bridge_v3_harness.cs")], capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stdout + result.stderr
     return binary
@@ -109,12 +111,15 @@ def test_invalid_activation_or_writer_never_reaches_sdk(bridge_binary, tmp_path,
 def test_real_bridge_mapping_creates_exact_protection_once(bridge_binary, tmp_path, mode):
     result = run_bridge(bridge_binary, artifacts(tmp_path), mode)
     assert not result["error"], result
-    assert result["create"] == result["submit"] == 3 and result["flatten"] == 0
+    assert result["create"] == 3 and result["submit"] == 2 and result["flatten"] == 0
     entry, stop, target = result["orders"]
     assert (entry["type"], stop["type"], target["type"]) == ("Market", "StopMarket", "Limit")
     assert stop["stop"] == 90 and target["limit"] == 120
     assert stop["oco"] == target["oco"] != "" and stop["action"] == target["action"] == "Sell"
     assert all(o["quantity"] == 1 and len(o["name"]) <= 50 for o in result["orders"])
+    calls = (tmp_path / "sdk.calls").read_text().splitlines()
+    assert [c.split()[0] for c in calls] == ["CREATE", "SUBMIT", "CREATE", "CREATE", "SUBMIT"]
+    assert calls[-1] == "SUBMIT " + stop["name"] + "|" + target["name"]
 
 
 @pytest.mark.parametrize("mode,recovery", [("recovery", 1), ("recovery_fill", 1), ("adverse", 1), ("cancel_fill", 0),
@@ -139,8 +144,8 @@ def test_recovery_process_crash_never_reuses_consumed_identity(bridge_binary, tm
     assert (tmp_path / "sdk.calls").read_bytes() == before
 
 
-@pytest.mark.parametrize("mode,creates,submits", [("recovery_create_failure", 4, 3), ("recovery_submit_failure", 4, 4),
-    ("close_during_create", 4, 3), ("disabled_recovery", 3, 3), ("duplicate_entry", 4, 4)])
+@pytest.mark.parametrize("mode,creates,submits", [("recovery_create_failure", 4, 2), ("recovery_submit_failure", 4, 3),
+    ("close_during_create", 4, 2), ("exit_during_recovery_create", 4, 2), ("expiry_during_create", 4, 2), ("disabled_recovery", 3, 2), ("duplicate_entry", 4, 3)])
 def test_uncertain_or_changed_recovery_never_retries(bridge_binary, tmp_path, mode, creates, submits):
     result = run_bridge(bridge_binary, artifacts(tmp_path), mode)
     assert result["error"] and result["create"] == creates and result["submit"] == submits
@@ -221,7 +226,7 @@ def test_actual_bridge_evidence_to_real_financial_owners_once(bridge_binary, tmp
         assert len(actual.lifecycle.portfolio_manager_v2.get_closed_positions()) == 1
         assert len(bus.events) == 2
         assert len({e["payload"]["event_id"] for e in bus.events}) == 2
-        restored = run_bridge(bridge_binary, native, "restore")
+        restored = run_bridge(bridge_binary, native, "restore_reconciled")
         assert not restored["error"], restored
         assert restored["status"] == "RECOVERY_COMPLETE"
         assert restored["create"] == restored["submit"] == restored["cancel"] == restored["flatten"] == 0
@@ -253,7 +258,7 @@ def test_recovery_financial_receipt_and_completion_crash_windows(bridge_binary, 
         flow.reconcile(); before = actual.lifecycle.portfolio_manager_v2.capture_risk_state()
         calls = (native / "sdk.calls").read_bytes()
         run_bridge(bridge_binary, native, "restore_crash_" + phase)
-        result = run_bridge(bridge_binary, native, "restore")
+        result = run_bridge(bridge_binary, native, "restore_reconciled")
         assert not result["error"] and result["status"] == "RECOVERY_COMPLETE"
         assert (native / "sdk.calls").read_bytes() == calls
         flow.reconcile()
@@ -271,3 +276,132 @@ def test_only_existing_bridge_owns_sdk_and_manual_flatten_is_separate():
     assert "QueueControlledExecution(execution)" in main and "ReconcileControlledV3();" in binding
     heartbeat = main[main.index("private void OnRuntimeSnapshotHeartbeat("):main.index("private void AttemptOneShotSubmit(")]
     assert "ReconcileControlledV3();" not in heartbeat and "AdvanceManualEmergencyRecovery();" not in heartbeat
+
+
+def test_b1_queued_stop_fill_cannot_trigger_later_sibling_submission(bridge_binary, tmp_path):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), "b1_stop_fill_during_submit")
+    assert not result["error"], result
+    snapshot = json.loads((tmp_path / "sdk.snapshot.json").read_text())
+    assert snapshot["positions"] == [], "the injected stop execution must close the synthetic exposure"
+    assert next(o for o in snapshot["orders"] if o["name"].endswith(".S"))["state"] == "Filled"
+    assert result["submit"] == 2, "entry plus one complete protective-pair boundary; no later sibling Submit"
+
+
+def test_b2_ambiguous_execution_fence_survives_valid_entry_callback(bridge_binary, tmp_path):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), "b2_unknown_before_entry")
+    assert not result["error"], result
+    assert (result["status"], result["create"], result["submit"]) == (
+        "RECONCILIATION_REQUIRED", 1, 1
+    ), "an established reconciliation fence must prevent both subsequent protection mutations"
+
+
+def test_b3_terminal_execution_cannot_complete_against_delayed_flat_position(bridge_binary, tmp_path):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), "b3_terminal_fill_delayed_position")
+    assert result["remaining_quantity"] == 1, "the delayed observation must reveal real synthetic exposure"
+    assert result["pending_before_position"] is True, "terminal execution evidence must invalidate stale FLAT completion"
+    assert result["pending_after_position"] is True, "the later non-flat observation must leave recovery pending"
+    assert result["cancel"] == result["flatten"] == 0
+
+
+@pytest.mark.parametrize("mode,creates,submits", [("b1_target_fill_during_submit", 3, 2),
+    ("b1_already_flat", 1, 1), ("b1_exit_during_create", 2, 1)])
+def test_b1_no_later_native_mutation_after_observed_exit(bridge_binary, tmp_path, mode, creates, submits):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), mode)
+    assert result["create"] == creates and result["submit"] == submits
+    assert result["cancel"] == result["flatten"] == 0
+
+
+@pytest.mark.parametrize("mode", ["b2_fenced_stop", "b2_fenced_target", "b2_fenced_guard"])
+def test_b2_fence_survives_exit_and_reordered_callbacks_and_sdk_guard(bridge_binary, tmp_path, mode):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), mode)
+    assert result["status"] == "RECONCILIATION_REQUIRED"
+    assert (result["create"], result["submit"], result["cancel"], result["flatten"]) == (3, 2, 0, 0)
+    assert bool(result["error"]) == mode.endswith("guard")
+    calls = (tmp_path / "sdk.calls").read_bytes()
+    restored = run_bridge(bridge_binary, tmp_path, "restore")
+    assert restored["status"] == "RECONCILIATION_REQUIRED"
+    assert (tmp_path / "sdk.calls").read_bytes() == calls
+
+
+@pytest.mark.parametrize("mode", ["no_operator_recovery", "no_operator_disconnect", "stale_flat"])
+def test_b3_unproven_position_stays_fenced_across_restart(bridge_binary, tmp_path, mode):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), mode)
+    assert result["status"] == "RECONCILIATION_REQUIRED"
+    assert not any(o["name"].endswith(".R") for o in result["orders"])
+    calls = (tmp_path / "sdk.calls").read_bytes()
+    for _ in range(2):
+        restored = run_bridge(bridge_binary, tmp_path, "restore")
+        assert restored["status"] == "RECONCILIATION_REQUIRED"
+        assert (tmp_path / "sdk.calls").read_bytes() == calls
+
+
+@pytest.mark.parametrize("field", ["execution_domain", "backend_account_id", "account", "provider", "instrument",
+    "operation_id", "recovery_id", "runtime_generation", "checkpoint_digest", "executions_digest", "evidence_digest",
+    "orders_digest", "native_executions_digest", "position_quantity", "position_side", "active_orders", "unresolved_orders", "nonce",
+    "expired", "future", "signature", "token", "stale_position", "disconnect", "replay", "new_evidence", "ambiguous"])
+def test_operator_reconciliation_rejects_wrong_stale_or_ambiguous_authority(bridge_binary, tmp_path, field):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), "permit_" + field)
+    assert result["error"], result
+    assert result["status"] == "RECONCILIATION_REQUIRED"
+    assert (result["create"], result["submit"], result["cancel"], result["flatten"]) == (3, 2, 1, 0)
+    assert not any(o["name"].endswith(".R") for o in result["orders"])
+
+
+def test_operator_quantity_one_permit_is_durable_and_cannot_be_applied_twice(bridge_binary, tmp_path):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), "permit_double")
+    assert result["error"]
+    assert (result["create"], result["submit"], result["flatten"]) == (4, 3, 0)
+    assert len(list((tmp_path / "state").glob("operator-reconciliation-*.consumed"))) == 1
+    calls = (tmp_path / "sdk.calls").read_bytes()
+    restored = run_bridge(bridge_binary, tmp_path, "restore")
+    assert restored["status"] == "RECONCILIATION_REQUIRED"
+    assert (tmp_path / "sdk.calls").read_bytes() == calls
+
+
+def test_operator_flat_permit_completes_once_and_restart_does_not_mutate(bridge_binary, tmp_path):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), "flat_permit_twice")
+    assert result["error"] and result["status"] == "RECOVERY_COMPLETE"
+    assert (result["create"], result["submit"], result["cancel"], result["flatten"]) == (1, 1, 0, 0)
+    assert len(list((tmp_path / "state").glob("operator-reconciliation-*.consumed"))) == 1
+    calls = (tmp_path / "sdk.calls").read_bytes()
+    restored = run_bridge(bridge_binary, tmp_path, "restore")
+    assert restored["status"] == "RECOVERY_COMPLETE"
+    assert (tmp_path / "sdk.calls").read_bytes() == calls
+
+
+def test_fenced_recovery_execution_cannot_resume_mutation(bridge_binary, tmp_path):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), "b2_recovery_callback")
+    assert not result["error"] and result["status"] == "RECONCILIATION_REQUIRED"
+    assert (result["create"], result["submit"], result["cancel"], result["flatten"]) == (4, 3, 1, 0)
+    calls = (tmp_path / "sdk.calls").read_bytes()
+    restored = run_bridge(bridge_binary, tmp_path, "restore")
+    assert restored["status"] == "RECONCILIATION_REQUIRED"
+    assert (tmp_path / "sdk.calls").read_bytes() == calls
+
+
+def test_fill_discovered_after_operator_flat_completion_restores_fence(bridge_binary, tmp_path):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), "flat_permit_late_fill")
+    assert not result["error"] and result["status"] == "RECONCILIATION_REQUIRED"
+    assert (result["create"], result["submit"], result["cancel"], result["flatten"]) == (1, 1, 0, 0)
+
+
+@pytest.mark.parametrize("phase", ["RECONCILIATION_PERMIT_CONSUMED", "OPERATOR_RECONCILED"])
+def test_operator_permit_crash_does_not_restore_mutation_authority(bridge_binary, tmp_path, phase):
+    artifacts(tmp_path)
+    run_bridge(bridge_binary, tmp_path, "crash_" + phase)
+    calls = (tmp_path / "sdk.calls").read_bytes()
+    result = run_bridge(bridge_binary, tmp_path, "entry")
+    assert result["error"] and result["create"] == result["submit"] == 0
+    assert (tmp_path / "sdk.calls").read_bytes() == calls
+    assert len(list((tmp_path / "state").glob("operator-reconciliation-*.consumed"))) == 1
+
+
+@pytest.mark.parametrize("mode,pending", [("manual_no_permit", True), ("manual_already_flat", False), ("manual_cancel_fill", True)])
+def test_manual_reconciliation_and_one_shot_intent_survive_restart(bridge_binary, tmp_path, mode, pending):
+    result = run_bridge(bridge_binary, artifacts(tmp_path), mode)
+    assert result["manual_pending"] is pending
+    calls = (tmp_path / "sdk.calls").read_bytes()
+    restored = run_bridge(bridge_binary, tmp_path, "restore_manual")
+    assert restored["manual_pending"] is pending
+    assert restored["create"] == restored["submit"] == restored["cancel"] == restored["flatten"] == 0
+    assert (tmp_path / "sdk.calls").read_bytes() == calls

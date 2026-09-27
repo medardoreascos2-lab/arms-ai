@@ -653,6 +653,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private void AttemptOneShotSubmit()
         {
+            RequireNoManualReconciliation();
             if (controlledKey != null) { AttemptControlledV3(); return; }
             ValidateSelectedAccount();
 
@@ -2417,6 +2418,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         private void AttemptEmergencyFlatten()
         {
             ValidateSelectedAccount();
+            if (RestoreManualReconciliation()) return;
 
             if (!RequestEmergencyFlatten)
             {
@@ -2557,6 +2559,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                     if (position.Instrument != null && position.Instrument.FullName == emergencyFlattenInstrumentName)
                         manualExpectedPosition += position.MarketPosition == MarketPosition.Long ? position.Quantity : position.MarketPosition == MarketPosition.Short ? -position.Quantity : 0;
             emergencyFlattenAwaitingConfirmation = true;
+            PersistManualReconciliation();
             StartControlledService();
             Print("ARMS_SIM_EMERGENCY_FLATTEN_PENDING_CONFIRMATION instrument=" + emergencyFlattenInstrumentName);
             if (activeOrders.Count > 0)
@@ -2585,6 +2588,8 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 if (!emergencyFlattenAwaitingConfirmation) return;
                 ValidateSelectedAccount();
+                if (!ManualReconciliationAllowsDecision())
+                { Print("ARMS_SIM_EMERGENCY_RECONCILIATION_REQUIRED position_freshness_unproven"); return; }
                 if (manualBaselineUncertain)
                 { Print("ARMS_SIM_EMERGENCY_RECONCILIATION_REQUIRED baseline_position_unproven"); return; }
                 if (!NATIVE_EMERGENCY_FLATTEN_ENABLED || selectedAccount.ConnectionStatus != ConnectionStatus.Connected)
@@ -2630,6 +2635,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (freshQuantity != manualExpectedPosition) return; // Position callback still lags fills.
                 if (remaining == null)
                 {
+                    CompleteManualReconciliation();
                     emergencyFlattenAwaitingConfirmation = false;
                     Print("Target instrument already flat.");
                     if (manualEmergencyOrders.Count == 0 && !manualFlattenIntent)
@@ -2639,6 +2645,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 }
                 if (manualFlattenIntent) return;
                 manualFlattenIntent = true;
+                PersistManualFlattenIntent();
+                manualOperatorAuthorized = false;
                 Print("ARMS_SIM_EMERGENCY_FLATTEN_CALL instrument=" + emergencyFlattenInstrumentName);
                 selectedAccount.Flatten(new List<NinjaTrader.Cbi.Instrument> { remaining.Instrument });
             }
@@ -2986,12 +2994,6 @@ namespace NinjaTrader.NinjaScript.Indicators
                     emergencyFlattenInstrumentName,
                     StringComparison.Ordinal
                 )
-            )
-                return;
-
-            if (
-                position.MarketPosition
-                != MarketPosition.Flat
             )
                 return;
 

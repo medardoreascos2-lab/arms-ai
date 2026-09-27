@@ -25,6 +25,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         private Func<long> controlledClock;
         private ControlledOperationV3 controlledOperation;
         private ControlledAdmissionV3 controlledAdmission;
+        private int controlledExitObserved;
         private System.Windows.Threading.DispatcherTimer controlledServiceTimer;
         private bool controlledServiceStopped;
         private void StartControlledService()
@@ -72,6 +73,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         {
             if(controlledOperation==null || execution==null) return;
             var order=execution.Order;
+            if(order==null || controlledOperation.RoleForName(order.Name)!="ENTRY")
+                System.Threading.Interlocked.Exchange(ref controlledExitObserved,1);
             var item=new CapturedCallback {Order=order,Account=execution.Account,OrderId=order==null?"":order.OrderId,
                 Name=order==null?"":order.Name,ExecutionId=execution.ExecutionId,Quantity=execution.Quantity,Price=execution.Price,IsExecution=true};
             RecordControlledRaw("EXECUTION",order,item.ExecutionId,item.Quantity,item.Price);
@@ -210,6 +213,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 InstrumentName!=controlledAdmission["instrument"] || controlledGeneration!=controlledAdmission.Number("runtime_generation") ||
                 selectedAccount.ConnectionStatus!=ConnectionStatus.Connected)
                 throw new InvalidOperationException("Native controlled capability disabled or identity changed.");
+            controlledOperation.RequireMutationAuthority();
+            RequireNoManualReconciliation();
         }
         private ControlledSnapshotV3 ControlledSnapshot()
         {
@@ -233,6 +238,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             if(spec.Quantity!=1 || spec.Instrument!=InstrumentName || spec.Name!=controlledOperation.OrderName(spec.Role) || controlledOrders.ContainsKey(spec.Name))
                 throw new InvalidDataException("Controlled role identity/quantity mismatch.");
             if(spec.Role=="RECOVERY_CLOSE") ValidateRecoverySubmission(null);
+            if(spec.Role=="PROTECTIVE_STOP" || spec.Role=="PROFIT_TARGET") ValidateProtectionMutation();
             var instrument=NinjaTrader.Cbi.Instrument.GetInstrument(InstrumentName,true);
             var action=spec.Action=="BUY"?OrderAction.Buy:spec.Action=="SELL"?OrderAction.Sell:spec.Action=="BUY_TO_COVER"?OrderAction.BuyToCover:OrderAction.SellShort;
             if(spec.Role=="ENTRY" && spec.Action=="SELL") action=OrderAction.SellShort;
@@ -249,11 +255,40 @@ namespace NinjaTrader.NinjaScript.Indicators
             ControlledMutationGuard(); var order=value as Order; Order expected;
             if(order==null || !controlledOrders.TryGetValue(order.Name,out expected) || !ReferenceEquals(order,expected))
                 throw new InvalidDataException("Unknown controlled order handle.");
+            if(controlledOperation.RoleForName(order.Name)!="ENTRY" && controlledOperation.RoleForName(order.Name)!="RECOVERY_CLOSE")
+                throw new InvalidDataException("Protectors require the collection submission boundary.");
             if(controlledOperation.RoleForName(order.Name)=="RECOVERY_CLOSE") ValidateRecoverySubmission(order.Name);
             selectedAccount.Submit(new[]{order});
         }
+        private void ValidateProtectionMutation()
+        {
+            var snapshot=ControlledSnapshot();
+            bool observedExit=System.Threading.Interlocked.CompareExchange(ref controlledExitObserved,0,0)!=0;
+            lock(selectedAccount.Executions)
+                observedExit |= selectedAccount.Executions.Any(e=>e.Order!=null && e.Order.Instrument!=null &&
+                    e.Order.Instrument.FullName==InstrumentName && !controlledOperation.IsBaselineExecution(e.ExecutionId) &&
+                    controlledOperation.RoleForName(e.Order.Name)!="ENTRY");
+            if(observedExit || snapshot.PositionQuantity!=1 || snapshot.PositionSide!=controlledAdmission["side"])
+            { controlledOperation.RequirePositionReconciliation();throw new InvalidDataException("Protection requires proven open controlled exposure with no observed exit."); }
+        }
+        private void SubmitControlledProtection(object stopValue,object targetValue)
+        {
+            ControlledMutationGuard();ValidateProtectionMutation();
+            var stop=stopValue as Order;var target=targetValue as Order;
+            if(stop==null || target==null || ReferenceEquals(stop,target) ||
+                controlledOperation.RoleForName(stop.Name)!="PROTECTIVE_STOP" || controlledOperation.RoleForName(target.Name)!="PROFIT_TARGET" ||
+                !ControlledOwnedOrder(stop) || !ControlledOwnedOrder(target) || stop.Oco!=target.Oco || string.IsNullOrEmpty(stop.Oco))
+                throw new InvalidDataException("Complete approved protective pair required.");
+            // One collection call; this does not assert broker-side atomicity.
+            IEnumerable<Order> pair=new[]{stop,target};
+            selectedAccount.Submit(pair);
+        }
         private void ValidateRecoverySubmission(string pendingName)
         {
+            controlledOperation.RequireRecoveryAuthority();
+            if(controlledReconciledExecutions==null || controlledReconciledExecutions!=ControlledExecutionSetDigest() ||
+                controlledReconciledRaw!=ControlledRawDigest() || System.Threading.Interlocked.CompareExchange(ref controlledExitObserved,0,0)!=0)
+            {controlledOperation.RequirePositionReconciliation();throw new InvalidDataException("Execution evidence changed after operator reconciliation.");}
             var snapshot=ControlledSnapshot();
             if(snapshot.PositionQuantity!=1 || snapshot.PositionSide!=controlledAdmission["side"] ||
                 snapshot.ActiveOrderNames.Any(name=>name!=pendingName))
@@ -382,6 +417,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             public ControlledSnapshotV3 Snapshot() { return owner.ControlledSnapshot(); }
             public object Create(ControlledOrderV3 order) { return owner.CreateControlledOrder(order); }
             public void Submit(object order) { owner.SubmitControlledOrder(order); }
+            public void SubmitProtection(object stop,object target) {owner.SubmitControlledProtection(stop,target);}
             public void Cancel(string[] names) { owner.CancelControlledOrders(names); }
         }
     }
