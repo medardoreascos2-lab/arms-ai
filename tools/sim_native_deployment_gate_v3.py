@@ -1,0 +1,149 @@
+"""Read-only four-source deployment gate; never copies, edits or runs NinjaTrader."""
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import re
+import os
+import subprocess
+import xml.etree.ElementTree as ET
+
+SOURCES = {
+    "ArmsSimNativeSubmitBridgeV2.cs": "Indicators",
+    "ArmsSimNativeSubmitBridgeV2.ControlledV3.cs": "AddOns",
+    "ArmsSimNativeSubmitBridgeV2.ReconciliationV3.cs": "AddOns",
+    "ControlledSimOperationV3.cs": "AddOns",
+}
+OWNER = "ArmsSimNativeSubmitBridgeV2"
+MODEL_TYPES = {"ControlledConfigurationV3", "ControlledSnapshotV3", "ControlledOrderV3", "IControlledAccountV3",
+               "ControlledAdmissionV3", "ControlledOperationV3", "OperatorReconciliationV3"}
+
+
+def code_only(text):
+    # Remove comments and C# string/character literals before declaration checks.
+    return re.sub(r'//[^\n]*|/\*[\s\S]*?\*/|@"(?:""|[^"])*"|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'', ' ', text)
+
+
+def manifest(repo: Path, custom: Path):
+    rows = []
+    for name, folder in SOURCES.items():
+        source = repo / "integrations/ninjatrader" / name
+        destination = custom / folder / name
+        expected = hashlib.sha256(source.read_bytes()).hexdigest()
+        actual = hashlib.sha256(destination.read_bytes()).hexdigest() if destination.is_file() else None
+        rows.append(dict(source=str(source.resolve()), destination=str(destination.resolve()), expected_sha256=expected,
+                         deployed_sha256=actual, action="COPY" if actual is None else "ALREADY_CURRENT" if actual == expected else "REPLACE"))
+    return rows
+
+
+def compile_offline(repo: Path, custom: Path, sdk: Path, output: Path):
+    """Compile all production bodies; alias only the installed Indicator base.
+
+    Installed Custom.dll is NOT a global reference: its old bridge cannot mask
+    source duplicates. No generated output is written into the installation.
+    """
+    if output.resolve() == custom.resolve() or custom.resolve() in output.resolve().parents:
+        raise ValueError("compile output must be outside NinjaTrader Custom")
+    output.mkdir(parents=True, exist_ok=False)
+    main = repo / "integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.cs"
+    isolated = output / main.name
+    isolated.write_text("extern alias NTBase;\nusing Indicator = NTBase::NinjaTrader.NinjaScript.Indicators.Indicator;\n"+main.read_text(), encoding="utf-8")
+    framework = Path(os.environ["WINDIR"]) / "Microsoft.NET/Framework64/v4.0.30319"
+    references = [sdk/"NinjaTrader.Core.dll", sdk/"NinjaTrader.Gui.dll",
+        *(framework/"WPF"/name for name in ("WindowsBase.dll", "PresentationCore.dll", "PresentationFramework.dll")),
+        "System.Core.dll", "System.Web.Extensions.dll", "System.ComponentModel.DataAnnotations.dll", "System.Xaml.dll", "System.Security.dll"]
+    assembly = output / "ArmsRc2r.dll"
+    command = [str(framework/"csc.exe"), "/nologo", "/langversion:5", "/target:library", "/out:"+str(assembly),
+        *("/r:"+str(path) for path in references), "/r:NTBase="+str(custom/"NinjaTrader.Custom.dll"), str(isolated),
+        *(str((repo/"integrations/ninjatrader"/name).resolve()) for name in SOURCES if name != main.name)]
+    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+    if result.returncode or any(warning in result.stdout+result.stderr for warning in ("CS0436", "CS0612")):
+        raise RuntimeError(result.stdout+result.stderr)
+    return assembly, result.stdout+result.stderr
+
+
+def verify(repo: Path, custom: Path, project: Path):
+    rows = manifest(repo, custom)
+    errors = []
+    expected_paths = {Path(row["destination"]).resolve(): row for row in rows}
+    counts = Counter()
+    for path in custom.rglob("*.cs"):
+        text = path.read_text(encoding="utf-8-sig")
+        code = code_only(text)
+        if "harness" in path.name.lower() or "Synthetic SDK only" in text:
+            errors.append("TEST_HARNESS_SOURCE:"+str(path))
+        for match in re.finditer(r'\b(?:(partial)\s+)?(?:class|interface)\s+(\w+)\b', code):
+            partial, name = match.groups()
+            if name not in MODEL_TYPES | {OWNER}:
+                continue
+            counts[name] += 1
+            wanted = (path.resolve() in expected_paths and
+                (path.name.startswith(OWNER) if name == OWNER else path.name == "ControlledSimOperationV3.cs"))
+            if not wanted:
+                errors.append("UNEXPECTED_PRODUCTION_TYPE:"+str(path)+":"+name)
+            if name == OWNER and partial != "partial":
+                errors.append("NONPARTIAL_OWNER:"+str(path))
+    if counts[OWNER] != 3:
+        errors.append("OWNER_PARTIAL_COUNT:"+str(counts[OWNER]))
+    for name in MODEL_TYPES:
+        if counts[name] != 1:
+            errors.append("MODEL_TYPE_COUNT:"+name+":"+str(counts[name]))
+    # Native editor may append generated wrappers to the indicator owner. Match
+    # its approved source prefix and separately reject duplicate owner declarations.
+    marker = "#region NinjaScript generated code"
+    for row in rows:
+        path = Path(row["destination"])
+        if not path.exists():
+            errors.append("MISSING_SOURCE:"+str(path))
+            continue
+        expected = Path(row["source"]).read_text(encoding="utf-8-sig").strip()
+        actual = path.read_text(encoding="utf-8-sig")
+        if path.name == "ArmsSimNativeSubmitBridgeV2.cs":
+            actual = actual.split(marker, 1)[0]
+        if actual.strip() != expected:
+            errors.append("STALE_OR_MODIFIED_SOURCE:"+str(path))
+    tree = ET.parse(project)
+    includes = []
+    references = {element.attrib.get("Include", "").split(",")[0] for element in tree.iter()
+                  if element.tag.split("}")[-1] == "Reference"}
+    if "System.Security" not in references:
+        errors.append("DPAPI_FRAMEWORK_REFERENCE_MISSING:System.Security")
+    parents = {child: parent for parent in tree.iter() for child in parent}
+    for element in tree.iter():
+        if element.tag.split("}")[-1] == "Compile" and "Include" in element.attrib:
+            value = element.attrib["Include"]
+            parent = element
+            while parent is not None:
+                if "Condition" in parent.attrib:
+                    errors.append("CONDITIONAL_COMPILE_INCLUDE:"+value)
+                parent = parents.get(parent)
+            if any(c in value for c in "*?$;"):
+                errors.append("UNRESOLVED_COMPILE_INCLUDE:"+value)
+            else:
+                includes.append((project.parent / value.replace("\\", "/")).resolve())
+        if element.tag.split("}")[-1] == "Compile" and ("Remove" in element.attrib or "Exclude" in element.attrib):
+            errors.append("COMPILE_EXCLUSION_REQUIRES_REVIEW")
+        if element.tag.split("}")[-1] == "Reference" and element.attrib.get("Include", "").split(",")[0] == "NinjaTrader.Custom":
+            errors.append("STALE_CUSTOM_ASSEMBLY_REFERENCE")
+    for path in expected_paths:
+        if includes.count(path) != 1:
+            errors.append("PROJECT_INCLUDE_COUNT:"+str(path)+":"+str(includes.count(path)))
+    main = (repo / "integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.cs").read_text()
+    for flag in ("NATIVE_SUBMIT_ENABLED", "AUTO_RETRY_ALLOWED"):
+        if not re.search(r'\bconst\s+bool\s+'+flag+r'\s*=\s*false\s*;', code_only(main)):
+            errors.append("SAFETY_CONSTANT:"+flag)
+    return {"ready": not errors, "errors": errors, "manifest": rows}
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--custom", type=Path, required=True)
+    parser.add_argument("--project", type=Path)
+    args = parser.parse_args()
+    result = verify(args.repo, args.custom, args.project) if args.project else {"manifest": manifest(args.repo, args.custom)}
+    print(json.dumps(result, indent=2))
+    raise SystemExit(0 if result.get("ready", True) else 1)

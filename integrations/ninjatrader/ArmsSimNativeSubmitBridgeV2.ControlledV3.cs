@@ -1,5 +1,5 @@
-// Same SDK owner, separate source unit. No discovery, secret provisioning or
-// automatic activation on load. A trusted composition explicitly configures it.
+// Same SDK owner. CurrentUser bootstrap only configures/restores; never provisions
+// authority or activates an operation. Companion source belongs under AddOns.
 using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
@@ -28,6 +28,90 @@ namespace NinjaTrader.NinjaScript.Indicators
         private int controlledExitObserved;
         private System.Windows.Threading.DispatcherTimer controlledServiceTimer;
         private bool controlledServiceStopped;
+        private bool controlledBootstrapAttempted,controlledBootstrapReady,controlledObservationOnly;
+        private Dictionary<string,object> controlledCommissioning=new Dictionary<string,object>();
+        private void BootstrapControlledV3(string authorityRoot,Dictionary<string,string> expected,Func<long> clock)
+        {
+            lock(controlledSync)
+            {
+                if(controlledBootstrapAttempted) return;
+                controlledBootstrapAttempted=true;
+                controlledObservationOnly=true;
+                controlledCommissioning=new Dictionary<string,object> {
+                    {"schema","ARMS_CONTROLLED_COMMISSIONING_V3"},{"controlled_v3_configured",false},
+                    {"authority_loaded",false},{"config_signature_valid",false},{"restore_status","NOT_STARTED"},
+                    {"command_path_ready",false},{"activation_path_ready",false},{"state_path_ready",false},
+                    {"reconciliation_path_ready",false},{"last_configuration_error",""}};
+                foreach(string name in new[]{"configuration_generation","authority_id","backend_account_id","native_account","provider","instrument","runtime_generation"})
+                    controlledCommissioning[name]="";
+                try
+                {
+                    ValidateSelectedAccount();
+                    if(authorityRoot==null) authorityRoot=ControlledConfigurationV3.AuthorityRoot();
+                    using(var config=ControlledConfigurationV3.Load(authorityRoot,expected,clock()))
+                    {
+                        var v=config.Values;
+                        if(selectedAccount.Name!=v["native_account"] || selectedAccount.Provider.ToString()!=v["provider"] ||
+                            InstrumentName!=v["instrument"] || CommandDirectory!=v["command_directory"] || ActivationDirectory!=v["activation_directory"])
+                            throw new InvalidDataException("OWNER_CONFIGURATION_MISMATCH");
+                        ConfigureControlledV3(config.Key,ControlledAdmissionV3.AccountFields.ToDictionary(n=>n,n=>v[n]),
+                            long.Parse(v["runtime_generation"],CultureInfo.InvariantCulture),v["risk_version"],v["state_directory"],v["reconciliation_directory"],clock);
+                        foreach(string name in new[]{"configuration_generation","authority_id","backend_account_id","native_account","provider","instrument","runtime_generation"})
+                            controlledCommissioning[name]=v[name];
+                        controlledCommissioning["authority_loaded"]=true;
+                        controlledCommissioning["config_signature_valid"]=true;
+                        foreach(string name in new[]{"command_path_ready","activation_path_ready","state_path_ready","reconciliation_path_ready"}) controlledCommissioning[name]=true;
+                        if(Directory.GetFiles(controlledStateDirectory,"*.state").Length!=0)
+                        {
+                            RestoreControlledV3();
+                            controlledCommissioning["restore_status"]=controlledOperation.ReconciliationRequired?"RECONCILIATION_REQUIRED":controlledOperation.Status;
+                        }
+                        else controlledCommissioning["restore_status"]="NO_PERSISTED_OPERATION";
+                        RestoreManualReconciliation();
+                        if(emergencyFlattenAwaitingConfirmation) controlledCommissioning["restore_status"]="MANUAL_RECONCILIATION_REQUIRED";
+                        controlledBootstrapReady=true;
+                        controlledCommissioning["controlled_v3_configured"]=true;
+                    }
+                }
+                catch(Exception error)
+                {
+                    controlledBootstrapReady=false;
+                    controlledCommissioning["authority_loaded"]=false;
+                    if(controlledOperation!=null) {controlledOperation.Dispose();controlledOperation=null;}
+                    if(controlledKey!=null) {Array.Clear(controlledKey,0,controlledKey.Length);controlledKey=null;}
+                    controlledCommissioning["restore_status"]="DISABLED";
+                    // Never log config contents, key material, or arbitrary exception text.
+                    controlledCommissioning["last_configuration_error"]=error is InvalidDataException &&
+                        System.Text.RegularExpressions.Regex.IsMatch(error.Message,@"\A[A-Z][A-Za-z_]{1,100}\z")?error.Message:error.GetType().Name;
+                }
+                WriteControlledCommissioningStatus();
+            }
+        }
+        private void WriteControlledCommissioningStatus()
+        {
+            if(!controlledBootstrapAttempted || string.IsNullOrWhiteSpace(RuntimeSnapshotDirectory)) return;
+            string temporary=null;
+            try
+            {
+                lock(controlledSync)
+                {
+                    string root=ControlledConfigurationV3.SafePath(RuntimeSnapshotDirectory,false);
+                    if(!Directory.Exists(root)) return;
+                    controlledCommissioning["observed_at"]=DateTime.UtcNow.ToString("o",CultureInfo.InvariantCulture);
+                    controlledCommissioning["native_submit_enabled"]=NATIVE_SUBMIT_ENABLED;
+                    controlledCommissioning["auto_retry_allowed"]=AUTO_RETRY_ALLOWED;
+                    controlledCommissioning["reconciliation_fence"]=!controlledBootstrapReady?(object)"UNKNOWN":
+                        emergencyFlattenAwaitingConfirmation || (controlledOperation!=null && controlledOperation.ReconciliationRequired);
+                    string path=Path.Combine(root,"controlled-v3-commissioning-status.json");
+                    temporary=path+"."+Guid.NewGuid().ToString("N")+".tmp";
+                    byte[] bytes=new UTF8Encoding(false).GetBytes(new JavaScriptSerializer().Serialize(controlledCommissioning));
+                    using(var file=new FileStream(temporary,FileMode.CreateNew,FileAccess.Write,FileShare.None)) {file.Write(bytes,0,bytes.Length);file.Flush(true);}
+                    if(File.Exists(path)) File.Replace(temporary,path,null);else File.Move(temporary,path);
+                }
+            }
+            catch {Print("ARMS_CONTROLLED_COMMISSIONING_WRITE_FAILED");}
+            finally {if(temporary!=null && File.Exists(temporary)) File.Delete(temporary);}
+        }
         private void StartControlledService()
         {
             if(ChartControl==null) throw new InvalidOperationException("An explicit bridge dispatcher is required.");
@@ -43,7 +127,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         }
         private void OnControlledService(object sender, EventArgs args)
         {
-            if(controlledServiceStopped) return;
+            if(controlledServiceStopped || controlledObservationOnly) return;
             try { ReconcileControlledV3(); AdvanceManualEmergencyRecovery(); }
             catch(Exception error) { Print("ARMS_CONTROLLED_RECONCILIATION_REQUIRED "+error.GetType().Name); }
         }
@@ -167,7 +251,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                     controlledOperation.RecordExecutionBaseline(baseline);
                 }
                 submitAttempted=true;
-                StartControlledService();
+                if(!controlledObservationOnly) StartControlledService();
                 controlledOperation.Enter(CommandId,controlledAdmission.Digest,controlledAdmission["activation_id"],controlledAdmission.Digest,
                     true,File.Exists(activationPath+".consumed"),NATIVE_SUBMIT_ENABLED,()=> {
                         using(var file=new FileStream(activationPath+".consumed",FileMode.CreateNew,FileAccess.Write,FileShare.None))
@@ -202,13 +286,13 @@ namespace NinjaTrader.NinjaScript.Indicators
                 submitAttempted=true;
                 controlledOperation=new ControlledOperationV3(controlledAdmission,new ControlledAccountAdapter(this),controlledClock,
                     controlledKey,controlledStateDirectory,InstrumentName);
-                StartControlledService();
+                if(!controlledObservationOnly) StartControlledService();
             }
         }
         private void ControlledMutationGuard()
         {
             ValidateSelectedAccount();
-            if(!NATIVE_SUBMIT_ENABLED || controlledOperation==null || controlledAdmission==null || controlledKey==null ||
+            if(!NATIVE_SUBMIT_ENABLED || controlledObservationOnly || (controlledBootstrapAttempted && !controlledBootstrapReady) || controlledOperation==null || controlledAdmission==null || controlledKey==null ||
                 selectedAccount.Name!="Sim101" || selectedAccount.Provider!=Provider.Simulator ||
                 InstrumentName!=controlledAdmission["instrument"] || controlledGeneration!=controlledAdmission.Number("runtime_generation") ||
                 selectedAccount.ConnectionStatus!=ConnectionStatus.Connected)
@@ -243,8 +327,8 @@ namespace NinjaTrader.NinjaScript.Indicators
             var action=spec.Action=="BUY"?OrderAction.Buy:spec.Action=="SELL"?OrderAction.Sell:spec.Action=="BUY_TO_COVER"?OrderAction.BuyToCover:OrderAction.SellShort;
             if(spec.Role=="ENTRY" && spec.Action=="SELL") action=OrderAction.SellShort;
             OrderType type=spec.Type=="MARKET"?OrderType.Market:spec.Type=="STOP_MARKET"?OrderType.StopMarket:OrderType.Limit;
-            Order order=selectedAccount.CreateOrder(instrument,action,type,TimeInForce.Day,1,
-                type==OrderType.Limit?(double)spec.Price:0.0,type==OrderType.StopMarket?(double)spec.Price:0.0,spec.Oco,spec.Name,null);
+            Order order=selectedAccount.CreateOrder(instrument,action,type,OrderEntry.Automated,TimeInForce.Day,1,
+                type==OrderType.Limit?(double)spec.Price:0.0,type==OrderType.StopMarket?(double)spec.Price:0.0,spec.Oco,spec.Name,NinjaTrader.Core.Globals.MaxDate,null);
             if(order==null) throw new InvalidOperationException("Controlled native creation returned no order.");
             controlledOrders.Add(spec.Name,order);
             if(!string.IsNullOrEmpty(order.OrderId)) controlledOperation.BindCreatedOrder(spec.Role,order.OrderId);
@@ -372,6 +456,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         {
             lock(controlledSync)
             {
+                if(controlledObservationOnly) return;
                 if(controlledOperation==null) return;
                 DrainControlledCallbacks();
                 List<Execution> executions; List<Order> orders;

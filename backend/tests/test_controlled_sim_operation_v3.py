@@ -49,7 +49,7 @@ def binary(tmp_path_factory):
     target = tmp_path_factory.mktemp("sim-v3-offline") / "harness.exe"
     compiler = Path(os.environ.get("WINDIR", "C:/Windows")) / "Microsoft.NET/Framework64/v4.0.30319/csc.exe"
     result = subprocess.run([str(compiler), "/nologo", "/langversion:5", "/target:exe", "/out:"+str(target),
-        "/r:System.Core.dll", "/r:System.Web.Extensions.dll",
+        "/r:System.Core.dll", "/r:System.Web.Extensions.dll", "/r:System.Security.dll",
         str(ROOT/"integrations/ninjatrader/ControlledSimOperationV3.cs"),
         str(ROOT/"backend/tests/fixtures/controlled_sim_operation_v3_harness.cs")], capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stdout+result.stderr

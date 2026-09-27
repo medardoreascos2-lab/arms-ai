@@ -10,6 +10,108 @@ using System.Text;
 
 namespace Arms.NativeSim
 {
+    // Windows-local trust loader shared by the existing owner and offline tests.
+    // No provisioning and no account/native mutation API exists in this type.
+    public sealed class ControlledConfigurationV3 : IDisposable
+    {
+        public byte[] Key { get; private set; }
+        public Dictionary<string,string> Values { get; private set; }
+        public const string Schema="ARMS_CONTROLLED_CONFIG_V3";
+        private const string Header="ARMS_DPAPI_CURRENT_USER_V3\n";
+        public static string AuthorityRoot()
+        { return SafePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"ARMS-AI","sim-native-v3"),true); }
+        public static string SafePath(string value,bool authority)
+        {
+            if(string.IsNullOrWhiteSpace(value) || !Path.IsPathRooted(value) || value.StartsWith(@"\\"))
+                throw new InvalidDataException("LOCAL_PATH_REQUIRED");
+            string path=Path.GetFullPath(value).TrimEnd(Path.DirectorySeparatorChar);
+            if(authority && path.Split(Path.DirectorySeparatorChar).Any(p=>p.IndexOf("onedrive",StringComparison.OrdinalIgnoreCase)>=0 || p.Equals("Custom",StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException("AUTHORITY_LOCATION_REJECTED");
+            for(string p=path;!string.IsNullOrEmpty(p);p=Path.GetDirectoryName(p))
+            {
+                if((Directory.Exists(p) || File.Exists(p)) && (File.GetAttributes(p)&FileAttributes.ReparsePoint)!=0)
+                    throw new InvalidDataException("REDIRECTED_PATH_REJECTED");
+                if(authority && Directory.Exists(Path.Combine(p,"integrations","ninjatrader")) &&
+                    (Directory.Exists(Path.Combine(p,".git")) || File.Exists(Path.Combine(p,".git"))))
+                    throw new InvalidDataException("REPOSITORY_AUTHORITY_REJECTED");
+            }
+            return path;
+        }
+        private static byte[] Read(string path)
+        {
+            SafePath(path,false);
+            var info=new FileInfo(path);
+            if(!info.Exists || info.Length==0 || info.Length>65536) throw new InvalidDataException("ARTIFACT_MISSING_OR_OVERSIZED");
+            return File.ReadAllBytes(path);
+        }
+        public static byte[] LoadAuthority(string root)
+        {
+            byte[] wire=Read(Path.Combine(SafePath(root,true),"authority.dpapi"));
+            byte[] header=Encoding.ASCII.GetBytes(Header);
+            if(!wire.Take(header.Length).SequenceEqual(header)) throw new InvalidDataException("AUTHORITY_ENCODING_INVALID");
+            byte[] key=ProtectedData.Unprotect(wire.Skip(header.Length).ToArray(),Encoding.ASCII.GetBytes("arms.native.authority.v3"),DataProtectionScope.CurrentUser);
+            if(key.Length!=32) {Array.Clear(key,0,key.Length);throw new InvalidDataException("AUTHORITY_LENGTH_INVALID");}
+            return key;
+        }
+        private static string Quote(string value)
+        {
+            var result=new StringBuilder("\"");
+            foreach(char c in value)
+            {
+                switch(c) {
+                    case '\\':result.Append("\\\\");break;case '"':result.Append("\\\"");break;
+                    case '\b':result.Append("\\b");break;case '\f':result.Append("\\f");break;
+                    case '\n':result.Append("\\n");break;case '\r':result.Append("\\r");break;case '\t':result.Append("\\t");break;
+                    default:if(c<32) result.Append("\\u"+((int)c).ToString("x4"));else result.Append(c);break;
+                }
+            }
+            return result.Append('"').ToString();
+        }
+        public static byte[] Canonical(Dictionary<string,string> values)
+        { return new UTF8Encoding(false,true).GetBytes("{"+string.Join(",",values.OrderBy(p=>p.Key,StringComparer.Ordinal).Select(p=>Quote(p.Key)+":"+Quote(p.Value)))+"}"); }
+        public static ControlledConfigurationV3 Load(string root,Dictionary<string,string> expected,long nowUs)
+        {
+            byte[] key=LoadAuthority(root);
+            try {
+                var pathFields=new[]{"command_directory","activation_directory","state_directory","reconciliation_directory"};
+                var pins=new[]{"authority_id","backend_account_id","native_account","provider","instrument","runtime_generation","configuration_generation","execution_domain"}.Concat(pathFields);
+                if(expected==null || !new HashSet<string>(pins).SetEquals(expected.Keys) || expected.Values.Any(string.IsNullOrWhiteSpace))
+                    throw new InvalidDataException("EXPLICIT_CONFIGURATION_PINS_REQUIRED");
+                string fingerprint;using(var sha=SHA256.Create()) fingerprint=ControlledAdmissionV3.Hex(sha.ComputeHash(key));
+                if(fingerprint!=expected["authority_id"]) throw new InvalidDataException("AUTHORITY_ID_MISMATCH");
+                string configPath=Path.Combine(root,"controlled-v3-config.json");
+                byte[] raw=Read(configPath),signature=Read(Path.Combine(root,"controlled-v3-config.sig"));
+                if(!raw.SequenceEqual(Read(configPath)) || !ControlledAdmissionV3.Equal(Encoding.ASCII.GetString(signature),
+                    ControlledAdmissionV3.Mac(key,Encoding.UTF8.GetBytes("arms.native.configuration.v3\0").Concat(raw).ToArray())))
+                    throw new InvalidDataException("CONFIG_SIGNATURE_INVALID");
+                var serializer=new System.Web.Script.Serialization.JavaScriptSerializer();
+                var parsed=serializer.Deserialize<Dictionary<string,object>>(new UTF8Encoding(false,true).GetString(raw));
+                var fields=new HashSet<string>(ControlledAdmissionV3.AccountFields.Concat(pathFields).Concat(new[]{"schema","version","issued_at","authority_id","configuration_generation","native_account","provider","instrument","runtime_generation","risk_version","issued_us","expires_us"}));
+                if(parsed==null || !fields.SetEquals(parsed.Keys) || parsed.Values.Any(v=>!(v is string) || string.IsNullOrWhiteSpace((string)v)))
+                    throw new InvalidDataException("CONFIG_SCHEMA_INVALID");
+                var values=parsed.ToDictionary(p=>p.Key,p=>(string)p.Value);
+                if(!raw.SequenceEqual(Canonical(values)) || values["schema"]!=Schema || values["version"]!="3" || values["execution_domain"]!="SIM_NATIVE" ||
+                    values["native_account"]!="Sim101" || values["provider"]!="Simulator" || values["authority_id"]!=fingerprint)
+                    throw new InvalidDataException("CONFIG_IDENTITY_INVALID");
+                foreach(string name in pins)
+                    if(values[name]!=expected[name]) throw new InvalidDataException("CONFIG_BINDING_MISMATCH_"+name);
+                long issued,expires,generation,runtime;
+                if(!long.TryParse(values["issued_us"],out issued) || !long.TryParse(values["expires_us"],out expires) ||
+                    !long.TryParse(values["configuration_generation"],out generation) || !long.TryParse(values["runtime_generation"],out runtime) ||
+                    issued<=0 || issued>nowUs || expires<=nowUs || expires<=issued || generation<1 || runtime<1)
+                    throw new InvalidDataException("CONFIG_FRESHNESS_OR_GENERATION_INVALID");
+                if(values["issued_at"]!=new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc).AddTicks(checked(issued*10)).ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'",CultureInfo.InvariantCulture))
+                    throw new InvalidDataException("CONFIG_ISSUE_TIME_MISMATCH");
+                var paths=pathFields.Select(n=>SafePath(values[n],false)).ToArray();
+                if(paths.Distinct(StringComparer.OrdinalIgnoreCase).Count()!=paths.Length || paths.Any(p=>!Directory.Exists(p)))
+                    throw new InvalidDataException("CONFIG_PATH_UNAVAILABLE");
+                return new ControlledConfigurationV3 {Key=key,Values=values};
+            }
+            catch {Array.Clear(key,0,key.Length);throw;}
+        }
+        public void Dispose() {if(Key!=null) Array.Clear(Key,0,Key.Length);}
+    }
+
     public sealed class ControlledSnapshotV3
     {
         public string Account, Provider, Instrument, RiskVersion;

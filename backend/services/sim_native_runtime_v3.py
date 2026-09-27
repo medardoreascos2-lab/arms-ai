@@ -238,3 +238,15 @@ def build_native_sim_runtime(*, binding: SimNativeAccountV3, namespace_root, aut
     lifecycle.native_admission_producer_v3 = NativeAdmissionProducerV3(store=store, binding=binding, key=authority_key,
         runtime_evidence=runtime_evidence, protection_timeout_us=protection_timeout_us, recovery_timeout_us=recovery_timeout_us)
     return NativeSimRuntimeV3(binding, lifecycle, store, manager)
+
+
+def build_provisioned_native_sim_runtime(**configuration):
+    """Explicit production composition; loads CurrentUser authority, never creates it.
+
+    Test-only key injection remains on build_native_sim_runtime. This boundary
+    deliberately accepts neither an alternate key nor an alternate secret root.
+    """
+    if "authority_key" in configuration or "authority_root" in configuration:
+        raise ValueError("canonical CurrentUser authority required")
+    from backend.services.sim_native_authority_v3 import load_authority
+    return build_native_sim_runtime(authority_key=load_authority(), **configuration)

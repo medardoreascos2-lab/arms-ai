@@ -32,7 +32,7 @@ def bridge_binary(tmp_path_factory):
     compiler = Path(os.environ.get("WINDIR", "C:/Windows")) / "Microsoft.NET/Framework64/v4.0.30319/csc.exe"
     binary = directory / "bridge.exe"
     result = subprocess.run([str(compiler), "/nologo", "/langversion:5", "/target:exe", "/out:" + str(binary),
-        "/r:System.Core.dll", "/r:System.Web.Extensions.dll", str(manual_path),
+        "/r:System.Core.dll", "/r:System.Web.Extensions.dll", "/r:System.Security.dll", str(manual_path),
         str(ROOT / "integrations/ninjatrader/ControlledSimOperationV3.cs"),
         str(ROOT / "integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.ControlledV3.cs"),
         str(ROOT / "integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.ReconciliationV3.cs"),

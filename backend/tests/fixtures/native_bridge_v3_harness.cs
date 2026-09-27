@@ -14,6 +14,7 @@ namespace System.Windows.Threading
 }
 namespace NinjaTrader.Cbi
 {
+    public enum OrderEntry { Automated,Manual }
     public enum Provider { Simulator, Other }
     public enum ConnectionStatus { Connected, Disconnected }
     public enum MarketPosition { Flat, Long, Short }
@@ -45,8 +46,9 @@ namespace NinjaTrader.Cbi
         public int Creates,Submits,Cancels,Flattens; public bool FailCreate,FailSubmit,CloseDuringRecoveryCreate;
         public Action<Order> OnSubmit,OnCreate;
         void Log(string value) {File.AppendAllText(Path.Combine(Root,"sdk.calls"),value+"\n");}
-        public Order CreateOrder(Instrument instrument,OrderAction action,OrderType type,TimeInForce tif,int qty,double limit,double stop,string oco,string name,object unused)
+        public Order CreateOrder(Instrument instrument,OrderAction action,OrderType type,OrderEntry entry,TimeInForce tif,int qty,double limit,double stop,string oco,string name,DateTime gtd,object unused)
         {
+            if(entry!=OrderEntry.Automated || gtd!=NinjaTrader.Core.Globals.MaxDate || tif!=TimeInForce.Day || unused!=null) throw new Exception("Wrong current CreateOrder overload semantics");
             Creates++;Log("CREATE "+name);if(FailCreate) throw new IOException("synthetic uncertain create");
             var order=new Order {Account=this,Instrument=instrument,OrderAction=action,OrderType=type,Quantity=qty,LimitPrice=limit,StopPrice=stop,Oco=oco,Name=name,OrderId="native-"+name,OrderState=OrderState.Initialized};
             Orders.Add(order);if(CloseDuringRecoveryCreate && name.EndsWith(".R")) Positions.Clear();if(OnCreate!=null) OnCreate(order);return order;
@@ -56,6 +58,7 @@ namespace NinjaTrader.Cbi
         public void Flatten(ICollection<Instrument> instruments) {Flattens++;Log("FLATTEN");}
     }
 }
+namespace NinjaTrader.Core {public static class Globals {public static readonly DateTime MaxDate=DateTime.MaxValue;}}
 namespace NinjaTrader.NinjaScript.Indicators
 {
     // Replaces only the platform host shell. SDK binding/model are production
@@ -68,6 +71,11 @@ namespace NinjaTrader.NinjaScript.Indicators
         public static bool SyntheticEnabled=true;
         private bool NATIVE_SUBMIT_ENABLED {get{return SyntheticEnabled;}}
         private const bool NATIVE_EMERGENCY_FLATTEN_ENABLED=true;
+        private const bool AUTO_RETRY_ALLOWED=false;
+        public string RuntimeSnapshotDirectory;
+        public void Bootstrap(string root,Dictionary<string,string> expected,long now) {BootstrapControlledV3(root,expected,()=>now);}
+        public bool Bootstrapped {get{return controlledBootstrapReady;}}
+        public void Observe() {WriteControlledCommissioningStatus();}
         private const string REQUIRED_ARM_TOKEN="ARM_SIM_ONE_SHOT_V2";
         private const string EMERGENCY_FLATTEN_ARM_TOKEN="ARM_SIM_EMERGENCY_FLATTEN_V2";
         private Account selectedAccount; private bool submitAttempted,emergencyFlattenAttempted,emergencyFlattenAwaitingConfirmation;
@@ -136,6 +144,17 @@ internal static class NativeBridgeHarness
         }
         var bridge=new NinjaTrader.NinjaScript.Indicators.ArmsSimNativeSubmitBridgeV2 {CommandDirectory=Path.Combine(root,"spool","commands"),ActivationDirectory=Path.Combine(root,"activation")};
         bridge.SetAccount(account);
+        if(mode=="bootstrap" || mode=="restore_bootstrap")
+        {
+            var pins=new JavaScriptSerializer().Deserialize<Dictionary<string,string>>(File.ReadAllText(Path.Combine(root,"pins.json")));
+            bridge.RuntimeSnapshotDirectory=root;
+            bridge.Bootstrap(Path.Combine(root,"authority"),pins,now);
+            bridge.Bootstrap(Path.Combine(root,"authority"),pins,now);
+            bridge.Observe();bridge.ReconcileControlledV3();bridge.ManualAdvance();
+            Console.WriteLine(new JavaScriptSerializer().Serialize(new {configured=bridge.Bootstrapped,status=bridge.Status,
+                create=account.Creates,submit=account.Submits,cancel=account.Cancels,flatten=account.Flattens}));
+            bridge.Close();return 0;
+        }
         if(mode=="restore_manual")
         {
             ConfigureManual(bridge,root,()=>now);bridge.ManualStart();bridge.ManualAdvance();
@@ -144,7 +163,7 @@ internal static class NativeBridgeHarness
         if(mode=="b3_terminal_fill_delayed_position")
         {
             ConfigureManual(bridge,root,()=>now);
-            var order=account.CreateOrder(Instrument.GetInstrument("NQ DEC26",true),OrderAction.Buy,OrderType.Market,TimeInForce.Day,1,0,0,"","manual-terminal",null);
+            var order=account.CreateOrder(Instrument.GetInstrument("NQ DEC26",true),OrderAction.Buy,OrderType.Market,OrderEntry.Automated,TimeInForce.Day,1,0,0,"","manual-terminal",NinjaTrader.Core.Globals.MaxDate,null);
             order.OrderState=OrderState.Filled;order.Filled=1;
             account.Executions.Add(new Execution {Account=account,Order=order,ExecutionId="terminal-before-position",Quantity=1,Price=100});
             bridge.ManualStart(); // Position inventory still carries the older FLAT observation.
@@ -159,7 +178,7 @@ internal static class NativeBridgeHarness
         if(mode.StartsWith("manual_"))
         {
             ConfigureManual(bridge,root,()=>now);
-            var order=account.CreateOrder(Instrument.GetInstrument("NQ DEC26",true),OrderAction.Buy,OrderType.Market,TimeInForce.Day,1,0,0,"","manual",null);
+            var order=account.CreateOrder(Instrument.GetInstrument("NQ DEC26",true),OrderAction.Buy,OrderType.Market,OrderEntry.Automated,TimeInForce.Day,1,0,0,"","manual",NinjaTrader.Core.Globals.MaxDate,null);
             if(mode=="manual_unsettled_baseline")
             { order.Filled=1;account.Executions.Add(new Execution {Account=account,Order=order,ExecutionId="pre-cancel-fill",Quantity=1,Price=100}); }
             bridge.ManualStart(); // initially FLAT with a live order; must wait.

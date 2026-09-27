@@ -256,6 +256,25 @@ namespace NinjaTrader.NinjaScript.Indicators
             set;
         }
 
+        [NinjaScriptProperty]
+        [Display(Name="ControlledAuthorityId",GroupName="Controlled V3",Order=30)]
+        public string ControlledAuthorityId {get;set;}
+        [NinjaScriptProperty]
+        [Display(Name="ControlledBackendAccountId",GroupName="Controlled V3",Order=31)]
+        public string ControlledBackendAccountId {get;set;}
+        [NinjaScriptProperty]
+        [Display(Name="ControlledConfigurationGeneration",GroupName="Controlled V3",Order=32)]
+        public long ControlledConfigurationGeneration {get;set;}
+        [NinjaScriptProperty]
+        [Display(Name="ControlledRuntimeGeneration",GroupName="Controlled V3",Order=33)]
+        public long ControlledRuntimeGeneration {get;set;}
+        [NinjaScriptProperty]
+        [Display(Name="ControlledStateDirectory",GroupName="Controlled V3",Order=34)]
+        public string ControlledStateDirectory {get;set;}
+        [NinjaScriptProperty]
+        [Display(Name="ControlledReconciliationDirectory",GroupName="Controlled V3",Order=35)]
+        public string ControlledReconciliationDirectory {get;set;}
+
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)
@@ -286,6 +305,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 EmergencyActivationDirectory = string.Empty;
                 EmergencyActivationId = string.Empty;
                 RuntimeSnapshotDirectory = string.Empty;
+                ControlledAuthorityId = ControlledBackendAccountId = ControlledStateDirectory = ControlledReconciliationDirectory = string.Empty;
+                ControlledConfigurationGeneration = ControlledRuntimeGeneration = 0;
             }
             else if (State == State.DataLoaded)
             {
@@ -294,6 +315,16 @@ namespace NinjaTrader.NinjaScript.Indicators
                 selectedAccount = ResolveSelectedAccount();
 
                 ValidateSelectedAccount();
+
+                BootstrapControlledV3(null,
+                    new Dictionary<string,string> {
+                        {"authority_id",ControlledAuthorityId},{"backend_account_id",ControlledBackendAccountId},
+                        {"configuration_generation",ControlledConfigurationGeneration.ToString(CultureInfo.InvariantCulture)},
+                        {"runtime_generation",ControlledRuntimeGeneration.ToString(CultureInfo.InvariantCulture)},
+                        {"execution_domain","SIM_NATIVE"},{"native_account",SelectedAccountName},{"provider",selectedAccount.Provider.ToString()},
+                        {"instrument",InstrumentName},{"command_directory",CommandDirectory},{"activation_directory",ActivationDirectory},
+                        {"state_directory",ControlledStateDirectory},{"reconciliation_directory",ControlledReconciliationDirectory}},
+                    ()=> (DateTime.UtcNow.Ticks-new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc).Ticks)/10);
 
                 selectedAccount.OrderUpdate +=
                     OnNativeOrderUpdate;
@@ -653,6 +684,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private void AttemptOneShotSubmit()
         {
+            if(controlledBootstrapAttempted && (!controlledBootstrapReady || controlledObservationOnly))
+                throw new InvalidOperationException("Controlled commissioning is observation-only.");
             RequireNoManualReconciliation();
             if (controlledKey != null) { AttemptControlledV3(); return; }
             ValidateSelectedAccount();
@@ -820,12 +853,14 @@ namespace NinjaTrader.NinjaScript.Indicators
                     instrument,
                     action,
                     OrderType.Market,
+                    OrderEntry.Automated,
                     TimeInForce.Day,
                     quantity,
                     0.0,
                     0.0,
                     string.Empty,
                     CommandId.Trim(),
+                    NinjaTrader.Core.Globals.MaxDate,
                     null
                 );
 
@@ -2083,6 +2118,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private void WriteRuntimeReadinessSnapshot()
         {
+            WriteControlledCommissioningStatus();
             // Snapshot emission is optional until an operator provides
             // an explicit local directory. No broker mutation occurs.
             if (
@@ -2417,6 +2453,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private void AttemptEmergencyFlatten()
         {
+            if(controlledObservationOnly) throw new InvalidOperationException("Controlled commissioning is observation-only.");
             ValidateSelectedAccount();
             if (RestoreManualReconciliation()) return;
 
@@ -2584,6 +2621,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         }
         private void AdvanceManualEmergencyRecovery()
         {
+            if(controlledObservationOnly) return;
             lock (manualEmergencySync)
             {
                 if (!emergencyFlattenAwaitingConfirmation) return;
