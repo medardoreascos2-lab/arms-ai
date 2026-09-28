@@ -46,6 +46,7 @@ def test_on_time_close_keeps_collector_running(monkeypatch):
     c=engine();acknowledged(c)
     s=tick(c,3650,closed=3,sealed=synthetic_seal(monkeypatch),exclusive_closed=True)
     assert s['state']=='FINAL_CLOCK' and s['collector_must_continue']
+    assert s['final_clock_start_qpc']==s['closure_observed_qpc']==3650
     assert s['closure_deadline_qpc']==3800 and s['runtime_admission'] is False
     assert [e['kind'] for e in c.events]==['CAPTURE_COMPLETE_REMOVE_REQUEST','REMOVE_REQUEST_ACKNOWLEDGED','SEALED_WRITERS_OBSERVED']
 
@@ -67,11 +68,88 @@ def test_visibility_delay_inside_allowance_is_valid(monkeypatch):
     assert tick(c,3799,closed=3,sealed=synthetic_seal(monkeypatch),exclusive_closed=True)['state']=='FINAL_CLOCK'
 
 
-@pytest.mark.parametrize('ack',[False,True])
-def test_early_and_unacknowledged_close_cannot_complete(ack):
-    c=engine();tick(c,100,session=SESSION)
-    if ack: tick(c,3400,closed=3)
-    assert tick(c,3450 if ack else 200,closed=3,sealed=(b'',b'',b''))['reason']=='EARLY_OR_UNACKNOWLEDGED_CLOSURE'
+@pytest.mark.parametrize('q',[0,200,3400])
+def test_close_before_existing_remove_request_is_rejected(q):
+    c=engine()
+    if q: tick(c,100,session=SESSION)
+    assert tick(c,q,closed=3,sealed=(b'',b'',b''))['reason']=='EARLY_OR_UNACKNOWLEDGED_CLOSURE'
+
+
+def test_pending_closure_duplicate_and_ack_preserve_original_qpc(monkeypatch):
+    c=engine();requested(c);sealed=synthetic_seal(monkeypatch)
+    s=tick(c,3650,closed=3,sealed=sealed,exclusive_closed=True)
+    assert s['state']=='REMOVE_REQUESTED' and s['pending_closure']
+    assert s['collector_must_continue'] and s['runtime_admission'] is False
+    tick(c,3700,closed=3,sealed=sealed,exclusive_closed=True)
+    assert c.closure_qpc==3650
+    s=tick(c,3750,closed=3,acknowledged_request=c.request_id)
+    assert s['state']=='FINAL_CLOCK' and not s['pending_closure']
+    assert s['collector_must_continue'] and c.closure_qpc==3650
+    assert [e['kind'] for e in c.events]==['CAPTURE_COMPLETE_REMOVE_REQUEST',
+        'SEALED_WRITERS_OBSERVED_PENDING_ACK','REMOVE_REQUEST_ACKNOWLEDGED','SEALED_WRITERS_ACCEPTED']
+    assert s['final_clock_start_qpc']==3750
+    assert tick(c,3950,closed=3)['state']=='FINAL_CLOCK'
+    assert tick(c,4050,closed=3)['reason']=='FINAL_CLOCK_TIMEOUT'
+
+
+@pytest.mark.parametrize('ack_qpc',[3760,3999,4000,4001])
+def test_pending_close_late_ack_gets_own_final_window(monkeypatch,ack_qpc):
+    c=engine();requested(c)
+    proof=dict(status='PASS',session=SESSION,qpc_frequency=10,
+               first_callback={'qpc_before':101},last_emission={'qpc_after':3405})
+    monkeypatch.setattr(production,'adjudicate',lambda *args:proof)
+    sealed=(b'canonical',b'pairs',b'seal')
+    s=tick(c,3410,closed=3,sealed=sealed,exclusive_closed=True)
+    assert s['pending_closure'] and s['final_clock_start_qpc'] is None
+    assert tick(c,3750,closed=3)['state']=='REMOVE_REQUESTED'
+    s=tick(c,ack_qpc,closed=3,acknowledged_request=c.request_id)
+    assert s['closure_observed_qpc']==3410 and s['runtime_admission'] is False
+    if ack_qpc>=4000:
+        assert s['reason']=='REMOVE_REQUEST_NOT_ACKNOWLEDGED'
+        assert s['final_clock_start_qpc'] is None
+        assert tick(c,4100,closed=3,acknowledged_request=c.request_id)==s
+        return
+    assert s['state']=='FINAL_CLOCK' and s['reason'] is None
+    assert s['final_clock_start_qpc']==ack_qpc and s['collector_must_continue']
+    s=tick(c,ack_qpc+299,closed=3,sealed=sealed,exclusive_closed=True)
+    assert s['state']=='FINAL_CLOCK' and s['final_clock_start_qpc']==ack_qpc
+    assert s['closure_observed_qpc']==3410
+    failed=tick(c,ack_qpc+300,closed=3)
+    assert failed['reason']=='FINAL_CLOCK_TIMEOUT'
+    assert tick(c,ack_qpc+301,closed=3)==failed
+
+
+@pytest.mark.parametrize('case,reason',[
+    ('timeout','REMOVE_REQUEST_NOT_ACKNOWLEDGED'),('wrong_ack','REQUEST_ACK_IDENTITY'),
+    ('collector','CLOCK_COLLECTOR_STOPPED_EARLY'),('regression','MONOTONIC_CONTINUITY_LOST'),
+    ('frequency','MONOTONIC_CONTINUITY_LOST'),('replacement','SEALED_FILES_CHANGED')])
+def test_pending_closure_faults_latch(monkeypatch,case,reason):
+    c=engine();requested(c)
+    tick(c,3650,closed=3,sealed=synthetic_seal(monkeypatch),exclusive_closed=True)
+    args=dict(qpc=3700,epoch='synthetic-boot',frequency=10,closed=3)
+    if case=='timeout': args['qpc']=4000
+    elif case=='wrong_ack': args['acknowledged_request']='wrong'
+    elif case=='collector': args['collector_alive']=False
+    elif case=='regression': args['qpc']=3649
+    elif case=='frequency': args['frequency']=11
+    else: args.update(sealed=(b'changed',b'b',b'c'),exclusive_closed=True)
+    failed=c.tick(**args)
+    assert failed['reason']==reason and failed['state']=='FAILED'
+    assert tick(c,4100,acknowledged_request=c.request_id)==failed
+    assert failed['runtime_admission'] is False
+
+
+@pytest.mark.parametrize('case',['invalid','session','frequency','ordering','future','nonexclusive'])
+def test_pending_closure_requires_valid_bound_proof(monkeypatch,case):
+    c=engine();requested(c);sealed=synthetic_seal(monkeypatch)
+    proof=deepcopy(production.adjudicate(*sealed))
+    if case=='invalid': proof['status']='FAIL'
+    elif case=='session': proof['session']='wrong'
+    elif case=='frequency': proof['qpc_frequency']=11
+    elif case=='ordering': proof['first_callback']['qpc_before']=99
+    elif case=='future': proof['last_emission']['qpc_after']=3651
+    monkeypatch.setattr(production,'adjudicate',lambda *args:proof)
+    assert tick(c,3650,closed=3,sealed=sealed,exclusive_closed=case!='nonexclusive')['reason']=='INVALID_SEALED_STREAM'
 
 
 def test_display_acknowledgement_starts_allowance_not_old_wall_deadline():
@@ -199,6 +277,36 @@ def test_complete_engine_uses_actual_seal_and_validated_final_coverage(unchanged
     assert result['state']==('COMPLETE' if unchanged else 'FAILED')
     assert result['runtime_admission'] is False and result['reference_bound']=='UNKNOWN'
     assert result['collector_must_continue'] is False
+
+
+def test_pending_close_coverage_uses_closure_not_later_ack(monkeypatch):
+    archive,proof=recorded();f=proof['qpc_frequency']
+    first=proof['first_callback']['qpc_before'];last=proof['last_emission']['qpc_after']
+    c=contract.Coordinator(run_id=RUN,epoch='synthetic',frequency=f,ready_qpc=first-100,
+                           budget=contract.Budget(600,1,60,600,30))
+    def step(q,**kw): return c.tick(q,epoch='synthetic',frequency=f,**kw)
+    step(first-10,session=proof['session']);step(last+50,closed=8)
+    sealed=tuple(archive[k].encode() for k in ('native_canonical_utf8','native_timing_utf8','native_seal_utf8'))
+    closure=last+100
+    assert step(closure,closed=8,sealed=sealed,exclusive_closed=True)['pending_closure']
+    args=synthetic_probes(proof,closure)
+    ack_qpc=args['bridges'][-1]['after']['qpc_after']+100
+    assert step(ack_qpc,closed=8,acknowledged_request=c.request_id)['state']=='FINAL_CLOCK'
+    assert c.closure_qpc==closure
+    assert c.final_clock_start_qpc==ack_qpc and ack_qpc>closure
+    # The final probes precede ACK but follow actual closure. Moving the coverage
+    # anchor to ACK would incorrectly reject this valid offline trace.
+    with pytest.raises(ValueError): contract.coverage(proof,**dict(args,closure_qpc=ack_qpc))
+    original_coverage=contract.coverage
+    coverage_calls=[]
+    def observe_coverage(proof,**kwargs):
+        coverage_calls.append(kwargs['closure_qpc'])
+        return original_coverage(proof,**kwargs)
+    monkeypatch.setattr(contract,'coverage',observe_coverage)
+    result=c.finish(qpc=ack_qpc+1,epoch='synthetic',frequency=f,
+        measurements=args['measurements'],bridges=args['bridges'],references=args['references'],unchanged_closed=True)
+    assert result['state']=='COMPLETE' and result['runtime_admission'] is False
+    assert coverage_calls==[closure] and coverage_calls!=[c.final_clock_start_qpc]
 
 
 def test_contract_has_no_automatic_activation_or_io():

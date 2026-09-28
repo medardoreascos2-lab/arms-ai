@@ -63,8 +63,8 @@ class Coordinator:
     """Deterministic transition engine for a future visible coordinator adapter.
 
     tick time MUST be raw Windows QPC from one unchanged boot/frequency epoch.
-    Wall time is display-only. Faults latch. An acknowledgment records receipt of
-    a request, NOT the operator's remove click or native callback entry.
+    Wall time is display-only. Faults latch. Acknowledgment confirms the operator
+    completed the requested removal; it is never proof of native writer closure.
     """
     def __init__(self, *, run_id, epoch, frequency, ready_qpc, budget):
         if str(UUID(run_id)) != run_id or not epoch or type(budget) is not Budget:
@@ -79,6 +79,9 @@ class Coordinator:
         self.request_id = None
         self.closed = 0
         self.proof = None
+        self._sealed = None
+        self.pending_closure = False
+        self.final_clock_start_qpc = None
         self.binding = None
         self.events = []
 
@@ -91,6 +94,8 @@ class Coordinator:
                     request_id=self.request_id, request_qpc=self.request_qpc, acknowledged_qpc=self.ack_qpc,
                     closure_deadline_qpc=None if self.ack_qpc is None else self.ack_qpc+self.budget.closure_s*self.frequency,
                     closure_observed_qpc=self.closure_qpc,
+                    final_clock_start_qpc=self.final_clock_start_qpc,
+                    pending_closure=self.pending_closure,
                     collector_must_continue=self.state not in ('FAILED', 'COMPLETE'),
                     runtime_admission=False, reference_bound='UNKNOWN', drift_bound='UNKNOWN')
 
@@ -106,6 +111,10 @@ class Coordinator:
         if type(closed) is not int or closed < self.closed:
             return self.fail('PREFIX_COUNT_REGRESSION')
         self.closed = closed
+        # A seal supplied on the tick that would create the removal request is
+        # still early: the request must already exist before observing closure.
+        if sealed is not None and self.state not in ('REMOVE_REQUESTED', 'WAITING_FOR_CLOSURE', 'FINAL_CLOCK'):
+            return self.fail('EARLY_OR_UNACKNOWLEDGED_CLOSURE')
         if session is not None:
             try:
                 valid = str(UUID(session)) == session
@@ -137,20 +146,40 @@ class Coordinator:
                                         request_id=self.request_id, wall_utc=wall_utc))
         if self.state == 'WAITING_FOR_CLOSURE' and qpc-self.ack_qpc >= self.budget.closure_s*self.frequency:
             return self.fail('WRITER_CLOSURE_TIMEOUT')
-        if sealed is not None and self.state != 'FINAL_CLOCK':
-            if self.state != 'WAITING_FOR_CLOSURE':
-                return self.fail('EARLY_OR_UNACKNOWLEDGED_CLOSURE')
+        if sealed is not None:
+            if (self.request_id is None or self.request_qpc is None or qpc < self.request_qpc
+                    or exclusive_closed is not True):
+                return self.fail('INVALID_SEALED_STREAM')
             try:
-                proof = production.adjudicate(*sealed)
-            except (ValueError, TypeError):
+                if len(sealed) != 3 or any(type(raw) is not bytes for raw in sealed):
+                    return self.fail('INVALID_SEALED_STREAM')
+                exact = tuple(sealed)
+                if self._sealed is not None:
+                    if exact != self._sealed:
+                        return self.fail('SEALED_FILES_CHANGED')
+                else:
+                    proof = production.adjudicate(*exact)
+                    if (proof['status'] != 'PASS' or proof['session'] != self.session
+                            or proof['qpc_frequency'] != self.frequency
+                            or not self.first_seen <= proof['first_callback']['qpc_before'] <= proof['last_emission']['qpc_after'] <= qpc):
+                        return self.fail('INVALID_SEALED_STREAM')
+                    self.proof, self.closure_qpc, self._sealed = proof, qpc, exact
+                    self.pending_closure = self.state == 'REMOVE_REQUESTED'
+                    event = 'SEALED_WRITERS_OBSERVED_PENDING_ACK' if self.pending_closure else 'SEALED_WRITERS_OBSERVED'
+                    self.events.append(dict(kind=event, qpc=qpc, wall_utc=wall_utc))
+                    if not self.pending_closure:
+                        self.final_clock_start_qpc = qpc
+                        self.state = 'FINAL_CLOCK'
+            except (ValueError, TypeError, KeyError, AttributeError, IndexError):
                 return self.fail('INVALID_SEALED_STREAM')
-            if (proof['status'] != 'PASS' or exclusive_closed is not True or proof['session'] != self.session
-                    or proof['qpc_frequency'] != self.frequency
-                    or not self.first_seen <= proof['first_callback']['qpc_before'] <= proof['last_emission']['qpc_after'] <= qpc):
-                return self.fail('INVALID_SEALED_STREAM')
-            self.proof, self.closure_qpc, self.state = proof, qpc, 'FINAL_CLOCK'
-            self.events.append(dict(kind='SEALED_WRITERS_OBSERVED', qpc=qpc, wall_utc=wall_utc))
-        if self.state == 'FINAL_CLOCK' and qpc-self.closure_qpc >= self.budget.final_clock_s*self.frequency:
+        if self.pending_closure and self.state == 'WAITING_FOR_CLOSURE':
+            self.final_clock_start_qpc = self.ack_qpc
+            self.pending_closure, self.state = False, 'FINAL_CLOCK'
+            self.events.append(dict(kind='SEALED_WRITERS_ACCEPTED', qpc=qpc,
+                                    closure_qpc=self.closure_qpc, wall_utc=wall_utc))
+        # The operational window starts only once both prerequisites exist.
+        # Coverage remains anchored to the immutable closure observation.
+        if self.state == 'FINAL_CLOCK' and qpc-self.final_clock_start_qpc >= self.budget.final_clock_s*self.frequency:
             return self.fail('FINAL_CLOCK_TIMEOUT')
         return self.snapshot()
 
