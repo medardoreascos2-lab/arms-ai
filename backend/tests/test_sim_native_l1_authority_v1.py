@@ -144,7 +144,10 @@ def test_file_and_sequence_integrity_revoke_existing_quote(stream,damage):
     elif damage=='gap':s.seq+=1;s.heartbeat()
     elif damage=='rollback':s.append(prior.splitlines(keepends=True)[0])
     elif damage=='conflict':s.append(prior.splitlines(keepends=True)[1].replace(b'25000.25',b'25000.50'))
-    assert s.get() is None
+    if damage in ('partial','gap','rollback','conflict'):
+        assert s.get() is not None  # Unobserved suffix belongs to the next poll.
+    else:
+        assert s.get() is None
     s.reader.poll()
     if damage=='partial':s.advance(6);s.reader.poll()
     assert s.reader.status=='REVOKED' and s.get() is None
@@ -243,7 +246,7 @@ def test_read_duration_counts_toward_heartbeat_and_partial_timeout(stream,monkey
     assert s.reader.quotes._quotes=={}
 
 
-def test_growth_after_batch_read_does_not_publish_unchecked_suffix(stream,monkeypatch):
+def test_growth_after_batch_read_publishes_only_completed_snapshot(stream,monkeypatch):
     s=stream;s.hello();s.quote()
     original_read=m._Tail.read
     def growing_read(tail,start_tick):
@@ -253,7 +256,61 @@ def test_growth_after_batch_read_does_not_publish_unchecked_suffix(stream,monkey
     monkeypatch.setattr(m._Tail,'read',growing_read)
     s.reader.poll()
     assert s.reader.sequence==1  # appended sequence 2 was not in the read batch
-    assert s.reader.quotes._quotes=={} and s.get() is None
+    assert s.reader.get_snapshot()['status']=='FRESH'
+    assert s.get()['ask']==25000.25  # Newly appended quote is not ingested by GET.
+
+
+def test_append_after_completed_poll_keeps_validated_quote_and_get_pure(stream):
+    s=stream;s.hello();s.quote();s.reader.poll()
+    old=s.get();s.advance(.001);s.quote(ask=25000.50)
+    before=s.path.read_bytes()
+    state=(s.reader.sequence,s.reader.tail.offset,s.reader.tail.digest.digest(),
+        s.reader.last_poll_wall,s.reader.last_poll_elapsed,deepcopy(s.reader.quotes._quotes))
+    for _ in range(3):
+        assert s.reader.get_snapshot()['status']=='FRESH' and s.get()==old
+    assert state==(s.reader.sequence,s.reader.tail.offset,s.reader.tail.digest.digest(),
+        s.reader.last_poll_wall,s.reader.last_poll_elapsed,s.reader.quotes._quotes)
+    assert s.path.read_bytes()==before
+    s.advance(15)
+    assert s.get() is None and s.reader.get_snapshot()['status']=='REVOKED'
+
+
+@pytest.mark.parametrize('already_published',[False,True])
+def test_preexisting_backlog_blocks_publication_until_snapshot_consumed(stream,monkeypatch,already_published):
+    from backend.market_data import fresh_native_adapter_v1 as tail_module
+    s=stream;s.hello();s.quote()
+    if already_published:s.reader.poll();s.quote(ask=25000.25)
+    start=s.reader.tail.offset if s.reader.tail else 0
+    # End exactly at a newline: partial-line protection alone cannot pass this test.
+    chunk=s.path.stat().st_size-start
+    s.quote(ask=25000.75)
+    boundary=s.path.stat().st_size
+    monkeypatch.setattr(tail_module,'CHUNK',chunk)
+    published=deepcopy(s.reader.quotes._quotes)
+    s.reader.poll()
+    assert not s.reader.tail.partial and s.reader.tail.offset<boundary
+    assert s.reader.quotes._quotes==published and s.get() is None
+    assert s.reader.get_snapshot()['status']!='FRESH'
+    s.reader.poll()
+    assert s.reader.tail.offset==boundary
+    assert s.reader.get_snapshot()['status']=='FRESH' and s.get()['ask']==25000.75
+
+
+def test_invalid_appended_suffix_revokes_on_next_poll(stream):
+    s=stream;s.hello();s.quote();s.reader.poll();old=s.get()
+    s.append(b'not json\n')
+    assert s.reader.get_snapshot()['status']=='FRESH' and s.get()==old
+    assert s.reader.sequence==1
+    s.reader.poll()
+    assert s.reader.status=='REVOKED' and s.get() is None
+    assert s.reader.sequence==1
+
+
+def test_appended_suffix_does_not_hide_consumed_prefix_overwrite(stream):
+    s=stream;s.hello();s.quote();s.reader.poll();s.quote()
+    s.path.write_bytes(s.path.read_bytes().replace(b'25000.25',b'25000.50',1))
+    assert s.get() is None and s.reader.get_snapshot()['status']=='REVOKED'
+    s.reader.poll();assert s.reader.status=='REVOKED'
 
 
 def test_process_owner_paper_switch_and_get_have_no_publication_side_effects(environment,tmp_path,monkeypatch):

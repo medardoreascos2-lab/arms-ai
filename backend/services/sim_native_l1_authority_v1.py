@@ -59,6 +59,7 @@ class SimNativeL1AuthorityV1:
         self.last_poll_wall = self.started
         self.status, self.reason = 'WAITING_FOR_STREAM', None
         self.tail = self.session = self.directory_identity = None
+        self.observed_size = 0
         self.sequence = -1
         self.last_raw = self.last_event = self.quote = self.heartbeat = None
         self.quote_elapsed = self.quote_age = None
@@ -147,6 +148,8 @@ class SimNativeL1AuthorityV1:
                 if self.tail is None:
                     self.session, self.tail = session, _Tail(path)
                     self.status = 'WAITING_FOR_HELLO'
+                # Retain the batch boundary for both publication and pure inspection.
+                self.observed_size = path.stat().st_size
                 rows = self.tail.read(tick)
                 # Concurrent appends may be newer than the poll-start sample.
                 # Bound this batch strictly by a clock sampled after its bytes.
@@ -159,7 +162,7 @@ class SimNativeL1AuthorityV1:
                 self.last_poll_elapsed = tick
                 self.last_poll_wall = now
                 require(self.tail.partial_since is None or tick-self.tail.partial_since <= 5, 'PARTIAL_TIMEOUT')
-                if self.tail.partial or self.tail.offset != path.stat().st_size:
+                if self.tail.partial or self.tail.offset < self.observed_size:
                     return
                 if self.heartbeat is not None:
                     require(0 <= (now-self.heartbeat).total_seconds() <= HEARTBEAT, 'HEARTBEAT_TIMEOUT')
@@ -179,7 +182,8 @@ class SimNativeL1AuthorityV1:
         require(len(files) == 1 and files[0] == self.tail.path, 'SESSION_CHANGED')
         path = local_path(self.tail.path)
         info = path.stat()
-        require((info.st_dev,info.st_ino) == self.tail.identity and info.st_size == self.tail.offset
+        require((info.st_dev,info.st_ino) == self.tail.identity
+                and info.st_size >= self.tail.offset >= self.observed_size
                 and not self.tail.partial, 'UNVALIDATED_STREAM')
         with _Tail._open_read(path) as handle:
             require(sha256(handle.read(self.tail.offset)).digest() == self.tail.digest.digest(), 'PREFIX_CHANGED')
