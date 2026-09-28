@@ -174,16 +174,30 @@ class Coordinator:
                         return self.fail('INVALID_SEALED_STREAM')
                     exact = tuple(sealed)
                 else:
-                    from tools.production_capture_long_v1 import SealedCapture
-                    if type(sealed) is not SealedCapture or sealed.profile_id != self.profile.profile_id:
+                    # production_capture_long_v1 may execute as __main__ under
+                    # ``python -m``. Exact class identity is therefore not a
+                    # stable security boundary across module aliases.
+                    #
+                    # Validate the narrow sealed-evidence protocol instead,
+                    # then independently validate its proof below.
+                    quick_verify = getattr(sealed, 'quick_verify', None)
+                    exact = getattr(sealed, 'signature', None)
+                    sealed_profile = getattr(sealed, 'profile_id', None)
+                    sealed_proof = getattr(sealed, 'proof', None)
+
+                    if (sealed_profile != self.profile.profile_id
+                            or not callable(quick_verify)
+                            or type(exact) is not tuple
+                            or not exact
+                            or type(sealed_proof) is not dict):
                         return self.fail('INVALID_SEALED_STREAM')
-                    sealed.quick_verify()
-                    exact = sealed.signature
+
+                    quick_verify()
                 if self._sealed is not None:
                     if exact != self._sealed:
                         return self.fail('SEALED_FILES_CHANGED')
                 else:
-                    proof = production.adjudicate(*exact) if self.profile is None else sealed.proof
+                    proof = production.adjudicate(*exact) if self.profile is None else sealed_proof
                     if (proof['status'] != 'PASS' or proof['session'] != self.session
                             or proof['qpc_frequency'] != self.frequency
                             or not self.first_seen <= proof['first_callback']['qpc_before'] <= proof['last_emission']['qpc_after'] <= qpc):

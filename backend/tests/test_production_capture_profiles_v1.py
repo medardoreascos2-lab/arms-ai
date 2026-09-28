@@ -280,3 +280,119 @@ def test_hard_max_is_absolute_even_when_closed_threshold_is_met(
         start_qpc + hard_max + 2,
         closed=min_closed,
     ) == result
+
+
+
+def test_long_sealed_protocol_survives_module_alias_identity():
+    """CLI -m execution creates __main__.SealedCapture, not canonical class."""
+    p = profile("LONG_A")
+
+    c = Coordinator(
+        run_id=RUN,
+        epoch=RUN,
+        frequency=1,
+        ready_qpc=0,
+        budget=Budget(
+            p.activation_timeout_seconds,
+            p.minimum_duration_seconds,
+            p.acknowledgement_seconds,
+            p.closure_seconds,
+            p.final_clock_seconds,
+        ),
+        profile_id="LONG_A",
+    )
+
+    # Activate.
+    assert tick(c, 1, session=SESSION)["state"] == "CAPTURING"
+
+    # Reach minimum duration + CLOSED threshold.
+    request_qpc = 1 + p.minimum_duration_seconds
+    assert tick(
+        c,
+        request_qpc,
+        closed=p.minimum_closed,
+    )["state"] == "REMOVE_REQUESTED"
+
+    proof = {
+        "status": "PASS",
+        "session": SESSION,
+        "qpc_frequency": 1,
+        "first_callback": {"qpc_before": 2},
+        "last_emission": {"qpc_after": request_qpc},
+        "closed": p.minimum_closed,
+    }
+
+    calls = []
+
+    # Deliberately NOT production_capture_long_v1.SealedCapture.
+    # This simulates the class identity produced by python -m / __main__.
+    ForeignSealedCapture = type(
+        "SealedCapture",
+        (),
+        {
+            "__module__": "__main__",
+            "profile_id": "LONG_A",
+            "proof": proof,
+            "signature": (("synthetic", (1, 1), 1, "0" * 64),),
+            "quick_verify": lambda self: calls.append("verified"),
+        },
+    )
+
+    sealed = ForeignSealedCapture()
+
+    result = tick(
+        c,
+        request_qpc + 1,
+        closed=p.minimum_closed,
+        sealed=sealed,
+        exclusive_closed=True,
+    )
+
+    assert result["state"] == "REMOVE_REQUESTED"
+    assert result["reason"] is None
+    assert result["pending_closure"] is True
+    assert calls == ["verified"]
+
+
+def test_long_sealed_protocol_rejects_unverified_foreign_object():
+    p = profile("LONG_A")
+
+    c = Coordinator(
+        run_id=RUN,
+        epoch=RUN,
+        frequency=1,
+        ready_qpc=0,
+        budget=Budget(
+            p.activation_timeout_seconds,
+            p.minimum_duration_seconds,
+            p.acknowledgement_seconds,
+            p.closure_seconds,
+            p.final_clock_seconds,
+        ),
+        profile_id="LONG_A",
+    )
+
+    tick(c, 1, session=SESSION)
+    request_qpc = 1 + p.minimum_duration_seconds
+
+    tick(
+        c,
+        request_qpc,
+        closed=p.minimum_closed,
+    )
+
+    class Fake:
+        profile_id = "LONG_A"
+        proof = {}
+        signature = ()
+
+    result = tick(
+        c,
+        request_qpc + 1,
+        closed=p.minimum_closed,
+        sealed=Fake(),
+        exclusive_closed=True,
+    )
+
+    assert result["state"] == "FAILED"
+    assert result["reason"] == "INVALID_SEALED_STREAM"

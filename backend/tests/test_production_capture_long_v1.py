@@ -12,7 +12,7 @@ from tools import production_capture_long_v1 as longcap
 from tools import production_timing_long_v1 as production
 from tools.production_capture_profiles_v1 import profile
 from backend.tests.test_native_receipt_ledger_v1 import RUN
-from backend.tests.test_production_capture_contract_sprint15wr1 import recorded
+from backend.tests.test_production_capture_contract_sprint15wr1 import recorded, SESSION
 
 
 def qpc_source(frequency=10_000_000, start=10):
@@ -881,3 +881,43 @@ def test_replay_requires_windows_time_evidence(
         match="WINDOWS_TIME_EVIDENCE_MISSING",
     ):
         longcap.replay(tmp_path)
+
+
+
+def test_acknowledge_final_result_status_fails_cleanly(tmp_path, monkeypatch):
+    p = profile("LONG_A")
+
+    manifest = {
+        "profile": p.manifest(),
+        "run_id": RUN,
+    }
+
+    monkeypatch.setattr(
+        longcap,
+        "load_run",
+        lambda _folder: (tmp_path, manifest),
+    )
+
+    longcap.short.write_json(
+        tmp_path / "remove-request.json",
+        {
+            "run_id": RUN,
+            "request_id": RUN + ":remove:1",
+            "native_session": SESSION,
+            "request_qpc": 1,
+        },
+    )
+
+    # Final result shape deliberately has no "state" field.
+    longcap.short.write_json(
+        tmp_path / "status.json",
+        {
+            "result": "FAIL",
+            "structural_result": "FAIL",
+            "reason": "INVALID_SEALED_STREAM",
+            "run_id": RUN,
+        },
+    )
+
+    with pytest.raises(ValueError, match="NO_ACTIVE_REMOVE_REQUEST"):
+        longcap.acknowledge(tmp_path)

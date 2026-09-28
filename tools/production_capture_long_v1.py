@@ -578,8 +578,10 @@ def acknowledge(folder):
     folder, m = load_run(folder)
     request = parse(small(folder/'remove-request.json'))
     state = parse(small(folder/'status.json'))
-    require(state['state'] == 'REMOVE_REQUESTED' and request['run_id'] == m['run_id']
-            and request['request_id'] == state['request_id'], 'NO_ACTIVE_REMOVE_REQUEST')
+    require(state.get('state') == 'REMOVE_REQUESTED'
+            and request.get('run_id') == m['run_id']
+            and request.get('request_id') == state.get('request_id'),
+            'NO_ACTIVE_REMOVE_REQUEST')
     q = short.qpc_pair(); QpcGuard(m['qpc_frequency'],request['request_qpc']).accept(q)
     short.write_json(folder/'remove-ack.json', dict(run_id=m['run_id'], request_id=request['request_id'],
                      native_session=request['native_session'], qpc=q, native_closure=False,
