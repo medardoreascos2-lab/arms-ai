@@ -67,7 +67,14 @@ namespace NinjaTrader.NinjaScript {
 class Subject : NinjaTrader.NinjaScript.Indicators.ArmsReadOnlyL1V1 {
     public void Change(State s) { State=s;OnStateChange(); }
     public void Price(MarketDataType type,double price) { OnMarketData(new MarketDataEventArgs{MarketDataType=type,Price=price,Instrument=Instrument}); }
-    public void ConnectionEvent(Connection c) { OnConnectionStatusUpdate(new ConnectionStatusEventArgs{Connection=c}); }
+    public void ConnectionEvent(Connection c, ConnectionStatus price=ConnectionStatus.Connected,
+        ConnectionStatus status=ConnectionStatus.Connected,
+        ConnectionStatus previousPrice=ConnectionStatus.Connected,
+        ConnectionStatus previousStatus=ConnectionStatus.Connected) {
+        c.PriceStatus=price;c.Status=status;
+        OnConnectionStatusUpdate(new ConnectionStatusEventArgs{Connection=c,PriceStatus=price,Status=status,
+            PreviousPriceStatus=previousPrice,PreviousStatus=previousStatus});
+    }
     public void Heartbeat() {
         typeof(NinjaTrader.NinjaScript.Indicators.ArmsReadOnlyL1V1).GetMethod("Heartbeat",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).Invoke(this,new object[]{null,EventArgs.Empty});
     }
@@ -91,6 +98,11 @@ class Program {
         s.Change(State.Realtime);
         if(mode=="connection_identity") { Connection.Connections.Clear();Connection.Connections.Add(new Connection()); }
         if(mode=="connection_event")s.ConnectionEvent(new Connection());
+        if(mode=="startup_previous_disconnected")
+            s.ConnectionEvent(feed,ConnectionStatus.Connected,ConnectionStatus.Connected,
+                ConnectionStatus.Disconnected,ConnectionStatus.Disconnected);
+        if(mode=="source_disconnect")
+            s.ConnectionEvent(feed,ConnectionStatus.Disconnected,ConnectionStatus.Disconnected);
         if(mode=="last")s.Price(MarketDataType.Last,25000);
         else if(mode=="ask_first") {s.Price(MarketDataType.Ask,25000.25);s.Price(MarketDataType.Bid,25000);}
         else {

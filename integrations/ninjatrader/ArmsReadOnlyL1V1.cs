@@ -138,9 +138,15 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (!started || stopped) return;
                 try
                 {
-                    if (update == null || !Object.ReferenceEquals(update.Connection, source) || !SafeSource()
-                        || update.PriceStatus != ConnectionStatus.Connected || update.Status != ConnectionStatus.Connected
-                        || update.PreviousPriceStatus != ConnectionStatus.Connected || update.PreviousStatus != ConnectionStatus.Connected)
+                    if (update == null) { Stop("CONNECTION_FAILED"); return; }
+                    // NinjaTrader can publish status callbacks for unrelated connections
+                    // and can replay the current source state after subscription. Neither
+                    // is continuity loss. The pinned source identity plus CURRENT status
+                    // own continuity; a real source disconnect still revokes immediately.
+                    if (!Object.ReferenceEquals(update.Connection, source)) return;
+                    if (update.PriceStatus != ConnectionStatus.Connected
+                        || update.Status != ConnectionStatus.Connected
+                        || !SafeSource())
                         Stop("CONNECTION_CONTINUITY_LOST");
                 }
                 catch { Stop("CONNECTION_FAILED"); }

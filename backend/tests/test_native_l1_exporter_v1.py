@@ -30,7 +30,8 @@ def run(binary,tmp_path,mode):
     return [[json.loads(line) for line in p.read_text().splitlines()] for p in tmp_path.glob('*.l1.jsonl')]
 
 
-@pytest.mark.parametrize('mode,count',[('valid',1),('ask_first',1),('bid_update',2),('ask_update',2),('duplicate',2)])
+@pytest.mark.parametrize('mode,count',[('valid',1),('ask_first',1),('bid_update',2),('ask_update',2),
+    ('duplicate',2),('connection_event',1),('startup_previous_disconnected',1)])
 def test_native_two_sided_callbacks(binary,tmp_path,mode,count):
     rows=run(binary,tmp_path,mode)[0]
     assert rows[0]['kind']=='HELLO' and rows[0]['sequence']==0
@@ -45,7 +46,7 @@ def test_native_two_sided_callbacks(binary,tmp_path,mode,count):
 
 @pytest.mark.parametrize('mode',['bid_only','last','stale_side','zero_bid','zero_ask','nan','infinity','crossed',
     'contract','provider','expected_provider','expiry','timezone','template','disconnected','playback',
-    'tick','point','connection_identity','connection_event','historical'])
+    'tick','point','connection_identity','source_disconnect','historical'])
 def test_invalid_or_half_quote_has_no_publication(binary,tmp_path,mode):
     streams=run(binary,tmp_path,mode)
     assert not any(r['kind']=='QUOTE' for rows in streams for r in rows)
