@@ -66,12 +66,20 @@ class Coordinator:
     Wall time is display-only. Faults latch. Acknowledgment confirms the operator
     completed the requested removal; it is never proof of native writer closure.
     """
-    def __init__(self, *, run_id, epoch, frequency, ready_qpc, budget):
+    def __init__(self, *, run_id, epoch, frequency, ready_qpc, budget, profile_id=None):
         if str(UUID(run_id)) != run_id or not epoch or type(budget) is not Budget:
             raise ValueError('IDENTITY_OR_BUDGET')
         if type(frequency) is not int or frequency <= 0 or type(ready_qpc) is not int or ready_qpc < 0:
             raise ValueError('QPC_BASIS')
         self.run_id, self.epoch, self.frequency, self.budget = run_id, epoch, frequency, budget
+        self.profile = None
+        if profile_id is not None:
+            from tools.production_capture_profiles_v1 import profile
+            self.profile = profile(profile_id)
+            p = self.profile
+            if budget != Budget(p.activation_timeout_seconds, p.minimum_duration_seconds,
+                                p.acknowledgement_seconds, p.closure_seconds, p.final_clock_seconds):
+                raise ValueError('PROFILE_BUDGET')
         self.ready_qpc = self.last_qpc = ready_qpc
         self.state = 'WAITING_FOR_ACTIVATION'
         self.reason = None
@@ -128,13 +136,23 @@ class Coordinator:
             if session is None:
                 return self.snapshot()
             self.session, self.first_seen, self.state = session, qpc, 'CAPTURING'
-        if self.state == 'CAPTURING' and qpc-self.first_seen >= self.budget.capture_s*self.frequency:
-            if closed < 3:
-                return self.fail('MINIMUM_CLOSED_NOT_OBSERVED')
-            self.state, self.request_qpc = 'REMOVE_REQUESTED', qpc
-            self.request_id = self.run_id + ':remove:1'
-            self.events.append(dict(kind='CAPTURE_COMPLETE_REMOVE_REQUEST', qpc=qpc,
-                                    request_id=self.request_id, wall_utc=wall_utc))
+        if self.state == 'CAPTURING':
+            elapsed = qpc-self.first_seen
+            if (self.profile is not None
+                    and elapsed > self.profile.hard_maximum_duration_seconds*self.frequency):
+                return self.fail('CAPTURE_HARD_MAX_EXCEEDED')
+            if elapsed >= self.budget.capture_s*self.frequency:
+                minimum = 3 if self.profile is None else self.profile.minimum_closed
+                if closed < minimum:
+                    if self.profile is None:
+                        return self.fail('MINIMUM_CLOSED_NOT_OBSERVED')
+                    if elapsed >= self.profile.hard_maximum_duration_seconds*self.frequency:
+                        return self.fail('INCOMPLETE_HISTORY')
+                    return self.snapshot()
+                self.state, self.request_qpc = 'REMOVE_REQUESTED', qpc
+                self.request_id = self.run_id + ':remove:1'
+                self.events.append(dict(kind='CAPTURE_COMPLETE_REMOVE_REQUEST', qpc=qpc,
+                                        request_id=self.request_id, wall_utc=wall_utc))
         if self.state == 'REMOVE_REQUESTED':
             if qpc-self.request_qpc >= self.budget.acknowledgement_s*self.frequency:
                 return self.fail('REMOVE_REQUEST_NOT_ACKNOWLEDGED')
@@ -151,18 +169,27 @@ class Coordinator:
                     or exclusive_closed is not True):
                 return self.fail('INVALID_SEALED_STREAM')
             try:
-                if len(sealed) != 3 or any(type(raw) is not bytes for raw in sealed):
-                    return self.fail('INVALID_SEALED_STREAM')
-                exact = tuple(sealed)
+                if self.profile is None:
+                    if len(sealed) != 3 or any(type(raw) is not bytes for raw in sealed):
+                        return self.fail('INVALID_SEALED_STREAM')
+                    exact = tuple(sealed)
+                else:
+                    from tools.production_capture_long_v1 import SealedCapture
+                    if type(sealed) is not SealedCapture or sealed.profile_id != self.profile.profile_id:
+                        return self.fail('INVALID_SEALED_STREAM')
+                    sealed.quick_verify()
+                    exact = sealed.signature
                 if self._sealed is not None:
                     if exact != self._sealed:
                         return self.fail('SEALED_FILES_CHANGED')
                 else:
-                    proof = production.adjudicate(*exact)
+                    proof = production.adjudicate(*exact) if self.profile is None else sealed.proof
                     if (proof['status'] != 'PASS' or proof['session'] != self.session
                             or proof['qpc_frequency'] != self.frequency
                             or not self.first_seen <= proof['first_callback']['qpc_before'] <= proof['last_emission']['qpc_after'] <= qpc):
                         return self.fail('INVALID_SEALED_STREAM')
+                    if self.profile is not None and proof['closed'] < self.profile.minimum_closed:
+                        return self.fail('INCOMPLETE_HISTORY')
                     self.proof, self.closure_qpc, self._sealed = proof, qpc, exact
                     self.pending_closure = self.state == 'REMOVE_REQUESTED'
                     event = 'SEALED_WRITERS_OBSERVED_PENDING_ACK' if self.pending_closure else 'SEALED_WRITERS_OBSERVED'
