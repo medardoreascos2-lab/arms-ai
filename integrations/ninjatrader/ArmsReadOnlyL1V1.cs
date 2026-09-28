@@ -121,7 +121,13 @@ namespace NinjaTrader.NinjaScript.Indicators
                     if (update.MarketDataType == MarketDataType.Bid) { bid = update.Price; bidTime = now; }
                     else { ask = update.Price; askTime = now; }
                     if (!bid.HasValue || !ask.HasValue) return;
-                    if (ask.Value < bid.Value) { Stop("CROSSED_QUOTE"); return; }
+                    if (ask.Value < bid.Value)
+                    {
+                        // BID and ASK arrive independently. A fresh update on one side
+                        // can transiently cross the still-cached opposite side.
+                        // Never publish the crossed pair; wait for a coherent pair.
+                        return;
+                    }
                     // A fresh update on one side must never rejuvenate the other.
                     if ((now - bidTime).TotalSeconds > 30 || (now - askTime).TotalSeconds > 30) return;
                     Emit("QUOTE", new { bid = bid.Value, ask = ask.Value,

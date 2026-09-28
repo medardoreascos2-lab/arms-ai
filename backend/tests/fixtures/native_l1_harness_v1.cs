@@ -123,6 +123,12 @@ class Program {
         if(mode=="bid_update") {ManualClock.UtcNow=ManualClock.UtcNow.AddSeconds(1);s.Price(MarketDataType.Bid,24999.75);}
         if(mode=="ask_update") {ManualClock.UtcNow=ManualClock.UtcNow.AddSeconds(1);s.Price(MarketDataType.Ask,25000.50);}
         if(mode=="duplicate")s.Price(MarketDataType.Bid,25000);
+        if(mode=="transient_crossed") {
+            ManualClock.UtcNow=ManualClock.UtcNow.AddSeconds(1);
+            s.Price(MarketDataType.Bid,25000.50);
+            ManualClock.UtcNow=ManualClock.UtcNow.AddMilliseconds(1);
+            s.Price(MarketDataType.Ask,25000.75);
+        }
         s.Heartbeat();s.Change(State.Terminated);
         s.Price(MarketDataType.Bid,1);s.Price(MarketDataType.Ask,2); // latch stays closed
         if(mode=="restart") {

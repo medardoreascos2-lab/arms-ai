@@ -32,7 +32,7 @@ def run(binary,tmp_path,mode):
 
 @pytest.mark.parametrize('mode,count',[('valid',1),('ask_first',1),('bid_update',2),('ask_update',2),
     ('duplicate',2),('connection_event',1),('startup_previous_disconnected',1),
-    ('stale_connecting_callback',1)])
+    ('stale_connecting_callback',1),('transient_crossed',2)])
 def test_native_two_sided_callbacks(binary,tmp_path,mode,count):
     rows=run(binary,tmp_path,mode)[0]
     assert rows[0]['kind']=='HELLO' and rows[0]['sequence']==0
@@ -42,6 +42,11 @@ def test_native_two_sided_callbacks(binary,tmp_path,mode,count):
     assert len(quotes)==count
     assert all(r['payload']['ask']>=r['payload']['bid']>0 for r in quotes)
     assert all(r['event_time'].endswith('Z') for r in rows)
+    assert not any(
+        r['kind']=='TERMINAL'
+        and r['payload'].get('reason')=='CROSSED_QUOTE'
+        for r in rows
+    )
     assert all(set(r)=={'schema','session','sequence','event_time','kind','payload'} for r in rows)
 
 
