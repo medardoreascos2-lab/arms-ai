@@ -608,7 +608,7 @@
       "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
       "calls": [
         {
-          "line": 293,
+          "line": 295,
           "call": "datetime.now",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
@@ -635,7 +635,7 @@
       "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
       "calls": [
         {
-          "line": 353,
+          "line": 354,
           "call": "datetime.now",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
@@ -712,7 +712,7 @@
       "consequence": "DISABLED_SIM_NATIVE_ADMISSION_USES_CANONICAL_RUNTIME_CLOCK; NO_EXTERNAL_CLOCK_AUTHORITY_OR_NATIVE_SUBMIT",
       "calls": [
         {
-          "line": 131,
+          "line": 137,
           "call": "admission.clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
@@ -930,9 +930,183 @@
       "consequence": "Authenticated command publication rechecks canonical admission expiry; no new clock authority",
       "calls": [
         {
-          "line": 46,
+          "line": 47,
           "call": "self.runtime.lifecycle.runtime_admission_v2.clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_admission_runtime_evidence_v3.py",
+      "introduced_by": "86658d95d3b6b9a9e92b8307142907fe5d32fc54: Compose read-only SIM_NATIVE admission evidence and first-trade preflight",
+      "consequence": "SIM_NATIVE configuration expiry and authentication validity, followed by heartbeat and expiry revalidation after I/O; wall-clock error can affect admission evidence and preflight.",
+      "calls": [
+        {
+          "line": 19,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 55,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 67,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 84,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_dashboard_reader_v3.py",
+      "introduced_by": "ccaa7a71778e93db14b7fe910214697834d4b1ec: feat(dashboard): add read-only SIM_NATIVE runtime observations",
+      "consequence": "Heartbeat age and future/stale classification for dashboard observations also consumed by admission evidence; not exclusively display-only and not an external UTC guarantee.",
+      "calls": [
+        {
+          "line": 65,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 112,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_economic_news_authority_v1.py",
+      "introduced_by": "625996a6afebc4bce6b8c86bfd24bb2c836be9da: feat: add certified SIM_NATIVE economic news authority",
+      "consequence": "SIM_NATIVE configuration-context lookup, post-I/O package validity, and final coverage/blackout/expiry checks; regression checks do not establish absolute clock accuracy.",
+      "calls": [
+        {
+          "line": 152,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 153,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 159,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_financial_diagnostic_v3.py",
+      "introduced_by": "3b0e6dd29168e44bece994e216f45bb19562853a: Add durable SIM_NATIVE financial diagnostics and replay stress certification",
+      "consequence": "Durable failure-observation timestamp only; wall jumps can distort audit chronology but this timestamp does not authorize execution or reconstruct financial state.",
+      "calls": [
+        {
+          "line": 78,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_METADATA_ONLY; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_financial_runtime_service_v3.py",
+      "introduced_by": "78efc5f7e1e6e24f1c02e27fef989a1daa8d9a4c: feat(sim): own native financial runtime and durable dashboard projection",
+      "consequence": "Configuration time validity gates financial processing; delegated wall clocks feed market-hours, news, L1 and admission evidence. Published observation time and read-time age/expiry affect dashboard availability and preflight, not fill identity.",
+      "calls": [
+        {
+          "line": 25,
+          "call": "datetime.now",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 47,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 98,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY",
+          "introduced_by": "5d9289bf1188835b5eeeac0dc647a1f55782a48b: feat: bind SIM_NATIVE market hours to fresh authenticated calendar evidence"
+        },
+        {
+          "line": 101,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY",
+          "introduced_by": "625996a6afebc4bce6b8c86bfd24bb2c836be9da: feat: add certified SIM_NATIVE economic news authority"
+        },
+        {
+          "line": 104,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY",
+          "introduced_by": "64b86e709240b2e5794d9a08f4d558e5c63f3e51: feat: add SIM_NATIVE native L1 quote authority"
+        },
+        {
+          "line": 106,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY",
+          "introduced_by": "86658d95d3b6b9a9e92b8307142907fe5d32fc54: Compose read-only SIM_NATIVE admission evidence and first-trade preflight"
+        },
+        {
+          "line": 255,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 266,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_l1_authority_v1.py",
+      "introduced_by": "64b86e709240b2e5794d9a08f4d558e5c63f3e51: feat: add SIM_NATIVE native L1 quote authority",
+      "consequence": "Startup, poll-start, post-read and inspection wall samples constrain heartbeat and quote age alongside separate elapsed-time checks. Post-read sampling rejects regression and avoids judging concurrent frames against old poll time; external UTC accuracy remains unproven.",
+      "calls": [
+        {
+          "line": 57,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 131,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 156,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY",
+          "introduced_by": "ccbe42ae9cf8ffac41692a880e508ac13b3078e2: fix: validate native L1 frames against post-read time"
+        },
+        {
+          "line": 203,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_market_hours_authority_v1.py",
+      "introduced_by": "5d9289bf1188835b5eeeac0dc647a1f55782a48b: feat: bind SIM_NATIVE market hours to fresh authenticated calendar evidence",
+      "consequence": "SIM_NATIVE configuration-context lookup and post-I/O package expiry, Chicago date coverage and market-session evaluation; wall-clock error can misclassify validity or session boundaries.",
+      "calls": [
+        {
+          "line": 212,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "line": 214,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
         }
       ]
     }

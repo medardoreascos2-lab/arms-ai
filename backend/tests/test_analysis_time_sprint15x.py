@@ -273,6 +273,19 @@ def test_real_archived_production_rows_cannot_be_reused_as_a_fresh_stream():
 
 def test_clock_inventory_extension_preserves_every_prior_assessment_field():
     review=json.loads(Path('backend/tests/clock_preflight_sprint15t.json').read_text())
+    # Reviewed RC3 extensions belong to the current inventory, not Sprint 15T.
+    # Remove exactly one row per explicit path from this in-memory copy only.
+    for path in (
+        'backend/services/sim_native_admission_runtime_evidence_v3.py',
+        'backend/services/sim_native_dashboard_reader_v3.py',
+        'backend/services/sim_native_economic_news_authority_v1.py',
+        'backend/services/sim_native_financial_diagnostic_v3.py',
+        'backend/services/sim_native_financial_runtime_service_v3.py',
+        'backend/services/sim_native_l1_authority_v1.py',
+        'backend/services/sim_native_market_hours_authority_v1.py',
+    ):
+        extension,=[row for row in review['direct_clock_dependencies'] if row['path']==path]
+        review['direct_clock_dependencies'].remove(extension)
     additions=[row for row in review['direct_clock_dependencies'] if row['path']=='backend/market_data/analysis_time_profile_v1.py']
     assert len(additions)==1
     assert additions[0]['introduced_by']=='backend/tests/market_analysis_time_sprint15x.json'
@@ -311,15 +324,28 @@ def test_clock_inventory_extension_preserves_every_prior_assessment_field():
         'path':'backend/services/sim_native_runtime_v3.py',
         'introduced_by':'SIM_E2E_PHASE4',
         'consequence':'DISABLED_SIM_NATIVE_ADMISSION_USES_CANONICAL_RUNTIME_CLOCK; NO_EXTERNAL_CLOCK_AUTHORITY_OR_NATIVE_SUBMIT',
-        'calls':[{'line':131,'call':'admission.clock','authority':'HOST_WALL_OR_INJECTED_CLOCK'}]}
+        'calls':[{'line':137,'call':'admission.clock','authority':'HOST_WALL_OR_INJECTED_CLOCK'}]}
     review['direct_clock_dependencies'].remove(native_admission)
     # Phase 5R rechecks that same clock at authenticated command publication;
     # it does not retroactively extend this historical certificate.
     native_publication,=[row for row in review['direct_clock_dependencies']
                          if row['path']=='backend/services/sim_native_integration_v3.py']
     assert native_publication['introduced_by']=='SIM_E2E_PHASE5R'
-    assert [call['call'] for call in native_publication['calls']]==['self.runtime.lifecycle.runtime_admission_v2.clock']
+    assert native_publication['calls']==[{
+        'line':47,
+        'call':'self.runtime.lifecycle.runtime_admission_v2.clock',
+        'authority':'HOST_WALL_OR_INJECTED_CLOCK'}]
     review['direct_clock_dependencies'].remove(native_publication)
+    # These retained historical rows moved without changing their clock call.
+    # Verify today's exact position before restoring the historical copy.
+    for path,current,historical in (
+        ('backend/services/durable_execution_state_v2.py',295,293),
+        ('backend/services/execution_state_store_v2.py',354,353),
+    ):
+        retained,=[row for row in review['direct_clock_dependencies'] if row['path']==path]
+        shifted,=[call for call in retained['calls'] if call['call']=='datetime.now']
+        assert shifted['line']==current
+        shifted['line']=historical
     lifecycle,=[row for row in review['direct_clock_dependencies']
                 if row['path']=='backend/services/trade_lifecycle_service_v2.py']
     shifted,=[call for call in lifecycle['calls'] if call['call']=='datetime.now']
