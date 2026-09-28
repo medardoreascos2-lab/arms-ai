@@ -147,7 +147,13 @@ class SimNativeL1AuthorityV1:
                 if self.tail is None:
                     self.session, self.tail = session, _Tail(path)
                     self.status = 'WAITING_FOR_HELLO'
-                for raw, _, _ in self.tail.read(tick):
+                rows = self.tail.read(tick)
+                # Concurrent appends may be newer than the poll-start sample.
+                # Bound this batch strictly by a clock sampled after its bytes.
+                post_now, post_tick = self.clock(), self.elapsed()
+                require(post_now >= now and post_tick >= tick, 'CLOCK_REGRESSION')
+                now, tick = post_now, post_tick
+                for raw, _, _ in rows:
                     self._frame(raw, now)
                 # Never publish a valid prefix of an incomplete or unchecked batch.
                 self.last_poll_elapsed = tick

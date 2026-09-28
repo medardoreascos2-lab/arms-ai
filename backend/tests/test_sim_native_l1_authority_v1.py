@@ -188,6 +188,74 @@ def test_utc_and_monotonic_regression_fail_closed(stream):
     assert s.get() is None;s.reader.poll();assert s.reader.status=='REVOKED'
 
 
+@pytest.mark.parametrize('future_microseconds', [0, 1])
+def test_batch_uses_post_read_clock_without_future_tolerance(stream, monkeypatch, future_microseconds):
+    s=stream;s.path.touch()
+    original_read=m._Tail.read
+    post_wall=NOW+timedelta(milliseconds=1)
+    def concurrent_read(tail, start_tick):
+        assert s.now==NOW and start_tick==0  # poll sampled before the append
+        s.now=post_wall+timedelta(microseconds=future_microseconds)
+        s.hello();s.quote()
+        rows=original_read(tail,start_tick)  # real bytes captured before post-read sampling
+        s.now=post_wall;s.tick=.001
+        return rows
+    monkeypatch.setattr(m._Tail,'read',concurrent_read)
+    s.reader.poll()
+    if future_microseconds:
+        assert s.reader.status=='REVOKED' and s.get() is None
+        assert s.reader.quotes._quotes=={}
+    else:
+        assert s.reader.get_snapshot()['status']=='FRESH'
+        assert s.get()['timestamp']==post_wall
+        assert s.reader.last_poll_wall==post_wall
+        assert s.reader.last_poll_elapsed==s.reader.quote_elapsed==.001
+        assert s.reader.quote_age==0
+
+
+@pytest.mark.parametrize('clock', ['wall','monotonic'])
+def test_clock_regression_during_read_revokes_before_publication(stream, monkeypatch, clock):
+    s=stream;s.hello();s.quote()
+    original_read=m._Tail.read
+    def regressing_read(tail,start_tick):
+        rows=original_read(tail,start_tick)
+        if clock=='wall':s.now-=timedelta(microseconds=1)
+        else:s.tick=-.001
+        return rows
+    monkeypatch.setattr(m._Tail,'read',regressing_read)
+    s.reader.poll()
+    assert s.reader.status=='REVOKED' and s.get() is None
+    assert s.reader.quotes._quotes=={}
+
+
+@pytest.mark.parametrize('partial,delay', [(False,16),(True,6)])
+def test_read_duration_counts_toward_heartbeat_and_partial_timeout(stream,monkeypatch,partial,delay):
+    s=stream;s.hello();s.quote()
+    if partial:s.append(b'{')
+    original_read=m._Tail.read
+    def delayed_read(tail,start_tick):
+        rows=original_read(tail,start_tick)
+        s.advance(delay)
+        return rows
+    monkeypatch.setattr(m._Tail,'read',delayed_read)
+    s.reader.poll()
+    assert s.reader.status=='REVOKED' and s.get() is None
+    assert s.reader.quotes._quotes=={}
+
+
+def test_growth_after_batch_read_does_not_publish_unchecked_suffix(stream,monkeypatch):
+    s=stream;s.hello();s.quote()
+    original_read=m._Tail.read
+    def growing_read(tail,start_tick):
+        rows=original_read(tail,start_tick)
+        s.advance(.001);s.quote(ask=25000.50)
+        return rows
+    monkeypatch.setattr(m._Tail,'read',growing_read)
+    s.reader.poll()
+    assert s.reader.sequence==1  # appended sequence 2 was not in the read batch
+    assert s.reader.quotes._quotes=={} and s.get() is None
+
+
 def test_process_owner_paper_switch_and_get_have_no_publication_side_effects(environment,tmp_path,monkeypatch):
     from backend.api.asgi import create_asgi_app
     from backend.services.sim_native_financial_runtime_service_v3 import SimNativeFinancialRuntimeServiceV3
