@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Response
 
 
-def create_sim_native_financial_router_v3(read_snapshot, read_preflight=None, read_market_hours=None):
+def create_sim_native_financial_router_v3(read_snapshot, read_preflight=None, read_market_hours=None, read_l1=None):
     router = APIRouter(tags=["SIM_NATIVE financial observations"])
 
     @router.get("/api/v3/dashboard/sim-native-financial")
@@ -21,5 +21,11 @@ def create_sim_native_financial_router_v3(read_snapshot, read_preflight=None, re
         def market_hours_authority(response: Response):
             response.headers["Cache-Control"] = "no-store"
             return read_market_hours()
+
+    if read_l1 is not None:
+        @router.get("/api/v3/dashboard/sim-native-l1-authority")
+        def l1_authority(response: Response):
+            response.headers["Cache-Control"] = "no-store"
+            return read_l1()
 
     return router

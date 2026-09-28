@@ -1,0 +1,224 @@
+"""Synthetic native frames only; no production streams or native execution."""
+from copy import deepcopy
+from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
+from uuid import uuid4
+from unittest.mock import Mock
+
+import pytest
+from fastapi.testclient import TestClient
+
+from backend.services import sim_native_l1_authority_v1 as m
+from backend.services.runtime_admission_v2 import RuntimeAdmissionV2
+from backend.services.sim_native_commissioning_policy_v1 import load
+from backend.tests.test_sim_native_financial_runtime_service_v3 import environment
+
+NOW = datetime(2026,9,27,23,tzinfo=timezone.utc)
+
+
+class Stream:
+    def __init__(self, directory, monkeypatch, admission=None, clock=None):
+        directory.mkdir(exist_ok=True)
+        self.directory, self.now, self.tick = directory, NOW, 0
+        self.session, self.seq = str(uuid4()), 0
+        self.path = directory/(self.session+'.l1.jsonl')
+        monkeypatch.setattr(m, 'private_path', lambda p: Path(p))
+        self.admission = admission or RuntimeAdmissionV2(settings=load().api_settings)
+        self.reader = m.SimNativeL1AuthorityV1(admission=self.admission, context=lambda:None,
+            clock=clock or (lambda:self.now), elapsed=lambda:self.tick, directory=directory)
+
+    def frame(self, kind, payload, **changes):
+        value=dict(schema='arms.nt.l1.v1',session=self.session,sequence=self.seq,
+            event_time=self.now.isoformat().replace('+00:00','Z'),kind=kind,payload=payload)
+        value.update(changes)
+        self.seq+=1
+        return (json.dumps(value,separators=(',',':'))+'\n').encode()
+
+    def append(self, raw):
+        with self.path.open('ab') as f: f.write(raw)
+
+    def hello(self): self.append(self.frame('HELLO',deepcopy(m.IDENTITY)))
+    def quote(self, bid=25000, ask=25000.25, **changes):
+        at=self.now.isoformat().replace('+00:00','Z')
+        self.append(self.frame('QUOTE',dict(bid=bid,ask=ask,bid_time=at,ask_time=at,**changes)))
+    def heartbeat(self): self.append(self.frame('HEARTBEAT',dict(connected=True)))
+    def advance(self, seconds): self.now+=timedelta(seconds=seconds);self.tick+=seconds
+    def get(self): return self.admission.quote_authority.get_quote(symbol='NQ')
+
+
+@pytest.fixture
+def stream(tmp_path,monkeypatch):
+    s=Stream(tmp_path/'l1',monkeypatch)
+    yield s
+    s.reader.close()
+
+
+def test_valid_quote_uses_existing_storage_spread_and_news_still_blocks(stream):
+    s=stream;s.hello();s.quote();s.reader.poll()
+    assert s.get()==dict(symbol='NQ',bid=25000,ask=25000.25,timestamp=NOW)
+    assert s.admission.runtime_spread_authority.get_spread_points(symbol='NQ',now=NOW)==.25
+    assert s.reader.get_snapshot()['status']=='FRESH'
+    assert s.admission.market_hours_provider.calendar_snapshot is None
+    s.admission.clock=lambda:NOW
+    with pytest.raises(ValueError,match='market hours'):s.admission.validate_market(symbol='NQ')
+    with pytest.raises(RuntimeError,match='ONLY_PUBLISHER'):
+        s.admission.quote_authority.publish_quote(symbol='NQ',bid=1,ask=2,timestamp=NOW)
+    assert s.admission.quote_authority.get_quote(symbol='ES') is None
+
+
+def test_wide_spread_fresh_but_existing_runtime_gate_rejects(stream):
+    s=stream;s.hello();s.quote(ask=25005.25);s.reader.poll()
+    assert s.reader.get_snapshot()['status']=='FRESH'
+    assert s.admission.runtime_spread_authority.get_spread_points(symbol='NQ',now=NOW)==5.25
+    s.admission.clock=lambda:NOW
+    with pytest.raises(ValueError,match='spread'):s.admission.validate_market(symbol='NQ')
+
+
+@pytest.mark.parametrize('damage', ['schema','session','gap','bool_sequence','duplicate_field','malformed','unknown',
+    'contract','provider','instrument','expiry','timezone','tick','point','template','realtime','read_only','level',
+    'future','half','crossed','zero','negative','nan','infinite','bool_price','side_future','side_stale','terminal','disconnected'])
+def test_invalid_batch_never_publishes_even_valid_prefix(stream,damage):
+    s=stream
+    hello=deepcopy(m.IDENTITY)
+    mapping={'contract':('contract','NQ MAR27'),'provider':('provider','Simulator'),'instrument':('instrument','ES'),
+        'expiry':('expiry','2027-03-01'),'timezone':('application_timezone','Local'),'tick':('tick_size',.5),
+        'point':('point_value',10),'template':('trading_hours_template','Other'),'realtime':('realtime',False),
+        'read_only':('read_only',False),'level':('level',True)}
+    if damage in mapping: k,v=mapping[damage];hello[k]=v
+    s.append(s.frame('HELLO',hello));s.quote()
+    at=NOW.isoformat().replace('+00:00','Z')
+    p=dict(bid=25000,ask=25000.25,bid_time=at,ask_time=at)
+    v=dict(schema='arms.nt.l1.v1',session=s.session,sequence=2,event_time=at,kind='QUOTE',payload=p)
+    if damage=='schema':v['schema']='wrong'
+    elif damage=='session':v['session']=str(uuid4())
+    elif damage=='gap':v['sequence']=3
+    elif damage=='bool_sequence':v['sequence']=True
+    elif damage=='unknown':v['extra']=1
+    elif damage=='future':v['event_time']=(NOW+timedelta(seconds=1)).isoformat().replace('+00:00','Z')
+    elif damage=='half':del p['ask']
+    elif damage in ('crossed','zero','negative','nan','infinite','bool_price'):
+        p['bid']={'crossed':25001,'zero':0,'negative':-1,'nan':float('nan'),'infinite':float('inf'),'bool_price':True}[damage]
+    elif damage=='side_future':p['bid_time']=(NOW+timedelta(seconds=1)).isoformat().replace('+00:00','Z')
+    elif damage=='side_stale':p['bid_time']=(NOW-timedelta(seconds=31)).isoformat().replace('+00:00','Z')
+    elif damage=='terminal':v.update(kind='TERMINAL',payload=dict(connected=False,reason='TERMINATED'))
+    elif damage=='disconnected':v.update(kind='HEARTBEAT',payload=dict(connected=False))
+    wire=json.dumps(v).encode()+b'\n'
+    if damage=='duplicate_field':wire=b'{"schema":"bad",'+wire[1:]
+    if damage=='malformed':wire=b'not json\n'
+    s.append(wire);s.reader.poll()
+    assert s.get() is None and s.reader.get_snapshot()['status']=='REVOKED'
+    s.heartbeat();s.reader.poll();assert s.get() is None
+
+
+def test_side_age_not_rejuvenated_and_exact_30_seconds(stream):
+    s=stream;s.hello();s.quote();s.reader.poll()
+    for _ in range(6):s.advance(5);s.heartbeat();s.reader.poll()
+    assert s.get() is not None
+    s.advance(.001);s.reader.poll()
+    assert s.get() is None and s.reader.get_snapshot()['status']=='STALE'
+
+
+def test_heartbeat_timeout_and_worker_stall_revoke_before_another_poll(stream):
+    s=stream;s.hello();s.quote();s.reader.poll();s.advance(15.001)
+    assert s.get() is None
+    s.reader.poll();assert s.reader.status=='REVOKED'
+
+
+@pytest.mark.parametrize('damage',['replace','truncate','overwrite','remove','directory','new_session','partial','gap','rollback','conflict'])
+def test_file_and_sequence_integrity_revoke_existing_quote(stream,damage):
+    s=stream;s.hello();s.quote();s.reader.poll();assert s.get()
+    prior=s.path.read_bytes()
+    if damage in ('replace','directory'):
+        # Windows may deny rename while a reader handle is open. Release only
+        # the harness handle to exercise the pinned-identity check after replacement.
+        s.reader.tail.handle.close()
+    if damage=='replace':
+        replacement=s.directory/'replacement';replacement.write_bytes(prior);replacement.replace(s.path)
+    elif damage=='truncate':s.path.write_bytes(prior[:len(prior)//2])
+    elif damage=='overwrite':s.path.write_bytes(prior.replace(b'25000.25',b'25000.50'))
+    elif damage=='remove':s.path.unlink()
+    elif damage=='directory':s.directory.rename(s.directory.with_name('moved'));s.directory.mkdir()
+    elif damage=='new_session':(s.directory/(str(uuid4())+'.l1.jsonl')).write_bytes(prior)
+    elif damage=='partial':s.append(b'{"unfinished":')
+    elif damage=='gap':s.seq+=1;s.heartbeat()
+    elif damage=='rollback':s.append(prior.splitlines(keepends=True)[0])
+    elif damage=='conflict':s.append(prior.splitlines(keepends=True)[1].replace(b'25000.25',b'25000.50'))
+    assert s.get() is None
+    s.reader.poll()
+    if damage=='partial':s.advance(6);s.reader.poll()
+    assert s.reader.status=='REVOKED' and s.get() is None
+
+
+def test_exact_duplicate_does_not_renew_liveness(stream):
+    s=stream;s.hello();s.quote();s.reader.poll()
+    last=s.path.read_bytes().splitlines(keepends=True)[-1]
+    s.advance(10);s.append(last);s.reader.poll();assert s.get()
+    s.advance(6);s.append(last);s.reader.poll();assert s.get() is None
+
+
+def test_waiting_hello_half_quote_and_new_reader_requires_new_session(stream,monkeypatch):
+    s=stream;s.reader.poll();assert s.reader.status=='WAITING_FOR_STREAM'
+    s.path.touch();s.reader.poll();assert s.reader.status=='WAITING_FOR_HELLO'
+    s.hello();s.reader.poll();assert s.reader.get_snapshot()['status']=='AWAITING_TWO_SIDED_QUOTE'
+    s.quote();s.reader.poll();s.reader.close();s.advance(1)
+    replacement=m.SimNativeL1AuthorityV1(admission=s.admission,context=lambda:None,clock=lambda:s.now,
+        directory=s.directory,elapsed=lambda:s.tick)
+    replacement.poll();assert replacement.status=='REVOKED'
+    replacement.close()
+    # A distinct operator-selected empty directory and new exporter session work.
+    fresh=Stream(s.directory/'new',monkeypatch);fresh.hello();fresh.quote();fresh.reader.poll()
+    assert fresh.get() and fresh.session!=s.session
+    fresh.reader.close()
+
+
+def test_get_never_ingests_and_context_failure_revokes(stream):
+    s=stream;s.hello();s.quote()
+    before=s.path.read_bytes();assert s.get() is None and s.reader.sequence==-1
+    s.reader.poll();assert s.get()
+    state=(s.reader.sequence,s.reader.last_poll_elapsed,s.reader.quote.copy())
+    for _ in range(3):assert s.reader.get_snapshot()['status']=='FRESH'
+    assert state==(s.reader.sequence,s.reader.last_poll_elapsed,s.reader.quote.copy()) and before==s.path.read_bytes()
+    s.reader.context=Mock(side_effect=ValueError('config changed'))
+    assert s.get() is None
+
+
+def test_utc_and_monotonic_regression_fail_closed(stream):
+    s=stream;s.hello();s.quote();s.reader.poll();s.now-=timedelta(seconds=1)
+    assert s.get() is None;s.reader.poll();assert s.reader.status=='REVOKED'
+
+
+def test_process_owner_paper_switch_and_get_have_no_publication_side_effects(environment,tmp_path,monkeypatch):
+    from backend.api.asgi import create_asgi_app
+    from backend.services.sim_native_financial_runtime_service_v3 import SimNativeFinancialRuntimeServiceV3
+    monkeypatch.setenv('ARMS_ADMIN_TOKEN','offline-l1-admin')
+    root,paths,now,_,_=environment
+    clock=[now]
+    monkeypatch.setattr(m,'private_path',lambda p:Path(p))
+    svc=SimNativeFinancialRuntimeServiceV3(clock=lambda:clock[0])
+    paper=tmp_path/'paper.json';paper.write_text('{"active_account":"TOPSTEP_150K"}')
+    app=create_asgi_app(account_config_path=paper,state_path=tmp_path/'paper/state.json',sim_native_service_factory=lambda:svc)
+    with TestClient(app,headers={'X-ARMS-ADMIN-TOKEN':'offline-l1-admin'}) as c:
+        native=svc._runtime.lifecycle.runtime_admission_v2
+        hours=native.market_hours_lifecycle
+        reader=svc._l1
+        s=Stream(root/'l1-stream',monkeypatch);s.reader.close();s.now=now
+        s.hello();s.quote();svc.observe()
+        assert native.quote_authority.get_quote(symbol='NQ')
+        path='/api/v3/dashboard/sim-native-l1-authority'
+        state=(reader.sequence,reader.last_poll_elapsed)
+        before={str(p):p.read_bytes() for p in root.rglob('*') if p.is_file() and p.suffix!='.lock'}
+        for _ in range(3):assert c.get(path).json()['status']=='FRESH'
+        assert c.post(path,json={'bid':1,'ask':2}).status_code==405
+        assert state==(reader.sequence,reader.last_poll_elapsed)
+        assert before=={str(p):p.read_bytes() for p in root.rglob('*') if p.is_file() and p.suffix!='.lock'}
+        old_paper=app.coordinator.published.runtime.trade_lifecycle_service.runtime_admission_v2
+        old_paper.quote_authority.publish_quote(symbol='NQ',bid=1,ask=2,timestamp=now)
+        assert native.quote_authority.get_quote(symbol='NQ')['bid']==25000
+        target=next((k,v) for k,v in app.coordinator._catalog['accounts'].items() if v['profile_name']=='TOPSTEP_50K')
+        assert c.post('/api/v2/dashboard/account-manager/switch',json={'account_id':target[0],**target[1]}).json()['changed']
+        assert svc._l1 is reader and native.market_hours_lifecycle is hours
+        assert c.get(path).json()['session']==s.session
+        new_paper=app.coordinator.published.runtime.trade_lifecycle_service.runtime_admission_v2
+        assert new_paper.quote_authority.get_quote(symbol='NQ') is None
+        assert all(not list(p.iterdir()) for p in paths.values())

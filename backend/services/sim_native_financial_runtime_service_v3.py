@@ -30,6 +30,7 @@ class SimNativeFinancialRuntimeServiceV3:
         self._projection = None
         self._configuration = None
         self._first_trade_preflight = None
+        self._l1 = None
         self._diagnostic = SimNativeFinancialDiagnosticV3()
         self._view = self.unavailable()
         self.cadence_seconds = None
@@ -95,6 +96,9 @@ class SimNativeFinancialRuntimeServiceV3:
                     return self._configuration, load_policy().policy_id
                 self._runtime.lifecycle.runtime_admission_v2.market_hours_lifecycle = SimNativeMarketHoursLifecycleV1(
                     context=hours_context, clock=lambda: self.clock())
+                from backend.services.sim_native_l1_authority_v1 import SimNativeL1AuthorityV1
+                self._l1 = SimNativeL1AuthorityV1(admission=self._runtime.lifecycle.runtime_admission_v2,
+                    context=self._verify, clock=lambda: self.clock())
                 evidence = SimNativeAdmissionRuntimeEvidenceV3(runtime=self._runtime,
                     configuration=self._configuration, policy=policy, clock=lambda: self.clock())
                 self._runtime.lifecycle.native_admission_producer_v3.runtime_evidence = evidence
@@ -131,6 +135,7 @@ class SimNativeFinancialRuntimeServiceV3:
                     self._verify()
                     for path in (*self._paths.values(), self._financial_root):
                         authority.safe_path(path, authority=True)
+                self._l1.poll()
                 with stage("CHECKPOINT_START"):
                     self._safe_checkpoint_paths()
                 with stage("PHASE_VERIFY"):
@@ -141,6 +146,8 @@ class SimNativeFinancialRuntimeServiceV3:
                     self._view = self._capture()
             except Exception as exc:
                 self._view = self.unavailable()
+                if self._l1 is not None:
+                    self._l1.close()
                 self._record_failure(exc)
                 self._integration = None
                 self._runtime.store._durability.release()
@@ -159,6 +166,12 @@ class SimNativeFinancialRuntimeServiceV3:
             if self._integration is None or self._runtime is None:
                 return SimNativeMarketHoursLifecycleV1.unavailable()
             return self._runtime.lifecycle.runtime_admission_v2.market_hours_lifecycle.get_snapshot()
+
+    def get_l1_authority(self):
+        with self._lock:
+            if self._integration is None or self._l1 is None:
+                return {"status": "UNAVAILABLE", "reason": "SIM_NATIVE_OWNER_UNAVAILABLE"}
+            return self._l1.get_snapshot()
 
     def _safe_checkpoint_paths(self):
         path = self._runtime.store.account_namespace
@@ -250,6 +263,8 @@ class SimNativeFinancialRuntimeServiceV3:
 
     def stop(self):
         with self._lock:
+            if self._l1 is not None:
+                self._l1.close()
             if self._runtime is not None and self._runtime.store._durability._lease is not None:
                 self._runtime.store._durability.release()
             self._integration = None

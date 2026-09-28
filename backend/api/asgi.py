@@ -142,7 +142,10 @@ def create_asgi_app(
                 from backend.services.sim_native_market_hours_authority_v1 import SimNativeMarketHoursLifecycleV1
                 service = holder.get("service")
                 return service.get_market_hours_authority() if service is not None else SimNativeMarketHoursLifecycleV1.unavailable()
-            child.include_router(create_sim_native_financial_router_v3(read_native_financial, read_native_preflight, read_native_market_hours))
+            def read_native_l1():
+                service = holder.get("service")
+                return service.get_l1_authority() if service is not None else {"status": "UNAVAILABLE", "reason": "SIM_NATIVE_OWNER_UNAVAILABLE"}
+            child.include_router(create_sim_native_financial_router_v3(read_native_financial, read_native_preflight, read_native_market_hours, read_native_l1))
             return child
 
         coordinator = AccountRuntimeCoordinatorV2(
