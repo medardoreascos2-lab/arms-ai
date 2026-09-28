@@ -96,6 +96,9 @@ class SimNativeFinancialRuntimeServiceV3:
                     return self._configuration, load_policy().policy_id
                 self._runtime.lifecycle.runtime_admission_v2.market_hours_lifecycle = SimNativeMarketHoursLifecycleV1(
                     context=hours_context, clock=lambda: self.clock())
+                from backend.services.sim_native_economic_news_authority_v1 import SimNativeEconomicNewsLifecycleV1
+                self._runtime.lifecycle.runtime_admission_v2.news_lifecycle = SimNativeEconomicNewsLifecycleV1(
+                    context=hours_context, clock=lambda: self.clock())
                 from backend.services.sim_native_l1_authority_v1 import SimNativeL1AuthorityV1
                 self._l1 = SimNativeL1AuthorityV1(admission=self._runtime.lifecycle.runtime_admission_v2,
                     context=self._verify, clock=lambda: self.clock())
@@ -103,7 +106,7 @@ class SimNativeFinancialRuntimeServiceV3:
                     configuration=self._configuration, policy=policy, clock=lambda: self.clock())
                 self._runtime.lifecycle.native_admission_producer_v3.runtime_evidence = evidence
                 self._first_trade_preflight = FirstControlledTradePreflightV3(
-                    evidence=evidence, read_financial=self.get_snapshot)
+                    evidence=evidence, read_financial=self.get_snapshot, read_news=self.get_economic_news_authority)
                 with stage("CHECKPOINT_START"):
                     self._safe_checkpoint_paths()
                     self._runtime.store.start()
@@ -166,6 +169,13 @@ class SimNativeFinancialRuntimeServiceV3:
             if self._integration is None or self._runtime is None:
                 return SimNativeMarketHoursLifecycleV1.unavailable()
             return self._runtime.lifecycle.runtime_admission_v2.market_hours_lifecycle.get_snapshot()
+
+    def get_economic_news_authority(self):
+        from backend.services.sim_native_economic_news_authority_v1 import SimNativeEconomicNewsLifecycleV1
+        with self._lock:
+            if self._integration is None or self._runtime is None:
+                return SimNativeEconomicNewsLifecycleV1.unavailable()
+            return self._runtime.lifecycle.runtime_admission_v2.news_lifecycle.get_snapshot()
 
     def get_l1_authority(self):
         with self._lock:

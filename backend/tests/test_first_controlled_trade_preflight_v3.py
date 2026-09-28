@@ -9,6 +9,9 @@ from fastapi.testclient import TestClient
 from backend.api.sim_native_financial_api_v3 import create_sim_native_financial_router_v3
 from backend.services.sim_native_financial_runtime_service_v3 import SimNativeFinancialRuntimeServiceV3
 from backend.tests.test_sim_native_admission_runtime_evidence_v3 import evidence_environment, environment, disk
+from backend.tests.test_sim_native_economic_news_authority_v1 import document, install
+from backend.tests.test_controlled_sim_operation_v3 import KEY
+from backend.services import sim_native_economic_news_authority_v1 as news
 
 
 def test_unstarted_owner_reports_unknown_facts_without_side_effects():
@@ -20,8 +23,10 @@ def test_unstarted_owner_reports_unknown_facts_without_side_effects():
 
 
 @pytest.fixture
-def owner(evidence_environment):
+def owner(evidence_environment, monkeypatch):
     env = evidence_environment
+    install(env.root, document(env.config, KEY, env.now), KEY)
+    monkeypatch.setattr(news, 'read_bounded', lambda p: p.read_bytes())
     svc = SimNativeFinancialRuntimeServiceV3(clock=lambda: env.now)
     svc.start()
     assert svc.get_snapshot()["status"] == "NO_OPERATION"
@@ -101,3 +106,28 @@ def test_production_mount_is_read_only_and_has_no_paper_credential(owner, tmp_pa
         assert client.post(url).status_code == 405
         assert disk(env.root) == before
         denied.assert_not_called()
+
+
+@pytest.mark.parametrize('condition', ['missing','invalid','expired','outside','gap','blackout'])
+def test_news_must_be_ready_before_authorization_readiness(owner,condition):
+    env,svc=owner
+    value=document(env.config,KEY,env.now)
+    at=news.utc_us(env.now)
+    if condition=='expired':value['expires_us']=at
+    elif condition=='outside':
+        value['coverage_start_us']=at+1
+        value['coverage_intervals']=[dict(start_us=at+1,end_us=value['coverage_end_us'])]
+    elif condition=='gap':
+        value['coverage_intervals']=[dict(start_us=value['coverage_start_us'],end_us=at-1),dict(start_us=at+1,end_us=value['coverage_end_us'])]
+    elif condition=='blackout':
+        value['high_impact_events']=[dict(event_id='test',name='Synthetic event',event_us=at,impact='HIGH',currency='USD')]
+    install(env.root,value,KEY)
+    if condition=='missing':(env.root/'authority-inputs'/news.FILES[0]).unlink()
+    elif condition=='invalid':(env.root/'authority-inputs'/news.FILES[1]).write_bytes(b'bad')
+    before=disk(env.root);finance=svc.get_snapshot()
+    result=svc.get_first_trade_preflight()
+    assert result['status']=='NOT_READY' and result['reason']=='ECONOMIC_NEWS_NOT_READY'
+    assert result['economic_news_blocked'] is True and result['authorization_state']=='NOT_AUTHORIZED'
+    assert result['economic_news_status']=={'missing':'PACKAGE_REQUIRED','invalid':'UNAVAILABLE','expired':'EXPIRED',
+        'outside':'OUTSIDE_CERTIFIED_COVERAGE','gap':'OUTSIDE_CERTIFIED_COVERAGE','blackout':'HIGH_IMPACT_BLOCK'}[condition]
+    assert disk(env.root)==before and svc.get_snapshot()==finance
