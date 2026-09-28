@@ -144,8 +144,15 @@ namespace NinjaTrader.NinjaScript.Indicators
                     // is continuity loss. The pinned source identity plus CURRENT status
                     // own continuity; a real source disconnect still revokes immediately.
                     if (!Object.ReferenceEquals(update.Connection, source)) return;
-                    if (update.PriceStatus != ConnectionStatus.Connected
-                        || update.Status != ConnectionStatus.Connected
+
+                    // NinjaTrader can deliver a stale/transitional callback such as
+                    // Connecting after the pinned source is already fully Connected.
+                    // Continuity is owned by the CURRENT pinned source state, not by
+                    // the callback snapshot. SafeSource() also verifies identity,
+                    // provider, contract and that the current source remains connected.
+                    if (source == null
+                        || source.PriceStatus != ConnectionStatus.Connected
+                        || source.Status != ConnectionStatus.Connected
                         || !SafeSource())
                         Stop("CONNECTION_CONTINUITY_LOST");
                 }

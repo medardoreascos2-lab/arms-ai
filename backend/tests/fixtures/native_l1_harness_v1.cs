@@ -75,6 +75,12 @@ class Subject : NinjaTrader.NinjaScript.Indicators.ArmsReadOnlyL1V1 {
         OnConnectionStatusUpdate(new ConnectionStatusEventArgs{Connection=c,PriceStatus=price,Status=status,
             PreviousPriceStatus=previousPrice,PreviousStatus=previousStatus});
     }
+    public void ConnectionEventSnapshot(Connection c, ConnectionStatus price,
+        ConnectionStatus status, ConnectionStatus previousPrice,
+        ConnectionStatus previousStatus) {
+        OnConnectionStatusUpdate(new ConnectionStatusEventArgs{Connection=c,PriceStatus=price,Status=status,
+            PreviousPriceStatus=previousPrice,PreviousStatus=previousStatus});
+    }
     public void Heartbeat() {
         typeof(NinjaTrader.NinjaScript.Indicators.ArmsReadOnlyL1V1).GetMethod("Heartbeat",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).Invoke(this,new object[]{null,EventArgs.Empty});
     }
@@ -100,6 +106,9 @@ class Program {
         if(mode=="connection_event")s.ConnectionEvent(new Connection());
         if(mode=="startup_previous_disconnected")
             s.ConnectionEvent(feed,ConnectionStatus.Connected,ConnectionStatus.Connected,
+                ConnectionStatus.Disconnected,ConnectionStatus.Disconnected);
+        if(mode=="stale_connecting_callback")
+            s.ConnectionEventSnapshot(feed,ConnectionStatus.Connecting,ConnectionStatus.Connecting,
                 ConnectionStatus.Disconnected,ConnectionStatus.Disconnected);
         if(mode=="source_disconnect")
             s.ConnectionEvent(feed,ConnectionStatus.Disconnected,ConnectionStatus.Disconnected);
