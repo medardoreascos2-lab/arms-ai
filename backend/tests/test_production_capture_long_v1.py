@@ -921,3 +921,155 @@ def test_acknowledge_final_result_status_fails_cleanly(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="NO_ACTIVE_REMOVE_REQUEST"):
         longcap.acknowledge(tmp_path)
+
+
+
+def test_closed_before_cross_clock_label_is_diagnostic_only_for_long_profile():
+    import hashlib
+    import json
+
+    archive, original_proof = recorded()
+
+    assert original_proof["status"] == "PASS"
+
+    canonical_raw = (
+        archive["native_canonical_utf8"].encode("utf-8")
+    )
+
+    pairs = [
+        json.loads(line)
+        for line in (
+            archive["native_timing_utf8"].splitlines()
+        )
+        if line.strip()
+    ]
+
+    assert len(pairs) >= 4
+
+    prior = pairs[1]
+    closed = pairs[2]
+    following = pairs[3]
+
+    assert closed["kind"] == "CLOSED"
+    assert following["kind"] == "FORMING"
+
+    assert (
+        closed["callback_index"]
+        == following["callback_index"]
+    )
+
+    assert (
+        closed["callback"]
+        == following["callback"]
+    )
+
+    label_ticks = production.ticks(
+        closed["source_bar_label"]
+    )
+
+    original_closed_callback_ticks = (
+        closed["callback"]["utc_ticks"]
+    )
+
+    assert original_closed_callback_ticks >= label_ticks
+
+    # Build a deliberately valid cross-clock observation where
+    # host-wall-clock UTC is earlier than the native bar label.
+    #
+    # Reuse the prior emission wall timestamp so callback wall time
+    # remains monotonic relative to the preceding pair. QPC identity
+    # and CLOSED/FORMING same-callback pairing remain untouched.
+    diagnostic_callback = dict(
+        closed["callback"]
+    )
+
+    diagnostic_callback["utc"] = (
+        prior["emission"]["utc"]
+    )
+
+    diagnostic_callback["utc_ticks"] = (
+        prior["emission"]["utc_ticks"]
+    )
+
+    assert (
+        diagnostic_callback["utc_ticks"]
+        < label_ticks
+    )
+
+    closed["callback"] = dict(
+        diagnostic_callback
+    )
+
+    following["callback"] = dict(
+        diagnostic_callback
+    )
+
+    sidecar_raw = (
+        "\n".join(
+            json.dumps(
+                row,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+            for row in pairs
+        )
+        + "\n"
+    ).encode("utf-8")
+
+    seal = json.loads(
+        archive["native_seal_utf8"]
+    )
+
+    seal["records"] = len(pairs)
+    seal["bytes"] = len(sidecar_raw)
+    seal["sha256"] = hashlib.sha256(
+        sidecar_raw
+    ).hexdigest()
+
+    seal_raw = json.dumps(
+        seal,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+    proof = production.adjudicate(
+        canonical_raw,
+        sidecar_raw,
+        seal_raw,
+    )
+
+    expected_delta = (
+        diagnostic_callback["utc_ticks"]
+        - label_ticks
+    )
+
+    assert expected_delta < 0
+
+    assert proof["status"] == "PASS"
+
+    assert (
+        proof["production_exporter_emission_binding"]
+        == "PASS_STREAM_ONLY"
+    )
+
+    assert (
+        proof["closed"]
+        == original_proof["closed"]
+    )
+
+    assert (
+        proof["cross_clock_closed_before_label"]
+        == 1
+    )
+
+    assert (
+        proof[
+            "minimum_cross_clock_closed_label_delta_ticks"
+        ]
+        == expected_delta
+    )
+
+    assert proof["reference_bound"] == "UNKNOWN"
+    assert proof["drift_bound"] == "UNKNOWN"
+    assert proof["clock_preflight"] == "UNKNOWN"
+    assert proof["runtime_admission"] is False

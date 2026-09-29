@@ -105,6 +105,8 @@ def adjudicate(canonical_raw, sidecar_raw, seal_raw, *, profile_id=None, window_
                 elif 0 < i < len(canonical)-1:
                     require(row['kind'] == 'HEARTBEAT', 'CANONICAL_LIFECYCLE')
         forming = 0; closed = 0; prior = None; pending = None; previous = None; frequency = None
+        cross_clock_closed_before_label = 0
+        minimum_cross_clock_closed_label_delta_ticks = None
         windows = [] if window_sink is None else window_sink
         from itertools import zip_longest
         for i, (p, bar) in enumerate(zip_longest(pairs, bars())):
@@ -138,7 +140,25 @@ def adjudicate(canonical_raw, sidecar_raw, seal_raw, *, profile_id=None, window_
             if p['kind'] == 'CLOSED':
                 require(p['bars_ago'] == 1 and forming >= 2 and pending is None, 'CLOSED_WITHOUT_COMPLETE_FORMING')
                 require(prior['bar_index'] == p['bar_index'] and prior['source_bar_label'] == p['source_bar_label'], 'CLOSED_FORMING_BINDING')
-                require(cb['utc_ticks'] >= label, 'CLOSED_BEFORE_LABEL')
+
+                # source_bar_label belongs to the native bar-builder timeline,
+                # while callback.utc_ticks is a host-wall-clock observation.
+                # LONG profiles explicitly grant no absolute-time authority, so
+                # cross-clock ordering is retained as diagnostic evidence only.
+                cross_clock_delta = cb['utc_ticks'] - label
+
+                if cross_clock_delta < 0:
+                    cross_clock_closed_before_label += 1
+
+                    if (
+                        minimum_cross_clock_closed_label_delta_ticks is None
+                        or cross_clock_delta
+                        < minimum_cross_clock_closed_label_delta_ticks
+                    ):
+                        minimum_cross_clock_closed_label_delta_ticks = (
+                            cross_clock_delta
+                        )
+
                 pending = p; closed += 1
             else:
                 require(p['bars_ago'] == 0, 'FORMING_INDEX')
@@ -160,6 +180,8 @@ def adjudicate(canonical_raw, sidecar_raw, seal_raw, *, profile_id=None, window_
         require(pending is None and closed >= 3, 'MINIMUM_CLOSED')
         result.update(status='PASS',production_exporter_emission_binding='PASS_STREAM_ONLY',
                       session=session,records=len(canonical),pairs=len(pairs),forming=forming,closed=closed,
+                      cross_clock_closed_before_label=cross_clock_closed_before_label,
+                      minimum_cross_clock_closed_label_delta_ticks=minimum_cross_clock_closed_label_delta_ticks,
                       qpc_frequency=frequency,sidecar_sha256=sidecar_hash,
                       canonical_sha256=canonical_hash,
                       first_callback=pairs[0]['callback'],last_emission=pairs[-1]['emission'],
