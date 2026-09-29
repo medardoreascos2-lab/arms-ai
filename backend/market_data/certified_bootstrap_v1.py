@@ -142,7 +142,11 @@ def _segment(segment):
             require(formed >= 2 and pending is None and p['bars_ago'] == 1
                     and forming['bar_index'] == p['bar_index'] and forming['source_bar_label'] == bar.label,
                     'BOOTSTRAP_CLOSED_PROVENANCE')
-            require(cb['utc_ticks'] >= ticks(bar.label), 'BOOTSTRAP_CLOSED_BEFORE_LABEL')
+            # source_bar_label belongs to the native bar-builder timeline,
+            # while callback.utc_ticks is a host-wall-clock observation.
+            # Certified bootstrap is source-relative and grants no absolute-time
+            # authority, so cross-clock ordering is not a structural validity
+            # condition. The original timing pair remains preserved for review.
             pending = (p, bar)
         else:
             require(p['bars_ago'] == 0 and ((formed >= 2) == (pending is not None)), 'BOOTSTRAP_MISSING_CLOSED')

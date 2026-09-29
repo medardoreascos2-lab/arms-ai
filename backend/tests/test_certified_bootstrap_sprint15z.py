@@ -154,6 +154,78 @@ def test_untrusted_history_rejected(fault):
         certify_bootstrap(raw, expected_sha256='0'*64 if fault == 'pin' else sha256(raw).hexdigest())
 
 
+
+def test_closed_before_cross_clock_label_is_not_structural_for_certified_bootstrap():
+    item = segment(16)
+
+    rows = [
+        json.loads(value)
+        for value in item['canonical_utf8'].splitlines()
+    ]
+
+    pairs = [
+        json.loads(value)
+        for value in item['timing_utf8'].splitlines()
+    ]
+
+    # Move only the native bar-builder labels forward.
+    # Host-wall-clock callback/emission timestamps and QPC geometry
+    # remain untouched, preserving their own monotonic domain.
+    shift = timedelta(minutes=5)
+
+    closed_count = 0
+    negative_count = 0
+
+    for pair in pairs:
+        row = rows[pair['canonical_sequence']]
+
+        label = datetime.fromisoformat(
+            pair['source_bar_label'].replace(
+                'Z',
+                '+00:00',
+            )
+        )
+
+        shifted = stamp(label + shift)
+
+        pair['source_bar_label'] = shifted
+        row['payload']['bar_time'] = shifted
+
+        if pair['kind'] == 'CLOSED':
+            closed_count += 1
+
+            if (
+                pair['callback']['utc_ticks']
+                < ticks(shifted)
+            ):
+                negative_count += 1
+
+    assert closed_count > 0
+    assert negative_count > 0
+
+    raw = bundle(
+        pack(rows, pairs)
+    )
+
+    data = certify(raw)
+
+    assert len(data.bars) == 16
+
+    snapshot = Stream(
+        bootstrap=data
+    ).profile.snapshot()
+
+    # Structural/source-relative acceptance must never grant
+    # absolute-current-time or execution authority.
+    assert (
+        snapshot['absolute_time_authority']
+        == 'UNKNOWN'
+    )
+    assert snapshot['market_stream'] == 'NOT_LIVE'
+
+    assert_disabled(snapshot)
+
+
 def test_exact_handoff_is_live_only_after_full_observed_minute():
     s = warmed()
     before = s.profile.snapshot()
