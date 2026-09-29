@@ -79,10 +79,50 @@ def write_json(path, value):
 
 
 def replace_status(folder, value):
+    """Atomically publish status despite transient Windows sharing races.
+
+    status.next is private scratch state, never durable evidence. A transient
+    reader may briefly prevent replacing status.json on Windows, so bounded
+    retries are allowed. Scratch is always removed on failure so a later status
+    publication cannot be masked by FileExistsError.
+    """
     target = local(folder / 'status.json')
-    temp = folder / 'status.next'
+    temp = local(folder / 'status.next')
+
+    # Only this process owns status publication for a run. A leftover scratch
+    # file therefore represents an interrupted/failed prior publication.
+    if temp.exists():
+        temp.unlink()
+
     write_json(temp, value)
-    os.replace(temp, target)
+
+    try:
+        for attempt in range(50):
+            try:
+                os.replace(temp, target)
+                return
+            except OSError as error:
+                winerror = getattr(error, 'winerror', None)
+
+                # Windows readers can briefly deny rename/delete sharing.
+                # Retry only known transient sharing/access failures.
+                transient = (
+                    os.name == 'nt'
+                    and winerror in (5, 32, 33)
+                )
+
+                if not transient or attempt == 49:
+                    raise
+
+                time.sleep(0.02)
+    finally:
+        # os.replace removes temp on success. On every failure path, ensure
+        # scratch cannot poison the next publication attempt.
+        if temp.exists():
+            try:
+                temp.unlink()
+            except OSError:
+                pass
 
 
 def prepare():

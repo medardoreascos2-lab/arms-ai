@@ -280,3 +280,93 @@ def test_worker_retains_every_invalid_attempt(tmp_path,monkeypatch):
     attempts=[worker.items.get_nowait() for _ in range(3)]
     live.validate_clock_artifacts(tmp_path,attempts,RUN,10)
     assert all(live.parse(raw)['status']=='PROBE_INVALID_OR_UNAVAILABLE' for _,raw,_ in attempts)
+
+
+
+def test_replace_status_retries_windows_sharing_failure(tmp_path, monkeypatch):
+    """A transient Windows reader must not kill status publication."""
+    live.write_json(
+        tmp_path / "status.json",
+        {"state": "OLD"},
+    )
+
+    real_replace = live.os.replace
+    calls = []
+
+    def flaky_replace(source, target):
+        calls.append((source, target))
+
+        if len(calls) == 1:
+            error = PermissionError(13, "sharing violation")
+            error.winerror = 32
+            raise error
+
+        return real_replace(source, target)
+
+    monkeypatch.setattr(live.os, "replace", flaky_replace)
+    monkeypatch.setattr(live.os, "name", "nt")
+    monkeypatch.setattr(live.time, "sleep", lambda _seconds: None)
+
+    live.replace_status(
+        tmp_path,
+        {"state": "CAPTURING", "runtime_admission": False},
+    )
+
+    status = live.parse(
+        (tmp_path / "status.json").read_bytes()
+    )
+
+    assert status == {
+        "state": "CAPTURING",
+        "runtime_admission": False,
+    }
+
+    assert len(calls) == 2
+    assert not (tmp_path / "status.next").exists()
+
+
+def test_replace_status_terminal_failure_does_not_leave_status_next(
+    tmp_path, monkeypatch
+):
+    """A permanent publication failure must not poison a later attempt."""
+    live.write_json(
+        tmp_path / "status.json",
+        {"state": "OLD"},
+    )
+
+    real_replace = live.os.replace
+
+    def always_locked(_source, _target):
+        error = PermissionError(13, "sharing violation")
+        error.winerror = 32
+        raise error
+
+    monkeypatch.setattr(live.os, "replace", always_locked)
+    monkeypatch.setattr(live.os, "name", "nt")
+    monkeypatch.setattr(live.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(PermissionError):
+        live.replace_status(
+            tmp_path,
+            {"state": "CAPTURING"},
+        )
+
+    # Critical regression: the failed publication must not leave the exact
+    # poison file that killed the physical LONG_A run.
+    assert not (tmp_path / "status.next").exists()
+
+    # A later normal publication must still work.
+    monkeypatch.setattr(live.os, "replace", real_replace)
+
+    live.replace_status(
+        tmp_path,
+        {"state": "RECOVERED_FOR_TEST_ONLY"},
+    )
+
+    assert not (tmp_path / "status.next").exists()
+
+    status = live.parse(
+        (tmp_path / "status.json").read_bytes()
+    )
+
+    assert status["state"] == "RECOVERED_FOR_TEST_ONLY"
