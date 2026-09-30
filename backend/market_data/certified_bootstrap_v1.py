@@ -174,6 +174,9 @@ def certify_bootstrap(raw, *, expected_sha256):
         require(type(expected_sha256) is str and len(expected_sha256) == 64
                 and sha256(raw).hexdigest() == expected_sha256, 'BOOTSTRAP_PIN_MISMATCH')
         bundle = parse(raw)
+        if bundle.get('schema') == 'arms.certified-chart-catchup.v1':
+            from backend.market_data.chart_catchup_bridge_v1 import certify_chart_catchup_bundle
+            return certify_chart_catchup_bundle(bundle, expected_sha256)
         if bundle.get('schema') == 'arms.certified-native-history.v1':
             from backend.market_data.native_historical_bootstrap_v1 import certify_native_history
             return certify_native_history(bundle, expected_sha256)
