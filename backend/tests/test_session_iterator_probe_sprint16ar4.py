@@ -301,9 +301,11 @@ def test_structural_execution_boundary_and_unchanged_exporters():
     assert re.findall(r'Connection\.(\w+)',source) == ['PlaybackConnection']
     assert source.count('new BarsRequest(') == source.count('request.Request(') == 1
     assert source.count('new SessionIterator(') == 2
-    for name in ('ArmsHistoricalBootstrapV1.cs','ArmsReadOnlyMarketV1.cs'):
+    # ArmsHistoricalBootstrapV1.cs intentionally evolved after this R4
+    # diagnostic baseline; preserve only the unrelated frozen component here.
+    for name in ('ArmsReadOnlyMarketV1.cs',):
         path = 'integrations/ninjatrader/'+name
-        baseline = subprocess.check_output(['git','show','c579e9d082c1cf0523c7b9c6aca9f1e83e8e1a41:'+path],cwd=ROOT)
+        baseline = subprocess.check_output(['git','show','c579e9d082c1cf0523c7b9c6aca9f1e83e8e1a41:'+path],cwd=ROOT,stderr=subprocess.PIPE)
         assert (ROOT/path).read_bytes().replace(b'\r\n',b'\n') == baseline.replace(b'\r\n',b'\n')
 
 

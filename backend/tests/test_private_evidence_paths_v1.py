@@ -81,7 +81,10 @@ def test_runtime_manifest_is_private_reusable_and_does_not_change_canonical(evid
     assert private_runtime_manifest(canonical) == resolved
     assert json.loads(resolved.read_text())["segments"][0]["source_file"] == str(source)
     assert subprocess.run(["git", "check-ignore", "--quiet", str(resolved)]).returncode == 0
-    assert not subprocess.check_output(["git", "ls-files", str(resolved)])
+    assert not subprocess.check_output(
+        ["git", "ls-files", str(resolved)],
+        stderr=subprocess.PIPE,
+    )
 
 
 def test_unignored_runtime_output_is_rejected(evidence, tmp_path, monkeypatch):

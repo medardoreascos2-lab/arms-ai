@@ -73,20 +73,41 @@ namespace NinjaTrader.Data {
                 throw new InvalidOperationException(Harness.Secret + " C:\\private\\secret.txt\n" + new string('x',10000));
             if (Harness.Mode == "iterator_false") return false;
             if (Harness.Mode == "late_false" && calls == 3) return false;
-            if (Harness.Mode == "repeated" && calls > 1) return true;
-            if (Harness.Mode == "nonadvancing" && calls > 1) { begin=begin.AddHours(-1); return true; }
+            if (Harness.Mode == "repeated") {
+                begin = DateTime.SpecifyKind(
+                    new DateTime(2026,9,14,0,0,0),
+                    DateTimeKind.Utc);
+                end = begin.AddHours(23);
+                return true;
+            }
+            if (Harness.Mode == "nonadvancing") {
+                begin = DateTime.SpecifyKind(
+                    calls == 1
+                        ? query.Date
+                        : query.Date.AddDays(-1).AddHours(1),
+                    DateTimeKind.Utc);
+                end = begin.AddHours(23);
+                return true;
+            }
             if (Harness.Mode == "tiny_sessions") {
                 begin = query; end = query.AddTicks(1); return true;
             }
             if (Harness.Mode == "session_boundaries" || Harness.Mode.StartsWith("query_")) {
-                // Synthetic September 2026 ETH geometry only; not native calendar evidence.
-                var start = query.Date.AddHours(22);
-                if (query.Hour < 21 || (query.Hour == 21 && query.TimeOfDay == TimeSpan.FromHours(21)))
-                    start = start.AddDays(-1);
-                while (start.DayOfWeek == DayOfWeek.Friday || start.DayOfWeek == DayOfWeek.Saturday)
-                    start = start.AddDays(1);
-                begin = DateTime.SpecifyKind(start, DateTimeKind.Utc);
-                end = begin.AddHours(23); return true;
+                // Synthetic fixed DAILY UTC schedule matching the repaired
+                // exporter's query contract. Weekend UTC dates return false;
+                // false is diagnostic and the next predeclared date proceeds.
+                if (query.DayOfWeek == DayOfWeek.Saturday
+                    || query.DayOfWeek == DayOfWeek.Sunday)
+                    return false;
+
+                var start = query.Date.AddDays(-1).AddHours(22);
+
+                begin = DateTime.SpecifyKind(
+                    start,
+                    DateTimeKind.Utc);
+
+                end = begin.AddHours(23);
+                return true;
             }
             begin = DateTime.SpecifyKind(query.Date.AddDays(query.TimeOfDay > TimeSpan.Zero ? 1 : 0),
                 Harness.Mode == "calendar_kind" ? DateTimeKind.Unspecified : DateTimeKind.Utc);
@@ -178,9 +199,32 @@ public static class Harness {
             h.ThroughUtcDate="2026-09-21";
             if (Mode != "late_properties") h.Step(NinjaTrader.NinjaScript.State.Configure);
             if (Mode.StartsWith("query_")) {
-                h.QueryKind((DateTimeKind)Enum.Parse(typeof(DateTimeKind),Mode.Substring(6)));
+                bool rejected = false;
+
+                try {
+                    h.QueryKind(
+                        (DateTimeKind)Enum.Parse(
+                            typeof(DateTimeKind),
+                            Mode.Substring(6)));
+                }
+                catch (System.Reflection.TargetInvocationException error) {
+                    if (!(error.InnerException is InvalidOperationException))
+                        throw;
+                    rejected = true;
+                }
+
                 h.Step(NinjaTrader.NinjaScript.State.Terminated);
-                Console.WriteLine("{\"creates\":0,\"invokes\":0,\"disposes\":0}"); return 0;
+
+                Console.WriteLine(
+                    new JavaScriptSerializer().Serialize(
+                        new {
+                            creates=0,
+                            invokes=0,
+                            disposes=0,
+                            query_rejected=rejected
+                        }));
+
+                return 0;
             }
             if (Mode == "changed_properties") h.ThroughUtcDate="2026-09-22";
             if (Mode == "terminate_before_request") h.Step(NinjaTrader.NinjaScript.State.Terminated);

@@ -3,12 +3,12 @@
   "baseline": "93039c140b7db486d0adab36de383b77dae1b55d",
   "counting": "Route registrations; GET+HEAD metadata counts as one registration. Includes docs and health. No unregistered router is assumed.",
   "certificate": {
-    "TOTAL_RELEVANT_ROUTES": 95,
-    "CLASSIFIED_ROUTES": 95,
+    "TOTAL_RELEVANT_ROUTES": 96,
+    "CLASSIFIED_ROUTES": 96,
     "UNCLASSIFIED_ROUTES": 0,
     "ACCOUNT_SCOPED_ROUTES": 63,
     "ADMIN_REQUIRED_ROUTES": 15,
-    "OBSERVATIONAL_ROUTES": 79,
+    "OBSERVATIONAL_ROUTES": 80,
     "EXECUTION_BOUNDARY_ROUTES": 5
   },
   "routes": [
@@ -1942,6 +1942,36 @@
       "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
       "authorization_rationale": "Read-only projection from the currently published application; no public-read admin requirement.",
       "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v3/dashboard/sim-native-runtime",
+      "name": "sim_native_runtime",
+      "endpoint": "backend.api.sim_native_dashboard_api_v3.sim_native_runtime",
+      "module": "backend.api.sim_native_dashboard_api_v3",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "reader": {
+          "type": "backend.services.sim_native_dashboard_reader_v3.SimNativeDashboardReaderV3",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "bfe6fc760586b608da8d7da8b0119a8dcd9de4e638de73471c4a40557b6182eb",
+      "state_fields": [],
+      "calls": [
+        "reader.get_snapshot"
+      ],
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "NONE_JUSTIFIED",
+      "account_scope": "GLOBAL",
+      "mutation": "NONE",
+      "owner": "backend.services.sim_native_dashboard_reader_v3.SimNativeDashboardReaderV3",
+      "scope_resolution": "Fixed SIM_NATIVE / Simulator / Sim101 heartbeat observation from local snapshots; independent of the active AccountRuntimeApplicationV2 account selection.",
+      "authorization_rationale": "Read-only heartbeat/status projection; no request-selected account, no mutation, and no execution dispatch. Public GET does not require admin authorization.",
+      "account_switch_effect": "UNCHANGED_DATA"
     },
     {
       "methods": [

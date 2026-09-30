@@ -238,9 +238,11 @@ def test_structural_safety_and_preserved_components():
     assert re.findall(r'Connection\.(\w+)',source)==['PlaybackConnection']
     assert source.count('new BarsRequest(')==source.count('request.Request(')==1
     assert source.count('iterator.GetNextSession(')==1
-    for name in ('ArmsHistoricalBootstrapV1.cs','ArmsReadOnlyMarketV1.cs','ArmsSessionIteratorProbeV1.cs'):
+    # ArmsHistoricalBootstrapV1.cs intentionally evolved after this R5
+    # diagnostic baseline; preserve only the unrelated frozen components here.
+    for name in ('ArmsReadOnlyMarketV1.cs','ArmsSessionIteratorProbeV1.cs'):
         path='integrations/ninjatrader/'+name
-        baseline=subprocess.check_output(['git','show','c24f225cf3984f020e49979b10077a4739bb588c:'+path],cwd=ROOT)
+        baseline=subprocess.check_output(['git','show','c24f225cf3984f020e49979b10077a4739bb588c:'+path],cwd=ROOT,stderr=subprocess.PIPE)
         assert (ROOT/path).read_bytes().replace(b'\r\n',b'\n')==baseline.replace(b'\r\n',b'\n')
 
 

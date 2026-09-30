@@ -25,7 +25,8 @@ def listener_pid(port):
     output = subprocess.check_output(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
         f"@(Get-NetTCPConnection -State Listen -LocalPort {port} -ErrorAction SilentlyContinue | "
         "Select-Object -ExpandProperty OwningProcess -Unique) | ConvertTo-Json -Compress"],
-        creationflags=subprocess.CREATE_NO_WINDOW, timeout=5, text=True).strip()
+        creationflags=subprocess.CREATE_NO_WINDOW, timeout=5, text=True,
+        stderr=subprocess.PIPE).strip()
     owners = json.loads(output) if output else []
     owners = owners if isinstance(owners, list) else [owners]
     require(len(owners) == 1, 'LISTENER_IDENTITY_UNAVAILABLE')

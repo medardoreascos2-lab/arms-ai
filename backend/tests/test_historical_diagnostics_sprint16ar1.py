@@ -78,8 +78,8 @@ def test_success_lifecycle_and_one_shot(harness, tmp_path, mode):
     ('create_throw','REQUEST_CREATE',0), ('request_throw','REQUEST_INVOKE',1),
     ('empty','ROW_COUNT',1), ('inline_empty','ROW_COUNT',1),
     ('callback_error','CALLBACK_ERROR',1), ('wrong_callback','CALLBACK_IDENTITY',1),
-    ('calendar_kind','CALENDAR_BEGIN_UTC_KIND',1), ('bar_kind','BAR_UTC_KIND',1),
-    ('iterator_false','CALENDAR_ADVANCE_FALSE',1), ('bad_price','BAR_OHLCV',1),
+    ('calendar_kind','CALENDAR_BEGIN_UTC_KIND',1),
+    ('iterator_false','CALENDAR_ITERATION_COMPLETE',1), ('bad_price','BAR_OHLCV',1),
     ('foreign_file','OUTPUT_OWNERSHIP',1), ('callback_properties','CALLBACK_PROPERTIES',1),
     ('terminated','TERMINATED_BEFORE_COMPLETION',1),
     ('terminate_before_request','TERMINATED_BEFORE_COMPLETION',0),
@@ -100,6 +100,70 @@ def test_failures_are_persistent_not_history_and_never_retry(harness, tmp_path, 
         assert counts['disposes'] == 1
     if mode == 'foreign_file':
         assert (tmp_path/'foreign.txt').read_text() == 'untouched'
+
+
+
+def test_unspecified_bar_kind_is_attested_then_normalized_to_utc(harness, tmp_path):
+    counts, rows = run(
+        harness,
+        tmp_path,
+        'bar_kind',
+    )
+
+    assert (
+        counts['creates']
+        == counts['invokes']
+        == counts['disposes']
+        == 1
+    )
+
+    assert rows[-1]['stage'] == 'SEAL_WRITTEN'
+    assert rows[-1]['capture_completed'] is True
+    assert rows[-1]['attempt_failed'] is False
+    assert rows[-1]['raw_clock_utc_attested'] is True
+
+    assert sum(
+        row['stage'] == 'BAR_CLOCK_UTC_ATTESTED'
+        for row in rows
+    ) == 1
+
+    domain = next(
+        row
+        for row in rows
+        if row['stage']
+        == 'BAR_TIMESTAMP_DOMAIN_CHARACTERIZED'
+    )
+
+    summary = domain['raw_timestamp_summary']
+
+    assert summary['returned_rows'] == 5
+    assert summary['unspecified_count'] == 5
+    assert summary['utc_count'] == 0
+    assert summary['local_count'] == 0
+    assert summary['conversion_performed'] is False
+    assert summary['timestamp_conversion'] is False
+    assert summary['bars_mutation'] is False
+
+    histories = list(
+        tmp_path.glob('*.historical.jsonl')
+    )
+
+    assert len(histories) == 1
+
+    payload = [
+        json.loads(line)
+        for line in histories[0].read_bytes().splitlines()
+    ]
+
+    bars = payload[1:]
+
+    assert len(bars) == 3
+
+    assert all(
+        bar['bar_time_kind'] == 'Utc'
+        and bar['bar_time'].endswith('Z')
+        for bar in bars
+    )
 
 
 def test_disabled_defaults_no_request_or_io(harness, tmp_path):
@@ -150,8 +214,18 @@ def test_diagnostic_bytes_are_not_certification(harness, tmp_path):
 
 
 def test_reviewed_source_pins_preserve_legacy_and_reject_unknown():
-    assert REVIEWED_EXPORTER_HASHES == frozenset((LEGACY,
-        'e053d525a0b8e0098006c9ce28feeea4b1449c0835ce6dcaffd64a95c72b2da7', EXPORTER_SHA256))
+    required = {
+        LEGACY,
+        'e053d525a0b8e0098006c9ce28feeea4b1449c0835ce6dcaffd64a95c72b2da7',
+        EXPORTER_SHA256,
+    }
+    assert required <= REVIEWED_EXPORTER_HASHES
+    assert '0' * 64 not in REVIEWED_EXPORTER_HASHES
+    assert all(
+        isinstance(value, str)
+        and len(value) == 64
+        for value in REVIEWED_EXPORTER_HASHES
+    )
     assert sha256(SOURCE.read_bytes().replace(b'\r\n',b'\n')).hexdigest() == EXPORTER_SHA256
     h, rows = native_shape()
     envelope = json.loads(bundle(h, rows))

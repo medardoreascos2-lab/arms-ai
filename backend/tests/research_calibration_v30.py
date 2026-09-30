@@ -288,7 +288,7 @@ def main():
     sha = digest(args.dataset)
     candles = CsvCandleLoaderV2(csv_path=args.dataset, symbol="NQ", timeframe="1m").load()
     provenance = {"dataset": str(args.dataset), "sha256": sha, "candles": len(candles),
-                  "head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+                  "head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.PIPE).strip(),
                   "parameters": PARAMETERS, "helper_sha256": digest(Path(__file__))}
     if args.phase == "baseline":
         baseline(candles, args.output, provenance)

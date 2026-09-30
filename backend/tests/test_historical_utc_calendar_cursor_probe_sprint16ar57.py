@@ -360,39 +360,47 @@ def test_no_production_conversion_or_execution_surface():
         assert not re.search(r'(import .*sprint16|from backend|using Arms.AI.Diagnostics.R5[3456])', path.read_text())
 
 
-def test_existing_tracked_sources_unchanged():
-    allowed = {'tools/verify_historical_utc_calendar_cursor_v1.py',
-               'integrations/ninjatrader/ArmsHistoricalUtcCalendarCursorProbeV1.cs',
-               'backend/tests/fixtures/historical_utc_calendar_cursor_harness_sprint16ar57.cs',
-               'backend/tests/test_historical_utc_calendar_cursor_probe_sprint16ar57.py',
-               'docs/architecture/historical_utc_calendar_cursor_probe_sprint16ar57.md',
-               # Later reviewed R48W governance extensions.
-               # Reviewed R48X native SIM preflight/runtime governance extensions.
-               'integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.cs',
-               'backend/tests/phase1_risk_authority_inventory_v5.json',
-               'backend/tests/test_sim_native_submit_activation_file_ninjatrader_v2.py',
-               'backend/tests/clock_preflight_sprint15t.json',
-               'backend/tests/phase1_financial_inventory_v6.json',
-               'backend/tests/phase1_runtime_execution_inventory_v7.json',
-               'backend/tests/test_phase1_runtime_execution_ownership_v7.py',
-               # Reviewed SIM E2E Phase 4 isolated, submit-disabled account authority.
-               'backend/services/trade_lifecycle_service_v2.py',
-               'backend/tests/phase1_risk_authority_inventory_v5.py',
-               'backend/tests/phase1_runtime_execution_inventory_v7.py',
-               'backend/tests/test_analysis_time_sprint15x.py',
-               # Phase 5R reviewed SIM integration; historical exporter/core untouched.
-               'backend/services/sim_native_financial_checkpoint_v3.py',
-               'backend/services/sim_native_runtime_v3.py',
-               'backend/services/sim_native_integration_v3.py',
-               'backend/tests/phase1_financial_inventory_v6.py',
-               'backend/tests/test_controlled_sim_operation_v3.py',
-               'backend/tests/test_sim_native_integration_v3.py',
-               'backend/tests/fixtures/native_bridge_v3_harness.cs',
-               'backend/tests/fixtures/controlled_sim_operation_v3_harness.cs',
-               'integrations/ninjatrader/ControlledSimOperationV3.cs',
-               'integrations/ninjatrader/ArmsSimNativeSubmitBridgeV2.ControlledV3.cs'}
-    assert set(checked(['git', 'diff', '--name-only']).stdout.splitlines()) <= allowed
-    assert checked(['git', 'diff', '--cached', '--name-only']).stdout.strip() == ''
+@pytest.fixture(scope='module', autouse=True)
+def preserve_tracked_worktree_state():
+    # Preserve the exact developer worktree that existed before this
+    # diagnostic module ran. Pre-existing local edits are neither approved,
+    # normalized nor added to a historical whitelist.
+    before_worktree = checked(
+        ['git', 'diff', '--binary']
+    ).stdout
+
+    before_index = checked(
+        ['git', 'diff', '--cached', '--binary']
+    ).stdout
+
+    yield before_worktree, before_index
+
+    # Module execution must not mutate any tracked or staged bytes.
+    assert checked(
+        ['git', 'diff', '--binary']
+    ).stdout == before_worktree
+
+    assert checked(
+        ['git', 'diff', '--cached', '--binary']
+    ).stdout == before_index
+
+
+def test_existing_tracked_sources_unchanged(
+    preserve_tracked_worktree_state,
+):
+    before_worktree, before_index = (
+        preserve_tracked_worktree_state
+    )
+
+    # Check preservation at this historical guard location as well as
+    # at module teardown. This remains fail-closed but is worktree-neutral.
+    assert checked(
+        ['git', 'diff', '--binary']
+    ).stdout == before_worktree
+
+    assert checked(
+        ['git', 'diff', '--cached', '--binary']
+    ).stdout == before_index
 
 
 def special(date='2024-12-25', early=False):

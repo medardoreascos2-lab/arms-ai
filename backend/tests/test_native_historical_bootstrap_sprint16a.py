@@ -226,6 +226,279 @@ def test_overlap_checked_never_readded_then_contiguous_live_append():
     with pytest.raises(ValueError, match='OVERLAP_CONFLICT'): s.fill(3)
 
 
+
+def test_historical_exporter_uses_bounded_daily_utc_calendar_schedule():
+    text = SOURCE.decode()
+
+    start = text.index(
+        'private List<object> CalendarIntervals('
+    )
+
+    end = text.index(
+        'private string DirectoryIdentity()',
+        start,
+    )
+
+    method = text[start:end]
+
+    assert 'int scheduledDays =' in method
+
+    assert (
+        '(calendarThrough - calendarFrom).Days'
+        in method
+    )
+
+    assert 'scheduledDays > 24' in method
+
+    assert (
+        'calendarFrom.AddDays(count)'
+        in method
+    )
+
+    assert (
+        'iterator.GetNextSession('
+        in method
+    )
+
+    assert 'if (!advanced)' in method
+
+    assert (
+        'Trace("CALENDAR_ADVANCE_FALSE");'
+        in method
+    )
+
+    # Native session end must not choose the next query.
+    assert (
+        'query = end.AddTicks(1)'
+        not in method
+    )
+
+    # No provider/network fallback or execution path.
+    for forbidden in (
+        'LookupPolicies.Provider',
+        'Connection.Connect(',
+        'CreateOrder(',
+        '.Submit(',
+    ):
+        assert forbidden not in method
+
+
+
+def test_historical_exporter_characterizes_raw_timestamp_domain_without_conversion():
+    text = SOURCE.decode()
+
+    assert (
+        'CharacterizeRawBarTimestamps('
+        in text
+    )
+
+    assert (
+        '"RAW_DATETIME_NO_TIMEZONE_INTERPRETATION"'
+        in text
+    )
+
+    for required in (
+        'utc_count = utc',
+        'unspecified_count = unspecified',
+        'local_count = local',
+        'kind_transition_count = transitions',
+        'duplicate_count = duplicates',
+        'decreasing_count = decreasing',
+        'minute_misalignment_count =',
+        'raw_date_buckets =',
+        'conversion_performed = false',
+        'timestamp_conversion = false',
+        'bars_mutation = false',
+        '"BAR_TIMESTAMP_DOMAIN_CHARACTERIZED"',
+    ):
+        assert required in text
+
+    # Diagnostic characterization must not reinterpret stored bar time.
+    method_start = text.index(
+        'private object CharacterizeRawBarTimestamps('
+    )
+
+    method_end = text.index(
+        'private bool BarLabelFitsUtcSessionTicks(',
+        method_start,
+    )
+
+    method = text[method_start:method_end]
+
+    for forbidden in (
+        'DateTime.SpecifyKind',
+        'ToUniversalTime(',
+        'ToLocalTime(',
+        'TimeZoneInfo.ConvertTime',
+        'DateTimeOffset',
+    ):
+        assert forbidden not in method
+
+    # Existing fail-closed admission remains in place.
+    # Raw characterization itself performs no conversion.
+    # Publication admission now requires snapshot-level
+    # UTC-clock attestation before guarded Kind normalization.
+    assert '"BAR_CLOCK_UTC_ATTESTATION"' in text
+    assert 'if (!rawClockUtcAttested)' in text
+    assert '"BAR_CLOCK_UTC_ATTESTED"' in text
+    assert '"BAR_UTC_NORMALIZATION"' in text
+    assert 'NormalizeHistoricalBarClockToUtc(' in text
+
+
+
+def test_historical_exporter_records_bounded_raw_gap_transitions_without_conversion():
+    text = SOURCE.decode()
+
+    method_start = text.index(
+        'private object CharacterizeRawBarTimestamps('
+    )
+
+    method_end = text.index(
+        'private bool BarLabelFitsUtcSessionTicks(',
+        method_start,
+    )
+
+    method = text[method_start:method_end]
+
+    for required in (
+        'int gapTransitions = 0;',
+        'int firstGapTransitionIndex = -1;',
+        'var gapRows = new List<object>();',
+        'deltaTicks >',
+        'TimeSpan.TicksPerMinute',
+        'gapTransitions > 32',
+        'previous_raw_timestamp =',
+        'current_raw_timestamp =',
+        'delta_ticks =',
+        'whole_delta_minutes =',
+        'missing_whole_minutes =',
+        'gap_transition_count =',
+        'first_gap_transition_index =',
+        'gap_rows =',
+    ):
+        assert required in method
+
+    for forbidden in (
+        'DateTime.SpecifyKind',
+        'ToUniversalTime(',
+        'ToLocalTime(',
+        'TimeZoneInfo.ConvertTime',
+        'DateTimeOffset',
+    ):
+        assert forbidden not in method
+
+    # Admission remains fail-closed. Unspecified Kind is
+    # normalized only after snapshot-level UTC-clock attestation.
+    assert 'stage =' in text
+    assert '"BAR_UTC_NORMALIZATION"' in text
+    assert 'NormalizeHistoricalBarClockToUtc(' in text
+    assert 'rawClockUtcAttested' in text
+
+
+
+def test_historical_exporter_normalizes_unspecified_kind_only_after_utc_clock_attestation():
+    text = SOURCE.decode()
+
+    attest_start = text.index(
+        'private bool RawHistoryClockAttestsAsUtc('
+    )
+
+    normalize_start = text.index(
+        'private static DateTime NormalizeHistoricalBarClockToUtc(',
+        attest_start,
+    )
+
+    directory_start = text.index(
+        'private string DirectoryIdentity()',
+        normalize_start,
+    )
+
+    attest = text[
+        attest_start:normalize_start
+    ]
+
+    normalize = text[
+        normalize_start:directory_start
+    ]
+
+    for required in (
+        'bars.Count != returned',
+        'DateTimeKind requiredKind',
+        'raw.Kind != requiredKind',
+        'raw.Ticks',
+        'TimeSpan.TicksPerMinute',
+        'BarLabelFitsUtcSessionTicks(',
+        'GapFitsUtcSessionTicks(',
+        'calendarProofIntervals.Count == 0',
+    ):
+        assert required in attest
+
+    # Raw-clock attestation itself performs no relabeling
+    # and no timezone conversion.
+    for forbidden in (
+        'DateTime.SpecifyKind',
+        'ToUniversalTime(',
+        'ToLocalTime(',
+        'TimeZoneInfo.ConvertTime',
+        'DateTimeOffset',
+    ):
+        assert forbidden not in attest
+
+    for required in (
+        'value.Kind',
+        'DateTimeKind.Utc',
+        '!attested',
+        'DateTimeKind.Unspecified',
+        'DateTime.SpecifyKind(',
+        'normalized.Ticks',
+        'value.Ticks',
+    ):
+        assert required in normalize
+
+    for forbidden in (
+        'ToUniversalTime(',
+        'ToLocalTime(',
+        'TimeZoneInfo.ConvertTime',
+        'DateTimeOffset',
+    ):
+        assert forbidden not in normalize
+
+    assert (
+        'raw_clock_utc_attested = rawClockUtcAttested'
+        in text
+    )
+
+    assert (
+        'RawHistoryClockAttestsAsUtc('
+        in text
+    )
+
+    assert (
+        '"BAR_CLOCK_UTC_ATTESTATION"'
+        in text
+    )
+
+    assert (
+        '"BAR_CLOCK_UTC_ATTESTED"'
+        in text
+    )
+
+    assert (
+        '"BAR_UTC_NORMALIZATION"'
+        in text
+    )
+
+    assert (
+        'bar_time_kind = normalizedTime.Kind.ToString()'
+        in text
+    )
+
+    assert (
+        'runtime_admission = false'
+        in text
+    )
+
+
 def test_cli_bundle_validation_and_source_pin():
     h, rows = native_shape()
     raw, seal = pack(h, rows)

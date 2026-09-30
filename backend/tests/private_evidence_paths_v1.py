@@ -98,7 +98,9 @@ def private_runtime_manifest(canonical_manifest):
     if resolved == original:
         return canonical
     root = Path(subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"], text=True
+        ["git", "rev-parse", "--show-toplevel"],
+        text=True,
+        stderr=subprocess.PIPE,
     ).strip()).resolve()
     private = root / ".arms-dev" / "private-manifests"
     payload = (json.dumps(resolved, indent=2, allow_nan=False) + "\n").encode("utf-8")

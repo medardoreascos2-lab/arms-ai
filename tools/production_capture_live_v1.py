@@ -51,7 +51,12 @@ SOURCES = (
 
 
 def head():
-    return subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    return subprocess.check_output(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=ROOT,
+        text=True,
+        stderr=subprocess.PIPE,
+    ).strip()
 
 
 def source_pins():

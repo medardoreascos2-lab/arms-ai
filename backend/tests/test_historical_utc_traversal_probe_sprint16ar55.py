@@ -477,13 +477,23 @@ def test_static_no_execution_conversion_or_exporter_surface():
 
 
 def test_protected_existing_sources_equal_expected_head():
-    names = ['ArmsHistoricalBootstrapV1.cs', 'ArmsReadOnlyMarketV1.cs', 'ArmsSessionTimestampNativeBridgeV1.cs',
+    # R55 continues to freeze the pre-existing diagnostic/runtime sources
+    # that are outside the later POST-T5 historical-bootstrap repair.
+    #
+    # ArmsHistoricalBootstrapV1.cs and native_historical_bootstrap_v1.py
+    # are intentionally excluded here because they are the explicit repair
+    # targets and are independently source-pinned by Sprint16A tests.
+    names = ['ArmsReadOnlyMarketV1.cs', 'ArmsSessionTimestampNativeBridgeV1.cs',
              'ArmsSessionTimestampLifecycleV1.cs', 'ArmsSessionTimestampNativeContextV1.cs',
              'SessionIteratorQueryDomainAdapterV1.cs', 'SessionIteratorQueryDomainNativeComparisonV1.cs',
              'ArmsSessionIteratorQueryDomainRepairProbeV1.cs']
-    paths = ['integrations/ninjatrader/' + name for name in names] + ['backend/market_data/native_historical_bootstrap_v1.py']
+    paths = ['integrations/ninjatrader/' + name for name in names]
     for path in paths:
-        baseline = subprocess.check_output(['git', 'show', 'c5ae6b3386111048f5b3224f3d2a512665f011a0:' + path], cwd=ROOT)
+        baseline = subprocess.check_output(
+            ['git', 'show', 'c5ae6b3386111048f5b3224f3d2a512665f011a0:' + path],
+            cwd=ROOT,
+            stderr=subprocess.PIPE,
+        )
         assert (ROOT / path).read_bytes().replace(b'\r\n', b'\n') == baseline.replace(b'\r\n', b'\n')
 
 

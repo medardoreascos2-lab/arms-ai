@@ -1380,6 +1380,13 @@
       "reason": "portfolio_manager_v2; trade_journal_v2; trade_lifecycle_service_v2; ACCOUNT_OBSERVATIONAL; no direct market-data ingestion, provider query or current-quote projection."
     },
     {
+      "path": "/api/v3/dashboard/sim-native-runtime",
+      "methods": [
+        "GET"
+      ],
+      "reason": "backend.services.sim_native_dashboard_reader_v3.SimNativeDashboardReaderV3; GLOBAL_OBSERVATIONAL SIM_NATIVE heartbeat/status projection; no direct market-data ingestion, provider query or current-quote projection."
+    },
+    {
       "path": "/docs",
       "methods": [
         "GET",

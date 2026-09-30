@@ -34,6 +34,18 @@ namespace NinjaTrader.NinjaScript.Indicators
         private DateTime? calendarQuery, lastCalendarQuery, sessionBegin, sessionEnd;
         private DateTime? lastSessionBegin, lastSessionEnd;
         private string calendarAdvanceResult = "NOT_CALLED", boundsRead = "NONE";
+        private object rawTimestampSummary;
+        private bool rawClockUtcAttested;
+
+        private sealed class CalendarProofInterval
+        {
+            public DateTime Begin;
+            public DateTime End;
+        }
+
+        private readonly List<CalendarProofInterval>
+            calendarProofIntervals =
+                new List<CalendarProofInterval>();
 
         [NinjaScriptProperty]
         [Display(Name = "Capture enabled", Order = 1, GroupName = "ARMS historical only")]
@@ -201,6 +213,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 last_successful_session_end = DiagnosticTime(lastSessionEnd),
                 last_successful_session_end_kind = DiagnosticKind(lastSessionEnd),
                 requested_from_kind = from.Kind.ToString(), requested_through_kind = through.Kind.ToString(),
+                raw_timestamp_summary = rawTimestampSummary,
+                raw_clock_utc_attested = rawClockUtcAttested,
                 expected_trading_hours = "CME US Index Futures ETH", expected_template_timezone = "Central Standard Time",
                 required_application_timezone = "UTC" }));
         }
@@ -211,60 +225,622 @@ namespace NinjaTrader.NinjaScript.Indicators
         private static string DiagnosticKind(DateTime? value)
         { return value.HasValue ? value.Value.Kind.ToString() : "NONE"; }
 
-        private List<object> CalendarIntervals(Bars bars, DateTime calendarFrom, DateTime calendarThrough)
+        private List<object> CalendarIntervals(
+            Bars bars,
+            DateTime calendarFrom,
+            DateTime calendarThrough)
         {
             var intervals = new List<object>();
+            calendarProofIntervals.Clear();
+
             stage = "CALENDAR_ITERATOR_CREATE_EXCEPTION";
-            var iterator = new SessionIterator(bars); // Uses the returned Bars.TradingHours.
+            var iterator = new SessionIterator(bars);
+
             stage = "CALENDAR_ITERATOR_CREATED";
             Trace("CALENDAR_ITERATOR_CREATED");
-            DateTime query = calendarFrom, lastEnd = DateTime.MinValue;
-            for (int count = 0; count < 64; count++)
+
+            // Fixed, bounded UTC date schedule.
+            //
+            // Native session bounds never choose the next query.
+            // GetNextSession(false) means that scheduled UTC date
+            // returned no session. It does not authorize retry,
+            // fallback, inference, or terminal failure.
+            stage = "CALENDAR_SCHEDULE";
+
+            if (
+                calendarFrom.Kind != DateTimeKind.Utc ||
+                calendarThrough.Kind != DateTimeKind.Utc ||
+                calendarFrom.TimeOfDay != TimeSpan.Zero ||
+                calendarThrough.TimeOfDay != TimeSpan.Zero ||
+                calendarFrom > calendarThrough)
+                throw new InvalidOperationException();
+
+            int scheduledDays =
+                (calendarThrough - calendarFrom).Days;
+
+            // Configured request <= 14 days, plus the reviewed
+            // 2-day lookback and 8-day lookahead.
+            // Inclusive schedule therefore contains at most 25 dates.
+            if (scheduledDays < 0 || scheduledDays > 24)
+                throw new InvalidOperationException();
+
+            DateTime lastEnd = DateTime.MinValue;
+
+            for (
+                int count = 0;
+                count <= scheduledDays;
+                count++)
             {
-                calendarIteration = count; calendarQuery = query;
-                sessionBegin = sessionEnd = null; boundsRead = "NONE";
+                calendarIteration = count;
+
+                DateTime query =
+                    calendarFrom.AddDays(count);
+
+                calendarQuery = query;
+                sessionBegin = null;
+                sessionEnd = null;
+                boundsRead = "NONE";
                 calendarAdvanceResult = "NOT_RETURNED";
+
                 stage = "CALENDAR_QUERY_BEGIN";
-                Trace("CALENDAR_QUERY_BEGIN"); // Persist exact input before invoking native code.
+                Trace("CALENDAR_QUERY_BEGIN");
+
                 stage = "CALENDAR_ADVANCE_EXCEPTION";
-                bool advanced = iterator.GetNextSession(query, true);
-                calendarAdvanceResult = advanced ? "TRUE" : "FALSE";
+
+                bool advanced =
+                    iterator.GetNextSession(
+                        query,
+                        true);
+
+                calendarAdvanceResult =
+                    advanced ? "TRUE" : "FALSE";
+
                 if (!advanced)
                 {
                     stage = "CALENDAR_ADVANCE_FALSE";
-                    throw new InvalidOperationException(); // Same fail-closed admission as before.
+                    Trace("CALENDAR_ADVANCE_FALSE");
+                    continue;
                 }
+
                 stage = "CALENDAR_ADVANCE_SUCCESS";
                 Trace("CALENDAR_ADVANCE_SUCCESS");
-                stage = "CALENDAR_SESSION_BOUNDS_READ_EXCEPTION";
-                boundsRead = "BEGIN"; var begin = iterator.ActualSessionBegin; sessionBegin = begin;
-                boundsRead = "END"; var end = iterator.ActualSessionEnd; sessionEnd = end;
+
+                stage =
+                    "CALENDAR_SESSION_BOUNDS_READ_EXCEPTION";
+
+                boundsRead = "BEGIN";
+                DateTime begin =
+                    iterator.ActualSessionBegin;
+
+                sessionBegin = begin;
+
+                boundsRead = "END";
+                DateTime end =
+                    iterator.ActualSessionEnd;
+
+                sessionEnd = end;
                 boundsRead = "COMPLETE";
-                stage = "CALENDAR_SESSION_BOUNDS_READ_SUCCESS";
-                Trace("CALENDAR_SESSION_BOUNDS_READ_SUCCESS");
+
+                stage =
+                    "CALENDAR_SESSION_BOUNDS_READ_SUCCESS";
+
+                Trace(
+                    "CALENDAR_SESSION_BOUNDS_READ_SUCCESS");
+
                 stage = "CALENDAR_INTERVAL_ORDER";
-                if (begin >= end || end <= lastEnd) throw new InvalidOperationException();
-                if (begin >= calendarThrough) break;
-                stage = "CALENDAR_BEGIN_UTC_KIND"; observedTimeKind = begin.Kind.ToString();
-                var beginText = Utc(begin);
-                stage = "CALENDAR_END_UTC_KIND"; observedTimeKind = end.Kind.ToString();
-                var endText = Utc(end);
-                stage = "CALENDAR_TRADING_DAY_READ_EXCEPTION";
-                intervals.Add(new { begin = beginText, end = endText,
-                    trading_day = iterator.ActualTradingDayExchange.ToString("yyyy-MM-dd") });
-                lastCalendarQuery = query; lastSessionBegin = begin; lastSessionEnd = end;
+
+                if (begin >= end)
+                    throw new InvalidOperationException();
+
+                stage = "CALENDAR_BEGIN_UTC_KIND";
+                observedTimeKind = begin.Kind.ToString();
+                string beginText = Utc(begin);
+
+                stage = "CALENDAR_END_UTC_KIND";
+                observedTimeKind = end.Kind.ToString();
+                string endText = Utc(end);
+
+                // Same half-open coverage semantics used by
+                // independent offline certification.
+                if (
+                    end < calendarFrom ||
+                    begin >= calendarThrough)
+                {
+                    stage = "CALENDAR_OUTSIDE_COVERAGE";
+                    Trace("CALENDAR_OUTSIDE_COVERAGE");
+                    continue;
+                }
+
+                // Ambiguous overlap is rejected rather than repaired.
+                if (
+                    lastEnd != DateTime.MinValue &&
+                    begin <= lastEnd)
+                    throw new InvalidOperationException();
+
+                stage =
+                    "CALENDAR_TRADING_DAY_READ_EXCEPTION";
+
+                string tradingDay =
+                    iterator.ActualTradingDayExchange
+                        .ToString("yyyy-MM-dd");
+
+                intervals.Add(
+                    new
+                    {
+                        begin = beginText,
+                        end = endText,
+                        trading_day = tradingDay
+                    });
+
+                calendarProofIntervals.Add(
+                    new CalendarProofInterval
+                    {
+                        Begin = begin,
+                        End = end
+                    });
+
+                lastCalendarQuery = query;
+                lastSessionBegin = begin;
+                lastSessionEnd = end;
                 lastEnd = end;
-                stage = "CALENDAR_QUERY_UPDATE";
-                query = end.AddTicks(1); // Preserve the original one-tick advancement exactly.
-                calendarQuery = query;
-                Trace("CALENDAR_QUERY_ADVANCED");
-                if (query >= calendarThrough) break;
-                stage = "CALENDAR_INTERVAL_LIMIT";
-                if (count == 63) throw new InvalidOperationException();
             }
+
             stage = "CALENDAR_ITERATION_COMPLETE";
+
+            if (intervals.Count == 0)
+                throw new InvalidOperationException();
+
             Trace("CALENDAR_ITERATION_COMPLETE");
+
             return intervals;
+        }
+
+        private object CharacterizeRawBarTimestamps(
+            Bars bars,
+            int returned)
+        {
+            stage = "BAR_TIMESTAMP_DOMAIN_SCAN";
+
+            int utc = 0;
+            int unspecified = 0;
+            int local = 0;
+
+            int transitions = 0;
+            int duplicates = 0;
+            int decreasing = 0;
+            int minuteMisalignment = 0;
+            int gapTransitions = 0;
+            int firstGapTransitionIndex = -1;
+
+            var gapRows = new List<object>();
+
+            int firstUtcIndex = -1;
+            int firstUnspecifiedIndex = -1;
+            int firstLocalIndex = -1;
+            int firstTransitionIndex = -1;
+            int firstDuplicateIndex = -1;
+            int firstDecreaseIndex = -1;
+            int firstMisalignmentIndex = -1;
+
+            DateTime first = DateTime.MinValue;
+            DateTime last = DateTime.MinValue;
+            DateTime previous = DateTime.MinValue;
+
+            var buckets =
+                new SortedDictionary<string, int>(
+                    StringComparer.Ordinal);
+
+            for (int i = 0; i < returned; i++)
+            {
+                currentIndex = i;
+
+                DateTime current =
+                    bars.GetTime(i);
+
+                if (i == 0)
+                    first = current;
+
+                last = current;
+
+                if (current.Kind == DateTimeKind.Utc)
+                {
+                    utc++;
+
+                    if (firstUtcIndex < 0)
+                        firstUtcIndex = i;
+                }
+                else if (
+                    current.Kind ==
+                    DateTimeKind.Unspecified)
+                {
+                    unspecified++;
+
+                    if (firstUnspecifiedIndex < 0)
+                        firstUnspecifiedIndex = i;
+                }
+                else
+                {
+                    local++;
+
+                    if (firstLocalIndex < 0)
+                        firstLocalIndex = i;
+                }
+
+                if (i > 0)
+                {
+                    long deltaTicks =
+                        current.Ticks - previous.Ticks;
+
+                    if (
+                        deltaTicks >
+                        TimeSpan.TicksPerMinute)
+                    {
+                        gapTransitions++;
+
+                        if (gapTransitions > 32)
+                            throw new InvalidOperationException();
+
+                        if (firstGapTransitionIndex < 0)
+                            firstGapTransitionIndex = i;
+
+                        gapRows.Add(
+                            new
+                            {
+                                previous_index = i - 1,
+                                index = i,
+
+                                previous_raw_timestamp =
+                                    previous.ToString(
+                                        "o",
+                                        CultureInfo.InvariantCulture),
+
+                                previous_raw_kind =
+                                    previous.Kind.ToString(),
+
+                                previous_raw_ticks =
+                                    previous.Ticks,
+
+                                current_raw_timestamp =
+                                    current.ToString(
+                                        "o",
+                                        CultureInfo.InvariantCulture),
+
+                                current_raw_kind =
+                                    current.Kind.ToString(),
+
+                                current_raw_ticks =
+                                    current.Ticks,
+
+                                delta_ticks =
+                                    deltaTicks,
+
+                                whole_delta_minutes =
+                                    deltaTicks /
+                                    TimeSpan.TicksPerMinute,
+
+                                missing_whole_minutes =
+                                    (
+                                        deltaTicks /
+                                        TimeSpan.TicksPerMinute
+                                    ) - 1
+                            });
+                    }
+
+                    if (current.Kind != previous.Kind)
+                    {
+                        transitions++;
+
+                        if (firstTransitionIndex < 0)
+                            firstTransitionIndex = i;
+                    }
+
+                    if (current.Ticks == previous.Ticks)
+                    {
+                        duplicates++;
+
+                        if (firstDuplicateIndex < 0)
+                            firstDuplicateIndex = i;
+                    }
+                    else if (
+                        current.Ticks < previous.Ticks)
+                    {
+                        decreasing++;
+
+                        if (firstDecreaseIndex < 0)
+                            firstDecreaseIndex = i;
+                    }
+                }
+
+                if (
+                    current.Ticks %
+                    TimeSpan.TicksPerMinute != 0)
+                {
+                    minuteMisalignment++;
+
+                    if (firstMisalignmentIndex < 0)
+                        firstMisalignmentIndex = i;
+                }
+
+                string rawDate =
+                    current.ToString(
+                        "yyyy-MM-dd",
+                        CultureInfo.InvariantCulture);
+
+                if (!buckets.ContainsKey(rawDate))
+                {
+                    if (buckets.Count >= 32)
+                        throw new InvalidOperationException();
+
+                    buckets.Add(rawDate, 0);
+                }
+
+                buckets[rawDate]++;
+
+                previous = current;
+            }
+
+            if (bars.Count != returned)
+                throw new InvalidOperationException();
+
+            var bucketRows = new List<object>();
+
+            foreach (var item in buckets)
+            {
+                bucketRows.Add(
+                    new
+                    {
+                        raw_date = item.Key,
+                        count = item.Value
+                    });
+            }
+
+            currentIndex = -1;
+
+            return new
+            {
+                interpretation =
+                    "RAW_DATETIME_NO_TIMEZONE_INTERPRETATION",
+
+                conversion_performed = false,
+
+                returned_rows = returned,
+
+                first_raw_timestamp =
+                    first.ToString(
+                        "o",
+                        CultureInfo.InvariantCulture),
+
+                first_raw_kind =
+                    first.Kind.ToString(),
+
+                first_raw_ticks =
+                    first.Ticks,
+
+                last_raw_timestamp =
+                    last.ToString(
+                        "o",
+                        CultureInfo.InvariantCulture),
+
+                last_raw_kind =
+                    last.Kind.ToString(),
+
+                last_raw_ticks =
+                    last.Ticks,
+
+                utc_count = utc,
+                unspecified_count = unspecified,
+                local_count = local,
+
+                first_utc_index = firstUtcIndex,
+                first_unspecified_index =
+                    firstUnspecifiedIndex,
+                first_local_index = firstLocalIndex,
+
+                kind_transition_count = transitions,
+                first_kind_transition_index =
+                    firstTransitionIndex,
+
+                duplicate_count = duplicates,
+                first_duplicate_index =
+                    firstDuplicateIndex,
+
+                decreasing_count = decreasing,
+                first_decrease_index =
+                    firstDecreaseIndex,
+
+                minute_misalignment_count =
+                    minuteMisalignment,
+
+                first_minute_misalignment_index =
+                    firstMisalignmentIndex,
+
+                gap_transition_count =
+                    gapTransitions,
+
+                first_gap_transition_index =
+                    firstGapTransitionIndex,
+
+                gap_rows =
+                    gapRows,
+
+                raw_date_bucket_count =
+                    bucketRows.Count,
+
+                raw_date_buckets =
+                    bucketRows,
+
+                timestamp_conversion = false,
+                bars_mutation = false
+            };
+        }
+
+        private bool BarLabelFitsUtcSessionTicks(
+            long labelTicks)
+        {
+            long openingMinuteTicks =
+                labelTicks - TimeSpan.TicksPerMinute;
+
+            foreach (
+                CalendarProofInterval interval
+                in calendarProofIntervals)
+            {
+                if (
+                    interval.Begin.Ticks
+                        <= openingMinuteTicks
+                    && labelTicks
+                        <= interval.End.Ticks)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool GapFitsUtcSessionTicks(
+            long previousTicks,
+            long currentTicks)
+        {
+            long minute =
+                TimeSpan.TicksPerMinute;
+
+            if (
+                currentTicks
+                == previousTicks + minute)
+                return true;
+
+            if (
+                currentTicks
+                <= previousTicks + minute)
+                return false;
+
+            if (
+                !BarLabelFitsUtcSessionTicks(
+                    currentTicks))
+                return false;
+
+            long followingOpeningTicks =
+                currentTicks - minute;
+
+            foreach (
+                CalendarProofInterval interval
+                in calendarProofIntervals)
+            {
+                // No missing minute may intersect
+                // a verified open session.
+                if (
+                    previousTicks
+                        < interval.End.Ticks
+                    && followingOpeningTicks
+                        > interval.Begin.Ticks)
+                    return false;
+            }
+
+            return true;
+        }
+
+        private bool RawHistoryClockAttestsAsUtc(
+            Bars bars,
+            int returned)
+        {
+            if (
+                bars == null
+                || returned < 3
+                || bars.Count != returned
+                || calendarProofIntervals.Count == 0)
+                return false;
+
+            DateTimeKind requiredKind =
+                bars.GetTime(1).Kind;
+
+            if (
+                requiredKind != DateTimeKind.Utc
+                && requiredKind
+                    != DateTimeKind.Unspecified)
+                return false;
+
+            long previousTicks = 0;
+
+            // Exactly the rows eligible for publication.
+            // Boundary first/last rows remain excluded.
+            for (
+                int i = 1;
+                i < returned - 1;
+                i++)
+            {
+                DateTime raw =
+                    bars.GetTime(i);
+
+                // Mixed clock domains inside the publishable
+                // snapshot are not admitted.
+                if (
+                    raw.Kind != requiredKind)
+                    return false;
+
+                long ticks =
+                    raw.Ticks;
+
+                if (
+                    ticks
+                    % TimeSpan.TicksPerMinute
+                    != 0)
+                    return false;
+
+                if (
+                    !BarLabelFitsUtcSessionTicks(
+                        ticks))
+                    return false;
+
+                if (i > 1)
+                {
+                    if (
+                        ticks <= previousTicks)
+                        return false;
+
+                    if (
+                        !GapFitsUtcSessionTicks(
+                            previousTicks,
+                            ticks))
+                        return false;
+                }
+
+                previousTicks =
+                    ticks;
+            }
+
+            if (
+                bars.Count != returned)
+                return false;
+
+            return true;
+        }
+
+        private static DateTime NormalizeHistoricalBarClockToUtc(
+            DateTime value,
+            bool attested)
+        {
+            if (
+                value.Kind
+                == DateTimeKind.Utc)
+                return value;
+
+            if (
+                !attested
+                || value.Kind
+                    != DateTimeKind.Unspecified)
+                throw new InvalidOperationException();
+
+            // Kind normalization only:
+            // clock fields and ticks must not move.
+            DateTime normalized =
+                DateTime.SpecifyKind(
+                    value,
+                    DateTimeKind.Utc);
+
+            if (
+                normalized.Ticks
+                != value.Ticks)
+                throw new InvalidOperationException();
+
+            return normalized;
         }
 
         private string DirectoryIdentity()
@@ -323,7 +899,9 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private static string Utc(DateTime value)
         {
-            // No relabeling of Unspecified/local times to pretend native UTC proof.
+            // Only UTC-kind values reach this formatter.
+            // Unspecified historical bars require prior snapshot-level
+            // raw-clock attestation and tick-preserving normalization.
             if (value.Kind != DateTimeKind.Utc) throw new InvalidOperationException();
             return value.ToString("o");
         }
@@ -381,6 +959,32 @@ namespace NinjaTrader.NinjaScript.Indicators
                     var calendarFrom = DateTime.SpecifyKind(from.AddDays(-2), DateTimeKind.Utc);
                     var calendarThrough = DateTime.SpecifyKind(through.AddDays(8), DateTimeKind.Utc);
                     var intervals = CalendarIntervals(bars, calendarFrom, calendarThrough);
+
+                    rawTimestampSummary =
+                        CharacterizeRawBarTimestamps(
+                            bars,
+                            returned);
+
+                    stage =
+                        "BAR_TIMESTAMP_DOMAIN_CHARACTERIZED";
+
+                    Trace(
+                        "BAR_TIMESTAMP_DOMAIN_CHARACTERIZED");
+
+                    stage =
+                        "BAR_CLOCK_UTC_ATTESTATION";
+
+                    rawClockUtcAttested =
+                        RawHistoryClockAttestsAsUtc(
+                            bars,
+                            returned);
+
+                    if (!rawClockUtcAttested)
+                        throw new InvalidOperationException();
+
+                    Trace(
+                        "BAR_CLOCK_UTC_ATTESTED");
+
                     stage = "HEADER_SERIALIZATION";
                     Trace("SERIALIZATION_STARTED");
                     lines.Add(serializer.Serialize(new {
@@ -411,13 +1015,24 @@ namespace NinjaTrader.NinjaScript.Indicators
                         if (!Price(open) || !Price(high) || !Price(low) || !Price(close) || volume < 0
                             || low > Math.Min(open, close) || high < Math.Max(open, close))
                             throw new InvalidOperationException();
-                        stage = "BAR_UTC_KIND"; observedTimeKind = time.Kind.ToString();
-                        var barTime = Utc(time);
+                        stage =
+                            "BAR_UTC_NORMALIZATION";
+
+                        observedTimeKind =
+                            time.Kind.ToString();
+
+                        var normalizedTime =
+                            NormalizeHistoricalBarClockToUtc(
+                                time,
+                                rawClockUtcAttested);
+
+                        var barTime =
+                            Utc(normalizedTime);
                         stage = "BAR_SERIALIZATION";
                         lines.Add(serializer.Serialize(new { schema = "arms.nt.historical-bootstrap.bar.v1", dataset = dataset,
                             index = i - 1, source_index = i, instrument = "NQ", contract = "NQ DEC26", bars_type = "Minute",
                             bars_value = 1, template = hours.Name, classification = "HISTORICAL", realtime = false,
-                            bar_time = barTime, bar_time_kind = time.Kind.ToString(), open = open, high = high,
+                            bar_time = barTime, bar_time_kind = normalizedTime.Kind.ToString(), open = open, high = high,
                             low = low, close = close, volume = volume }));
                         previous = time;
                     }

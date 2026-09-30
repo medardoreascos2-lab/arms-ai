@@ -195,7 +195,7 @@ def prepare():
                 "certification": "RESEARCH_GRADE_PROVENANCE_AND_EXECUTION_ELIGIBILITY",
                 "limitations": "Current calendar snapshot is not export-time archive. 59 anomalies directly reproduced; remainder cohort-inferred. Missing open minutes are not filled."}
     write(EVIDENCE/"certification.json", evidence)
-    declaration = {"frozen_at_utc": datetime.now(UTC), "head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+    declaration = {"frozen_at_utc": datetime.now(UTC), "head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.PIPE).strip(),
                    "phase": "BEFORE_ANY_FRESH_PERFORMANCE", "boundaries": [90, 80, 80.5], "quality": 85,
                    "parameters": {"ema": 10, "stop_loss": 30, "take_profit": 60}, "production_boundary": 90,
                    "calendar": prior["template_snapshot"], "segments": segments, "certification_sha256": digest(EVIDENCE/"certification.json"),
