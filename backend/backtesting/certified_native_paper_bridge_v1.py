@@ -19,6 +19,7 @@ from backend.market_data.certified_bootstrap_v1 import (
 )
 from backend.market_data.current_candle_authority_v1 import (
     CurrentMarketEventV1,
+    _certify_native_same_callback_closed,
     instant,
 )
 from backend.market_data.fresh_native_adapter_v1 import (
@@ -348,6 +349,8 @@ class CertifiedNativePaperBridgeV1:
                     "ABSOLUTE_RECENCY_UNPROVEN"
                 )
 
+            # The adapter queues this delivery only after the profile has
+            # verified the CLOSED -> FORMING same-callback timing pair.
             event = CurrentMarketEventV1(
                 provider=(
                     self.service
@@ -382,6 +385,7 @@ class CertifiedNativePaperBridgeV1:
                 close=record["close"],
                 volume=record["volume"],
             )
+            event = _certify_native_same_callback_closed(event)
 
             events.append(
                 (

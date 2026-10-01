@@ -61,12 +61,12 @@
       "introduced_by": "backend/tests/fresh_native_adapter_sprint15y.json",
       "calls": [
         {
-          "line": 137,
+          "line": 159,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         },
         {
-          "line": 224,
+          "line": 622,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         }
@@ -190,11 +190,22 @@
       ]
     },
     {
+      "path": "backend/backtesting/certified_current_paper_authority_factory_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "line": 77,
+          "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
       "path": "backend/backtesting/current_paper_runtime_v1.py",
       "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
       "calls": [
         {
-          "line": 151,
+          "line": 421,
           "call": "g.clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
@@ -455,17 +466,17 @@
       "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
       "calls": [
         {
-          "line": 167,
+          "line": 182,
           "call": "self.clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
-          "line": 190,
+          "line": 205,
           "call": "self.clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
-          "line": 224,
+          "line": 243,
           "call": "self.clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }

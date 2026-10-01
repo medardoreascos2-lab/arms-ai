@@ -16,7 +16,8 @@ from backend.backtesting.paper_runtime_v1 import PaperRuntimeV1
 from backend.models.candle import Candle
 from backend.config.api_settings import APISettings
 from backend.market_data.current_candle_authority_v1 import (
-    CurrentCandleAuthorityV1, CurrentFeedContractV1, CurrentMarketEventV1)
+    CurrentCandleAuthorityV1, CurrentFeedContractV1, CurrentMarketEventV1,
+    _certify_native_same_callback_closed)
 from backend.services.certified_market_calendar_v2 import CertifiedCalendarSnapshotV2
 from backend.services.certified_market_hours_runtime_provider_v2 import CertifiedMarketHoursRuntimeProviderV2
 from backend.services.special_hours_snapshot_v2 import CertifiedSpecialHoursSnapshotV2, CertifiedSpecialHoursWindowV2
@@ -43,6 +44,150 @@ def event(index, start=START, **changes):
     return replace(CurrentMarketEventV1("SYNTHETIC_FIXTURE", "NQ", "NQ DEC26 FIXTURE",
         "CLOSED_CANONICAL_CANDLE", opened+timedelta(minutes=1), opened+timedelta(minutes=1),
         opened, index, str(index), 10000, 10000, 10000, 10000, 10), **changes)
+
+
+REAL_CLOSE = datetime(2026, 10, 1, 7, 52, tzinfo=UTC)
+REAL_EARLY = datetime.fromisoformat("2026-10-01T07:51:59.9997804+00:00")
+
+
+def _boundary_case(*, emitted=REAL_EARLY, received=None, close=REAL_CLOSE,
+                   sequence=0, event_id="native:67", **changes):
+    received = received or close + timedelta(milliseconds=10)
+    return event(0, close-timedelta(minutes=1), bar_time=close,
+                 event_time=emitted, received_at=received, sequence=sequence,
+                 event_id=event_id, open=30853.25, high=30877.5,
+                 low=30851.25, close=30865.25, volume=626, **changes)
+
+
+def _boundary_gate(close=REAL_CLOSE):
+    g, clock = gate(close-timedelta(minutes=2), label="CLOSE")
+    clock[0] = close + timedelta(milliseconds=11)
+    g.connection(True)
+    return g, clock
+
+
+@pytest.mark.parametrize("offset_ms", [0, 203])
+def test_closed_at_or_after_boundary_needs_no_native_proof(offset_ms):
+    g, clock = _boundary_gate()
+    clock[0] = REAL_CLOSE + timedelta(milliseconds=offset_ms+10)
+    e = _boundary_case(emitted=REAL_CLOSE+timedelta(milliseconds=offset_ms),
+                       received=clock[0])
+    row = g.admit(e)
+    assert e.closed_boundary_proof is None
+    assert row.event_time == e.event_time
+    assert row.available_at == REAL_CLOSE
+
+
+def test_real_preboundary_close_requires_native_proof_and_preserves_source_time():
+    g, _ = _boundary_gate()
+    with pytest.raises(ValueError, match="STALE_DATA"):
+        g.admit(_boundary_case())
+    assert g.closed_count == 0
+
+    g, _ = _boundary_gate()
+    source = _boundary_case()
+    certified = _certify_native_same_callback_closed(source)
+    row = g.admit(certified)
+    assert source.closed_boundary_proof is None
+    assert certified.event_time == row.event_time == REAL_EARLY
+    assert row.received_at > row.available_at == REAL_CLOSE
+    assert g.maximum_age == 30
+    assert g.closed_count == 1
+
+
+def test_genuinely_early_unproven_close_is_rejected():
+    g, _ = _boundary_gate()
+    with pytest.raises(ValueError, match="STALE_DATA"):
+        g.admit(_boundary_case(emitted=REAL_CLOSE-timedelta(seconds=1)))
+    assert g.closed_count == 0
+
+
+def test_certified_receipt_at_exact_close_boundary_is_admitted():
+    g, _ = _boundary_gate()
+    event_at_boundary = _certify_native_same_callback_closed(
+        _boundary_case(received=REAL_CLOSE))
+    assert g.admit(event_at_boundary).received_at == REAL_CLOSE
+
+
+@pytest.mark.parametrize("case,reason", [
+    ("receipt_before", "STALE_DATA"),
+    ("forming", "INVALID_CLOSED_PROVENANCE"),
+    ("raw", "INVALID_CLOSED_PROVENANCE"),
+    ("forged", "INVALID_CLOSED_PROVENANCE"),
+    ("stale_source", "TIME_SYNC_INVALID"),
+    ("stale_receipt", "TIME_SYNC_INVALID"),
+    ("future", "TIME_SYNC_INVALID"),
+    ("invalid_ohlcv", "INVALID_CANDLE"),
+    ("contract_window", "UNKNOWN_CONTRACT"),
+    ("market_closed", "MARKET_HOURS_UNCERTIFIED_OR_CLOSED"),
+])
+def test_native_closed_proof_never_bypasses_other_gates(case, reason):
+    close = (datetime(2026, 10, 4, 15, tzinfo=UTC)
+             if case == "market_closed" else REAL_CLOSE)
+    g, clock = _boundary_gate(close)
+    e = _certify_native_same_callback_closed(_boundary_case(
+        close=close, emitted=close-timedelta(microseconds=220)))
+    if case == "receipt_before":
+        e = replace(e, received_at=close-timedelta(microseconds=100))
+    elif case in ("forming", "raw"):
+        e = replace(e, kind="FORMING_CANDLE" if case == "forming" else "RAW_EVENT")
+    elif case == "forged":
+        e = replace(e, closed_boundary_proof="CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED")
+    elif case == "stale_source":
+        e = replace(e, event_time=close-timedelta(seconds=31))
+    elif case == "stale_receipt":
+        e = replace(e, received_at=close+timedelta(seconds=1))
+        clock[0] = close+timedelta(seconds=32)
+    elif case == "future":
+        e = replace(e, event_time=close+timedelta(seconds=1))
+    elif case == "invalid_ohlcv":
+        e = replace(e, low=e.high+0.25)
+    elif case == "contract_window":
+        g = CurrentCandleAuthorityV1(
+            contract=replace(g.contract, valid_until=close-timedelta(microseconds=1)),
+            market_hours=g.market_hours, maximum_age_seconds=30, clock=lambda: clock[0])
+        g.connection(True)
+    with pytest.raises(ValueError, match=reason):
+        g.admit(e)
+    assert g.closed_count == 0
+    assert "RECOVERY_REQUIRED" in g.reasons()
+
+
+@pytest.mark.parametrize("repeat", range(5))
+def test_real_seq53_then_seq67_requires_proof_and_preserves_continuity(repeat):
+    first_close = REAL_CLOSE-timedelta(minutes=1)
+    first = _boundary_case(close=first_close,
+        emitted=datetime.fromisoformat("2026-10-01T07:51:00.2030694+00:00"),
+        received=first_close+timedelta(milliseconds=210),
+        sequence=0, event_id="native:53")
+    second = _certify_native_same_callback_closed(_boundary_case(sequence=1))
+    g, clock = _boundary_gate(first_close)
+    clock[0] = first.received_at
+    assert g.admit(first).event_id == "native:53"
+    clock[0] = second.received_at+timedelta(milliseconds=1)
+    assert g.admit(second).event_id == "native:67"
+    assert g.closed_count == 2 and g.last_closed == REAL_CLOSE
+    assert g.admit(replace(second, received_at=second.received_at+timedelta(milliseconds=1))) is None
+    assert g.duplicate_count == 1
+
+
+@pytest.mark.parametrize("case,reason", [
+    ("sequence_gap", "OUT_OF_ORDER"),
+    ("duplicate_conflict", "DUPLICATE_CONFLICT"),
+])
+def test_native_closed_proof_keeps_order_and_duplicate_rules(case, reason):
+    g, clock = _boundary_gate()
+    first = _certify_native_same_callback_closed(_boundary_case())
+    assert g.admit(first) is not None
+    clock[0] += timedelta(minutes=1)
+    next_close = REAL_CLOSE+timedelta(minutes=1)
+    second = _certify_native_same_callback_closed(_boundary_case(
+        close=next_close, emitted=next_close-timedelta(microseconds=220),
+        sequence=2 if case == "sequence_gap" else 1,
+        event_id="native:68" if case == "sequence_gap" else first.event_id))
+    with pytest.raises(ValueError, match=reason):
+        g.admit(second)
+    assert g.closed_count == 1
 
 
 def service(tmp_path, start=START):

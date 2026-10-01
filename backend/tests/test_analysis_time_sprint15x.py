@@ -351,5 +351,29 @@ def test_clock_inventory_extension_preserves_every_prior_assessment_field():
     shifted,=[call for call in lifecycle['calls'] if call['call']=='datetime.now']
     assert shifted['line']==1792  # Seven-line post-gate admission branch.
     shifted['line']=1785
+    # Later current-PAPER clock maintenance is absent from the historical copy.
+    factory,=[row for row in review['direct_clock_dependencies']
+              if row['path']=='backend/backtesting/certified_current_paper_authority_factory_v1.py']
+    assert factory=={
+        'path':'backend/backtesting/certified_current_paper_authority_factory_v1.py',
+        'consequence':'CURRENT_MARKET_ADMISSION_AND_PROJECTION',
+        'calls':[{'line':77,'call':'clock','authority':'HOST_WALL_OR_INJECTED_CLOCK'}]}
+    review['direct_clock_dependencies'].remove(factory)
+    runtime,=[row for row in review['direct_clock_dependencies']
+              if row['path']=='backend/backtesting/current_paper_runtime_v1.py']
+    assert runtime=={
+        'path':'backend/backtesting/current_paper_runtime_v1.py',
+        'consequence':'CURRENT_MARKET_ADMISSION_AND_PROJECTION',
+        'calls':[{'line':421,'call':'g.clock','authority':'HOST_WALL_OR_INJECTED_CLOCK'}]}
+    runtime['calls'][0]['line']=151
+    candle,=[row for row in review['direct_clock_dependencies']
+             if row['path']=='backend/market_data/current_candle_authority_v1.py']
+    assert candle=={
+        'path':'backend/market_data/current_candle_authority_v1.py',
+        'consequence':'CURRENT_MARKET_ADMISSION_AND_PROJECTION',
+        'calls':[{'line':line,'call':'self.clock','authority':'HOST_WALL_OR_INJECTED_CLOCK'}
+                 for line in (182,205,243)]}
+    for call,historical_line in zip(candle['calls'],(167,190,224)):
+        call['line']=historical_line
     original=sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     assert original=='591d35ecb200cdb37cf5495d8df00262f9b284b069f06fddffe2cd39337a4d8a'

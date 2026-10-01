@@ -412,6 +412,56 @@ def test_bridge_delivers_only_certified_closed_without_auto_enable(
     )
 
 
+def test_native_handoff_attaches_closure_proof_without_changing_event_time(
+    tmp_path, monkeypatch, api_settings,
+):
+    adapter, _ = _native(tmp_path, monkeypatch)
+    service, clock = _paper(tmp_path, api_settings)
+    source = "2026-09-21T14:00:59.9997804Z"
+    adapter.live_handoff_records.append(_record(event_time=source))
+    bridge = CertifiedNativePaperBridgeV1(
+        adapter=adapter, service=service, wall_clock=lambda: clock[0])
+    delivered = []
+    original = service.ingest
+
+    def capture(event):
+        delivered.append(event)
+        return original(event)
+
+    monkeypatch.setattr(service, "ingest", capture)
+    result = bridge.poll()
+    assert result["delivered_closed"] == 1
+    assert len(delivered) == 1
+    assert delivered[0].closed_boundary_proof is not None
+    assert delivered[0].event_time.isoformat() == "2026-09-21T14:00:59.999780+00:00"
+    assert service.gate.closed_count == 1
+    assert service.get_snapshot()["paper_execution_enabled"] is False
+    runtime = service._runtime._paper.runtime
+    assert runtime.journal.trades == []
+    assert runtime.lifecycle.broker_connector_v2.get_fills() == []
+
+
+@pytest.mark.parametrize("bad_record", [
+    {"handoff": "VERIFYING_OVERLAP"},
+    {"schema": "arms.nt.market.v1"},
+    {"kind": "FORMING"},
+    {"kind": "RAW_EVENT"},
+])
+def test_bridge_never_certifies_nonhandoff_or_nonclosed_record(
+    tmp_path, monkeypatch, api_settings, bad_record,
+):
+    adapter, _ = _native(tmp_path, monkeypatch)
+    service, clock = _paper(tmp_path, api_settings)
+    adapter.live_handoff_records.append(dict(_record(), **bad_record))
+    bridge = CertifiedNativePaperBridgeV1(
+        adapter=adapter, service=service, wall_clock=lambda: clock[0])
+    with pytest.raises(ValueError, match="CERTIFIED_NATIVE_PAPER_BRIDGE_FAILED"):
+        bridge.poll()
+    assert bridge.delivered_closed == 0
+    assert service._runtime is None
+    assert "PAPER_DISABLED" in service.get_snapshot()["readiness_reasons"]
+
+
 def test_bridge_waits_for_complete_bootstrap_live_handoff(
     tmp_path,
     monkeypatch,

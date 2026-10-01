@@ -258,8 +258,78 @@ def test_runtime_and_historical_native_sources_match_reviewed_certificate():
         reviewed = Path(path)
         if path == "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs":
             reviewed = Path("backend/tests/fixtures/ArmsReadOnlyMarketV1.sprint13.cs")
+        if path == "backend/market_data/current_candle_authority_v1.py":
+            reviewed = Path("backend/tests/fixtures/current_candle_authority_v1.sprint13.py")
+        if path == "backend/backtesting/current_paper_runtime_v1.py":
+            reviewed = Path("backend/tests/fixtures/current_paper_runtime_v1.sprint13.py")
         content=reviewed.read_text(encoding="utf-8").encode()
         assert hashlib.sha256(content).hexdigest()==digest, path
+
+
+def test_current_paper_boundary_provenance_artifact_pins_offline_review_only():
+    import hashlib
+
+    artifact=json.loads(Path("backend/tests/current_paper_boundary_provenance_d4e4c.json").read_text(encoding="utf-8"))
+    assert artifact["schema"] == "arms.current-paper-boundary-provenance.d4e4c.v1"
+    assert artifact["status"] == "OFFLINE_FIX_REVIEW_PASS_LIVE_RERUN_PENDING"
+    assert artifact["baseline_head"] == "22d7010a04a507e6dd82f0780c961d0b45c93e33"
+    assert artifact["root_cause"] == "STRICT_CLOSED_BOUNDARY_TIMESTAMP_MISMATCH"
+    assert artifact["real_run_id"] == "bfa05eaa-c88e-43c9-82e6-b2a11d52ec42"
+    assert artifact["real_session"] == "23f0b820-f163-433d-94d2-1359399f70b7"
+    assert artifact["real_failing_sequence"] == 67
+    assert artifact["real_failing_bar_time"] == "2026-10-01T07:52:00.0000000Z"
+    assert artifact["real_failing_event_time"] == "2026-10-01T07:51:59.9997804Z"
+    assert artifact["real_boundary_offset_seconds"] == -0.0002196
+    assert artifact["arbitrary_time_epsilon"] == artifact["event_time_mutation"] == "NONE"
+    assert artifact["closure_proof"] == "CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED"
+    assert artifact["closure_proof_origin"] == "PRODUCTION_INTERNAL_CERTIFIED_NATIVE_HANDOFF_ONLY"
+    assert artifact["received_after_close_required"] is True
+    assert artifact["received_boundary_operator"] == ">="
+    assert set(artifact["special_path_requirements"]) == {
+        "CERTIFIED_STRUCTURAL_CLOSURE_PROVENANCE", "RECEIVED_AT_OR_AFTER_NOMINAL_CLOSE",
+        "EXISTING_FRESHNESS", "EXISTING_SEQUENCE_CONTINUITY",
+        "EXISTING_CONTRACT_WINDOW_AUTHORITY", "EXISTING_MARKET_HOURS_AUTHORITY",
+        "EXISTING_OHLCV_VALIDATION",
+    }
+    assert artifact["live_rerun"] == "PENDING"
+    for key in ("paper_auto_enable", "live_execution", "ninjatrader_account_access",
+                "ninjatrader_order_authority"):
+        assert artifact[key] is False
+    assert artifact["proof_limit"] == "In-process object identity, not cryptographic attestation"
+    assert artifact["bridge_diagnostic_inner_cause_preservation"] == "DEFERRED"
+
+    expected_paths = {
+        "backend/market_data/current_candle_authority_v1.py",
+        "backend/backtesting/certified_native_paper_bridge_v1.py",
+        "backend/tests/test_current_paper_sprint10.py",
+        "backend/tests/test_certified_native_paper_bridge_v1.py",
+    }
+    assert set(artifact["source_sha256"]) == expected_paths
+    assert "backend/tests/test_clock_preflight_sprint15t.py" not in artifact["source_sha256"]
+    for path, digest in artifact["source_sha256"].items():
+        assert hashlib.sha256(Path(path).read_text(encoding="utf-8").encode()).hexdigest() == digest
+
+    cert_path=Path(artifact["historical_sprint13_certificate"])
+    cert=json.loads(cert_path.read_text(encoding="utf-8"))
+    assert hashlib.sha256(cert_path.read_bytes()).hexdigest() == artifact["historical_sprint13_certificate_sha256"]
+    historical_digest=cert["reviewed_source_sha256"]["backend/market_data/current_candle_authority_v1.py"]
+    assert historical_digest == artifact["historical_sprint13_authority_sha256"]
+    fixture=Path(artifact["historical_sprint13_authority_fixture"])
+    assert hashlib.sha256(fixture.read_text(encoding="utf-8").encode()).hexdigest() == historical_digest
+
+
+def test_current_paper_boundary_provenance_records_python_precision_limit():
+    from backend.backtesting.certified_native_paper_bridge_v1 import _utc
+
+    artifact=json.loads(Path("backend/tests/current_paper_boundary_provenance_d4e4c.json").read_text(encoding="utf-8"))
+    source=artifact["real_failing_event_time"]
+    parsed=_utc(source)
+    assert parsed.isoformat() == artifact["timestamp_precision"]["parsed_real_failing_event_time"]
+    assert parsed.isoformat() == "2026-10-01T07:51:59.999780+00:00"
+    assert parsed < _utc(artifact["real_failing_bar_time"])
+    assert artifact["timestamp_precision"]["exact_100ns_preservation"] is False
+    assert artifact["timestamp_precision"]["precision_loss_is_special_path_authorization_basis"] is False
+    assert artifact["arbitrary_time_epsilon"] == "NONE"
 
 
 def test_direct_dependency_inventory_cannot_silently_omit_a_clock_call():

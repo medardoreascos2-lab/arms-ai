@@ -1,6 +1,6 @@
 """Explicit provider-neutral closed-minute admission; never an order router."""
 from collections import OrderedDict
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
@@ -15,7 +15,6 @@ from backend.services.market_hours_service_v2 import MarketHoursServiceV2
 UTC = timezone.utc
 CHICAGO = ZoneInfo("America/Chicago")
 MINUTE = timedelta(minutes=1)
-_CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED = object()
 
 
 def _stable(value):
@@ -80,27 +79,13 @@ class CurrentMarketEventV1:
     volume: int
     timeframe: str = "1m"
     quality_flags: tuple = ()
-    closed_boundary_proof: object = None
 
     def fingerprint(self):
-        if (self.closed_boundary_proof is not None
-                and self.closed_boundary_proof is not _CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED):
-            raise ValueError("INVALID_CLOSED_PROVENANCE")
         payload = asdict(self)
         payload.pop("received_at")  # Transport retransmission is not a new event.
-        payload["closed_boundary_proof"] = (
-            "CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED"
-            if self.closed_boundary_proof is _CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED else None)
         for key in ("event_time", "bar_time"):
             payload[key] = instant(payload[key]).isoformat()
         return sha256(json.dumps(payload, sort_keys=True, allow_nan=False).encode()).hexdigest()
-
-
-def _certify_native_same_callback_closed(event):
-    """Internal bridge handoff after the native profile verifies CLOSED/FORMING."""
-    if type(event) is not CurrentMarketEventV1 or event.kind != "CLOSED_CANONICAL_CANDLE":
-        raise ValueError("INVALID_CLOSED_PROVENANCE")
-    return replace(event, closed_boundary_proof=_CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED)
 
 
 @dataclass(frozen=True)
@@ -232,10 +217,6 @@ class CurrentCandleAuthorityV1:
             raise RuntimeError("DISCONNECTED")
         if type(event) is not CurrentMarketEventV1:
             self.fail("INVALID_CANDLE")
-        if (event.closed_boundary_proof is not None
-                and (event.kind != "CLOSED_CANONICAL_CANDLE"
-                     or event.closed_boundary_proof is not _CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED)):
-            self.fail("INVALID_CLOSED_PROVENANCE")
         c = self.contract
         if (event.provider, event.instrument, event.contract) != (c.provider, c.instrument, c.contract):
             self.fail("UNKNOWN_CONTRACT")
@@ -280,10 +261,7 @@ class CurrentCandleAuthorityV1:
             return None
         start = label if c.bar_label == "OPEN" else label - MINUTE
         closed = start + MINUTE
-        boundary_proven = closed <= emitted or (
-            event.closed_boundary_proof is _CERTIFIED_NATIVE_SAME_CALLBACK_CLOSED
-            and closed <= received <= now)
-        if start.second or start.microsecond or not boundary_proven or not 0 <= (now-closed).total_seconds() <= self.maximum_age:
+        if start.second or start.microsecond or not closed <= emitted or not 0 <= (now-closed).total_seconds() <= self.maximum_age:
             self.fail("STALE_DATA" if closed < now else "TIME_SYNC_INVALID")
         if not instant(c.valid_from) <= start < closed <= instant(c.valid_until):
             self.fail("UNKNOWN_CONTRACT")
