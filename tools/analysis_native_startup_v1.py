@@ -7,6 +7,7 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
 import threading
 import time
 import urllib.request
@@ -349,7 +350,93 @@ def perform_startup_chart_catchup(
     return request, certified
 
 
-def run(args):
+def _close_optional_lifecycle(
+    lifecycle,
+):
+    """Return a lifecycle-close error instead of interrupting analysis cleanup."""
+    if lifecycle is None:
+        return None
+
+    try:
+        lifecycle.close()
+    except BaseException as error:
+        return error
+
+    return None
+
+
+def _build_optional_lifecycle(
+    lifecycle_factory,
+    *,
+    runtime,
+    run_directory,
+    catchup_source,
+    validate_offline,
+):
+    """Build one separately owned lifecycle at the certified attach seam."""
+    if lifecycle_factory is None:
+        return None
+
+    require(
+        callable(lifecycle_factory),
+        'OPTIONAL_LIFECYCLE_FACTORY',
+    )
+
+    require(
+        catchup_source is not None
+        and not validate_offline
+        and runtime.phase
+        == 'VERIFYING_WAITING'
+        and runtime.adapter is not None
+        and runtime.adapter.status
+        == 'WAITING'
+        and runtime.adapter.reason
+        is None
+        and runtime.adapter.activation_start
+        is None
+        and runtime.adapter.session
+        is None
+        and runtime.adapter.preactivation_session
+        is not None
+        and len(runtime.observations)
+        >= 3
+        and runtime.bootstrap
+        is not None
+        and runtime.adapter.bootstrap
+        is runtime.bootstrap,
+        'OPTIONAL_LIFECYCLE_ATTACH_GATE',
+    )
+
+    lifecycle = lifecycle_factory(
+        analysis_runtime=runtime,
+        run_directory=run_directory,
+    )
+
+    require(
+        lifecycle is not None,
+        'OPTIONAL_LIFECYCLE_FACTORY_RETURN',
+    )
+
+    for method_name in (
+        'start',
+        'check',
+        'close',
+    ):
+        require(
+            callable(
+                getattr(
+                    lifecycle,
+                    method_name,
+                    None,
+                )
+            ),
+            'OPTIONAL_LIFECYCLE_CONTRACT',
+        )
+
+    return lifecycle
+
+
+def run(args, lifecycle_factory=None):
     import uvicorn
     from backend.api.market_analysis_time_app_v1 import create_market_analysis_time_app_v1
     require(os.name == 'nt', 'WINDOWS_SAME_HOST_REQUIRED')
@@ -405,6 +492,7 @@ def run(args):
                                          access_log=False, log_level='warning'))
     thread = threading.Thread(target=server.run, daemon=True)
     frontend = None
+    lifecycle = None
     samples = []
     result = dict(claim, status='FAILED', activation_allowance_started=False)
     try:
@@ -769,6 +857,17 @@ def run(args):
                 flush=True,
             )
 
+        lifecycle = _build_optional_lifecycle(
+            lifecycle_factory,
+            runtime=runtime,
+            run_directory=folder,
+            catchup_source=catchup_source,
+            validate_offline=args.validate_offline,
+        )
+
+        if lifecycle is not None:
+            lifecycle.start()
+
         status, _ = get(dashboard_url)
         frontend_pid = listener_pid(args.frontend_port)
         backend_pid = listener_pid(args.port)
@@ -788,6 +887,10 @@ def run(args):
         if not args.validate_offline:
             while runtime.phase != 'FAILED':
                 time.sleep(1)
+
+                if lifecycle is not None:
+                    lifecycle.check()
+
                 require(thread.is_alive() and frontend.poll() is None, 'RUNTIME_PROCESS_LOST')
                 require(listener_pid(args.port) == runtime.pid and listener_pid(args.frontend_port) == frontend.pid,
                         'RUNTIME_LISTENER_CHANGED')
@@ -805,13 +908,56 @@ def run(args):
         result.update(status='FAILED', error_type=type(error).__name__, health=runtime.health())
         raise
     finally:
+        propagating_error = (
+            sys.exc_info()[0]
+            is not None
+        )
+
+        lifecycle_close_error = (
+            _close_optional_lifecycle(
+                lifecycle
+            )
+        )
+
+        if lifecycle_close_error is not None:
+            result.update(
+                lifecycle_close_failed=True,
+                lifecycle_close_error_type=
+                    type(
+                        lifecycle_close_error
+                    ).__name__,
+            )
+
         runtime.close()
         server.should_exit = True
         thread.join(timeout=10)
+
         if frontend is not None and frontend.poll() is None:
             frontend.terminate()
             frontend.wait(timeout=10)
-        result.update(final_health=runtime.health(), owned_frontend_stopped=frontend is None or frontend.poll() is not None,
-                      owned_backend_stopped=not thread.is_alive())
-        with (folder/'shutdown-result.json').open('x') as f:
-            json.dump(result, f, indent=2)
+
+        result.update(
+            final_health=runtime.health(),
+            owned_frontend_stopped=
+                frontend is None
+                or frontend.poll() is not None,
+            owned_backend_stopped=
+                not thread.is_alive(),
+        )
+
+        with (
+            folder
+            / 'shutdown-result.json'
+        ).open('x') as f:
+            json.dump(
+                result,
+                f,
+                indent=2,
+            )
+
+        if (
+            lifecycle_close_error
+            is not None
+            and not propagating_error
+        ):
+            raise lifecycle_close_error
