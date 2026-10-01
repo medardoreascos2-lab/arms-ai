@@ -5,6 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 import tools.startup_chart_catchup_v1 as helper
+from backend.market_data.chart_catchup_bridge_v1 import MERGED_SOURCE
+from backend.tests.test_chart_catchup_bridge_v1 import october_composite
 from tools.analysis_native_startup_v1 import (
     perform_startup_chart_catchup,
 )
@@ -59,7 +61,7 @@ class Runtime:
         self.adapter = Adapter(
             directory
         )
-        self.bootstrap = object()
+        _, self.bootstrap = october_composite()
         self.observations = [
             1,
             2,
@@ -118,21 +120,19 @@ def test_catchup_wiring_orders_prepare_wait_certify_install(
         / "chart-catchup"
     ).mkdir()
 
-    composite = object()
+    composite = SimpleNamespace(
+        source=MERGED_SOURCE,
+    )
+
+    def fake_prepare(folder, bootstrap, **kwargs):
+        assert bootstrap.source == MERGED_SOURCE
+        calls.append(("prepare", folder, bootstrap))
+        return request
 
     monkeypatch.setattr(
         helper,
         "prepare_request",
-        lambda folder, bootstrap, **kwargs: (
-            calls.append(
-                (
-                    "prepare",
-                    folder,
-                    bootstrap,
-                )
-            )
-            or request
-        ),
+        fake_prepare,
     )
 
     def fake_wait(
@@ -248,6 +248,8 @@ def test_catchup_wiring_orders_prepare_wait_certify_install(
     assert runtime.installed == [
         composite
     ]
+
+    assert len(runtime.installed) == 1
 
     assert runtime.bootstrap is composite
 

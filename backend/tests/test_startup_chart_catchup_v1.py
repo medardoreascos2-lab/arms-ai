@@ -1,5 +1,6 @@
 """Startup chart catch-up coordinator tests; no NinjaTrader process or orders."""
 from copy import deepcopy
+from dataclasses import replace
 from datetime import (
     datetime,
     timezone,
@@ -20,6 +21,7 @@ from backend.tests.test_chart_catchup_bridge_v1 import (
     SOURCE,
     base_raw,
     bridge_evidence,
+    october_composite,
     successful_labels,
 )
 from tools.startup_chart_catchup_v1 import (
@@ -84,9 +86,12 @@ def prepared(tmp_path):
 
 def write_capture(
     capture,
+    labels=None,
 ):
     body, seal = bridge_evidence(
         successful_labels()
+        if labels is None
+        else labels
     )
 
     session = str(
@@ -273,6 +278,78 @@ def test_exact_capture_certifies_composite(
         ).hexdigest()
         == result["sha256"]
     )
+
+
+def test_merged_base_derives_exact_incremental_close_and_certifies_again(
+    tmp_path,
+):
+    base, data = october_composite()
+    run = tmp_path / "runtime"
+    run.mkdir()
+    request = prepare_request(
+        run,
+        data,
+        now_utc=datetime(
+            2026, 10, 1, 20, 51,
+            tzinfo=timezone.utc,
+        ),
+    )
+    assert request["from_close_utc"] == "2026-10-01T20:50:00Z"
+    assert request["through_close_utc"] == "2026-10-01T20:51:00Z"
+    assert request["runtime_admission"] is False
+    assert request["execution_authority"] is False
+
+    labels = [
+        datetime(2026, 10, 1, 20, minute, tzinfo=timezone.utc)
+        for minute in (50, 51)
+    ]
+    capture = run / "chart-catchup"
+    write_capture(capture, labels)
+    source = tmp_path / "ArmsChartCatchupBridgeV1.cs"
+    source.write_bytes(SOURCE)
+    base_path = tmp_path / "first-composite.json"
+    base_path.write_bytes(base)
+    output = run / "certified-chart-catchup.bundle.json"
+
+    result = certify_capture(
+        base_path=base_path,
+        base_sha256=sha256(base).hexdigest(),
+        source_path=source,
+        capture_directory=capture,
+        request=request,
+        output_path=output,
+    )
+
+    assert result["source"] == MERGED_SOURCE
+    assert result["bars"] == len(data.bars) + 2
+    assert result["runtime_admission"] is False
+    assert result["execution_authority"] is False
+    chained = certify_bootstrap(
+        output.read_bytes(),
+        expected_sha256=result["sha256"],
+    )
+    assert chained.bars[:len(data.bars)] == data.bars
+    assert len({bar.label for bar in chained.bars}) == len(chained.bars)
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "UNKNOWN",
+        "LIVE_TAIL",
+        "UNTRUSTED_HISTORY",
+        "NATIVE_HISTORICAL_REPOSITORY+FAKE",
+    ),
+)
+def test_next_expected_close_rejects_every_unrecognized_source(source):
+    _, data = october_composite()
+    with pytest.raises(
+        ValueError,
+        match="STARTUP_CATCHUP_NATIVE_BASE_REQUIRED",
+    ):
+        next_expected_close(
+            replace(data, source=source)
+        )
 
 
 @pytest.mark.parametrize(

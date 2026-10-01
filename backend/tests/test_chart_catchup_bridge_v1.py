@@ -16,8 +16,10 @@ from backend.market_data.certified_bootstrap_v1 import (
     certify_bootstrap,
 )
 from backend.market_data.chart_catchup_bridge_v1 import (
+    ALLOWED_BASE_SOURCES,
     EXPORTER_SHA256,
     MERGED_SOURCE,
+    NATIVE_SOURCE,
 )
 from backend.tests.test_native_historical_bootstrap_sprint16a import (
     bundle as native_bundle,
@@ -292,6 +294,35 @@ def certified():
     return raw, result, data
 
 
+def october_composite():
+    header, rows = native_shape(
+        1,
+        "2026-10-01T20:48:00Z",
+        "2026-10-01",
+    )
+    base = native_bundle(
+        header,
+        rows,
+    )
+    bridge, seal = bridge_evidence([
+        datetime(
+            2026, 10, 1, 20, 49,
+            tzinfo=timezone.utc,
+        ),
+    ])
+    raw, _ = build_bundle(
+        base,
+        bridge,
+        seal,
+        SOURCE,
+    )
+    data = certify_bootstrap(
+        raw,
+        expected_sha256=sha256(raw).hexdigest(),
+    )
+    return raw, data
+
+
 def test_productive_source_hash_and_no_execution_surface():
     normalized = SOURCE.replace(
         b"\r\n",
@@ -332,6 +363,13 @@ def test_productive_source_hash_and_no_execution_surface():
     )
 
 
+def test_chainable_base_source_policy_is_exactly_two_values():
+    assert ALLOWED_BASE_SOURCES == frozenset((
+        NATIVE_SOURCE,
+        MERGED_SOURCE,
+    ))
+
+
 def test_bridge_extends_certified_bootstrap_and_dispatches():
     raw, result, data = certified()
 
@@ -368,6 +406,106 @@ def test_bridge_extends_certified_bootstrap_and_dispatches():
         sha256(raw).hexdigest()
         == data.sha256
     )
+
+
+def test_second_certified_catchup_retains_first_composite_and_adds_suffix():
+    first_raw, first = october_composite()
+    suffix = [
+        datetime(2026, 10, 1, 20, minute, tzinfo=timezone.utc)
+        for minute in (50, 51)
+    ]
+    bridge, seal = bridge_evidence(suffix)
+
+    second_raw, result = build_bundle(
+        first_raw,
+        bridge,
+        seal,
+        SOURCE,
+    )
+    second = certify_bootstrap(
+        second_raw,
+        expected_sha256=sha256(second_raw).hexdigest(),
+    )
+
+    assert first.source == MERGED_SOURCE
+    assert second.source == MERGED_SOURCE
+    assert second.bars[:len(first.bars)] == first.bars
+    assert second.gap_report[:len(first.gap_report)] == first.gap_report
+    assert [bar.label for bar in second.bars[len(first.bars):]] == [
+        "2026-10-01T20:50:00.0000000Z",
+        "2026-10-01T20:51:00.0000000Z",
+    ]
+    labels = [bar.label for bar in second.bars]
+    assert labels == sorted(labels)
+    assert len(labels) == len(set(labels))
+    assert result["bars"] == len(first.bars) + len(suffix)
+    assert all(
+        bar.low <= min(bar.open, bar.close)
+        <= max(bar.open, bar.close) <= bar.high
+        and bar.volume >= 0
+        for bar in second.bars
+    )
+
+    outer = json.loads(second_raw)
+    rows = [json.loads(line) for line in outer["bridge_utf8"].splitlines()]
+    assert rows[0]["runtime_admission"] is False
+    assert rows[0]["execution_authority"] is False
+    seal_row = json.loads(outer["seal_utf8"])
+    assert seal_row["runtime_admission"] is False
+    assert seal_row["execution_authority"] is False
+
+
+@pytest.mark.parametrize(
+    "fault",
+    (
+        "inner_base_bytes",
+        "inner_base_sha",
+        "nested_chart_evidence",
+    ),
+)
+def test_second_certified_catchup_rejects_tampered_inner_evidence(fault):
+    first_raw, _ = october_composite()
+    bridge, seal = bridge_evidence([
+        datetime(2026, 10, 1, 20, 50, tzinfo=timezone.utc),
+    ])
+    second_raw, _ = build_bundle(
+        first_raw,
+        bridge,
+        seal,
+        SOURCE,
+    )
+    outer = json.loads(second_raw)
+    inner = json.loads(outer["base_utf8"])
+
+    if fault == "inner_base_bytes":
+        inner["base_utf8"] += " "
+    elif fault == "inner_base_sha":
+        inner["base_sha256"] = "0" * 64
+    else:
+        inner["bridge_utf8"] = inner["bridge_utf8"].replace(
+            '"runtime_admission":false',
+            '"runtime_admission":true',
+            1,
+        )
+
+    tampered_inner = json.dumps(
+        inner,
+        separators=(",", ":"),
+    )
+    outer["base_utf8"] = tampered_inner
+    outer["base_sha256"] = sha256(
+        tampered_inner.encode("utf-8")
+    ).hexdigest()
+    tampered = json.dumps(
+        outer,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    with pytest.raises(ValueError):
+        certify_bootstrap(
+            tampered,
+            expected_sha256=sha256(tampered).hexdigest(),
+        )
 
 
 

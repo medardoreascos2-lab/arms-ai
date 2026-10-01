@@ -15,6 +15,7 @@ from uuid import uuid4
 
 from backend.market_data.analysis_time_profile_v1 import require
 from backend.market_data.analysis_startup_v1 import AnalysisStartupV1
+from backend.market_data.chart_catchup_bridge_v1 import ALLOWED_BASE_SOURCES
 from backend.market_data.exporter_identity_v1 import verify_exporter_source
 from backend.market_data.fresh_native_adapter_v1 import local_path
 from tools.native_timing_witness_v1 import live_process_start
@@ -462,7 +463,7 @@ def run(args, lifecycle_factory=None):
         require(
             bootstrap is not None
             and bootstrap.source
-            == 'NATIVE_HISTORICAL_REPOSITORY',
+            in ALLOWED_BASE_SOURCES,
             'STARTUP_CATCHUP_NATIVE_BASE_REQUIRED',
         )
 

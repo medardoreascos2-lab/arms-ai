@@ -25,6 +25,7 @@ from backend.market_data.certified_bootstrap_v1 import (
     certify_bootstrap,
 )
 from backend.market_data.chart_catchup_bridge_v1 import (
+    ALLOWED_BASE_SOURCES,
     MERGED_SOURCE,
 )
 from backend.market_data.chart_catchup_source_identity_v1 import (
@@ -117,7 +118,7 @@ def next_expected_close(
         type(bootstrap)
         is CertifiedBootstrap
         and bootstrap.source
-        == "NATIVE_HISTORICAL_REPOSITORY"
+        in ALLOWED_BASE_SOURCES
         and bool(bootstrap.bars)
         and bool(
             bootstrap.calendar_intervals
@@ -673,7 +674,7 @@ def certify_capture(
 
     require(
         base.source
-        == "NATIVE_HISTORICAL_REPOSITORY",
+        in ALLOWED_BASE_SOURCES,
         "STARTUP_CATCHUP_BASE_SOURCE",
     )
 
