@@ -194,8 +194,19 @@
       "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
       "calls": [
         {
-          "line": 77,
+          "line": 84,
           "call": "clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/current_paper_entry_authority_v1.py",
+      "consequence": "CURRENT_PAPER_ENTRY_TIME_ADMISSION",
+      "calls": [
+        {
+          "line": 97,
+          "call": "self.clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
       ]
@@ -205,7 +216,17 @@
       "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
       "calls": [
         {
-          "line": 421,
+          "line": 426,
+          "call": "self.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 447,
+          "call": "self.gate.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 533,
           "call": "g.clock",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
@@ -318,7 +339,7 @@
       "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
       "calls": [
         {
-          "line": 115,
+          "line": 149,
           "call": "datetime.now",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
@@ -675,6 +696,27 @@
       ]
     },
     {
+      "path": "backend/services/current_paper_economic_news_authority_v1.py",
+      "consequence": "CURRENT_PAPER_SIGNED_NEWS_ISSUANCE_EXPIRY_AND_ADMISSION",
+      "calls": [
+        {
+          "line": 201,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 207,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "line": 215,
+          "call": "self.clock",
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
       "path": "backend/services/live_market_analysis_service.py",
       "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
       "calls": [
@@ -761,7 +803,7 @@
           "authority": "MONOTONIC_ELAPSED"
         },
         {
-          "line": 1792,
+          "line": 1809,
           "call": "datetime.now",
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }

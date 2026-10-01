@@ -33,6 +33,7 @@ class _PaperApiLifecycleV1:
             analysis_runtime=analysis_runtime,
             service=service,
             wall_clock=clock,
+            l1_reader=service.l1_reader,
         )
         self.server = server
         self.bound_socket = bound_socket
@@ -143,6 +144,8 @@ def run_current_paper(args):
         settings=settings,
         state_path=namespace / "paper.sqlite",
         clock=clock,
+        news_root=args.current_paper_news_root,
+        l1_directory=args.current_paper_l1_directory,
     )
 
     bound = None
@@ -200,6 +203,8 @@ def main(argv=None):
     parser.add_argument("--paper-config", type=Path, required=True)
     parser.add_argument("--runtime-parent", type=Path, required=True)
     parser.add_argument("--paper-run-namespace", type=Path, required=True)
+    parser.add_argument("--current-paper-news-root", type=Path, required=True)
+    parser.add_argument("--current-paper-l1-directory", type=Path, required=True)
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--frontend-port", type=int, required=True)
     parser.add_argument("--paper-port", type=int, required=True)

@@ -97,6 +97,40 @@ class PaperBrokerConnectorV2(
             str,
             str,
         ] = {}
+        self._paper_reservations: dict[str, dict[str, object]] = {}
+
+    def reserve_paper_submission(self, *, prepared_order, forbidden_order_ids=(),
+                                 forbidden_position_ids=()):
+        """Pure engine preflight plus unique identities, before any ledger write."""
+        self._require_connection()
+        if type(prepared_order) is not dict:
+            raise TypeError("PAPER_PREPARED_ORDER_REQUIRED")
+        execution = self.execution_engine.execute(prepared_order=deepcopy(prepared_order))
+        if not execution.get("accepted") or execution.get("status") != "FILLED":
+            return dict(accepted=False, reason="PAPER_EXECUTION_PREFLIGHT_REJECTED")
+        forbidden_orders = set(forbidden_order_ids) | set(self._orders)
+        forbidden_positions = set(forbidden_position_ids) | set(self._positions)
+        order_id = str(execution.get("order_id") or "")
+        for _ in range(8):
+            if order_id and order_id not in forbidden_orders:
+                break
+            order_id = str(uuid4())
+        else:
+            return dict(accepted=False, reason="PAPER_ORDER_ID_RESERVATION_FAILED")
+        position_id = ""
+        for _ in range(8):
+            position_id = str(uuid4())
+            if position_id not in forbidden_positions:
+                break
+        else:
+            return dict(accepted=False, reason="PAPER_POSITION_ID_RESERVATION_FAILED")
+        execution["order_id"] = order_id
+        token = str(uuid4())
+        if token in self._paper_reservations:
+            raise RuntimeError("PAPER_RESERVATION_COLLISION")
+        self._paper_reservations[token] = dict(prepared_order=deepcopy(prepared_order),
+            execution=deepcopy(execution), order_id=order_id, position_id=position_id)
+        return dict(accepted=True, reservation=token)
 
     @property
     def broker_name(self) -> str:
@@ -213,6 +247,7 @@ class PaperBrokerConnectorV2(
         *,
         prepared_order: dict[str, object],
         client_order_id: str | None = None,
+        reservation: str | None = None,
     ) -> dict[str, object]:
         self._require_connection()
 
@@ -256,15 +291,16 @@ class PaperBrokerConnectorV2(
 
                 return existing
 
-        execution = (
-            self.execution_engine.execute(
-                prepared_order=(
-                    deepcopy(
-                        prepared_order
-                    )
-                ),
-            )
-        )
+        reserved = None
+        if reservation is not None:
+            reserved = self._paper_reservations.pop(reservation, None)
+            if (reserved is None or reserved["prepared_order"] != prepared_order
+                    or reserved["order_id"] in self._orders
+                    or reserved["position_id"] in self._positions):
+                raise RuntimeError("PAPER_RESERVATION_INVALID")
+            execution = deepcopy(reserved["execution"])
+        else:
+            execution = self.execution_engine.execute(prepared_order=deepcopy(prepared_order))
 
         order_id = (
             str(
@@ -360,9 +396,7 @@ class PaperBrokerConnectorV2(
                 fill_record
             )
 
-            position_id = str(
-                uuid4()
-            )
+            position_id = reserved["position_id"] if reserved is not None else str(uuid4())
 
             self._positions[
                 position_id

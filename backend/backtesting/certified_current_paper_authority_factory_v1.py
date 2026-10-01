@@ -12,6 +12,12 @@ from secrets import compare_digest
 import xml.etree.ElementTree as ET
 
 from backend.backtesting.current_paper_runtime_v1 import CurrentPaperServiceV1
+from backend.backtesting.current_paper_entry_authority_v1 import (
+    CurrentPaperEntryAuthorityV1, current_paper_l1_reader,
+)
+from backend.services.current_paper_economic_news_authority_v1 import (
+    CurrentPaperEconomicNewsAuthorityV1, runtime_binding,
+)
 from backend.backtesting.paper_research_v1 import PaperResearchConfigV1
 from backend.config.api_settings import APISettings
 from backend.market_data.current_candle_authority_v1 import (
@@ -52,6 +58,7 @@ def _utc(value):
 def create_certified_current_paper_service_v1(
     *, spec_bytes, reviewed_spec_sha256, template_bytes,
     loaded_calendar_bytes, config, settings, state_path, clock,
+    news_root=None, l1_directory=None,
 ):
     """Build one fresh service from hash-pinned, ordinary native inputs.
 
@@ -167,10 +174,23 @@ def create_certified_current_paper_service_v1(
         maximum_age_seconds=settings.maximum_quote_age_seconds,
         clock=clock,
     )
+    entry_authority = None
+    l1_reader = None
+    if l1_directory is not None:
+        base = runtime_binding(reviewed_spec_sha256=reviewed_spec_sha256,
+            gate=gate, config=config, state_path=path)
+        news = CurrentPaperEconomicNewsAuthorityV1(base=base, clock=clock,
+            root=news_root)
+        l1_reader = current_paper_l1_reader(settings=settings, gate=gate,
+            directory=l1_directory, clock=clock)
+        entry_authority = CurrentPaperEntryAuthorityV1(gate=gate, news=news,
+            l1=l1_reader, settings=settings, clock=clock)
     service = CurrentPaperServiceV1(
         gate=gate, config=config, settings=settings, state_path=path,
         initialization_policy="NEW_ISOLATED_PAPER_ACCOUNT",
+        entry_authority=entry_authority,
     )
+    service.l1_reader = l1_reader
     if (
         service._runtime is not None
         or service._strategy_bootstrap is not None

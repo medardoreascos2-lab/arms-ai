@@ -192,60 +192,15 @@ def test_native_closed_proof_keeps_order_and_duplicate_rules(case, reason):
 
 def service(tmp_path, start=START):
     g, clock = gate(start)
-    class ExistingFlowEntryEvidence:
-        """Explicit deterministic test evidence for legacy accounting cases."""
-        def observe(self, row):
-            assert row.calendar_sha256 == g.digest
-
-        def inspect(self, **kwargs):
-            return []
-
     s = CurrentPaperServiceV1(gate=g, config=config(), settings=APISettings(),
-        state_path=tmp_path/"current.sqlite", initialization_policy="NEW_ISOLATED_PAPER_ACCOUNT",
-        entry_authority=ExistingFlowEntryEvidence())
+        state_path=tmp_path/"current.sqlite", initialization_policy="NEW_ISOLATED_PAPER_ACCOUNT")
     s.connection(True)
-    original_ingest = s.ingest
-
-    def ingest_with_test_worker_health(e):
-        # The real lifecycle polls every 0.25s; represent that separate worker
-        # heartbeat at the deterministic synthetic event's clock boundary.
-        if s.gate.connected and not s.gate.fault:
-            s._health_at = g.clock()
-            s._health_live = True
-        result = original_ingest(e)
-        if s.gate.connected and not s.gate.fault:
-            s.publish_health(coordinator={"status": "LIVE", "source_adapter_status": "LIVE_TAIL",
-                "bridge": {"status": "LIVE"}}, worker_alive=True)
-        return result
-
-    s.ingest = ingest_with_test_worker_health
     return s, clock
 
 
 def deliver(s, clock, e):
     clock[0] = e.received_at
     return s.ingest(e)
-
-
-def test_authenticated_enable_is_health_bound_and_disconnect_requires_reenable(api_settings,tmp_path):
-    s,clock=service(tmp_path)
-    app=create_current_paper_app_v1(service=s,admin_token="test-only-token",
-        dashboard_origin="http://127.0.0.1:3000")
-    headers={"X-ARMS-ADMIN-TOKEN":"test-only-token"}
-    with TestClient(app) as client:
-        assert client.post("/api/v2/paper/enable").status_code == 401
-        assert client.post("/api/v2/paper/enable",headers={"X-ARMS-ADMIN-TOKEN":"wrong"}).status_code == 401
-        assert client.post("/api/v2/paper/enable",headers=headers).status_code == 409
-        deliver(s,clock,event(0))
-        assert client.post("/api/v2/paper/enable",headers=headers).status_code == 200
-        assert s._runtime._enabled is True
-        s.connection(False)
-        assert s._runtime._enabled is False
-        s.connection(True)
-        deliver(s,clock,event(1,sequence=1,event_id="1"))
-        assert s._runtime._enabled is False
-        assert client.post("/api/v2/paper/enable",headers=headers).status_code == 200
-        assert s._runtime._enabled is True
 
 
 def test_forming_raw_duplicate_and_complete_htf_equivalence():

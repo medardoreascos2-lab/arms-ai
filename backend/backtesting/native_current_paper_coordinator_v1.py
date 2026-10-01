@@ -41,6 +41,7 @@ class NativeCurrentPaperCoordinatorV1:
         analysis_runtime,
         service,
         wall_clock,
+        l1_reader=None,
     ):
         if type(analysis_runtime) is not AnalysisStartupV1:
             raise TypeError(
@@ -62,6 +63,7 @@ class NativeCurrentPaperCoordinatorV1:
         self.analysis_runtime = analysis_runtime
         self.service = service
         self.wall_clock = wall_clock
+        self.l1_reader = l1_reader
 
         self.adapter = None
         self.bridge = None
@@ -238,6 +240,8 @@ class NativeCurrentPaperCoordinatorV1:
                 )
 
             try:
+                if self.l1_reader is not None:
+                    self.l1_reader.poll()
                 bridge_snapshot = (
                     self.bridge.poll()
                 )
@@ -257,6 +261,7 @@ class NativeCurrentPaperCoordinatorV1:
                 self.status = (
                     "WAITING_FOR_LIVE_TAIL"
                 )
+                self.service.invalidate_health()
 
             return self.get_snapshot(
                 bridge_snapshot=bridge_snapshot
@@ -344,6 +349,9 @@ class NativeCurrentPaperCoordinatorV1:
                 if self.bridge is not None:
                     self.bridge.close()
             finally:
+                self.service.invalidate_health()
+                if self.l1_reader is not None:
+                    self.l1_reader.close()
                 self.service.shutdown()
 
             self.status = "STOPPED"

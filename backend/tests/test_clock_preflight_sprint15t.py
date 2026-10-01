@@ -311,6 +311,8 @@ def test_current_paper_boundary_provenance_artifact_pins_offline_review_only():
             "backend/tests/fixtures/certified_native_paper_bridge_v1.d4e4c.py",
         "backend/tests/test_certified_native_paper_bridge_v1.py":
             "backend/tests/fixtures/test_certified_native_paper_bridge_v1.d4e4c.py",
+        "backend/tests/test_current_paper_sprint10.py":
+            "backend/tests/fixtures/test_current_paper_sprint10.d4e4c.py",
     }
     for path, digest in artifact["source_sha256"].items():
         reviewed = Path(historical.get(path, path))

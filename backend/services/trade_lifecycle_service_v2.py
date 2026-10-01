@@ -1453,6 +1453,14 @@ class TradeLifecycleServiceV2(
                 return native_producer.produce(signal=working_signal, risk_evaluation=risk_evaluation,
                     execution_risk_gate=execution_risk_gate_result,
                     quote=admission.validate_market(symbol=normalized_symbol))
+            current_paper_check = getattr(self, "current_paper_pre_submit", None)
+            if current_paper_check is not None and isinstance(
+                    self.broker_connector_v2, PaperBrokerConnectorV2):
+                current_reasons = current_paper_check()
+                if current_reasons:
+                    return {"accepted": False, "reason": current_reasons[0],
+                        "blocking_reasons": current_reasons, "prepared_order": None,
+                        "execution": None, "position": None, "active_position_id": None}
             prepared_order = (
                 self.execution_manager.prepare_order(
                     signal=working_signal,
@@ -1475,12 +1483,28 @@ class TradeLifecycleServiceV2(
                 if not client_order_id:
                     raise RuntimeError("SIM durable operation identity required.")
 
-            execution = (
-                self.broker_connector_v2.submit_order(
+            if isinstance(self.broker_connector_v2, PaperBrokerConnectorV2):
+                applied_before = list(self._active_positions.values()) + self.get_trade_history()
+                if self.portfolio_manager_v2 is not None:
+                    applied_before += self.portfolio_manager_v2.get_open_positions()
+                    applied_before += self.portfolio_manager_v2.get_closed_positions()
+                reservation = self.broker_connector_v2.reserve_paper_submission(
                     prepared_order=prepared_order,
-                    client_order_id=client_order_id,
+                    forbidden_order_ids=(row.get("order_id") for row in applied_before),
+                    forbidden_position_ids=(row.get("broker_position_id") for row in applied_before),
                 )
-            )
+                if not reservation["accepted"]:
+                    return {"accepted": False, "reason": reservation["reason"],
+                        "prepared_order": None, "execution": None, "position": None,
+                        "active_position_id": None}
+                execution = self.broker_connector_v2.submit_order(
+                    prepared_order=prepared_order, client_order_id=client_order_id,
+                    reservation=reservation["reservation"])
+                if not execution.get("accepted") or execution.get("status") != "FILLED":
+                    raise RuntimeError("PAPER_POST_SUBMIT_INTEGRITY_FAILURE")
+            else:
+                execution = self.broker_connector_v2.submit_order(
+                    prepared_order=prepared_order, client_order_id=client_order_id)
 
         position: dict[str, object] | None = None
         active_position_id: str | None = None
@@ -1521,14 +1545,7 @@ class TradeLifecycleServiceV2(
                     or (broker_position_id and row.get("broker_position_id") == broker_position_id)
                     for row in applied
                 ):
-                    return {
-                        "accepted": False,
-                        "reason": "duplicate_execution",
-                        "prepared_order": None,
-                        "execution": None,
-                        "position": None,
-                        "active_position_id": None,
-                    }
+                    raise RuntimeError("PAPER_POST_SUBMIT_IDENTITY_CONFLICT_RECOVERY_REQUIRED")
 
             opened_position = (
                 self.position_manager.open_position(

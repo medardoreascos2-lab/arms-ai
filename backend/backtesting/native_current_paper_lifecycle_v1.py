@@ -40,6 +40,7 @@ class NativeCurrentPaperLifecycleV1:
         analysis_runtime,
         service,
         wall_clock,
+        l1_reader=None,
         poll_interval_seconds=0.25,
     ):
         if type(analysis_runtime) is not AnalysisStartupV1:
@@ -104,6 +105,7 @@ class NativeCurrentPaperLifecycleV1:
                     analysis_runtime,
                 service=service,
                 wall_clock=wall_clock,
+                l1_reader=l1_reader,
             )
         )
 
@@ -127,7 +129,9 @@ class NativeCurrentPaperLifecycleV1:
                 snapshot = (
                     self.coordinator.poll()
                 )
+                self.service.publish_health(coordinator=snapshot, worker_alive=True)
             except BaseException as error:
+                self.service.invalidate_health()
                 with self.lock:
                     self.worker_error = error
                     self.reason = (
@@ -227,6 +231,7 @@ class NativeCurrentPaperLifecycleV1:
                 worker is None
                 or not worker.is_alive()
             ):
+                self.service.invalidate_health()
                 self.reason = (
                     "NATIVE_CURRENT_PAPER_"
                     "LIFECYCLE_WORKER_STOPPED"
@@ -310,6 +315,7 @@ class NativeCurrentPaperLifecycleV1:
             self.status = "STOPPING"
 
             self.stop_event.set()
+            self.service.invalidate_health()
 
             worker = self.worker
 

@@ -224,6 +224,43 @@ def execution_state(service):
     })
 
 
+def _paper_contexts():
+    return dict(risk_context=dict(account_balance=17000.0,risk_percent=.5,
+        point_value=2.0,daily_pnl=0.0,total_drawdown=0.0,current_price=100.0),
+        order_context={"market_is_open":True})
+
+
+def test_paper_identity_collision_rejects_with_zero_submit_or_financial_delta(observed_service,monkeypatch):
+    service,calls=observed_service
+    signal=build_valid_signal()
+    signal["symbol"]="MNQ"
+    before=execution_state(service)
+    monkeypatch.setattr(service.broker_connector_v2,"reserve_paper_submission",
+        lambda **_:dict(accepted=False,reason="PAPER_ORDER_ID_RESERVATION_FAILED"))
+    result=service.submit_signal(signal=signal,order_type="MARKET",**_paper_contexts())
+    assert result["accepted"] is False
+    assert calls["PaperBrokerConnectorV2.submit_order"].call_count == 0
+    after=execution_state(service)
+    for key in ("orders","fills","broker_positions","positions","journal","history"):
+        assert after[key] == before[key]
+
+
+def test_unexpected_post_submit_collision_is_integrity_failure_not_rejection(observed_service,monkeypatch):
+    service,calls=observed_service
+    signal=build_valid_signal()
+    signal["symbol"]="MNQ"
+    submit=calls["PaperBrokerConnectorV2.submit_order"]
+    def conflicting_submit(**kwargs):
+        execution=submit(**kwargs)
+        service._active_positions["preexisting"]={"order_id":execution["order_id"]}
+        return execution
+    monkeypatch.setattr(service.broker_connector_v2,"submit_order",conflicting_submit)
+    with pytest.raises(RuntimeError,match="PAPER_POST_SUBMIT_IDENTITY_CONFLICT_RECOVERY_REQUIRED"):
+        service.submit_signal(signal=signal,order_type="MARKET",**_paper_contexts())
+    assert submit.call_count == 1
+    assert len(service.broker_connector_v2.get_fills()) == 1
+
+
 @pytest.mark.parametrize("order_type", ["MARKET", "LIMIT"])
 @pytest.mark.parametrize(
     ("field", "value"),

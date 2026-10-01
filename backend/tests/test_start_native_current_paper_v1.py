@@ -33,6 +33,8 @@ def _args(tmp_path):
         port=18001, frontend_port=13001, paper_port=18002,
         startup_chart_catchup_timeout=300.0,
         paper_run_namespace=tmp_path / "paper-run",
+        current_paper_news_root=tmp_path / "current-paper-news",
+        current_paper_l1_directory=tmp_path / "current-paper-l1",
         native_spec=spec_path,
         native_spec_sha256=sha256(spec_path.read_bytes()).hexdigest(),
         paper_config=tmp_path / "paper-config.json",
@@ -71,7 +73,7 @@ def _offline_wiring(
 ):
     args = _args(tmp_path)
     events = []
-    service = SimpleNamespace(shutdown=lambda: events.append("service_shutdown"))
+    service = SimpleNamespace(shutdown=lambda: events.append("service_shutdown"),l1_reader=object())
     shared = []
     bound = _Socket(events)
     monkeypatch.setenv(args.admin_token_env, "test-only-secret")
@@ -95,7 +97,8 @@ def _offline_wiring(
         return object()
 
     class FakeNativeLifecycle:
-        def __init__(self, *, analysis_runtime, service, wall_clock):
+        def __init__(self, *, analysis_runtime, service, wall_clock, l1_reader):
+            assert l1_reader is service.l1_reader
             shared.append(("lifecycle", service))
             events.append("attach_at_seam")
 

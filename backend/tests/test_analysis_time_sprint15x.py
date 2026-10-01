@@ -273,6 +273,61 @@ def test_real_archived_production_rows_cannot_be_reused_as_a_fresh_stream():
 
 def test_clock_inventory_extension_preserves_every_prior_assessment_field():
     review=json.loads(Path('backend/tests/clock_preflight_sprint15t.json').read_text())
+    # Reconstruct the exact pre-D4E8 inventory before the older Sprint 15X
+    # reconstruction below. Assert each reviewed current row so a later clock
+    # change cannot be silently treated as historical.
+    wall='HOST_WALL_OR_INJECTED_CLOCK'
+    def clock_row(path, consequence, calls):
+        return {'path':path,'consequence':consequence,
+                'calls':[{'line':line,'call':name,'authority':authority}
+                         for line,name,authority in calls]}
+    current_market='CURRENT_MARKET_ADMISSION_AND_PROJECTION'
+    execution='MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY'
+    d4e8_added={
+        'backend/backtesting/current_paper_entry_authority_v1.py':clock_row(
+            'backend/backtesting/current_paper_entry_authority_v1.py',
+            'CURRENT_PAPER_ENTRY_TIME_ADMISSION',[(97,'self.clock',wall)]),
+        'backend/services/current_paper_economic_news_authority_v1.py':clock_row(
+            'backend/services/current_paper_economic_news_authority_v1.py',
+            'CURRENT_PAPER_SIGNED_NEWS_ISSUANCE_EXPIRY_AND_ADMISSION',
+            [(201,'self.clock',wall),(207,'self.clock',wall),(215,'self.clock',wall)]),
+    }
+    d4e8_changed={
+        'backend/backtesting/certified_current_paper_authority_factory_v1.py':(
+            clock_row('backend/backtesting/certified_current_paper_authority_factory_v1.py',
+                      current_market,[(84,'clock',wall)]),
+            clock_row('backend/backtesting/certified_current_paper_authority_factory_v1.py',
+                      current_market,[(77,'clock',wall)])),
+        'backend/backtesting/current_paper_runtime_v1.py':(
+            clock_row('backend/backtesting/current_paper_runtime_v1.py',current_market,
+                      [(426,'self.gate.clock',wall),(447,'self.gate.clock',wall),
+                       (533,'g.clock',wall)]),
+            clock_row('backend/backtesting/current_paper_runtime_v1.py',current_market,
+                      [(421,'g.clock',wall)])),
+        'backend/connectors/paper_broker_connector_v2.py':(
+            clock_row('backend/connectors/paper_broker_connector_v2.py',execution,
+                      [(149,'datetime.now',wall)]),
+            clock_row('backend/connectors/paper_broker_connector_v2.py',execution,
+                      [(115,'datetime.now',wall)])),
+        'backend/services/trade_lifecycle_service_v2.py':(
+            clock_row('backend/services/trade_lifecycle_service_v2.py',execution,
+                      [(536,'time.monotonic','MONOTONIC_ELAPSED'),
+                       (1809,'datetime.now',wall)]),
+            clock_row('backend/services/trade_lifecycle_service_v2.py',execution,
+                      [(536,'time.monotonic','MONOTONIC_ELAPSED'),
+                       (1792,'datetime.now',wall)])),
+    }
+    rows=review['direct_clock_dependencies']
+    for path,expected in d4e8_added.items():
+        matches=[i for i,row in enumerate(rows) if row['path']==path]
+        assert len(matches)==1 and rows[matches[0]]==expected
+        rows.pop(matches[0])
+    for path,(current,previous) in d4e8_changed.items():
+        matches=[i for i,row in enumerate(rows) if row['path']==path]
+        assert len(matches)==1 and rows[matches[0]]==current
+        rows[matches[0]]=previous
+    pre_d4e8=sha256(json.dumps(review,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    assert pre_d4e8=='d86671dfb075d089093864e47455901b813cce60410cb333dd9ce666aeb73c41'
     # Reviewed RC3 extensions belong to the current inventory, not Sprint 15T.
     # Remove exactly one row per explicit path from this in-memory copy only.
     for path in (

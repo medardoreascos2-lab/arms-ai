@@ -62,12 +62,19 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
         *,
         gate,
         strategy_bootstrap=None,
+        entry_authority=None,
+        health_eligible=None,
         **kwargs,
     ):
         self.gate = gate
+        self.entry_authority = entry_authority
+        self.health_eligible = health_eligible
         self.strategy_bootstrap = None
         self.strategy_bootstrap_bar_count = 0
         super().__init__(**kwargs)
+
+        if self._paper is not None:
+            self._install_current_submission_guard()
 
         # Existing namespaces are recovery evidence only.
         if (
@@ -240,6 +247,47 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
     def _input_exhausted(self):
         return False
 
+    def _install_current_submission_guard(self):
+        """Keep the exact PAPER lifecycle object while adding only vetoes."""
+        runtime = self._paper.runtime
+        life = runtime.lifecycle
+        original = life.submit_signal
+
+        def submit_current(*, signal, order_type, risk_context, order_context):
+            reasons = self._entry_reasons()
+            if reasons:
+                return {"accepted": False, "reason": reasons[0], "blocking_reasons": reasons,
+                    "prepared_order": None, "execution": None, "position": None,
+                    "active_position_id": None}
+            context = dict(order_context)
+            context["market_is_open"] = not self.gate.reasons()
+            return original(signal=signal, order_type=order_type,
+                risk_context=risk_context, order_context=context)
+
+        self._current_submit = submit_current
+        self._current_pre_submit = self._entry_reasons
+        life.submit_signal = submit_current
+        life.current_paper_pre_submit = self._current_pre_submit
+
+    def _entry_reasons(self):
+        if self.entry_authority is None or self._paper is None:
+            return ["ENTRY_AUTHORITY_MISSING"]
+        if self.health_eligible is None or not self.health_eligible():
+            return ["CURRENT_PAPER_HEALTH_UNAVAILABLE"]
+        runtime = self._paper.runtime
+        return self.entry_authority.inspect(row=runtime.current,
+            decision=self._last_decision,
+            open_positions=len(runtime.lifecycle.get_active_positions()))
+
+    def _authority_reasons(self):
+        reasons = super()._authority_reasons()
+        if self._paper is not None and hasattr(self, "_current_submit"):
+            life = self._paper.runtime.lifecycle
+            if (life.submit_signal is not self._current_submit or
+                    life.current_paper_pre_submit is not self._current_pre_submit):
+                reasons.append("CURRENT_SUBMISSION_GUARD_CHANGED")
+        return reasons
+
     def _validate_observation(self, observation):
         if observation is not self._paper.runtime.pending:
             raise ValueError("unadmitted current observation")
@@ -256,7 +304,12 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
         )
 
     def _reasons(self):
-        return list(dict.fromkeys(super()._reasons() + self.gate.reasons()))
+        extra = self.gate.reasons()
+        if self.entry_authority is None:
+            extra.append("ENTRY_AUTHORITY_MISSING")
+        if self.health_eligible is None or not self.health_eligible():
+            extra.append("CURRENT_PAPER_HEALTH_UNAVAILABLE")
+        return list(dict.fromkeys(super()._reasons() + extra))
 
     def _publish(self):
         super()._publish()
@@ -295,7 +348,8 @@ class CurrentPaperServiceV1:
     expose recovery evidence only. Disconnection never synthesizes prices or
     closes positions; subsequent proven valid closes retain canonical exits.
     """
-    def __init__(self, *, gate, config, settings, state_path, initialization_policy):
+    def __init__(self, *, gate, config, settings, state_path, initialization_policy,
+                 entry_authority=None):
         if type(gate) is not CurrentCandleAuthorityV1:
             raise TypeError("canonical current candle authority required")
         if initialization_policy != "NEW_ISOLATED_PAPER_ACCOUNT":
@@ -307,9 +361,13 @@ class CurrentPaperServiceV1:
         self._runtime = None
         self._stopped = False
         self._strategy_bootstrap = None
+        self.entry_authority = entry_authority
+        self._health_at = None
+        self._health_live = False
         self._arguments = dict(mode="PAPER_RESEARCH", config=config, settings=settings,
             policy=gate, contract=gate.contract.contract, state_path=state_path,
-            initialization_policy=initialization_policy)
+            initialization_policy=initialization_policy, entry_authority=entry_authority,
+            health_eligible=self.health_eligible)
         if Path(state_path).exists():
             self._runtime = _CurrentRuntimeV1(gate=gate, observations=(), **self._arguments)
 
@@ -356,7 +414,54 @@ class CurrentPaperServiceV1:
             if self._stopped:
                 raise RuntimeError("STOPPED")
             self.gate.connection(connected)
+            if not connected:
+                self.invalidate_health()
             return self.get_snapshot()
+
+    def health_eligible(self):
+        with self._lock:
+            if not self._health_live or self._health_at is None or self._stopped:
+                return False
+            try:
+                now = self.gate.clock()
+                age = (now - self._health_at).total_seconds()
+                session = SessionStateAuthorityV1(self.gate.market_hours).resolve(
+                    now, last_closed=self.gate.last_closed)
+                return (0 <= age <= 2 and session.state == "OPEN" and self.gate.connected
+                    and not self.gate.reconnecting and not self.gate.fault)
+            except (ValueError, TypeError, OverflowError):
+                return False
+
+    def publish_health(self, *, coordinator, worker_alive):
+        """Worker-owned, cached attestation; never arms PAPER."""
+        with self._lock:
+            bridge = coordinator.get("bridge") or {}
+            live = (worker_alive and coordinator.get("status") == "LIVE"
+                and coordinator.get("source_adapter_status") == "LIVE_TAIL"
+                and bridge.get("status") == "LIVE" and self.gate.connected
+                and not self.gate.fault
+                and not self._stopped)
+            if not live:
+                self.invalidate_health()
+                return False
+            self._health_at = self.gate.clock()
+            self._health_live = True
+            if not self.health_eligible():
+                self.invalidate_health()
+                return False
+            return True
+
+    def invalidate_health(self):
+        with self._lock:
+            self._health_live = False
+            self._health_at = None
+            if self._runtime is not None and self._runtime._enabled:
+                try:
+                    self._runtime.control("disable")
+                except (ValueError, RuntimeError, OSError):
+                    self._runtime._enabled = False
+                    self._runtime._fault = "RECOVERY_REQUIRED"
+                    raise
 
     def ingest(self, event):
         with self._lock:
@@ -365,6 +470,8 @@ class CurrentPaperServiceV1:
             row = self.gate.admit(event)
             if row is None:
                 return self.get_snapshot()
+            if self.entry_authority is not None:
+                self.entry_authority.observe(row)
             if self._runtime is None:
                 self._runtime = _CurrentRuntimeV1(
                     gate=self.gate,
@@ -386,6 +493,11 @@ class CurrentPaperServiceV1:
                              readiness_reasons=["AWAITING_MARKET_DATA", "PAPER_DISABLED"]))
             reasons = list(dict.fromkeys(snapshot["readiness_reasons"] + g.reasons()
                                          + (["STOPPED"] if self._stopped else [])))
+            if not self.health_eligible():
+                reasons.append("CURRENT_PAPER_HEALTH_UNAVAILABLE")
+            if self.entry_authority is None:
+                reasons.append("ENTRY_AUTHORITY_MISSING")
+            reasons = list(dict.fromkeys(reasons))
             snapshot.update(mode="CURRENT_MARKET_PAPER", execution_kind="SIMULATED / PAPER",
                 clock="CURRENT_PROVIDER_CLOSED_BAR", live_execution_allowed=False,
                 strategy_bootstrap_mode=(
@@ -443,11 +555,19 @@ class CurrentPaperServiceV1:
                 raise RuntimeError("AWAITING_MARKET_DATA or STOPPED")
             if self.gate.fault:
                 raise RuntimeError("RECOVERY_REQUIRED")
+            if command == "enable" and self.gate.contract.fixture and self.entry_authority is None:
+                # Legacy synthetic protocol smoke has no execution authority.
+                # Keep its in-process enable attempt inert.
+                return self.get_snapshot()
+            if command == "enable" and (self.entry_authority is None or
+                    not self.health_eligible() or self.gate.reasons()):
+                raise RuntimeError("CURRENT_PAPER_HEALTH_OR_AUTHORITY_UNAVAILABLE")
             self._runtime.control(command)
             return self.get_snapshot()
 
     def shutdown(self):
         with self._lock:
+            self.invalidate_health()
             self._stopped = True
             if self._runtime is not None:
                 self._runtime.shutdown()
