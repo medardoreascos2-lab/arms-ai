@@ -49,6 +49,7 @@ def bridge_evidence(
     labels,
     *,
     mutate=None,
+    latest_closed=False,
 ):
     run_id = str(
         uuid4()
@@ -90,10 +91,30 @@ def bridge_evidence(
                 20,
             "requested_from_close":
                 stamp(labels[0]),
+            "configured_through_close":
+                (
+                    "LATEST_CLOSED"
+                    if latest_closed
+                    else stamp(
+                        labels[-1]
+                    )
+                ),
+            "through_selection":
+                (
+                    "CHART_LATEST_CLOSED"
+                    if latest_closed
+                    else "EXPLICIT_UTC"
+                ),
             "requested_through_close":
                 stamp(labels[-1]),
             "chart_bar_count":
-                10000,
+                (
+                    5000
+                    + len(labels)
+                    + 1
+                    if latest_closed
+                    else 10000
+                ),
             "excluded_last":
                 True,
             "raw_time_kind":
@@ -347,6 +368,101 @@ def test_bridge_extends_certified_bootstrap_and_dispatches():
         sha256(raw).hexdigest()
         == data.sha256
     )
+
+
+
+
+def test_latest_closed_mode_is_bound_to_chart_count_minus_two():
+    base = base_raw()
+
+    bridge, seal = bridge_evidence(
+        successful_labels(),
+        latest_closed=True,
+    )
+
+    raw, result = build_bundle(
+        base,
+        bridge,
+        seal,
+        SOURCE,
+    )
+
+    data = certify_bootstrap(
+        raw,
+        expected_sha256=
+            sha256(raw).hexdigest(),
+    )
+
+    assert (
+        data.source
+        == MERGED_SOURCE
+    )
+
+    assert (
+        data.bars[-1].label
+        == "2026-09-21T22:02:00.0000000Z"
+    )
+
+    assert (
+        result["bars"]
+        == 5
+    )
+
+
+def test_latest_closed_mode_rejects_nonlatest_chart_row():
+    base = base_raw()
+
+    def mutate(rows):
+        rows[0][
+            "chart_bar_count"
+        ] += 1
+
+    bridge, seal = bridge_evidence(
+        successful_labels(),
+        latest_closed=True,
+        mutate=mutate,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=
+            "CHART_CATCHUP_LATEST_CLOSED_PROOF",
+    ):
+        build_bundle(
+            base,
+            bridge,
+            seal,
+            SOURCE,
+        )
+
+
+def test_latest_closed_mode_rejects_configuration_substitution():
+    base = base_raw()
+
+    def mutate(rows):
+        rows[0][
+            "configured_through_close"
+        ] = (
+            "2026-09-21T22:02:00Z"
+        )
+
+    bridge, seal = bridge_evidence(
+        successful_labels(),
+        latest_closed=True,
+        mutate=mutate,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=
+            "CHART_CATCHUP_LATEST_CLOSED_CONFIGURATION",
+    ):
+        build_bundle(
+            base,
+            bridge,
+            seal,
+            SOURCE,
+        )
 
 
 def test_missing_open_minute_fails_closed():

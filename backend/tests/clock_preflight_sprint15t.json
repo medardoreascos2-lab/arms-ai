@@ -61,12 +61,12 @@
       "introduced_by": "backend/tests/fresh_native_adapter_sprint15y.json",
       "calls": [
         {
-          "line": 136,
+          "line": 137,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         },
         {
-          "line": 181,
+          "line": 224,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         }
@@ -887,12 +887,12 @@
       "path": "backend/market_data/analysis_startup_v1.py",
       "calls": [
         {
-          "line": 19,
+          "line": 20,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         },
         {
-          "line": 32,
+          "line": 34,
           "call": "self.clock",
           "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
         }

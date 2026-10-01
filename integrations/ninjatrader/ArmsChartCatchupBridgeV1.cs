@@ -19,6 +19,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private bool attempted;
         private bool terminal;
+        private int liveAlignmentBar = -1;
 
         [NinjaScriptProperty]
         [Display(
@@ -54,11 +55,19 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         [NinjaScriptProperty]
         [Display(
-            Name = "Through close UTC",
+            Name = "Through close UTC / LATEST_CLOSED",
             Order = 5,
             GroupName = "ARMS read-only catch-up"
         )]
         public string ThroughCloseUtc { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(
+            Name = "Live output directory",
+            Order = 6,
+            GroupName = "ARMS read-only catch-up"
+        )]
+        public string LiveOutputDirectory { get; set; }
 
         protected override void OnStateChange()
         {
@@ -80,12 +89,22 @@ namespace NinjaTrader.NinjaScript.Indicators
                 ExpectedProvider = "";
                 FromCloseUtc = "";
                 ThroughCloseUtc = "";
+                LiveOutputDirectory = "";
             }
             else if (
                 State == State.Realtime
                 && CaptureEnabled
             )
             {
+                if (
+                    String.Equals(
+                        ThroughCloseUtc,
+                        "LATEST_CLOSED",
+                        StringComparison.Ordinal
+                    )
+                )
+                    return;
+
                 lock (sync)
                 {
                     if (
@@ -452,6 +471,315 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
+        private static string LiveDirectory(
+            string value
+        )
+        {
+            Need(
+                !String.IsNullOrWhiteSpace(
+                    value
+                )
+            );
+
+            Need(
+                Path.IsPathRooted(
+                    value
+                )
+            );
+
+            string full =
+                Path.GetFullPath(
+                    value
+                );
+
+            string root =
+                Path.GetPathRoot(
+                    full
+                );
+
+            Need(
+                !String.IsNullOrWhiteSpace(
+                    root
+                )
+                && !root.StartsWith(
+                    @"\\"
+                )
+            );
+
+            Need(
+                Directory.Exists(
+                    full
+                )
+            );
+
+            Need(
+                new DriveInfo(
+                    root
+                ).DriveType
+                == DriveType.Fixed
+            );
+
+            for (
+                var current =
+                    new DirectoryInfo(
+                        full
+                    );
+                current != null;
+                current = current.Parent
+            )
+            {
+                Need(
+                    (
+                        current.Attributes
+                        & FileAttributes.ReparsePoint
+                    )
+                    == 0
+                );
+            }
+
+            return full;
+        }
+
+        private bool LiveHelloReady()
+        {
+            string directory =
+                LiveDirectory(
+                    LiveOutputDirectory
+                );
+
+            string[] files =
+                Directory.GetFiles(
+                    directory,
+                    "*.jsonl",
+                    SearchOption.TopDirectoryOnly
+                );
+
+            string market =
+                null;
+
+            foreach (
+                string candidate
+                in files
+            )
+            {
+                string name =
+                    Path.GetFileName(
+                        candidate
+                    );
+
+                if (
+                    name.EndsWith(
+                        ".connection.jsonl",
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+                    continue;
+
+                Need(
+                    market == null
+                );
+
+                market =
+                    candidate;
+            }
+
+            if (
+                market == null
+            )
+                return false;
+
+            string session =
+                Path.GetFileNameWithoutExtension(
+                    market
+                );
+
+            Guid parsed;
+
+            Need(
+                Guid.TryParseExact(
+                    session,
+                    "D",
+                    out parsed
+                )
+            );
+
+            string first;
+
+            using (
+                var file =
+                    new FileStream(
+                        market,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite
+                    )
+            )
+            using (
+                var reader =
+                    new StreamReader(
+                        file,
+                        new UTF8Encoding(false),
+                        true,
+                        4096
+                    )
+            )
+            {
+                first =
+                    reader.ReadLine();
+            }
+
+            if (
+                String.IsNullOrWhiteSpace(
+                    first
+                )
+            )
+                return false;
+
+            string prefix =
+                "{\"schema\":\"arms.nt.market.v1\""
+                + ",\"session\":\""
+                + session
+                + "\""
+                + ",\"sequence\":0,";
+
+            Need(
+                first.StartsWith(
+                    prefix,
+                    StringComparison.Ordinal
+                )
+            );
+
+            Need(
+                first.Contains(
+                    "\"kind\":\"HELLO\""
+                )
+            );
+
+            return true;
+        }
+
+        protected override void OnBarUpdate()
+        {
+            if (
+                State != State.Realtime
+                || BarsInProgress != 0
+                || !IsFirstTickOfBar
+            )
+                return;
+
+            if (
+                !CaptureEnabled
+                || attempted
+                || terminal
+                || !String.Equals(
+                    ThroughCloseUtc,
+                    "LATEST_CLOSED",
+                    StringComparison.Ordinal
+                )
+            )
+                return;
+
+            lock (sync)
+            {
+                if (
+                    attempted
+                    || terminal
+                )
+                    return;
+
+                try
+                {
+                    if (
+                        !LiveHelloReady()
+                    )
+                        return;
+
+                    if (
+                        liveAlignmentBar < 0
+                    )
+                    {
+                        liveAlignmentBar =
+                            CurrentBar;
+
+                        return;
+                    }
+
+                    if (
+                        !(CurrentBar > liveAlignmentBar)
+                    )
+                        return;
+
+                    if (
+                        CurrentBar - 1
+                        <= liveAlignmentBar
+                    )
+                        return;
+                }
+                catch (
+                    Exception error
+                )
+                {
+                    terminal = true;
+
+                    try
+                    {
+                        Print(
+                            "ARMS_CHART_CATCHUP_BRIDGE_FAILED_ALIGNMENT_"
+                            + error.GetType().Name
+                        );
+                    }
+                    catch
+                    {
+                    }
+
+                    return;
+                }
+            }
+
+lock (sync)
+                {
+                    if (
+                        attempted
+                        || terminal
+                    )
+                        return;
+
+                    attempted = true;
+
+                    try
+                    {
+                        Capture();
+
+                        terminal = true;
+
+                        try
+                        {
+                            Print(
+                                "ARMS_CHART_CATCHUP_BRIDGE_COMPLETE"
+                            );
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    catch (Exception error)
+                    {
+                        terminal = true;
+
+                        try
+                        {
+                            Print(
+                                "ARMS_CHART_CATCHUP_BRIDGE_FAILED_"
+                                + ErrorCode(error)
+                            );
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+        }
+
         private void Capture()
         {
             RequireSource();
@@ -466,23 +794,60 @@ namespace NinjaTrader.NinjaScript.Indicators
                     FromCloseUtc
                 );
 
-            DateTime through =
-                ParseUtc(
-                    ThroughCloseUtc
-                );
-
-            Need(
-                from <= through
-                && through - from
-                    <= TimeSpan.FromDays(2)
-            );
-
             int count =
                 Bars.Count;
 
             Need(
                 count >= 3
                 && count <= 1000000
+            );
+
+            bool latestClosed =
+                String.Equals(
+                    ThroughCloseUtc,
+                    "LATEST_CLOSED",
+                    StringComparison.Ordinal
+                );
+
+            DateTime through;
+
+            if (latestClosed)
+            {
+                DateTime latestRaw =
+                    Bars.GetTime(
+                        count - 2
+                    );
+
+                Need(
+                    latestRaw.Kind
+                        == DateTimeKind.Utc
+                    || latestRaw.Kind
+                        == DateTimeKind.Unspecified
+                );
+
+                Need(
+                    latestRaw.Ticks
+                    % TimeSpan.TicksPerMinute
+                    == 0
+                );
+
+                through =
+                    ClockFieldsAsUtc(
+                        latestRaw
+                    );
+            }
+            else
+            {
+                through =
+                    ParseUtc(
+                        ThroughCloseUtc
+                    );
+            }
+
+            Need(
+                from <= through
+                && through - from
+                    <= TimeSpan.FromDays(2)
             );
 
             var indexes =
@@ -582,6 +947,16 @@ namespace NinjaTrader.NinjaScript.Indicators
                 && lastLabel == through
             );
 
+            if (latestClosed)
+            {
+                Need(
+                    indexes[
+                        indexes.Count - 1
+                    ]
+                    == count - 2
+                );
+            }
+
             string runId =
                 Guid.NewGuid()
                     .ToString("D");
@@ -646,6 +1021,14 @@ namespace NinjaTrader.NinjaScript.Indicators
 
                         requested_from_close =
                             from.ToString("o"),
+
+                        configured_through_close =
+                            ThroughCloseUtc,
+
+                        through_selection =
+                            latestClosed
+                                ? "CHART_LATEST_CLOSED"
+                                : "EXPLICIT_UTC",
 
                         requested_through_close =
                             through.ToString("o"),

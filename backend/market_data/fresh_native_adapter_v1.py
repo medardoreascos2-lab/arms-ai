@@ -13,6 +13,7 @@ from threading import RLock
 from uuid import UUID, uuid4
 
 from backend.market_data.analysis_time_profile_v1 import MarketAnalysisTimeProfileV1, EXPORTER_SHA256, require
+from backend.market_data.certified_bootstrap_v1 import CertifiedBootstrap
 from backend.market_data.exporter_identity_v1 import verify_exporter_source
 from tools.native_timing_witness_v1 import IDENTITY, check_pair, ticks, qpc_pair
 from tools.production_timing_v1 import PAIR_FIELDS, parse
@@ -51,14 +52,31 @@ def local_path(path):
 
 
 class _Tail:
-    def __init__(self, path):
+    def __init__(
+        self,
+        path,
+        *,
+        startup_cursor=None,
+    ):
         self.path = local_path(path)
         self.handle = self._open_read(self.path)
         info = os.fstat(self.handle.fileno())
         self.identity = (info.st_dev, info.st_ino)
         require(info.st_ino and stat.S_ISREG(info.st_mode), 'FILE_IDENTITY_UNAVAILABLE')
         require(info.st_size <= MAX_FILE, 'FILE_LIMIT')
-        self.cursor = info.st_size
+        require(
+            startup_cursor is None
+            or (
+                type(startup_cursor) is int
+                and 0 <= startup_cursor <= info.st_size
+            ),
+            'STARTUP_CURSOR_INVALID',
+        )
+        self.cursor = (
+            info.st_size
+            if startup_cursor is None
+            else startup_cursor
+        )
         self.offset = 0
         self.digest = sha256()
         self.partial = b''
@@ -160,21 +178,388 @@ class FreshNativeAdapterV1:
         self.missing_since = None
         self.bootstrap_deadline = None
         self.root_identity = self._directory_identity()
+        self.preactivation_root_empty = not any(
+            self.directory.iterdir()
+        )
+        self.preactivation_session = None
+        self.preactivation_identities = {}
         self.timing_identity = None
         self.bootstrap = bootstrap
+        self.bootstrap_replacement_count = 0
         self.profile = self._new_profile(str(uuid4()))
 
     def _directory_identity(self):
         info = local_path(self.directory).stat()
         return info.st_dev, info.st_ino
 
+    def validate_preactivation_buffer(
+        self,
+        reason="INPUT_BEFORE_ACTIVATION_ALLOWANCE",
+    ):
+        """Validate and pin one runtime-local session without consuming it."""
+        with self.lock:
+            require(
+                type(reason) is str
+                and bool(reason),
+                "PREACTIVATION_BUFFER_REASON",
+            )
+
+            require(
+                self._directory_identity()
+                == self.root_identity,
+                reason,
+            )
+
+            entries = tuple(
+                self.directory.iterdir()
+            )
+
+            # If anything exists pre-activation, this adapter
+            # must have observed the directory empty at construction.
+            if entries:
+                require(
+                    self.preactivation_root_empty,
+                    reason,
+                )
+
+            sessions = set()
+            canonical = []
+            connections = []
+            timing = []
+            present = set()
+
+            def session_from_name(
+                name,
+                suffix,
+            ):
+                require(
+                    name.endswith(suffix),
+                    reason,
+                )
+
+                value = name[
+                    : -len(suffix)
+                ]
+
+                try:
+                    valid = (
+                        str(UUID(value))
+                        == value
+                    )
+                except (
+                    ValueError,
+                    TypeError,
+                    AttributeError,
+                ):
+                    valid = False
+
+                require(
+                    valid,
+                    reason,
+                )
+
+                sessions.add(
+                    value
+                )
+
+                return value
+
+            def pin(
+                key,
+                path,
+                *,
+                directory=False,
+            ):
+                value = local_path(
+                    path
+                )
+
+                info = value.stat()
+
+                require(
+                    info.st_ino,
+                    reason,
+                )
+
+                if directory:
+                    require(
+                        value.is_dir(),
+                        reason,
+                    )
+                else:
+                    require(
+                        value.is_file()
+                        and info.st_size
+                        <= MAX_FILE,
+                        reason,
+                    )
+
+                identity = (
+                    info.st_dev,
+                    info.st_ino,
+                )
+
+                prior = (
+                    self.preactivation_identities
+                    .get(key)
+                )
+
+                require(
+                    prior is None
+                    or prior == identity,
+                    reason,
+                )
+
+                if prior is None:
+                    self.preactivation_identities[
+                        key
+                    ] = identity
+
+                present.add(
+                    key
+                )
+
+            for raw_entry in entries:
+                if (
+                    raw_entry.name
+                    == "timing"
+                ):
+                    folder = local_path(
+                        raw_entry
+                    )
+
+                    pin(
+                        "timing_directory",
+                        folder,
+                        directory=True,
+                    )
+
+                    for raw_sidecar in (
+                        folder.iterdir()
+                    ):
+                        sidecar = local_path(
+                            raw_sidecar
+                        )
+
+                        require(
+                            sidecar.is_file(),
+                            reason,
+                        )
+
+                        session_from_name(
+                            sidecar.name,
+                            ".production-timing.jsonl",
+                        )
+
+                        timing.append(
+                            sidecar
+                        )
+
+                        pin(
+                            "timing",
+                            sidecar,
+                        )
+
+                    continue
+
+                entry = local_path(
+                    raw_entry
+                )
+
+                require(
+                    entry.is_file(),
+                    reason,
+                )
+
+                if entry.name.endswith(
+                    ".connection.jsonl"
+                ):
+                    session_from_name(
+                        entry.name,
+                        ".connection.jsonl",
+                    )
+
+                    connections.append(
+                        entry
+                    )
+
+                    pin(
+                        "connection",
+                        entry,
+                    )
+
+                elif entry.name.endswith(
+                    ".jsonl"
+                ):
+                    session_from_name(
+                        entry.name,
+                        ".jsonl",
+                    )
+
+                    canonical.append(
+                        entry
+                    )
+
+                    pin(
+                        "canonical",
+                        entry,
+                    )
+
+                else:
+                    raise ValueError(
+                        reason
+                    )
+
+            require(
+                len(canonical) <= 1
+                and len(connections) <= 1
+                and len(timing) <= 1
+                and len(sessions) <= 1,
+                reason,
+            )
+
+            # Once a file/directory has been pinned during the
+            # preactivation window, disappearance is mutation.
+            for key in (
+                self.preactivation_identities
+            ):
+                require(
+                    key in present,
+                    reason,
+                )
+
+            if not sessions:
+                require(
+                    self.preactivation_session
+                    is None,
+                    reason,
+                )
+
+                return None
+
+            session = next(
+                iter(sessions)
+            )
+
+            if (
+                self.preactivation_session
+                is None
+            ):
+                self.preactivation_session = (
+                    session
+                )
+            else:
+                require(
+                    session
+                    == self.preactivation_session,
+                    reason,
+                )
+
+            return session
+
+    def _preactivation_startup_cursor(
+        self,
+        session,
+        key,
+        path,
+    ):
+        """Return zero only for the one session born after this fresh runtime."""
+        if not (
+            self.health_gated
+            and self.preactivation_root_empty
+            and self.preactivation_session
+            == session
+        ):
+            return None
+
+        value = local_path(
+            path
+        )
+
+        info = value.stat()
+
+        require(
+            info.st_ino,
+            'PREACTIVATION_BUFFER_IDENTITY',
+        )
+
+        prior = (
+            self.preactivation_identities
+            .get(key)
+        )
+
+        # If the file existed before activation, its exact file
+        # identity must still be the one that was quarantined.
+        if prior is not None:
+            require(
+                prior
+                == (
+                    info.st_dev,
+                    info.st_ino,
+                ),
+                'PREACTIVATION_BUFFER_IDENTITY',
+            )
+
+        # Zero does not mean trusted history. It only means:
+        # parse the runtime-local prefix and let QPC/provenance/
+        # overlap gates decide what can become LIVE_TAIL.
+        return 0
+
+    def replace_waiting_bootstrap(self, bootstrap):
+        """Replace bootstrap once before activation; never after any live input."""
+        with self.lock:
+            require(
+                type(bootstrap) is CertifiedBootstrap,
+                'CERTIFIED_BOOTSTRAP_REQUIRED',
+            )
+            require(
+                self.health_gated
+                and self.activation_start is None
+                and self.status == 'WAITING'
+                and self.session is None
+                and self.market is None
+                and self.timing is None
+                and self.bootstrap_replacement_count == 0,
+                'BOOTSTRAP_REPLACEMENT_STATE',
+            )
+            self.validate_preactivation_buffer(
+                'BOOTSTRAP_REPLACEMENT_NOT_FRESH',
+            )
+
+            require(
+                self._directory_identity()
+                == self.root_identity
+                and not self.queue
+                and not self.pairs
+                and self.sequence == -1
+                and self.pair_sequence == -1
+                and self.hello is None
+                and self.last_pair is None
+                and self.last_receipt is None
+                and self.bootstrap_records == 0
+                and self.delivered_records == 0,
+                'BOOTSTRAP_REPLACEMENT_NOT_FRESH',
+            )
+
+            self.bootstrap = bootstrap
+            self.profile = self._new_profile(
+                str(uuid4())
+            )
+            self.bootstrap_replacement_count = 1
+
     def arm_activation(self):
         """In-process coordinator only; no HTTP/file-based arming or reset."""
         with self.lock:
             require(self.health_gated and self.activation_start is None and self.status == 'WAITING'
                     and self.session is None, 'ACTIVATION_REENTRY_OR_INVALID_STATE')
-            require(self._directory_identity() == self.root_identity and not any(self.directory.iterdir()),
-                    'ACTIVATION_INPUT_NOT_FRESH')
+            self.validate_preactivation_buffer(
+                'ACTIVATION_INPUT_NOT_FRESH',
+            )
+            require(
+                self._directory_identity()
+                == self.root_identity,
+                'ACTIVATION_INPUT_NOT_FRESH',
+            )
             self.activation_start = self.sample()[2]
 
     def sample(self):
@@ -202,7 +587,9 @@ class FreshNativeAdapterV1:
     def _discover(self, now):
         require(self._directory_identity() == self.root_identity, 'DIRECTORY_REPLACED')
         if self.activation_start is None:
-            require(not any(self.directory.iterdir()), 'INPUT_BEFORE_ACTIVATION_ALLOWANCE')
+            self.validate_preactivation_buffer(
+                'INPUT_BEFORE_ACTIVATION_ALLOWANCE',
+            )
             return
         candidates = sorted(p for p in self.directory.glob('*.jsonl') if not p.name.endswith('.connection.jsonl'))
         require(len(candidates) <= 1, 'SESSION_ROTATION')
@@ -215,7 +602,15 @@ class FreshNativeAdapterV1:
         require(str(UUID(session)) == session, 'SESSION_FILENAME')
         require(self.session is None or session == self.session, 'SESSION_ROTATION')
         if self.market is None:
-            self.market = _Tail(path)
+            self.market = _Tail(
+                path,
+                startup_cursor=
+                    self._preactivation_startup_cursor(
+                        session,
+                        "canonical",
+                        path,
+                    ),
+            )
             self.session = session
             self.status = 'BOOTSTRAP'
             self.bootstrap_deadline = now+self.startup_ticks
@@ -230,7 +625,15 @@ class FreshNativeAdapterV1:
             require(all(p.name == session+'.production-timing.jsonl' for p in files), 'SIDECAR_SESSION_ROTATION')
             sidecar = folder/(session+'.production-timing.jsonl')
             if sidecar.exists() and self.timing is None:
-                self.timing = _Tail(sidecar)
+                self.timing = _Tail(
+                    sidecar,
+                    startup_cursor=
+                        self._preactivation_startup_cursor(
+                            session,
+                            "timing",
+                            sidecar,
+                        ),
+                )
             if Path(str(sidecar)+'.done.json').exists() or Path(str(sidecar)+'.done.tmp').exists():
                 self.revoke('WRITER_CLOSED', disconnected=True)
         else:
@@ -312,7 +715,48 @@ class FreshNativeAdapterV1:
                         break
                     paired = self.pairs[0][0] if bar else None
                     pair = self._wire(raw, row, paired)
-                    historical = offset < self.market.cursor or (pair and pair['callback']['qpc_before'] < self.start)
+
+                    quarantined_replay = (
+                        self.status == 'BOOTSTRAP'
+                        and self.health_gated
+                        and self.preactivation_root_empty
+                        and self.preactivation_session
+                        == self.session
+                        and self.market.cursor == 0
+                    )
+
+                    stale_quarantined_pair = (
+                        bool(pair)
+                        and quarantined_replay
+                        and (
+                            now
+                            - pair['emission'][
+                                'qpc_before'
+                            ]
+                            > int(
+                                self.options[
+                                    'maximum_processing_seconds'
+                                ]
+                                * self.frequency
+                            )
+                        )
+                    )
+
+                    historical = (
+                        offset
+                        < self.market.cursor
+                        or (
+                            pair
+                            and pair[
+                                'callback'
+                            ][
+                                'qpc_before'
+                            ]
+                            < self.start
+                        )
+                        or stale_quarantined_pair
+                    )
+
                     if self.status == 'BOOTSTRAP' and pair and not historical and row['kind'] == 'FORMING':
                         # Boundary-local warmup: producer may already emit CLOSED at every boundary.
                         self.profile.establish_tail_baseline(self.hello, canonical_sequence=self.sequence,

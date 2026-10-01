@@ -22,7 +22,7 @@ from tools.native_timing_witness_v1 import (
 )
 
 SCHEMA = "arms.certified-chart-catchup.v1"
-EXPORTER_SHA256 = "282f4a59410ba8ad54e64bce3bcab79407da2027a90385ff710822f30f2661e9"
+EXPORTER_SHA256 = "37fae2088076c0754e4d10454b3f698c43080879f888ad93924c3dd9a6a22af6"
 
 SOURCE = "NINJATRADER_LOADED_CHART_BARS"
 MERGED_SOURCE = (
@@ -52,6 +52,8 @@ HEADER_FIELDS = {
     "tick_size",
     "point_value",
     "requested_from_close",
+    "configured_through_close",
+    "through_selection",
     "requested_through_close",
     "chart_bar_count",
     "excluded_last",
@@ -370,9 +372,28 @@ def certify_chart_catchup_bundle(
         "requested_from_close"
     ]
 
+    configured_through = header[
+        "configured_through_close"
+    ]
+
+    through_selection = header[
+        "through_selection"
+    ]
+
     requested_through = header[
         "requested_through_close"
     ]
+
+    require(
+        type(configured_through)
+        is str
+        and through_selection
+        in {
+            "EXPLICIT_UTC",
+            "CHART_LATEST_CLOSED",
+        },
+        "CHART_CATCHUP_THROUGH_SELECTION",
+    )
 
     from_close = datetime.fromisoformat(
         requested_from.replace(
@@ -402,6 +423,36 @@ def certify_chart_catchup_bundle(
         <= timedelta(days=2),
         "CHART_CATCHUP_REQUEST_RANGE",
     )
+
+    if (
+        through_selection
+        == "EXPLICIT_UTC"
+    ):
+        configured_close = (
+            datetime.fromisoformat(
+                configured_through.replace(
+                    "Z",
+                    "+00:00",
+                )
+            )
+        )
+
+        require(
+            configured_close.tzinfo
+            is not None
+            and configured_close.utcoffset()
+            == timedelta(0)
+            and configured_close
+            == through_close,
+            "CHART_CATCHUP_EXPLICIT_THROUGH",
+        )
+
+    else:
+        require(
+            configured_through
+            == "LATEST_CLOSED",
+            "CHART_CATCHUP_LATEST_CLOSED_CONFIGURATION",
+        )
 
     bars = []
 
@@ -611,6 +662,18 @@ def certify_chart_catchup_bundle(
         == requested_through,
         "CHART_CATCHUP_REQUEST_BOUNDARY",
     )
+
+    if (
+        through_selection
+        == "CHART_LATEST_CLOSED"
+    ):
+        require(
+            chart_indexes[-1]
+            == header[
+                "chart_bar_count"
+            ] - 2,
+            "CHART_CATCHUP_LATEST_CLOSED_PROOF",
+        )
 
     base_last = datetime.fromisoformat(
         base.bars[-1].label.replace(

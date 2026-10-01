@@ -4,6 +4,7 @@ from threading import RLock
 from uuid import UUID
 
 from backend.market_data.analysis_time_profile_v1 import require
+from backend.market_data.certified_bootstrap_v1 import CertifiedBootstrap
 from backend.market_data.fresh_native_adapter_v1 import FreshNativeAdapterV1, WindowsQpc, local_path
 from tools.native_timing_witness_v1 import live_process_start
 
@@ -19,6 +20,7 @@ class AnalysisStartupV1:
         self.epoch, self.frequency, self.last_now = self.clock()
         self.installed_exporter = installed_exporter
         self.bootstrap = bootstrap
+        self.bootstrap_replacement_count = 0
         self.lock = RLock()
         self.phase = 'BACKEND_STARTING'
         self.reason = None
@@ -108,6 +110,59 @@ class AnalysisStartupV1:
                 self.revoke('ADAPTER_STARTUP_FAILED')
                 raise
 
+    def install_waiting_bootstrap(self, bootstrap):
+        """Install one freshly certified bootstrap before native activation."""
+        with self.lock:
+            try:
+                require(
+                    self.phase == 'VERIFYING_WAITING',
+                    'BOOTSTRAP_INSTALL_GATE_ORDER',
+                )
+                require(
+                    type(bootstrap)
+                    is CertifiedBootstrap,
+                    'CERTIFIED_BOOTSTRAP_REQUIRED',
+                )
+                require(
+                    self.bootstrap_replacement_count
+                    == 0,
+                    'BOOTSTRAP_INSTALL_REENTRY',
+                )
+                require(
+                    self.adapter is not None,
+                    'BOOTSTRAP_INSTALL_NOT_FRESH',
+                )
+
+                self.adapter.validate_preactivation_buffer(
+                    'BOOTSTRAP_INSTALL_NOT_FRESH',
+                )
+
+                require(
+                    self.adapter.status
+                    == 'WAITING'
+                    and self.adapter.activation_start
+                    is None
+                    and self.adapter.session is None,
+                    'BOOTSTRAP_INSTALL_NOT_FRESH',
+                )
+
+                self.adapter.replace_waiting_bootstrap(
+                    bootstrap
+                )
+
+                self.bootstrap = bootstrap
+                self.bootstrap_replacement_count = 1
+
+                # Catch-up can take time. Old WAITING observations
+                # cannot authorize a later activation.
+                self.observations = []
+
+            except Exception:
+                self.revoke(
+                    'BOOTSTRAP_INSTALL_FAILED'
+                )
+                raise
+
     def observe_waiting(self, health, listener_pid):
         with self.lock:
             try:
@@ -116,8 +171,11 @@ class AnalysisStartupV1:
                 require(health['phase'] == self.phase and health['worker_heartbeat'] <= self.worker_heartbeat
                         and health['adapter_heartbeat'] <= self.adapter.heartbeat
                         and 0 <= self._now()-health['worker_qpc'] <= 2*self.frequency, 'STALE_WAITING_SNAPSHOT')
+                self.adapter.validate_preactivation_buffer(
+                    'NOT_FRESH_WAITING',
+                )
                 require(health['adapter_status'] == 'WAITING' and not health['activation_allowance_started']
-                        and self.adapter.session is None and not any(self.adapter.directory.iterdir()), 'NOT_FRESH_WAITING')
+                        and self.adapter.session is None, 'NOT_FRESH_WAITING')
                 now = self._now()
                 if self.observations:
                     prior = self.observations[-1]
@@ -136,7 +194,14 @@ class AnalysisStartupV1:
                 require(self.frontend == (frontend_pid, live_process_start(frontend_pid)) and dashboard_status == 200,
                         'HEALTH_RECHECK_FAILED')
                 require(self._now()-self.observations[-1][0] <= 5*self.frequency, 'STALE_WAITING')
-                require(self.adapter.status == 'WAITING' and not any(self.adapter.directory.iterdir()), 'NOT_FRESH_WAITING')
+                self.adapter.validate_preactivation_buffer(
+                    'NOT_FRESH_WAITING',
+                )
+                require(
+                    self.adapter.status
+                    == 'WAITING',
+                    'NOT_FRESH_WAITING',
+                )
                 if allow_activation:
                     self.adapter.arm_activation()
                     self.phase = 'AWAITING_OPERATOR_ACTIVATION'

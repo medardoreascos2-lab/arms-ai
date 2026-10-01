@@ -11,8 +11,10 @@ from backend.market_data.certified_bootstrap_v1 import (
     certify_bootstrap,
 )
 from backend.market_data.chart_catchup_bridge_v1 import (
-    EXPORTER_SHA256,
     SCHEMA,
+)
+from backend.market_data.chart_catchup_source_identity_v1 import (
+    verify_chart_catchup_source,
 )
 from backend.market_data.native_historical_bootstrap_v1 import (
     report,
@@ -31,20 +33,17 @@ def build_bundle(
     seal,
     source,
 ):
-    source_hash = sha256(
-        source.replace(
-            b"\r\n",
-            b"\n",
+    source_identity = (
+        verify_chart_catchup_source(
+            source
         )
-    ).hexdigest()
+    )
 
-    if (
-        source_hash
-        != EXPORTER_SHA256
-    ):
-        raise ValueError(
-            "CHART_CATCHUP_EXPORTER_SOURCE_CHANGED"
-        )
+    source_hash = (
+        source_identity[
+            "authored_sha256"
+        ]
+    )
 
     base_sha = sha256(
         base

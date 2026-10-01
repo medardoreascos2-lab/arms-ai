@@ -8546,7 +8546,7 @@
     {
       "path": "backend/market_data/analysis_time_profile_v1.py",
       "function": "MarketAnalysisTimeProfileV1.snapshot",
-      "source_sha256": "b71801fe059589909832f1ccae59cfb600fa07b8261575331d1a12f7e9f366a4",
+      "source_sha256": "56cfadc07d6eb1afe86695b6c64e8f6755daec242ec0b71e3ff28b1d0dd2bb98",
       "inputs": "self",
       "calls": [
         "deepcopy",

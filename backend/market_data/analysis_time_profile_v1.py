@@ -299,7 +299,10 @@ class MarketAnalysisTimeProfileV1:
                 bootstrap_gap_count=self.bootstrap.gap_count if self.bootstrap else 0,
                 bootstrap_gap_report=self.bootstrap.gap_report if self.bootstrap else (),
                 bootstrap_provider_attribution='UNATTESTED' if self.bootstrap and
-                    self.bootstrap.source == 'NATIVE_HISTORICAL_REPOSITORY' else None,
+                    self.bootstrap.source in (
+                        'NATIVE_HISTORICAL_REPOSITORY',
+                        'NATIVE_HISTORICAL_REPOSITORY+NINJATRADER_LOADED_CHART_BARS',
+                    ) else None,
                 handoff_gap=deepcopy(self.handoff_gap),
                 live_handoff_status='REVOKED' if self.fault else self.handoff,
                 first_live_tail=deepcopy(self.first_live), first_live_closed=deepcopy(self.first_live_closed),
