@@ -135,6 +135,7 @@ class MarketAnalysisTimeProfileV1:
         with self._lock:
             if self.fault:
                 raise ValueError(self.fault)
+            delivery = None
             try:
                 now = self._now()
                 require(type(receipt_qpc) is int and self.start <= receipt_qpc <= now
@@ -158,15 +159,23 @@ class MarketAnalysisTimeProfileV1:
                     require(p=={'connected':True} and p['connected'] is True and timing_raw is None
                             and self.pending is None, 'HEARTBEAT_STATE')
                 elif kind in ('FORMING','CLOSED'):
-                    self._bar(row,canonical_raw,timing_raw,receipt_qpc,now)
+                    delivery = self._bar(
+                        row,
+                        canonical_raw,
+                        timing_raw,
+                        receipt_qpc,
+                        now,
+                    )
                 else:
                     raise ValueError('TRANSPORT_TERMINATED')
                 self.sequence,self.last_receipt = row['sequence'],receipt_qpc
+                return delivery
             except (ValueError,KeyError,TypeError,AttributeError,OverflowError) as error:
                 self.fault = str(error) if type(error) is ValueError else 'MALFORMED_INPUT'
                 raise ValueError(self.fault) from None
 
     def _bar(self,row,raw,paired,receipt,now):
+        completed = None
         require(type(paired) is bytes and 0 < len(paired) <= 16384, 'TIMING_PAIR_REQUIRED')
         p=parse(paired); v=row['payload']; kind=row['kind']
         require(set(p)==PAIR_FIELDS and p['schema']=='arms.nt.production-timing.v1', 'PAIR_SCHEMA')
@@ -196,7 +205,11 @@ class MarketAnalysisTimeProfileV1:
         if kind=='CLOSED':
             require(self.pending is None and self.forming_count>=(1 if self.tail_baseline else 2) and p['bars_ago']==1
                     and self.forming['bar_index']==p['bar_index'] and self.forming['source_bar_label']==p['source_bar_label'], 'CLOSED_PROVENANCE')
-            self.pending=(deepcopy(p),deepcopy(v))
+            self.pending=(
+                deepcopy(p),
+                deepcopy(v),
+                row['event_time'],
+            )
         else:
             require(p['bars_ago']==0 and ((self.forming_count>=(1 if self.tail_baseline else 2))==(self.pending is not None)), 'MISSING_CLOSED')
             if self.first_live is None:
@@ -205,16 +218,29 @@ class MarketAnalysisTimeProfileV1:
                 require(p['bar_index']==self.forming['bar_index']+1
                         and label==ticks(self.forming['source_bar_label'])+MINUTE, 'CANONICAL_GAP')
             if self.pending:
-                closed,vclosed=self.pending
+                closed,vclosed,closed_event_time=self.pending
                 require(closed['callback']==cb and closed['callback_index']==p['callback_index'], 'SAME_CALLBACK')
                 if self.forming_count >= 2:
                     candle=Candle('NQ','1m',*[vclosed[k] for k in ('open','high','low','close','volume')],
                                   datetime.fromisoformat(vclosed['bar_time'].replace('Z','+00:00'))-timedelta(minutes=1))
-                    self._completed_live(candle, closed['canonical_sequence'])
+                    completed = self._completed_live(
+                        candle,
+                        closed['canonical_sequence'],
+                        event_time=closed_event_time,
+                        source_bar_label=vclosed['bar_time'],
+                    )
             self.pending=None;self.forming=deepcopy(p);self.forming_count+=1
         self.pair_sequence=p['pair_sequence'];self.previous_pair=deepcopy(p);self.last_emission=em['qpc_before']
+        return completed
 
-    def _completed_live(self, candle, sequence):
+    def _completed_live(
+        self,
+        candle,
+        sequence,
+        *,
+        event_time,
+        source_bar_label,
+    ):
         if self.first_live_closed is None:
             self.first_live_closed = dict(sequence=sequence, source_open=candle.timestamp.isoformat())
         if self.bootstrap is not None:
@@ -225,7 +251,7 @@ class MarketAnalysisTimeProfileV1:
                         for k in ('open','high','low','close','volume')), 'BOOTSTRAP_LIVE_OVERLAP_CONFLICT')
                 self.overlap_skipped += 1
                 self.handoff = 'VERIFYING_OVERLAP'
-                return  # A fresh receipt is not a second admission of the same minute.
+                return None  # Verified overlap is not a second PAPER/live delivery.
             if candle.timestamp != self.candles[-1].timestamp+timedelta(minutes=1):
                 from backend.market_data.native_historical_bootstrap_v1 import classify_gap
                 previous = self.candles[-1].timestamp+timedelta(minutes=1)
@@ -239,6 +265,33 @@ class MarketAnalysisTimeProfileV1:
         self.htf.update_completed(candle)
         self.candles.append(candle)
         self._compute()
+
+        return {
+            'schema':
+                'arms.certified-native-live-closed.v1',
+            'session':
+                self.session,
+            'canonical_sequence':
+                sequence,
+            'event_time':
+                event_time,
+            'bar_time':
+                source_bar_label,
+            'source_open':
+                candle.timestamp.isoformat(),
+            'open':
+                candle.open,
+            'high':
+                candle.high,
+            'low':
+                candle.low,
+            'close':
+                candle.close,
+            'volume':
+                int(candle.volume),
+            'handoff':
+                self.handoff,
+        }
 
     def _compute(self, origin='LIVE_TAIL'):
         bars=list(self.candles)

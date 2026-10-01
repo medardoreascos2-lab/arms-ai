@@ -140,7 +140,8 @@ class _Tail:
 class FreshNativeAdapterV1:
     def __init__(self, *, directory, qpc_clock, installed_exporter,
                  heartbeat_seconds=15, processing_seconds=90, pair_wait_seconds=5,
-                 startup_seconds=900, health_gated=True, bootstrap=None):
+                 startup_seconds=900, health_gated=True, bootstrap=None,
+                 live_handoff=False):
         self.directory = local_path(directory)
         require(self.directory.is_dir(), 'DIRECTORY_REQUIRED')
         source = local_path(installed_exporter)
@@ -150,6 +151,10 @@ class FreshNativeAdapterV1:
         # These are local observation cutoffs, not revised absolute timestamp tolerances.
         require(heartbeat_seconds <= 15 and processing_seconds <= 90 and pair_wait_seconds <= 5
                 and startup_seconds <= 900, 'BUDGET_WIDENING')
+        require(
+            type(live_handoff) is bool,
+            'LIVE_HANDOFF_FLAG',
+        )
         self.clock = qpc_clock
         self.epoch, self.frequency, self.start = self.clock()
         require(isinstance(self.epoch, str) and bool(self.epoch) and type(self.frequency) is int
@@ -168,6 +173,8 @@ class FreshNativeAdapterV1:
         self.market = self.timing = None
         self.queue = deque()
         self.pairs = deque()
+        self.live_handoff_enabled = live_handoff
+        self.live_handoff_records = deque()
         self.sequence = self.pair_sequence = -1
         self.hello = None
         self.last_pair = None
@@ -580,6 +587,7 @@ class FreshNativeAdapterV1:
                 self.reason = reason
                 self.status = 'DISCONNECTED' if disconnected else 'REVOKED'
                 self.profile.revoke(reason)
+                self.live_handoff_records.clear()
                 for tail in (self.market, self.timing):
                     if tail is not None:
                         tail.close()
@@ -764,7 +772,25 @@ class FreshNativeAdapterV1:
                         self.status = 'LIVE_TAIL'
                     if self.status == 'LIVE_TAIL':
                         require(not historical, 'OLD_ROW_AFTER_BASELINE')
-                        self.profile.accept(raw, paired, receipt_qpc=receipt)
+                        delivery = self.profile.accept(
+                            raw,
+                            paired,
+                            receipt_qpc=receipt,
+                        )
+                        if (
+                            delivery is not None
+                            and self.live_handoff_enabled
+                        ):
+                            require(
+                                len(
+                                    self.live_handoff_records
+                                )
+                                < MAX_QUEUE,
+                                'LIVE_HANDOFF_QUEUE_LIMIT',
+                            )
+                            self.live_handoff_records.append(
+                                delivery
+                            )
                         self.last_receipt = receipt
                         self.delivered_records += 1
                     else:
@@ -789,6 +815,35 @@ class FreshNativeAdapterV1:
             except Exception as error:
                 reason = str(error) if type(error) is ValueError else 'ADAPTER_IO_OR_FORMAT_FAILURE'
                 self.revoke(reason)
+
+    def drain_live_closed_records(self):
+        """Drain already-certified LIVE CLOSED records.
+
+        This is an explicit data handoff only.  It never imports,
+        constructs or calls an account/execution service.
+        """
+        with self.lock:
+            require(
+                self.live_handoff_enabled,
+                'LIVE_HANDOFF_DISABLED',
+            )
+
+            if (
+                self.status != 'LIVE_TAIL'
+                or self.reason is not None
+            ):
+                self.live_handoff_records.clear()
+                return ()
+
+            result = tuple(
+                dict(value)
+                for value
+                in self.live_handoff_records
+            )
+
+            self.live_handoff_records.clear()
+
+            return result
 
     def snapshot(self):
         self.poll()  # GET stays analysis-only; also detects a stalled background worker.

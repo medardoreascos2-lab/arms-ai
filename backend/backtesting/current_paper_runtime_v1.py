@@ -4,12 +4,15 @@ The replay runtime supplies durable ingestion and canonical accounting. Only
 its finite-input boundary changes; strategy, costs, exits and risk do not.
 """
 from copy import deepcopy
+from hashlib import sha256
+import json
 from pathlib import Path
 from threading import RLock
 
 from backend.backtesting.historical_accounting_v1 import HistoricalAccountingV1
 from backend.backtesting.paper_research_v1 import PaperResearchSessionV1
 from backend.backtesting.paper_runtime_v1 import PaperRuntimeV1
+from backend.market_data.certified_bootstrap_v1 import CertifiedBootstrap
 from backend.market_data.current_candle_authority_v1 import CurrentCandleAuthorityV1
 from backend.market_data.session_state_v1 import SessionStateAuthorityV1, readiness_matrix
 
@@ -54,9 +57,185 @@ class _CurrentSessionV1(PaperResearchSessionV1):
 class _CurrentRuntimeV1(PaperRuntimeV1):
     session_type = _CurrentSessionV1
 
-    def __init__(self, *, gate, **kwargs):
+    def __init__(
+        self,
+        *,
+        gate,
+        strategy_bootstrap=None,
+        **kwargs,
+    ):
         self.gate = gate
+        self.strategy_bootstrap = None
+        self.strategy_bootstrap_bar_count = 0
         super().__init__(**kwargs)
+
+        # Existing namespaces are recovery evidence only.
+        if (
+            self._paper is not None
+            and strategy_bootstrap is not None
+        ):
+            try:
+                self._install_strategy_bootstrap(
+                    strategy_bootstrap
+                )
+            except BaseException:
+                self._fault = "RECOVERY_REQUIRED"
+                self._enabled = False
+
+                try:
+                    self._publish()
+                    self._save()
+                finally:
+                    if self._db is not None:
+                        self._db.close()
+                        self._db = None
+
+                raise
+
+    def _install_strategy_bootstrap(
+        self,
+        bootstrap,
+    ):
+        if (
+            type(bootstrap)
+            is not CertifiedBootstrap
+            or not bootstrap.bars
+        ):
+            raise ValueError(
+                "CERTIFIED_BOOTSTRAP_REQUIRED"
+            )
+
+        if self.strategy_bootstrap is not None:
+            raise ValueError(
+                "STRATEGY_BOOTSTRAP_REENTRY"
+            )
+
+        r = self._paper.runtime
+        s = r.session
+
+        if (
+            self._cursor != 0
+            or r.index != 0
+            or s.candle_history
+            or r.entries
+            or r.completed
+            or r.journal.trades
+            or r.lifecycle.get_active_positions()
+            or r.lifecycle.broker_connector_v2.get_fills()
+        ):
+            raise ValueError(
+                "STRATEGY_BOOTSTRAP_NOT_FRESH"
+            )
+
+        candles = tuple(
+            bar.candle()
+            for bar
+            in bootstrap.bars
+        )
+
+        if (
+            candles[-1].timestamp
+            >= r.current.canonical_timestamp
+        ):
+            raise ValueError(
+                "STRATEGY_BOOTSTRAP_LIVE_ORDER"
+            )
+
+        account_before = deepcopy(
+            r.account.capture_state()
+        )
+
+        calls_before = (
+            s.strategy_runner_v2.calls
+        )
+
+        for candle in candles:
+            normalized = (
+                s._normalize_candle(
+                    candle
+                )
+            )
+
+            s.candle_history.append(
+                normalized
+            )
+
+            del s.candle_history[
+                :-s.analysis_window
+            ]
+
+            self._htf.update_completed(
+                candle
+            )
+
+        if (
+            s.strategy_runner_v2.calls
+            != calls_before
+        ):
+            raise ValueError(
+                "BOOTSTRAP_STRATEGY_EXECUTION"
+            )
+
+        if any(
+            getattr(
+                s,
+                name,
+            )
+            for name in (
+                "decisions",
+                "trade_plans",
+                "signals",
+                "submission_results",
+                "simulated_trades",
+                "position_update_results",
+            )
+        ):
+            raise ValueError(
+                "BOOTSTRAP_EXECUTION_SIDE_EFFECT"
+            )
+
+        if (
+            r.account.capture_state()
+            != account_before
+            or r.entries
+            or r.completed
+            or r.journal.trades
+            or r.lifecycle.get_active_positions()
+            or r.lifecycle.broker_connector_v2.get_fills()
+        ):
+            raise ValueError(
+                "BOOTSTRAP_FINANCIAL_SIDE_EFFECT"
+            )
+
+        self.strategy_bootstrap = bootstrap
+
+        self.strategy_bootstrap_bar_count = (
+            len(
+                bootstrap.bars
+            )
+        )
+
+        # Bind the certified bootstrap into the durable runtime
+        # configuration identity.  No financial owner is changed.
+        self._identity = sha256(
+            json.dumps(
+                {
+                    "runtime_identity":
+                        self._identity,
+                    "strategy_bootstrap_sha256":
+                        bootstrap.sha256,
+                    "strategy_bootstrap_bar_count":
+                        self.strategy_bootstrap_bar_count,
+                    "strategy_bootstrap_mode":
+                        "NONEXECUTING_CONTEXT_ONLY",
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+
+        self._publish()
+        self._save()
 
     def _input_exhausted(self):
         return False
@@ -66,15 +245,44 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
             raise ValueError("unadmitted current observation")
 
     def _can_analyze(self):
-        return self._paper.runtime.index >= self._paper.runtime.engine.minimum_candles and not self.gate.reasons()
+        r = self._paper.runtime
+
+        return (
+            len(
+                r.session.candle_history
+            )
+            >= r.engine.minimum_candles
+            and not self.gate.reasons()
+        )
 
     def _reasons(self):
         return list(dict.fromkeys(super()._reasons() + self.gate.reasons()))
 
     def _publish(self):
         super()._publish()
-        self._snapshot.update(mode="CURRENT_MARKET_PAPER", clock="CURRENT_PROVIDER_CLOSED_BAR",
-                              execution_kind="SIMULATED / PAPER", feed_contract_sha256=self.gate.digest)
+
+        self._snapshot.update(
+            mode="CURRENT_MARKET_PAPER",
+            clock="CURRENT_PROVIDER_CLOSED_BAR",
+            execution_kind="SIMULATED / PAPER",
+            feed_contract_sha256=self.gate.digest,
+            strategy_bootstrap_mode=(
+                "NONEXECUTING_CONTEXT_ONLY"
+                if self.strategy_bootstrap
+                is not None
+                else "NONE"
+            ),
+            strategy_bootstrap_sha256=(
+                self.strategy_bootstrap.sha256
+                if self.strategy_bootstrap
+                is not None
+                else None
+            ),
+            strategy_bootstrap_bar_count=(
+                self.strategy_bootstrap_bar_count
+            ),
+            strategy_bootstrap_execution_authority=False,
+        )
 
     def step(self):
         raise RuntimeError("current PAPER has no replay step")
@@ -98,11 +306,50 @@ class CurrentPaperServiceV1:
         self._lock = RLock()
         self._runtime = None
         self._stopped = False
+        self._strategy_bootstrap = None
         self._arguments = dict(mode="PAPER_RESEARCH", config=config, settings=settings,
             policy=gate, contract=gate.contract.contract, state_path=state_path,
             initialization_policy=initialization_policy)
         if Path(state_path).exists():
             self._runtime = _CurrentRuntimeV1(gate=gate, observations=(), **self._arguments)
+
+    def install_strategy_bootstrap(
+        self,
+        bootstrap,
+    ):
+        """Install one certified nonexecuting strategy warm-up.
+
+        This method never creates an account/runtime and never evaluates
+        strategy, risk, lifecycle or execution.
+        """
+        with self._lock:
+            if (
+                type(bootstrap)
+                is not CertifiedBootstrap
+                or not bootstrap.bars
+            ):
+                raise TypeError(
+                    "exact nonempty CertifiedBootstrap required"
+                )
+
+            if (
+                self._stopped
+                or self._runtime is not None
+                or self.gate.connected
+                or self.gate.last_sequence
+                is not None
+                or self._strategy_bootstrap
+                is not None
+            ):
+                raise RuntimeError(
+                    "STRATEGY_BOOTSTRAP_INSTALL_NOT_FRESH"
+                )
+
+            self._strategy_bootstrap = (
+                bootstrap
+            )
+
+            return self.get_snapshot()
 
     def connection(self, connected):
         with self._lock:
@@ -119,7 +366,14 @@ class CurrentPaperServiceV1:
             if row is None:
                 return self.get_snapshot()
             if self._runtime is None:
-                self._runtime = _CurrentRuntimeV1(gate=self.gate, observations=(row,), **self._arguments)
+                self._runtime = _CurrentRuntimeV1(
+                    gate=self.gate,
+                    observations=(row,),
+                    strategy_bootstrap=(
+                        self._strategy_bootstrap
+                    ),
+                    **self._arguments,
+                )
             self._runtime._paper.runtime.pending = row
             self._runtime.ingest(row, received_at=row.received_at)
             return self.get_snapshot()
@@ -134,6 +388,22 @@ class CurrentPaperServiceV1:
                                          + (["STOPPED"] if self._stopped else [])))
             snapshot.update(mode="CURRENT_MARKET_PAPER", execution_kind="SIMULATED / PAPER",
                 clock="CURRENT_PROVIDER_CLOSED_BAR", live_execution_allowed=False,
+                strategy_bootstrap_mode=(
+                    "NONEXECUTING_CONTEXT_ONLY"
+                    if self._strategy_bootstrap is not None
+                    else "NONE"
+                ),
+                strategy_bootstrap_sha256=(
+                    self._strategy_bootstrap.sha256
+                    if self._strategy_bootstrap is not None
+                    else None
+                ),
+                strategy_bootstrap_bar_count=(
+                    len(self._strategy_bootstrap.bars)
+                    if self._strategy_bootstrap is not None
+                    else 0
+                ),
+                strategy_bootstrap_execution_authority=False,
                 paper_ready=not reasons, readiness_reasons=reasons,
                 dashboard_status="PAPER_READY" if not reasons else "BLOCKED",
                 recovery_required="RECOVERY_REQUIRED" in reasons,
