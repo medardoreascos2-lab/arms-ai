@@ -306,8 +306,15 @@ def test_current_paper_boundary_provenance_artifact_pins_offline_review_only():
     }
     assert set(artifact["source_sha256"]) == expected_paths
     assert "backend/tests/test_clock_preflight_sprint15t.py" not in artifact["source_sha256"]
+    historical = {
+        "backend/backtesting/certified_native_paper_bridge_v1.py":
+            "backend/tests/fixtures/certified_native_paper_bridge_v1.d4e4c.py",
+        "backend/tests/test_certified_native_paper_bridge_v1.py":
+            "backend/tests/fixtures/test_certified_native_paper_bridge_v1.d4e4c.py",
+    }
     for path, digest in artifact["source_sha256"].items():
-        assert hashlib.sha256(Path(path).read_text(encoding="utf-8").encode()).hexdigest() == digest
+        reviewed = Path(historical.get(path, path))
+        assert hashlib.sha256(reviewed.read_text(encoding="utf-8").encode()).hexdigest() == digest
 
     cert_path=Path(artifact["historical_sprint13_certificate"])
     cert=json.loads(cert_path.read_text(encoding="utf-8"))
@@ -330,6 +337,114 @@ def test_current_paper_boundary_provenance_records_python_precision_limit():
     assert artifact["timestamp_precision"]["exact_100ns_preservation"] is False
     assert artifact["timestamp_precision"]["precision_loss_is_special_path_authorization_basis"] is False
     assert artifact["arbitrary_time_epsilon"] == "NONE"
+
+
+def test_current_paper_preboundary_defer_artifact_is_offline_only():
+    import hashlib
+    import shlex
+
+    artifact = json.loads(Path(
+        "backend/tests/current_paper_preboundary_defer_d4e5c2.json"
+    ).read_text(encoding="utf-8"))
+    assert artifact["schema"] == "arms.current-paper-preboundary-defer.d4e5c2.v1"
+    assert artifact["status"] == "OFFLINE_FIX_REVIEW_PASS_LIVE_RERUN_PENDING"
+    assert artifact["baseline_head"] == "42341c8ad828eed6eb80d7f84311acc1807948ba"
+    assert artifact["third_run_id"] == "d2816b70-fb45-44be-901f-704d82af27f1"
+    assert artifact["third_run_session"] == "6341cab9-6394-4f0b-9b32-9905c98b8a04"
+    assert artifact["catchup_cutoff"] == "2026-10-01T14:22:00Z"
+    assert artifact["paper_completed_observations"] == 2
+    assert artifact["last_completed_canonical_time"] == "2026-10-01T14:24:00+00:00"
+    assert artifact["next_candidate_native_sequence"] == 76
+    assert artifact["next_candidate_bar_time"] == "2026-10-01T14:25:00.0000000Z"
+    assert artifact["next_candidate_event_time"] == "2026-10-01T14:24:59.9062058Z"
+    assert artifact["next_candidate_early_offset_ms"] == 93.7942
+    assert artifact["early_delivery_poll_race"] == "PROVEN_POSSIBLE"
+    assert artifact["exact_third_run_failure_attribution"] == "UNPROVEN_GENERIC_WRAPPER_ONLY"
+    assert artifact["root_cause_confidence"] == "MEDIUM"
+    assert artifact["authority_change"] == artifact["arbitrary_time_epsilon"] == "NONE"
+    assert artifact["event_time_mutation"] == "NONE"
+    assert artifact["received_at_semantics"] == "REAL_WALL_CLOCK_AT_ACTUAL_ADMISSION"
+    assert artifact["pending_policy"] == "BOUNDED_FIFO_NO_OVERTAKE"
+    assert artifact["pending_fifo_bound"] == 1024
+    assert artifact["live_rerun"] == "PENDING"
+    assert artifact["historical_899_exact_command"] == "NOT_RECOVERABLE"
+    assert artifact["historical_899_result"] == "REPORTED_PREVIOUSLY"
+    assert "not preserved in shell or log evidence" in artifact["historical_gate_limitation"]
+    assert "for this D4E5C2 certification only" in artifact["historical_gate_limitation"]
+    assert artifact["canonical_regression_version"] == "D4E5C2_CANONICAL_V1"
+    modules = artifact["canonical_regression_modules"]
+    assert len(modules) == 16 == len(set(modules))
+    assert all(path.startswith("backend/tests/test_") and path.endswith(".py")
+               and Path(path).is_file() for path in modules)
+    command = artifact["canonical_regression_command"]
+    args = shlex.split(command)
+    assert args[:7] == [
+        "python", "-m", "pytest", "-q", "-p", "no:cacheprovider",
+        "--basetemp=C:/Users/Thecrazyboss/AppData/Local/Temp/ARMS_D4E5C2R2_CANONICAL_V1_20261001",
+    ]
+    assert args[7:] == modules
+    assert artifact["canonical_regression_environment"] == {
+        "ARMS_MAXIMUM_QUOTE_AGE_SECONDS": "30",
+        "ARMS_MINIMUM_REWARD_RISK_RATIO": "2",
+        "ARMS_MINIMUM_STOP_POINTS": "1",
+        "ARMS_MAXIMUM_STOP_POINTS": "100",
+        "ARMS_MAXIMUM_SPREAD_POINTS": "5",
+        "ARMS_MINIMUM_ATR_POINTS": "1",
+        "ARMS_MINIMUM_A_PLUS_PROBABILITY": "0.80",
+        "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE": "0.80",
+        "ARMS_MAXIMUM_SIGNAL_AGE_SECONDS": "300",
+        "ARMS_MAXIMUM_OPEN_POSITIONS": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONNOUSERSITE": "1",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+        "PYTEST_ADDOPTS": "",
+    }
+    assert artifact["canonical_regression_status"] == "PASS"
+    assert artifact["canonical_regression_collected"] == 924
+    assert artifact["canonical_regression_passed"] == 924
+    assert artifact["canonical_regression_failed"] == 0
+    assert artifact["canonical_regression_skipped"] == 0
+    assert artifact["canonical_regression_warning_summary"] == (
+        "1 StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` "
+        "is deprecated; install `httpx2` instead."
+    )
+    assert artifact["canonical_regression_run_basis"] == "CURRENT_D4E5C2_WORKTREE"
+    for key in ("paper_auto_enable", "live_execution", "ninjatrader_account_access",
+                "ninjatrader_order_authority"):
+        assert artifact[key] is False
+
+    expected = {
+        "backend/market_data/current_candle_authority_v1.py",
+        "backend/backtesting/certified_native_paper_bridge_v1.py",
+        "backend/tests/test_certified_native_paper_bridge_v1.py",
+    }
+    assert set(artifact["source_sha256"]) == expected
+    assert "backend/tests/test_clock_preflight_sprint15t.py" not in expected
+    assert artifact["source_sha256"] == {
+        "backend/market_data/current_candle_authority_v1.py":
+            "bcfe63f74c7d22880ed9d04288279743f92698273157d5944a7817db0c7f5561",
+        "backend/backtesting/certified_native_paper_bridge_v1.py":
+            "769d52ee42cda48875b6c1ff19489dbe7f81de799a12a9605590806981963158",
+        "backend/tests/test_certified_native_paper_bridge_v1.py":
+            "6f2f543a3a4d8d6fae6dc7e22ff7d7de211a95d6025b14975ab0b8cd165b97cc",
+    }
+    for path, digest in artifact["source_sha256"].items():
+        assert hashlib.sha256(Path(path).read_text(encoding="utf-8").encode()).hexdigest() == digest
+
+    historical = {
+        "backend/tests/fixtures/certified_native_paper_bridge_v1.d4e4c.py":
+            "backend/backtesting/certified_native_paper_bridge_v1.py",
+        "backend/tests/fixtures/test_certified_native_paper_bridge_v1.d4e4c.py":
+            "backend/tests/test_certified_native_paper_bridge_v1.py",
+    }
+    prior = json.loads(Path(
+        "backend/tests/current_paper_boundary_provenance_d4e4c.json"
+    ).read_text(encoding="utf-8"))
+    assert set(artifact["historical_d4e4c_fixture_sha256"]) == set(historical)
+    for fixture, former in historical.items():
+        digest = hashlib.sha256(Path(fixture).read_text(encoding="utf-8").encode()).hexdigest()
+        assert artifact["historical_d4e4c_fixture_sha256"][fixture] == digest
+        assert prior["source_sha256"][former] == digest
 
 
 def test_direct_dependency_inventory_cannot_silently_omit_a_clock_call():

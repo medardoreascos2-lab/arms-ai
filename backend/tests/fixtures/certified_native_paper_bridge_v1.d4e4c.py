@@ -8,7 +8,6 @@ the isolated SIMULATED / PAPER owner.
 PAPER enablement is deliberately outside this bridge.
 """
 
-from collections import deque
 from datetime import datetime, timedelta, timezone
 from threading import RLock
 
@@ -25,14 +24,12 @@ from backend.market_data.current_candle_authority_v1 import (
 )
 from backend.market_data.fresh_native_adapter_v1 import (
     FreshNativeAdapterV1,
-    MAX_QUEUE,
 )
 from tools.production_timing_v1 import parse
 
 
 SCHEMA = "arms.certified-native-paper-bridge.v1"
 DELIVERY_SCHEMA = "arms.certified-native-live-closed.v1"
-PENDING_CLOSED_LIMIT = MAX_QUEUE
 
 
 def _utc(value):
@@ -120,8 +117,6 @@ class CertifiedNativePaperBridgeV1:
         self.delivery_sequence = 0
         self.delivered_closed = 0
         self.last_source_sequence = None
-        self.pending_closed_records = deque()
-        self.source_hello = None
 
     def _metadata(self):
         if (
@@ -408,7 +403,6 @@ class CertifiedNativePaperBridgeV1:
         return events
 
     def _fail(self):
-        self.pending_closed_records.clear()
         self.reason = (
             self.reason
             or "CERTIFIED_NATIVE_PAPER_BRIDGE_FAILED"
@@ -463,8 +457,6 @@ class CertifiedNativePaperBridgeV1:
                 if not self._source_ready(
                     native
                 ):
-                    if self.pending_closed_records:
-                        return self._fail()
                     self.status = "WAITING"
 
                     return self.get_snapshot(
@@ -472,13 +464,6 @@ class CertifiedNativePaperBridgeV1:
                     )
 
                 self._metadata()
-
-                if self.source_hello is None:
-                    self.source_hello = self.adapter.hello
-                elif self.adapter.hello != self.source_hello:
-                    raise ValueError(
-                        "NATIVE_METADATA_CHANGED"
-                    )
 
                 now = instant(
                     self.wall_clock()
@@ -489,20 +474,9 @@ class CertifiedNativePaperBridgeV1:
                     .drain_live_closed_records()
                 )
 
-                if (
-                    len(self.pending_closed_records)
-                    + len(records)
-                    > PENDING_CLOSED_LIMIT
-                ):
-                    raise ValueError(
-                        "PENDING_CLOSED_QUEUE_LIMIT"
-                    )
-
-                self.pending_closed_records.extend(records)
-
                 events = (
                     self._validated_events(
-                        self.pending_closed_records,
+                        records,
                         now=now,
                     )
                 )
@@ -532,14 +506,10 @@ class CertifiedNativePaperBridgeV1:
                     source_sequence,
                 ) in events:
 
-                    if event.bar_time > now:
-                        break
-
                     self.service.ingest(
                         event
                     )
 
-                    self.pending_closed_records.popleft()
                     self.last_source_sequence = (
                         source_sequence
                     )
@@ -612,7 +582,6 @@ class CertifiedNativePaperBridgeV1:
 
             self.stopped = True
             self.status = "STOPPED"
-            self.pending_closed_records.clear()
 
             try:
                 if (
