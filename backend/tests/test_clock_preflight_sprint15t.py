@@ -447,6 +447,114 @@ def test_current_paper_preboundary_defer_artifact_is_offline_only():
         assert prior["source_sha256"][former] == digest
 
 
+def test_current_paper_preboundary_defer_live_artifact_certifies_ordered_no_execution():
+    import hashlib
+    from decimal import Decimal
+    from tools.native_timing_witness_v1 import ticks
+
+    artifact = json.loads(Path(
+        "backend/tests/current_paper_preboundary_defer_d4e6_live.json"
+    ).read_text(encoding="utf-8"))
+    assert artifact["schema"] == "arms.current-paper-preboundary-defer.d4e6-live.v1"
+    assert artifact["status"] == "LIVE_RERUN_PASS"
+    assert artifact["baseline_head"] == "51c56d7cb99786530420e378050bfde71d9ba070"
+    assert artifact["offline_certification_artifact"] == (
+        "backend/tests/current_paper_preboundary_defer_d4e5c2.json"
+    )
+    offline_path = Path(artifact["offline_certification_artifact"])
+    offline = json.loads(offline_path.read_text(encoding="utf-8"))
+    assert offline["status"] == artifact["offline_certification_status"] == (
+        "OFFLINE_FIX_REVIEW_PASS_LIVE_RERUN_PENDING"
+    )
+    assert hashlib.sha256(offline_path.read_bytes()).hexdigest() == (
+        artifact["offline_certification_sha256"]
+    ) == "c3f5ed89128d8d59af908e21d2373d3ea240634680682d20db1897f29b1c3a23"
+    assert artifact["run_id"] == "dea7dc25-7e77-4e59-a8ab-f561c2f83973"
+    assert artifact["native_session"] == "8fad5a2c-5257-4914-a33d-2f9737a9ea30"
+    assert artifact["catchup_sha256"] == (
+        "51779d20bd68088962ea9a05917d7efe234aaecb0527c71eda278f1e54b62a31"
+    )
+    assert artifact["catchup_bars"] == 9390
+    assert artifact["catchup_cutoff"] == "2026-10-01T16:31:00.0000000Z"
+    assert artifact["minimum_required_completed_closed"] == 5
+    assert artifact["completed_closed_before_shutdown"] == 8
+    assert artifact["source_observations_processed"] == 8
+    assert artifact["last_completed_canonical_time"] == "2026-10-01T16:39:00+00:00"
+
+    rows = artifact["closed_rows"]
+    assert len(rows) == 8
+    assert [row["bar_time"] for row in rows] == [
+        f"2026-10-01T16:{minute:02d}:00.0000000Z" for minute in range(32, 40)
+    ]
+    assert [row["native_sequence"] for row in rows] == list(range(49, 148, 14))
+    assert [row["callback_index"] for row in rows] == list(range(8012, 8020))
+    assert all(row["same_callback_status"] == "PROVEN" for row in rows)
+    offsets = []
+    for row in rows:
+        offset = Decimal(ticks(row["event_time"]) - ticks(row["bar_time"])) / 10000
+        assert offset == Decimal(row["offset_ms"])
+        offsets.append(offset)
+    assert sum(offset < 0 for offset in offsets) == artifact["early_closed_count"] == 6
+    assert sum(offset >= 0 for offset in offsets) == artifact["late_or_exact_closed_count"] == 2
+    assert min(offsets) == Decimal(artifact["min_offset_ms"]) == Decimal("-113.5790")
+    assert max(offsets) == Decimal(artifact["max_offset_ms"]) == Decimal("50.8621")
+    assert artifact["same_callback_status"] == "PROVEN_FOR_ALL_EIGHT"
+    assert artifact["live_fifo_proof"] == "PROVEN"
+    assert artifact["preboundary_defer"] == "BOUNDED_FIFO"
+    assert artifact["pending_fifo_bound"] == 1024
+    assert artifact["fifo_no_overtake"] is True
+    assert any("No transient pending FIFO snapshot" in item
+               for item in artifact["proof_limitations"])
+
+    assert artifact["received_at_semantics"] == "REAL_WALL_CLOCK_AT_ACTUAL_ADMISSION"
+    assert artifact["authority_change"] == artifact["arbitrary_time_epsilon"] == "NONE"
+    assert artifact["event_time_mutation"] == "NONE"
+    for key in ("paper_auto_enable", "paper_execution_enabled", "paper_ready",
+                "live_execution_allowed", "ninjatrader_account_access",
+                "ninjatrader_order_authority", "order_submit_reachable_pre_shutdown",
+                "runtime_failure_before_interrupt"):
+        assert artifact[key] is False
+    assert artifact["execution_state"] == "FLAT"
+    assert artifact["journal_total"] == artifact["completed_trades"] == 0
+    assert artifact["fault_detail"] is None
+    assert artifact["shutdown_classification"] == "CONTROLLED_OPERATOR_INTERRUPT"
+    assert artifact["shutdown_reason"] == "OPERATOR_INTERRUPT"
+    assert artifact["interruption_type"] == "KeyboardInterrupt"
+    assert artifact["pre_shutdown_health"] == {
+        "phase": "AWAITING_OPERATOR_ACTIVATION", "reason": None,
+        "adapter_status": "LIVE_TAIL", "activation_allowance_started": True,
+        "order_submit_reachable": False,
+    }
+    assert artifact["final_shutdown_health"] == {
+        "phase": "FAILED", "reason": "STARTUP_SHUTDOWN", "adapter_status": "REVOKED",
+    }
+    assert artifact["final_shutdown_health_reason"] == "STARTUP_SHUTDOWN"
+
+    expected_sources = {
+        "backend/backtesting/certified_native_paper_bridge_v1.py":
+            "769d52ee42cda48875b6c1ff19489dbe7f81de799a12a9605590806981963158",
+        "backend/market_data/current_candle_authority_v1.py":
+            "bcfe63f74c7d22880ed9d04288279743f92698273157d5944a7817db0c7f5561",
+    }
+    assert artifact["source_sha256"] == expected_sources
+    for path, digest in expected_sources.items():
+        assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+
+    assert artifact["native_market_evidence"]["prefix_bytes"] == 30082
+    assert artifact["native_market_evidence"]["prefix_sha256"] == (
+        "68d18498dd496f2f222d2f7afc320065ca7e005824fdde207324ee6c58618c9d"
+    )
+    assert artifact["native_market_evidence"]["full_file_was_growing"] is True
+    assert artifact["native_timing_evidence"]["prefix_bytes"] == 18528
+    assert artifact["native_timing_evidence"]["prefix_sha256"] == (
+        "88aac13ee30060b11d472304161918dd7cbbbaafc2dd74bc3356d0dd1baace0c"
+    )
+    for value in artifact["stable_evidence"].values():
+        assert value["path"].startswith(".arms-dev/")
+        assert len(value["sha256"]) == 64
+        assert all(char in "0123456789abcdef" for char in value["sha256"])
+
+
 def test_direct_dependency_inventory_cannot_silently_omit_a_clock_call():
     import ast
     manifest=json.loads(Path("backend/tests/clock_preflight_sprint15t.json").read_text())

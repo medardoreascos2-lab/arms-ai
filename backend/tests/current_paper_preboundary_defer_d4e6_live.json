@@ -1,0 +1,178 @@
+{
+  "arbitrary_time_epsilon": "NONE",
+  "authority_change": "NONE",
+  "baseline_head": "51c56d7cb99786530420e378050bfde71d9ba070",
+  "catchup_bars": 9390,
+  "catchup_cutoff": "2026-10-01T16:31:00.0000000Z",
+  "catchup_sha256": "51779d20bd68088962ea9a05917d7efe234aaecb0527c71eda278f1e54b62a31",
+  "closed_rows": [
+    {
+      "bar_time": "2026-10-01T16:32:00.0000000Z",
+      "callback_index": 8012,
+      "event_time": "2026-10-01T16:31:59.8908933Z",
+      "native_sequence": 49,
+      "offset_ms": "-109.1067",
+      "same_callback_status": "PROVEN"
+    },
+    {
+      "bar_time": "2026-10-01T16:33:00.0000000Z",
+      "callback_index": 8013,
+      "event_time": "2026-10-01T16:33:00.0164188Z",
+      "native_sequence": 63,
+      "offset_ms": "16.4188",
+      "same_callback_status": "PROVEN"
+    },
+    {
+      "bar_time": "2026-10-01T16:34:00.0000000Z",
+      "callback_index": 8014,
+      "event_time": "2026-10-01T16:33:59.9401339Z",
+      "native_sequence": 77,
+      "offset_ms": "-59.8661",
+      "same_callback_status": "PROVEN"
+    },
+    {
+      "bar_time": "2026-10-01T16:35:00.0000000Z",
+      "callback_index": 8015,
+      "event_time": "2026-10-01T16:35:00.0508621Z",
+      "native_sequence": 91,
+      "offset_ms": "50.8621",
+      "same_callback_status": "PROVEN"
+    },
+    {
+      "bar_time": "2026-10-01T16:36:00.0000000Z",
+      "callback_index": 8016,
+      "event_time": "2026-10-01T16:35:59.8864210Z",
+      "native_sequence": 105,
+      "offset_ms": "-113.5790",
+      "same_callback_status": "PROVEN"
+    },
+    {
+      "bar_time": "2026-10-01T16:37:00.0000000Z",
+      "callback_index": 8017,
+      "event_time": "2026-10-01T16:36:59.9194268Z",
+      "native_sequence": 119,
+      "offset_ms": "-80.5732",
+      "same_callback_status": "PROVEN"
+    },
+    {
+      "bar_time": "2026-10-01T16:38:00.0000000Z",
+      "callback_index": 8018,
+      "event_time": "2026-10-01T16:37:59.9434807Z",
+      "native_sequence": 133,
+      "offset_ms": "-56.5193",
+      "same_callback_status": "PROVEN"
+    },
+    {
+      "bar_time": "2026-10-01T16:39:00.0000000Z",
+      "callback_index": 8019,
+      "event_time": "2026-10-01T16:38:59.8877682Z",
+      "native_sequence": 147,
+      "offset_ms": "-112.2318",
+      "same_callback_status": "PROVEN"
+    }
+  ],
+  "completed_closed_before_shutdown": 8,
+  "completed_trades": 0,
+  "early_closed_count": 6,
+  "event_time_mutation": "NONE",
+  "execution_state": "FLAT",
+  "fault_detail": null,
+  "fifo_no_overtake": true,
+  "final_shutdown_health": {
+    "adapter_status": "REVOKED",
+    "phase": "FAILED",
+    "reason": "STARTUP_SHUTDOWN"
+  },
+  "final_shutdown_health_reason": "STARTUP_SHUTDOWN",
+  "interruption_type": "KeyboardInterrupt",
+  "journal_total": 0,
+  "last_completed_canonical_time": "2026-10-01T16:39:00+00:00",
+  "late_or_exact_closed_count": 2,
+  "live_execution_allowed": false,
+  "live_fifo_proof": "PROVEN",
+  "live_fifo_proof_basis": [
+    "eight contiguous same-callback native CLOSED reports from 16:32 through 16:39",
+    "six native CLOSED event times before their nominal bar boundary",
+    "eight durable PAPER events in COMPLETED phase with canonical time 16:39",
+    "pre-shutdown adapter LIVE_TAIL with no runtime reason and no PAPER fault"
+  ],
+  "max_offset_ms": "50.8621",
+  "min_offset_ms": "-113.5790",
+  "minimum_required_completed_closed": 5,
+  "native_market_evidence": {
+    "full_file_was_growing": true,
+    "path": ".arms-dev/analysis-native/dea7dc25-7e77-4e59-a8ab-f561c2f83973/inbox/8fad5a2c-5257-4914-a33d-2f9737a9ea30.jsonl",
+    "prefix_bytes": 30082,
+    "prefix_ends_after_sequence": 148,
+    "prefix_ends_with_kind": "FORMING",
+    "prefix_sha256": "68d18498dd496f2f222d2f7afc320065ca7e005824fdde207324ee6c58618c9d"
+  },
+  "native_session": "8fad5a2c-5257-4914-a33d-2f9737a9ea30",
+  "native_timing_evidence": {
+    "full_file_unchanged_during_six_second_check_but_writer_may_append": true,
+    "path": ".arms-dev/analysis-native/dea7dc25-7e77-4e59-a8ab-f561c2f83973/inbox/timing/8fad5a2c-5257-4914-a33d-2f9737a9ea30.production-timing.jsonl",
+    "prefix_bytes": 18528,
+    "prefix_ends_after_canonical_sequence": 148,
+    "prefix_ends_with_kind": "FORMING",
+    "prefix_sha256": "88aac13ee30060b11d472304161918dd7cbbbaafc2dd74bc3356d0dd1baace0c"
+  },
+  "ninjatrader_account_access": false,
+  "ninjatrader_order_authority": false,
+  "offline_certification_artifact": "backend/tests/current_paper_preboundary_defer_d4e5c2.json",
+  "offline_certification_sha256": "c3f5ed89128d8d59af908e21d2373d3ea240634680682d20db1897f29b1c3a23",
+  "offline_certification_status": "OFFLINE_FIX_REVIEW_PASS_LIVE_RERUN_PENDING",
+  "offset_sign_convention": "event_time minus bar_time in milliseconds; negative is preboundary",
+  "order_submit_reachable_pre_shutdown": false,
+  "paper_auto_enable": false,
+  "paper_execution_enabled": false,
+  "paper_namespace": "C:/Development/ARMS-AI/.arms-dev/current-paper/runs/20261001T162019Z-d4e6-live-defer",
+  "paper_ready": false,
+  "pending_fifo_bound": 1024,
+  "pre_shutdown_health": {
+    "activation_allowance_started": true,
+    "adapter_status": "LIVE_TAIL",
+    "order_submit_reachable": false,
+    "phase": "AWAITING_OPERATOR_ACTIVATION",
+    "reason": null
+  },
+  "preboundary_defer": "BOUNDED_FIFO",
+  "proof_limitations": [
+    "No transient pending FIFO snapshot was retained; actual admission-clock semantics are pinned by committed bridge source, not an independent per-event wall-clock capture."
+  ],
+  "readiness_reasons_after_shutdown": [
+    "STOPPED",
+    "PAPER_DISABLED",
+    "DISCONNECTED"
+  ],
+  "received_at_semantics": "REAL_WALL_CLOCK_AT_ACTUAL_ADMISSION",
+  "run_id": "dea7dc25-7e77-4e59-a8ab-f561c2f83973",
+  "runtime_failure_before_interrupt": false,
+  "same_callback_status": "PROVEN_FOR_ALL_EIGHT",
+  "schema": "arms.current-paper-preboundary-defer.d4e6-live.v1",
+  "shutdown_classification": "CONTROLLED_OPERATOR_INTERRUPT",
+  "shutdown_reason": "OPERATOR_INTERRUPT",
+  "source_observations_processed": 8,
+  "source_sha256": {
+    "backend/backtesting/certified_native_paper_bridge_v1.py": "769d52ee42cda48875b6c1ff19489dbe7f81de799a12a9605590806981963158",
+    "backend/market_data/current_candle_authority_v1.py": "bcfe63f74c7d22880ed9d04288279743f92698273157d5944a7817db0c7f5561"
+  },
+  "stable_evidence": {
+    "chart_catchup_result": {
+      "path": ".arms-dev/analysis-native/dea7dc25-7e77-4e59-a8ab-f561c2f83973/chart-catchup-result.json",
+      "sha256": "ac4e6083d64dca52ed59522d321749d627780b72cdb46d3b845625a4c7edd55d"
+    },
+    "health_result": {
+      "path": ".arms-dev/analysis-native/dea7dc25-7e77-4e59-a8ab-f561c2f83973/health-result.json",
+      "sha256": "efbccaeafa79da40699abe14d240db94ed907bd53037b57a7c71bbde43e268b9"
+    },
+    "paper_sqlite": {
+      "path": ".arms-dev/current-paper/runs/20261001T162019Z-d4e6-live-defer/paper.sqlite",
+      "sha256": "7df5d65a30165ccb5de0a07ae0601c38decf78dd193177881192a0f85179d156"
+    },
+    "shutdown_result": {
+      "path": ".arms-dev/analysis-native/dea7dc25-7e77-4e59-a8ab-f561c2f83973/shutdown-result.json",
+      "sha256": "38afb6623c0a6eacf037dd0b6f9cb349d676033594f2e099ee2ffbfdd104b02a"
+    }
+  },
+  "status": "LIVE_RERUN_PASS"
+}
