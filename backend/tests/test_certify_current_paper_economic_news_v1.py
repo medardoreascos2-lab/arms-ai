@@ -42,6 +42,96 @@ def test_reviewed_publication_is_atomic_and_separate(tmp_path, monkeypatch):
     assert "sim-native" not in str(root).lower()
 
 
+def test_reviewed_input_uses_local_non_authority_path_contract(tmp_path, monkeypatch):
+    path = tmp_path / "reviewed-input.json"
+    path.write_bytes(b"reviewed")
+    calls = []
+
+    def safe_path(value, *, authority=False):
+        calls.append((Path(value), authority))
+        if authority:
+            raise ValueError("repository path rejected as authority storage")
+        return Path(value)
+
+    monkeypatch.setattr(publisher.key_store, "safe_path", safe_path)
+    assert publisher._read_reviewed_input(path) == b"reviewed"
+    assert calls == [(path, False)]
+
+
+@pytest.mark.parametrize("size,allowed", [(200_000, True), (200_001, False)])
+def test_reviewed_input_is_bounded(tmp_path, size, allowed):
+    path = tmp_path / "reviewed-input.json"
+    path.write_bytes(b"x" * size)
+    if allowed:
+        assert len(publisher._read_reviewed_input(path)) == size
+    else:
+        with pytest.raises(ValueError, match="ARTIFACT_SIZE"):
+            publisher._read_reviewed_input(path)
+
+
+def test_reviewed_input_preserves_safe_path_redirection_gate(tmp_path, monkeypatch):
+    path = tmp_path / "redirected.json"
+
+    def reject(value, *, authority=False):
+        assert Path(value) == path and authority is False
+        raise ValueError("redirected path prohibited")
+
+    monkeypatch.setattr(publisher.key_store, "safe_path", reject)
+    with pytest.raises(ValueError, match="redirected path prohibited"):
+        publisher._read_reviewed_input(path)
+
+
+def test_publish_keeps_durable_authority_paths_private(tmp_path, monkeypatch):
+    root = setup(tmp_path, monkeypatch)
+    path = tmp_path / "candidate.json"
+    payload = candidate()
+    path.write_bytes(payload)
+    safe_calls = []
+    private_reads = []
+
+    def safe_path(value, *, authority=False):
+        safe_calls.append((Path(value), authority))
+        return Path(value)
+
+    def private_read(value):
+        checked = Path(value)
+        private_reads.append(checked)
+        return checked.read_bytes()
+
+    monkeypatch.setattr(publisher.key_store, "safe_path", safe_path)
+    monkeypatch.setattr(publisher, "read_bounded", private_read)
+    publisher.publish(path, sha256(payload).hexdigest(), base=BASE, root=root,
+        initialize_history=True, clock=lambda: NOW)
+    folder = root / "authority-inputs"
+    assert (path, False) in safe_calls
+    assert (root, True) in safe_calls
+    assert (folder, True) in safe_calls
+    assert private_reads
+    assert all(item.parent == folder and item.name in publisher.news.FILES
+        for item in private_reads)
+    assert path not in private_reads
+
+
+def test_main_reads_identity_through_reviewed_input_contract(tmp_path, monkeypatch, capsys):
+    identity = tmp_path / "identity.json"
+    candidate_path = tmp_path / "candidate.json"
+    identity_raw = publisher.canonical(BASE)
+    identity.write_bytes(identity_raw)
+    candidate_path.write_bytes(b"candidate")
+    reads = []
+
+    def reviewed_read(path):
+        reads.append(Path(path))
+        return Path(path).read_bytes()
+
+    monkeypatch.setattr(publisher, "_read_reviewed_input", reviewed_read)
+    monkeypatch.setattr(publisher, "publish", lambda *args, **kwargs: {"ok": True})
+    publisher.main(["--candidate", str(candidate_path), "--candidate-sha256", "0" * 64,
+        "--identity", str(identity), "--identity-sha256", sha256(identity_raw).hexdigest()])
+    assert reads == [identity]
+    assert capsys.readouterr().out.strip() == '{"ok": true}'
+
+
 def test_sha_canonical_version_and_monotonic_gates(tmp_path, monkeypatch):
     root = setup(tmp_path, monkeypatch)
     path = tmp_path/"candidate.json"

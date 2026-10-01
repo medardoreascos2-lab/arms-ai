@@ -12,10 +12,19 @@ from backend.services.sim_native_market_hours_authority_v1 import (
 )
 
 
+def _read_reviewed_input(path):
+    """Read a hash-pinned local review artifact, never authority storage."""
+    checked = key_store.safe_path(path, authority=False)
+    with checked.open("rb") as stream:
+        raw = stream.read(200_001)
+    require(len(raw) <= 200_000, "ARTIFACT_SIZE")
+    return raw
+
+
 def publish(candidate, expected_sha256, *, base, root=None, initialize_authority=False,
             initialize_history=False, clock=None):
     """Publish only a separately reviewed canonical candidate and identity."""
-    source = read_bounded(candidate)
+    source = _read_reviewed_input(candidate)
     require(type(expected_sha256) is str and sha256(source).hexdigest() == expected_sha256,
         "REVIEWED_DIGEST_MISMATCH")
     require(canonical(parse(source)) == source, "CANDIDATE_NOT_CANONICAL")
@@ -75,7 +84,7 @@ def main(argv=None):
     parser.add_argument("--initialize-history", action="store_true")
     args = parser.parse_args(argv)
     try:
-        identity_raw = read_bounded(args.identity)
+        identity_raw = _read_reviewed_input(args.identity)
         require(sha256(identity_raw).hexdigest() == args.identity_sha256,
             "REVIEWED_IDENTITY_DIGEST_MISMATCH")
         require(canonical(parse(identity_raw)) == identity_raw, "IDENTITY_NOT_CANONICAL")
