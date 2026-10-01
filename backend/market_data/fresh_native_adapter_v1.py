@@ -554,6 +554,55 @@ class FreshNativeAdapterV1:
             )
             self.bootstrap_replacement_count = 1
 
+    def arm_live_handoff(self):
+        """One-shot opt-in before activation; never a PAPER/execution control."""
+        with self.lock:
+            require(
+                not self.live_handoff_enabled
+                and self.health_gated
+                and self.activation_start is None
+                and self.status == 'WAITING'
+                and self.reason is None
+                and self.session is None
+                and self.market is None
+                and self.timing is None
+                and not self.queue
+                and not self.pairs
+                and self.sequence == -1
+                and self.pair_sequence == -1
+                and self.hello is None
+                and self.last_pair is None
+                and self.last_receipt is None
+                and self.bootstrap_records == 0
+                and self.delivered_records == 0
+                and not self.live_handoff_records,
+                'LIVE_HANDOFF_ARM_REENTRY_OR_INVALID_STATE',
+            )
+
+            require(
+                type(self.bootstrap)
+                is CertifiedBootstrap
+                and bool(self.bootstrap.bars)
+                and self.profile.bootstrap
+                is self.bootstrap,
+                'LIVE_HANDOFF_CERTIFIED_BOOTSTRAP_REQUIRED',
+            )
+
+            # A fresh runtime-local exporter may already be
+            # quarantined here by the Single-Apply startup.
+            # Validate/pin it but never consume it.
+            self.validate_preactivation_buffer(
+                'LIVE_HANDOFF_ARM_INPUT_NOT_FRESH',
+            )
+
+            require(
+                self._directory_identity()
+                == self.root_identity,
+                'LIVE_HANDOFF_ARM_INPUT_NOT_FRESH',
+            )
+
+            self.live_handoff_enabled = True
+
     def arm_activation(self):
         """In-process coordinator only; no HTTP/file-based arming or reset."""
         with self.lock:
