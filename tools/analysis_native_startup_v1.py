@@ -792,6 +792,14 @@ def run(args):
                 require(listener_pid(args.port) == runtime.pid and listener_pid(args.frontend_port) == frontend.pid,
                         'RUNTIME_LISTENER_CHANGED')
                 get(dashboard_url)
+    except KeyboardInterrupt as error:
+        result.update(
+            status='STOPPED',
+            shutdown_reason='OPERATOR_INTERRUPT',
+            interruption_type=type(error).__name__,
+            pre_shutdown_health=runtime.health(),
+        )
+        raise
     except BaseException as error:
         runtime.revoke('STARTUP_OR_HEALTH_FAILED')
         result.update(status='FAILED', error_type=type(error).__name__, health=runtime.health())
