@@ -649,6 +649,19 @@ class FreshNativeAdapterV1:
                     if tail is not None:
                         tail.close()
 
+    def diagnostics(self):
+        """Read latched fault evidence without polling or sampling QPC."""
+        with self.lock:
+            profile = self.profile.diagnostics()
+            return dict(adapter_reason=self.reason,
+                profile_fault=profile['fault'],
+                profile_fault_first_qpc=profile['fault_first_qpc'],
+                profile_fault_last_qpc=profile['fault_last_qpc'],
+                profile_last_receipt_qpc=profile['last_receipt_qpc'],
+                profile_last_emission_qpc=profile['last_emission_qpc'],
+                profile_heartbeat_budget_qpc=profile['heartbeat_budget_qpc'],
+                profile_processing_budget_qpc=profile['processing_budget_qpc'])
+
     def _discover(self, now):
         require(self._directory_identity() == self.root_identity, 'DIRECTORY_REPLACED')
         if self.activation_start is None:
@@ -927,6 +940,9 @@ class FreshNativeAdapterV1:
                 adapter_heartbeat=self.heartbeat, order_submit_reachable=False,
                 activation_allowance_started=self.activation_start is not None,
                 transport_status='TRANSPORT_LIVE' if value['market_stream']=='LIVE' else 'NOT_LIVE')
+            value.update(self.diagnostics(),
+                profile_receipt_age_seconds=value['receipt_age_seconds'],
+                profile_emission_age_seconds=value['emission_age_seconds'])
             return value
 
     def close(self):

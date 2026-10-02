@@ -23,6 +23,20 @@ from tools.native_timing_witness_v1 import live_process_start
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _shutdown_fault_telemetry(health):
+    """Copy pre-cleanup diagnostic evidence without polling the runtime."""
+    return dict(failure_type=health['reason'] if health['phase'] == 'FAILED' else None,
+        analysis_phase=health['phase'], adapter_status=health['adapter_status'],
+        adapter_reason=health.get('adapter_reason'),
+        profile_fault=health.get('profile_fault'),
+        profile_fault_first_qpc=health.get('profile_fault_first_qpc'),
+        profile_fault_last_qpc=health.get('profile_fault_last_qpc'),
+        profile_last_receipt_qpc=health.get('profile_last_receipt_qpc'),
+        profile_last_emission_qpc=health.get('profile_last_emission_qpc'),
+        profile_heartbeat_budget_qpc=health.get('profile_heartbeat_budget_qpc'),
+        profile_processing_budget_qpc=health.get('profile_processing_budget_qpc'))
+
+
 def listener_pid(port):
     require(type(port) is int and 1024 <= port <= 65535, 'PORT')
     output = subprocess.check_output(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
@@ -946,6 +960,8 @@ def run(args, lifecycle_factory=None):
             is not None
         )
 
+        pre_cleanup_health = runtime.health()
+
         lifecycle_close_error = (
             _close_optional_lifecycle(
                 lifecycle
@@ -970,6 +986,7 @@ def run(args, lifecycle_factory=None):
             frontend.wait(timeout=10)
 
         result.update(
+            _shutdown_fault_telemetry(pre_cleanup_health),
             final_health=runtime.health(),
             owned_frontend_stopped=
                 frontend is None

@@ -191,6 +191,44 @@ def test_fresh_receipts_do_not_keep_old_emissions_live():
     assert stream.profile.snapshot()['market_stream']=='NOT_LIVE'
 
 
+def test_processing_age_fault_keeps_exact_first_qpc_through_cleanup():
+    stream=Stream();stream.boundary()
+    for _ in range(17):
+        stream.qpc+=5000;stream.send('HEARTBEAT',{'connected':True})
+    stream.qpc+=5000
+    with pytest.raises(ValueError,match='PROCESSING_AGE_EXPIRED'):
+        stream.send('HEARTBEAT',{'connected':True})
+    first=stream.profile.diagnostics()
+    assert first['fault']=='PROCESSING_AGE_EXPIRED'
+    assert first['fault_first_qpc']==first['fault_last_qpc']==stream.qpc
+    assert first['last_receipt_qpc']==stream.qpc-5000
+    assert first['heartbeat_budget_qpc']==15000
+    assert first['processing_budget_qpc']==90000
+    stream.qpc+=1000
+    stream.profile.revoke('ADAPTER_SHUTDOWN')
+    snapshot=stream.profile.snapshot()
+    assert snapshot['fault']=='PROCESSING_AGE_EXPIRED'
+    assert snapshot['fault_first_qpc']==first['fault_first_qpc']
+    assert snapshot['market_stream']=='NOT_LIVE'
+    assert_disabled(snapshot)
+
+
+def test_snapshot_preserves_transport_fault_and_healthy_diagnostics():
+    stream=Stream();stream.boundary()
+    healthy=stream.profile.snapshot()
+    assert healthy['fault'] is None
+    assert healthy['fault_first_qpc'] is None
+    assert healthy['fault_last_qpc'] is None
+    stream.qpc+=15001
+    failed=stream.profile.snapshot()
+    assert failed['fault']=='TRANSPORT_LOSS'
+    assert failed['fault_first_qpc']==failed['fault_last_qpc']==stream.qpc
+    stream.profile.revoke('STARTUP_SHUTDOWN')
+    assert stream.profile.snapshot()['fault']=='TRANSPORT_LOSS'
+    restarted=Stream();restarted.boundary();restarted.epoch='new-epoch'
+    assert restarted.profile.snapshot()['fault']=='QPC_EPOCH_OR_REGRESSION'
+
+
 def test_processing_delay_is_measured_from_emission_not_just_receipt():
     stream=Stream();stream.boundary()
     stream.profile.maximum_processing=5
@@ -250,6 +288,8 @@ def test_independent_bar_provenance_predicates_reject_before_analysis(mutation,r
     if mutation=='missing_closed':stream.profile.forming_count=2
     pair['canonical_sha256']=sha256(encode(row)).hexdigest() if mutation!='hash' else '0'*64
     with pytest.raises(ValueError,match=reason):saved(encode(row),encode(pair),**kwargs)
+    assert stream.profile.snapshot()['fault']==reason
+    assert stream.profile.diagnostics()['fault_first_qpc'] is not None
     assert not stream.profile.candles
 
 

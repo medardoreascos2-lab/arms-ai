@@ -52,6 +52,7 @@ class MarketAnalysisTimeProfileV1:
         self.maximum_processing = maximum_processing_seconds*frequency
         self._lock = RLock()
         self.fault = None
+        self.fault_first_qpc = self.fault_last_qpc = None
         self.sequence = self.pair_sequence = -1
         self.last_receipt = self.last_emission = None
         self.previous_pair = self.forming = self.pending = None
@@ -100,7 +101,23 @@ class MarketAnalysisTimeProfileV1:
 
     def revoke(self, reason='RESTART_OR_RECONNECT_REQUIRES_NEW_PROOF'):
         with self._lock:
-            self.fault = self.fault or reason
+            if self.fault is None:
+                self._latch_fault(reason)
+
+    def _latch_fault(self, reason):
+        if self.fault is None:
+            self.fault = reason
+            self.fault_first_qpc = self.last_now
+        self.fault_last_qpc = self.last_now
+        return self.fault
+
+    def diagnostics(self):
+        """Return latched QPC evidence without sampling the clock."""
+        with self._lock:
+            return dict(fault=self.fault, fault_first_qpc=self.fault_first_qpc,
+                fault_last_qpc=self.fault_last_qpc, last_receipt_qpc=self.last_receipt,
+                last_emission_qpc=self.last_emission, heartbeat_budget_qpc=self.heartbeat,
+                processing_budget_qpc=self.maximum_processing)
 
     def establish_tail_baseline(self, hello_raw, *, canonical_sequence, pair_sequence):
         """Metadata/cursor only; never admits historical candles or receipts.
@@ -171,8 +188,8 @@ class MarketAnalysisTimeProfileV1:
                 self.sequence,self.last_receipt = row['sequence'],receipt_qpc
                 return delivery
             except (ValueError,KeyError,TypeError,AttributeError,OverflowError) as error:
-                self.fault = str(error) if type(error) is ValueError else 'MALFORMED_INPUT'
-                raise ValueError(self.fault) from None
+                reason = str(error) if type(error) is ValueError else 'MALFORMED_INPUT'
+                raise ValueError(self._latch_fault(reason)) from None
 
     def _bar(self,row,raw,paired,receipt,now):
         completed = None
@@ -324,8 +341,11 @@ class MarketAnalysisTimeProfileV1:
     def snapshot(self):
         with self._lock:
             try:now=self._now()
-            except (ValueError,TypeError):self.fault=self.fault or 'TRANSPORT_OR_EPOCH_LOST';now=self.last_now
+            except (ValueError,TypeError) as error:
+                self._latch_fault(str(error) if type(error) is ValueError else 'TRANSPORT_OR_EPOCH_LOST')
+                now=self.last_now
             age=None if self.last_emission is None else max(0,now-self.last_emission)/self.frequency
+            receipt_age=None if self.last_receipt is None else max(0,now-self.last_receipt)/self.frequency
             active=(self.fault is None and self.pending is None and self.last_emission is not None
                     and now-self.last_emission <= self.maximum_processing)
             components={k:dict(status='SOURCE_RELATIVE_ONLY',value=deepcopy(self.values[k]),
@@ -339,6 +359,7 @@ class MarketAnalysisTimeProfileV1:
                 market_stream='LIVE' if active else 'NOT_LIVE',stream_meaning='LOCAL_EXPORTER_OBSERVATIONS_NOT_ABSOLUTE_MARKET_RECENCY',
                 transport_liveness='OBSERVED_RECEIPTS' if self.last_receipt is not None and not self.fault else 'UNKNOWN_OR_LOST',
                 processing_age=dict(status='QPC_OBSERVED' if age is not None and not self.fault else 'UNKNOWN',seconds=age),
+                receipt_age_seconds=receipt_age, emission_age_seconds=age,
                 canonical_continuity='CONTIGUOUS_OBSERVED' if active else 'UNPROVEN_OR_REVOKED',
                 source_time_status='LABELS_AND_RELATIVE_PROGRESS_ONLY' if active else 'UNKNOWN',
                 source_time_recency='UNKNOWN',absolute_market_recency='UNKNOWN',absolute_time_authority='UNKNOWN',
@@ -368,4 +389,5 @@ class MarketAnalysisTimeProfileV1:
                 execution_mode='LOCAL_PAPER',paper_entry_authority='DISABLED',sim_execution_authority='DISABLED',live_authority=False,
                 broker_order_calls=0,ninjatrader_account_access=False,paper_trades_opened=0,
                 order_submit_reachable=False,
-                sequence=self.sequence,session=self.session,epoch=self.epoch,fault=self.fault)
+                sequence=self.sequence,session=self.session,epoch=self.epoch,
+                **self.diagnostics())

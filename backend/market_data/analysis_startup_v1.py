@@ -60,13 +60,19 @@ class AnalysisStartupV1:
     def health(self):
         # Deliberately no poll here: reads cannot manufacture worker advancement.
         with self.lock:
+            diagnostics = dict(adapter_reason=None, profile_fault=None,
+                profile_fault_first_qpc=None, profile_fault_last_qpc=None,
+                profile_last_receipt_qpc=None, profile_last_emission_qpc=None,
+                profile_heartbeat_budget_qpc=None, profile_processing_budget_qpc=None)
+            if self.adapter is not None:
+                diagnostics.update(self.adapter.diagnostics())
             return dict(run_id=self.run_id, pid=self.pid, process_start=self.process_start,
                 phase=self.phase, reason=self.reason, worker_heartbeat=self.worker_heartbeat,
                 worker_qpc=self.worker_qpc,
                 adapter_heartbeat=None if self.adapter is None else self.adapter.heartbeat,
                 adapter_status=None if self.adapter is None else self.adapter.status,
                 activation_allowance_started=self.adapter is not None and self.adapter.activation_start is not None,
-                analysis_only=True, order_submit_reachable=False)
+                analysis_only=True, order_submit_reachable=False, **diagnostics)
 
     def verify_backend(self, health, listener_pid):
         with self.lock:

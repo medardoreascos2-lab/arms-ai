@@ -71,6 +71,8 @@ def test_waiting_then_fresh_stream_and_full_hour(tmp_path):
     files=Files(tmp_path/'live');a=files.attach()
     for _ in range(62):snapshot=files.boundary()
     assert snapshot['adapter_status']=='LIVE_TAIL',snapshot['adapter_reason']
+    assert snapshot['profile_fault'] is None
+    assert snapshot['profile_fault_first_qpc'] is None
     assert snapshot['transport_status']=='TRANSPORT_LIVE'
     for key in ('1m','15m','1h','trend','structure','liquidity','fvg'):
         assert snapshot['components'][key]['status']=='SOURCE_RELATIVE_ONLY'
@@ -242,6 +244,34 @@ def test_faulting_background_poll_and_api_clock_fail_closed(tmp_path):
     assert result['adapter_status']=='REVOKED'
     assert_disabled(result)
     assert result['market_stream']=='NOT_LIVE'
+
+
+def test_processing_age_profile_reason_survives_adapter_cleanup(tmp_path):
+    files=Files(tmp_path/'inbox');a=files.attach();files.boundary()
+    assert a.status=='LIVE_TAIL'
+    assert a.options['maximum_processing_seconds']==90
+    assert a.options['heartbeat_seconds']==15
+    for _ in range(17):
+        files.stream.qpc+=5000
+        files.stream.send('HEARTBEAT',{'connected':True})
+        a.poll()
+        assert a.status=='LIVE_TAIL'
+    files.stream.qpc+=5000
+    result=a.snapshot()
+    assert result['adapter_status']=='REVOKED'
+    assert result['adapter_reason']=='PROFILE_REVOKED'
+    assert result['profile_fault']=='PROCESSING_AGE_EXPIRED'
+    assert result['profile_fault_first_qpc']==files.stream.qpc
+    assert result['profile_processing_budget_qpc']==90000
+    assert result['profile_heartbeat_budget_qpc']==15000
+    assert result['profile_receipt_age_seconds']<15
+    assert_disabled(result)
+    a.close()
+    after=a.snapshot()
+    assert after['profile_fault']=='PROCESSING_AGE_EXPIRED'
+    assert after['profile_fault_first_qpc']==result['profile_fault_first_qpc']
+    assert after['profile_fault_last_qpc']>=after['profile_fault_first_qpc']
+    assert after['adapter_reason']=='PROFILE_REVOKED'
 
 
 def test_reader_handles_are_compatible_with_native_exporter_sharing(tmp_path):

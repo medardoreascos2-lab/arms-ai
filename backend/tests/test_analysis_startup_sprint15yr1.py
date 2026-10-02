@@ -11,6 +11,8 @@ from backend.market_data.analysis_startup_v1 import AnalysisStartupV1
 from backend.market_data.fresh_native_adapter_v1 import FreshNativeAdapterV1
 from backend.api.market_analysis_time_app_v1 import create_market_analysis_time_app_v1
 from backend.tests.test_analysis_time_sprint15x import forbid_account_and_execution_construction
+from backend.tests.test_fresh_native_adapter_sprint15y import Files
+from tools.analysis_native_startup_v1 import _shutdown_fault_telemetry
 
 SOURCE = Path('integrations/ninjatrader/ArmsReadOnlyMarketV1.cs').resolve()
 TAIL = Path('backend/tests/fixtures/ArmsReadOnlyMarketV1.generated.txt').read_text()
@@ -158,3 +160,42 @@ def test_restart_has_no_waiting_state_recovery(tmp_path,monkeypatch):
     new.poll()
     with pytest.raises(ValueError):new.verify_backend(old,new.pid)
     assert new.phase=='FAILED' and new.adapter is None
+
+
+def test_fault_health_and_shutdown_evidence_keep_profile_reason(tmp_path,monkeypatch):
+    monkeypatch.setattr('backend.market_data.analysis_startup_v1.live_process_start',lambda pid:42)
+    files=Files(tmp_path/'inbox');adapter=files.attach();files.boundary()
+    calls=[0]
+    def clock():
+        calls[0]+=1
+        return files.stream.epoch,1000,files.stream.qpc
+    runtime=AnalysisStartupV1(run_id=str(uuid4()),installed_exporter=SOURCE,qpc_clock=clock)
+    runtime.adapter=adapter
+    runtime.phase='AWAITING_OPERATOR_ACTIVATION'
+    for _ in range(17):
+        files.stream.qpc+=5000
+        files.stream.send('HEARTBEAT',{'connected':True})
+        runtime.poll()
+        assert runtime.phase=='AWAITING_OPERATOR_ACTIVATION'
+    files.stream.qpc+=5000
+    runtime.poll()
+    before=runtime.health()
+    assert before['phase']=='FAILED'
+    assert before['reason']==before['adapter_reason']=='PROFILE_REVOKED'
+    assert before['adapter_status']=='REVOKED'
+    assert before['profile_fault']=='PROCESSING_AGE_EXPIRED'
+    assert before['profile_fault_first_qpc']==files.stream.qpc
+    observed_calls=calls[0]
+    assert runtime.health()==before
+    assert calls[0]==observed_calls  # health reads do not sample QPC
+    result=_shutdown_fault_telemetry(before)
+    runtime.close()
+    result['final_health']=runtime.health()
+    path=tmp_path/'shutdown-result.json'
+    path.write_text(json.dumps(result),encoding='utf-8')
+    persisted=json.loads(path.read_text(encoding='utf-8'))
+    assert persisted['failure_type']=='PROFILE_REVOKED'
+    assert persisted['profile_fault']=='PROCESSING_AGE_EXPIRED'
+    assert persisted['profile_fault_first_qpc']==before['profile_fault_first_qpc']
+    assert persisted['final_health']['profile_fault']=='PROCESSING_AGE_EXPIRED'
+    assert persisted['final_health']['reason']=='PROFILE_REVOKED'

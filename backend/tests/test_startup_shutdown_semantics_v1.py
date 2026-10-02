@@ -160,6 +160,11 @@ def test_finally_still_closes_runtime_and_persists_shutdown_result():
         "owned_backend_stopped="
         in source
     )
+    assert (
+        source.index("pre_cleanup_health = runtime.health()")
+        < source.index("runtime.close()")
+        < source.index("_shutdown_fault_telemetry(pre_cleanup_health)")
+    )
 
 
 def test_state_machine_close_preserves_startup_shutdown_reason():
