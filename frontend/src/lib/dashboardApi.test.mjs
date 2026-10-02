@@ -84,15 +84,54 @@ test("SIM_NATIVE financial reader is a separate credential-free GET and rejects 
   await assert.rejects(c.api.getSimNativeFinancial(), /SIM_NATIVE/);
 });
 
-test("current monitor can abort a read without credentials or mutation", async () => {
-  const c = client([{body:{}}]);
+test("analysis and Current-PAPER reads use distinct origins without credentials or mutation", async () => {
+  const c = client([{body:{}}, {body:{}}, {body:{}}], {
+    NEXT_PUBLIC_API_URL: 'http://127.0.0.1:18001',
+    NEXT_PUBLIC_CURRENT_PAPER_API_URL: 'http://127.0.0.1:18002',
+  });
   const controller = new AbortController();
-  await c.api.requestJson('/api/v2/backtesting/dashboard', undefined, false, false, controller.signal);
-  assert.equal(c.calls[0].options.signal, controller.signal);
-  assert.equal(c.calls[0].options.method, 'GET');
-  assert.equal(c.calls[0].options.headers['X-ARMS-ADMIN-TOKEN'], undefined);
+  await c.api.requestJson('/api/v2/market-analysis/time-profile');
+  await c.api.getBacktestingDashboard();
+  await c.api.requestCurrentPaperJson('/api/v2/backtesting/dashboard', controller.signal);
+  assert.equal(c.calls[0].url, 'http://127.0.0.1:18001/api/v2/market-analysis/time-profile');
+  assert.equal(c.calls[1].url, 'http://127.0.0.1:18001/api/v2/backtesting/dashboard');
+  assert.equal(c.calls[2].url, 'http://127.0.0.1:18002/api/v2/backtesting/dashboard');
+  assert.equal(c.calls[2].options.signal, controller.signal);
+  assert.ok(c.calls.every(call => call.options.method === 'GET' &&
+    call.options.body === undefined && call.options.headers['X-ARMS-ADMIN-TOKEN'] === undefined));
   controller.abort();
-  assert.equal(c.calls[0].options.signal.aborted, true);
+  assert.equal(c.calls[2].options.signal.aborted, true);
+});
+
+test("Current-PAPER rejects missing or invalid public origins before a request", async () => {
+  for (const origin of [undefined, '', 'http://remote.example',
+    'http://user:secret@127.0.0.1:18002', 'http://127.0.0.1:18002/path',
+    'http://127.0.0.1:18002/?token=secret', 'http://127.0.0.1:18002/#fragment']) {
+    const c = client([], { NEXT_PUBLIC_CURRENT_PAPER_API_URL: origin });
+    await assert.rejects(c.api.requestCurrentPaperJson('/api/v2/backtesting/dashboard'));
+    assert.equal(c.calls.length, 0);
+  }
+  const c = client([], { NEXT_PUBLIC_CURRENT_PAPER_API_URL: 'https://paper.example' });
+  await assert.rejects(c.api.requestCurrentPaperJson('//remote.example/path'), /inválida/);
+  assert.equal(c.calls.length, 0);
+});
+
+test("Current-PAPER accepts HTTPS without attaching the configured admin credential", async () => {
+  const c = client([{body:{status:'READY'}}], {
+    NEXT_PUBLIC_CURRENT_PAPER_API_URL: 'https://paper.example',
+  });
+  assert.equal((await c.api.requestCurrentPaperJson('/api/v2/backtesting/dashboard')).status, 'READY');
+  assert.equal(c.calls[0].url, 'https://paper.example/api/v2/backtesting/dashboard');
+  assert.equal(c.calls[0].options.headers['X-ARMS-ADMIN-TOKEN'], undefined);
+});
+
+test("paper-current page polls only the Current-PAPER read endpoint", () => {
+  const source = fs.readFileSync(path.join(__dirname, '../app/paper-current/page.tsx'), 'utf8');
+  assert.equal((source.match(/requestCurrentPaperJson\(/g) ?? []).length, 1);
+  assert.ok(source.includes('requestCurrentPaperJson("/api/v2/backtesting/dashboard", request.signal)'));
+  assert.ok(source.includes('setTimeout(poll, 2000)'));
+  assert.ok(source.includes('pending?.abort()'));
+  assert.equal(/requestJson\(|<button|<form|\/api\/v2\/paper\/|\/control/.test(source), false);
 });
 
 test("missing credential cannot send a protected command or open a socket", async () => {

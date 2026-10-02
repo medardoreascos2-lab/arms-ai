@@ -15,6 +15,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 {
     public class ArmsReadOnlyL1V1 : Indicator
     {
+        private const long L1_STREAM_MAX_BYTES = 256L * 1024 * 1024;
+        private const int TERMINAL_RESERVE_BYTES = 4096;
         private readonly object sync = new object();
         private StreamWriter output;
         private DispatcherTimer timer;
@@ -183,7 +185,8 @@ namespace NinjaTrader.NinjaScript.Indicators
             string line = new JavaScriptSerializer().Serialize(new { schema = "arms.nt.l1.v1", session = session,
                 sequence = sequence, event_time = now.ToString("o"), kind = kind, payload = payload });
             int count = Encoding.UTF8.GetByteCount(line + "\n");
-            if (bytes + count > 32 * 1024 * 1024 - 4096 && kind != "TERMINAL") throw new IOException();
+            if (bytes + count > L1_STREAM_MAX_BYTES - (kind == "TERMINAL" ? 0 : TERMINAL_RESERVE_BYTES))
+                throw new IOException();
             output.WriteLine(line); sequence++; bytes += count; lastTime = now;
         }
 

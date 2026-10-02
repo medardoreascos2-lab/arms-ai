@@ -13,7 +13,7 @@ from threading import RLock
 from time import monotonic
 from uuid import UUID
 
-from backend.market_data.fresh_native_adapter_v1 import _Tail, local_path
+from backend.market_data.fresh_native_adapter_v1 import MAX_L1_FILE, _Tail, local_path
 from backend.services import sim_native_authority_v3 as auth
 from backend.services.sim_native_market_hours_authority_v1 import private_path, parse, require
 from backend.services.runtime_quote_authority_v2 import RuntimeQuoteAuthorityV2
@@ -25,6 +25,7 @@ IDENTITY = dict(provider='Provider31', contract='NQ DEC26', instrument='NQ', exp
 FIELDS = set('schema session sequence event_time kind payload'.split())
 MAX_AGE = 30
 HEARTBEAT = 15
+L1_STREAM_MAX_BYTES = MAX_L1_FILE
 
 
 def utc(value):
@@ -146,7 +147,7 @@ class SimNativeL1AuthorityV1:
                 session = path.name.removesuffix('.l1.jsonl')
                 require(str(UUID(session)) == session and self.session in (None,session), 'SESSION_CHANGED')
                 if self.tail is None:
-                    self.session, self.tail = session, _Tail(path)
+                    self.session, self.tail = session, _Tail(path, max_file=L1_STREAM_MAX_BYTES)
                     self.status = 'WAITING_FOR_HELLO'
                 # Retain the batch boundary for both publication and pure inspection.
                 self.observed_size = path.stat().st_size

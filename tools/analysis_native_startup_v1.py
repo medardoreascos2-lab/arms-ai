@@ -84,6 +84,35 @@ def frontend_copy(folder):
         creationflags=subprocess.CREATE_NO_WINDOW, check=True, timeout=10)
 
 
+FRONTEND_OS_ENV = {
+    'PATH': 'PATH',
+    'PATHEXT': 'PATHEXT',
+    'SYSTEMROOT': 'SystemRoot',
+    'WINDIR': 'WINDIR',
+    'COMSPEC': 'COMSPEC',
+    'TEMP': 'TEMP',
+    'TMP': 'TMP',
+    'USERPROFILE': 'USERPROFILE',
+    'APPDATA': 'APPDATA',
+    'LOCALAPPDATA': 'LOCALAPPDATA',
+}
+
+
+def frontend_build_env(*, backend_url, paper_port=None):
+    """Pass only required Windows settings and explicit public origins to Next."""
+    env = {}
+    for key, value in os.environ.items():
+        canonical = FRONTEND_OS_ENV.get(key.upper())
+        if canonical is not None:
+            require(canonical not in env, 'FRONTEND_ENV_DUPLICATE_OS_KEY')
+            env[canonical] = value
+    env.update(NEXT_PUBLIC_API_URL=backend_url, NEXT_TELEMETRY_DISABLED='1', NODE_ENV='production')
+    if paper_port is not None:
+        require(type(paper_port) is int and 1024 <= paper_port <= 65535, 'PAPER_PORT')
+        env['NEXT_PUBLIC_CURRENT_PAPER_API_URL'] = f'http://127.0.0.1:{paper_port}'
+    return env
+
+
 def perform_startup_chart_catchup(
     *,
     runtime,
@@ -503,7 +532,10 @@ def run(args, lifecycle_factory=None):
         print('BACKEND_HEALTH=PASS; ACTIVATION_ALLOWANCE=NOT_STARTED', flush=True)
         frontend_dir = folder/'frontend'
         frontend_copy(frontend_dir)
-        env = dict(os.environ, NEXT_PUBLIC_API_URL=backend_url, NEXT_TELEMETRY_DISABLED='1', NODE_ENV='production')
+        env = frontend_build_env(
+            backend_url=backend_url,
+            paper_port=getattr(args, 'paper_port', None),
+        )
         cli = str(ROOT/'frontend/node_modules/next/dist/bin/next')
         with (folder/'frontend-build.log').open('x') as build_log:
             subprocess.run([node, cli, 'build', '--webpack'], cwd=frontend_dir, env=env,

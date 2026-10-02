@@ -19,6 +19,7 @@ from tools.native_timing_witness_v1 import IDENTITY, check_pair, ticks, qpc_pair
 from tools.production_timing_v1 import PAIR_FIELDS, parse
 
 MAX_FILE = 32 * 1024 * 1024
+MAX_L1_FILE = 256 * 1024 * 1024
 CHUNK = 65536
 MAX_LINE = 16384
 MAX_QUEUE = 1024
@@ -57,21 +58,28 @@ class _Tail:
         path,
         *,
         startup_cursor=None,
+        max_file=None,
     ):
+        self.max_file = MAX_FILE if max_file is None else max_file
+        require(type(self.max_file) is int and 0 < self.max_file <= MAX_L1_FILE, 'FILE_LIMIT_CONFIG')
         self.path = local_path(path)
         self.handle = self._open_read(self.path)
-        info = os.fstat(self.handle.fileno())
-        self.identity = (info.st_dev, info.st_ino)
-        require(info.st_ino and stat.S_ISREG(info.st_mode), 'FILE_IDENTITY_UNAVAILABLE')
-        require(info.st_size <= MAX_FILE, 'FILE_LIMIT')
-        require(
-            startup_cursor is None
-            or (
-                type(startup_cursor) is int
-                and 0 <= startup_cursor <= info.st_size
-            ),
-            'STARTUP_CURSOR_INVALID',
-        )
+        try:
+            info = os.fstat(self.handle.fileno())
+            self.identity = (info.st_dev, info.st_ino)
+            require(info.st_ino and stat.S_ISREG(info.st_mode), 'FILE_IDENTITY_UNAVAILABLE')
+            require(info.st_size <= self.max_file, 'FILE_LIMIT')
+            require(
+                startup_cursor is None
+                or (
+                    type(startup_cursor) is int
+                    and 0 <= startup_cursor <= info.st_size
+                ),
+                'STARTUP_CURSOR_INVALID',
+            )
+        except Exception:
+            self.handle.close()
+            raise
         self.cursor = (
             info.st_size
             if startup_cursor is None
@@ -108,7 +116,7 @@ class _Tail:
     def read(self, now):
         info = local_path(self.path).stat()
         require((info.st_dev, info.st_ino) == self.identity, 'FILE_REPLACED')
-        require(self.offset <= info.st_size <= MAX_FILE, 'FILE_TRUNCATED_OR_LIMIT')
+        require(self.offset <= info.st_size <= self.max_file, 'FILE_TRUNCATED_OR_LIMIT')
         # Verify the consumed prefix too: same-inode overwrite must not go unnoticed.
         self.handle.seek(0)
         prefix = self.handle.read(self.offset)

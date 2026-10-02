@@ -24,6 +24,24 @@ def binary(tmp_path_factory):
     return target
 
 
+@pytest.fixture(scope='module')
+def bounded_binary(tmp_path_factory):
+    root=tmp_path_factory.mktemp('l1-bounded')
+    source=root/'l1.cs'
+    marker='private const long L1_STREAM_MAX_BYTES = 256L * 1024 * 1024;'
+    authored=SOURCE.read_text()
+    assert authored.count(marker)==1
+    source.write_text(authored.replace('DateTime.UtcNow','ManualClock.UtcNow').replace(
+        marker,'private const long L1_STREAM_MAX_BYTES = 8192L;'))
+    target=root/'l1.exe'
+    command=[str(FRAMEWORK/'csc.exe'),'/nologo','/langversion:5','/out:'+str(target),
+        '/r:System.Core.dll','/r:System.Web.Extensions.dll','/r:System.ComponentModel.DataAnnotations.dll',str(source),
+        str(Path('backend/tests/fixtures/native_l1_harness_v1.cs').resolve())]
+    result=subprocess.run(command,capture_output=True,text=True,timeout=60)
+    assert result.returncode==0,result.stdout+result.stderr
+    return target
+
+
 def run(binary,tmp_path,mode):
     result=subprocess.run([str(binary),mode,str(tmp_path)],capture_output=True,text=True,timeout=20)
     assert result.returncode==0,result.stdout+result.stderr
@@ -61,6 +79,22 @@ def test_invalid_or_half_quote_has_no_publication(binary,tmp_path,mode):
 def test_restart_has_new_session(binary,tmp_path):
     streams=run(binary,tmp_path,'restart')
     assert len(streams)==2 and streams[0][0]['session']!=streams[1][0]['session']
+
+
+def test_capacity_rejects_next_quote_and_reserves_terminal(bounded_binary,tmp_path):
+    rows=run(bounded_binary,tmp_path,'capacity')[0]
+    raw=next(tmp_path.glob('*.l1.jsonl')).read_bytes()
+    lines=raw.splitlines(keepends=True)
+    assert rows[0]['kind']=='HELLO'
+    assert sum(row['kind']=='QUOTE' for row in rows)>1
+    assert rows[-1]['kind']=='TERMINAL'
+    assert rows[-1]['payload']['reason']=='CALLBACK_FAILED'
+    assert [row['sequence'] for row in rows]==list(range(len(rows)))
+    assert len(raw)<=8192
+    before_terminal=sum(map(len,lines[:-1]))
+    assert before_terminal<=8192-4096
+    next_quote=dict(rows[-2],sequence=rows[-1]['sequence'])
+    assert before_terminal+len((json.dumps(next_quote,separators=(',',':'))+'\n').encode())>8192-4096
 
 
 def test_current_ninjatrader_sdk_compiles_exact_authored_body(tmp_path):

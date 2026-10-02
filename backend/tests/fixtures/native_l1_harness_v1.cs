@@ -102,6 +102,12 @@ class Program {
         if(mode=="point")s.Instrument.MasterInstrument.PointValue=2;
         if(mode=="historical") {s.Change(State.Historical);s.Price(MarketDataType.Bid,25000);s.Price(MarketDataType.Ask,25000.25);return;}
         s.Change(State.Realtime);
+        if(mode=="capacity") {
+            s.Price(MarketDataType.Bid,25000);
+            for(int i=0;i<100;i++) s.Price(MarketDataType.Ask,25000.25);
+            s.Change(State.Terminated);
+            return;
+        }
         if(mode=="connection_identity") { Connection.Connections.Clear();Connection.Connections.Add(new Connection()); }
         if(mode=="connection_event")s.ConnectionEvent(new Connection());
         if(mode=="startup_previous_disconnected")

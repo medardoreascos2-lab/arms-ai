@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.services import sim_native_l1_authority_v1 as m
+from backend.market_data.fresh_native_adapter_v1 import MAX_FILE, _Tail
 from backend.services.runtime_admission_v2 import RuntimeAdmissionV2
 from backend.services.sim_native_commissioning_policy_v1 import load
 from backend.tests.test_sim_native_financial_runtime_service_v3 import environment
@@ -65,6 +66,42 @@ def test_valid_quote_uses_existing_storage_spread_and_news_still_blocks(stream):
     with pytest.raises(RuntimeError,match='ONLY_PUBLISHER'):
         s.admission.quote_authority.publish_quote(symbol='NQ',bid=1,ask=2,timestamp=NOW)
     assert s.admission.quote_authority.get_quote(symbol='ES') is None
+
+
+def test_l1_capacity_is_specific_and_generic_tail_keeps_32_mib(tmp_path,stream):
+    assert MAX_FILE==32*1024*1024
+    assert m.L1_STREAM_MAX_BYTES==256*1024*1024
+    path=tmp_path/'old-boundary.l1.jsonl'
+    with path.open('wb') as handle:
+        handle.seek(MAX_FILE)
+        handle.write(b'\n')
+    with pytest.raises(ValueError,match='FILE_LIMIT'):
+        _Tail(path)
+    tail=_Tail(path,max_file=m.L1_STREAM_MAX_BYTES)
+    try:
+        assert tail.max_file==m.L1_STREAM_MAX_BYTES
+    finally:
+        tail.close()
+    s=stream;s.hello();s.quote();s.reader.poll()
+    assert s.get() is not None and s.reader.tail.max_file==m.L1_STREAM_MAX_BYTES
+
+
+@pytest.mark.parametrize('published',[False,True])
+def test_l1_limit_revokes_oversize_stream(stream,monkeypatch,published):
+    s=stream;s.hello();s.quote()
+    if published:
+        s.reader.poll()
+        assert s.get() is not None
+        boundary=s.path.stat().st_size
+        s.quote()
+    else:
+        boundary=s.path.stat().st_size-1
+    monkeypatch.setattr(m,'L1_STREAM_MAX_BYTES',boundary)
+    if published:
+        s.reader.tail.max_file=boundary
+    s.reader.poll()
+    assert s.reader.status=='REVOKED' and s.get() is None
+    assert s.admission.quote_authority.get_quote(symbol='NQ') is None
 
 
 def test_wide_spread_fresh_but_existing_runtime_gate_rejects(stream):

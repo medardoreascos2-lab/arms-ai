@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { requestJson, type JsonObject } from "../../lib/dashboardApi";
+import { requestCurrentPaperJson, type JsonObject } from "../../lib/dashboardApi";
 import { currentPaperRows } from "../../lib/paperRcProjection";
 
 export default function CurrentPaperPage() {
@@ -16,7 +16,7 @@ export default function CurrentPaperPage() {
       const request = pending;
       const timeout = setTimeout(() => request.abort(), 5000);
       try {
-        const payload = await requestJson("/api/v2/backtesting/dashboard", undefined, false, false, request.signal);
+        const payload = await requestCurrentPaperJson("/api/v2/backtesting/dashboard", request.signal);
         const value = payload.paper_research;
         if (!value || typeof value !== "object" || Array.isArray(value) ||
             value.mode !== "CURRENT_MARKET_PAPER" || typeof value.config_hash !== "string") {

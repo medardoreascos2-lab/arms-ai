@@ -17,6 +17,7 @@ export type JsonObject = {
 
 // Public build configuration contains an origin only, never a credential.
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+const CURRENT_PAPER_API_URL = (process.env.NEXT_PUBLIC_CURRENT_PAPER_API_URL ?? "").replace(/\/$/, "");
 let adminToken = "";
 
 export function configurePaperCredential(token: string): void {
@@ -26,14 +27,36 @@ export function configurePaperCredential(token: string): void {
   adminToken = token;
 }
 
-function apiOrigin(): string {
-  const url = new URL(API_URL);
+function validatedOrigin(value: string): string {
+  const url = new URL(value);
   if (url.username || url.password || url.search || url.hash || url.pathname !== "/" ||
       !(url.protocol === "https:" || (url.protocol === "http:" &&
         ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))) {
     throw new Error("Usa un origen HTTPS o localhost para PAPER.");
   }
   return url.origin;
+}
+
+function apiOrigin(): string {
+  return validatedOrigin(API_URL);
+}
+
+function currentPaperOrigin(): string {
+  if (!CURRENT_PAPER_API_URL) throw new Error("Current PAPER API origin required.");
+  return validatedOrigin(CURRENT_PAPER_API_URL);
+}
+
+export async function requestCurrentPaperJson(path: string, signal?: AbortSignal): Promise<JsonObject> {
+  if (!path.startsWith("/") || path.startsWith("//")) throw new Error("Ruta API inválida.");
+  const response = await fetch(`${currentPaperOrigin()}${path}`, {
+    method: "GET", headers: { Accept: "application/json" }, cache: "no-store",
+    redirect: "error", credentials: "omit", ...(signal ? { signal } : {}),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(String(payload.detail ?? payload.error ?? `API Error: ${response.status}`));
+  }
+  return response.json();
 }
 
 export async function requestJson(path: string, body?: JsonObject, protectedCall = false,

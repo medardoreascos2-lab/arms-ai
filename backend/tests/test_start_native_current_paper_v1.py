@@ -4,8 +4,9 @@ from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
 import json
+import os
 import time
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 import pytest
@@ -16,6 +17,13 @@ from backend.tests.test_analysis_native_lifecycle_hook_v1 import ready_runtime
 from backend.tests.test_certified_native_paper_bridge_v1 import _paper
 from backend.tests.test_production_certified_outcome_v17 import api_settings
 from tools.analysis_native_startup_v1 import _build_optional_lifecycle
+
+
+PRIVATE_FRONTEND_MARKERS = (
+    "ARMS_CURRENT_PAPER_ADMIN_TOKEN", "ARMS_OTHER_PRIVATE_SECRET",
+    "OPENAI_API_KEY", "GITHUB_TOKEN", "AWS_SECRET_ACCESS_KEY",
+    "NODE_OPTIONS", "UNRELATED_PRIVATE_VALUE",
+)
 
 
 def _args(tmp_path):
@@ -77,6 +85,8 @@ def _offline_wiring(
     shared = []
     bound = _Socket(events)
     monkeypatch.setenv(args.admin_token_env, "test-only-secret")
+    for name in PRIVATE_FRONTEND_MARKERS:
+        monkeypatch.setenv(name, "SHOULD_NOT_LEAK")
     monkeypatch.setattr(launcher, "_reserve_paper_port", lambda port: bound)
 
     import backend.backtesting.paper_research_v1 as paper_config
@@ -129,6 +139,15 @@ def _offline_wiring(
     def fake_run(analysis_args, lifecycle_factory):
         assert analysis_args is args
         assert events == []
+        env = analysis.frontend_build_env(
+            backend_url=f"http://127.0.0.1:{analysis_args.port}",
+            paper_port=analysis_args.paper_port,
+        )
+        assert env["NEXT_PUBLIC_API_URL"] == f"http://127.0.0.1:{args.port}"
+        assert env["NEXT_PUBLIC_CURRENT_PAPER_API_URL"] == f"http://127.0.0.1:{args.paper_port}"
+        assert args.admin_token_env not in env
+        assert not set(PRIVATE_FRONTEND_MARKERS) & set(env)
+        assert "SHOULD_NOT_LEAK" not in env.values()
         if fail_before_hook:
             raise RuntimeError("ANALYSIS_START_FAILED")
         runtime = ready_runtime()
@@ -163,12 +182,54 @@ def test_separate_cli_single_service_seam_loopback_and_shutdown_order(
     assert shared[2][1] is service
     assert shared[0][1]["state_path"] == args.paper_run_namespace / "paper.sqlite"
     assert shared[1][1]["admin_token"] == "test-only-secret"
+    assert shared[1][1]["dashboard_origin"] == f"http://127.0.0.1:{args.frontend_port}"
     assert events.index("attach_at_seam") < events.index("worker_start")
     assert events.index("worker_start") < events.index("api_start")
     assert events.index("worker_stop") < events.index("coordinator_close")
     assert events.index("coordinator_close") < events.index("api_stop")
     assert events.index("api_stop") < events.index("analysis_runtime_close")
     assert bound.closed
+
+
+def test_analysis_only_frontend_does_not_inherit_paper_origin_or_admin_token(monkeypatch):
+    import tools.analysis_native_startup_v1 as analysis
+
+    monkeypatch.setenv("NEXT_PUBLIC_CURRENT_PAPER_API_URL", "http://127.0.0.1:9999")
+    monkeypatch.setenv("ARMS_TEST_PAPER_ADMIN_TOKEN", "test-only-secret")
+    for name in PRIVATE_FRONTEND_MARKERS:
+        monkeypatch.setenv(name, "SHOULD_NOT_LEAK")
+    env = analysis.frontend_build_env(
+        backend_url="http://127.0.0.1:18111",
+    )
+    assert env["NEXT_PUBLIC_API_URL"] == "http://127.0.0.1:18111"
+    assert "NEXT_PUBLIC_CURRENT_PAPER_API_URL" not in env
+    assert "ARMS_TEST_PAPER_ADMIN_TOKEN" not in env
+    assert not set(PRIVATE_FRONTEND_MARKERS) & set(env)
+    assert "SHOULD_NOT_LEAK" not in env.values()
+    with pytest.raises(ValueError, match="PAPER_PORT"):
+        analysis.frontend_build_env(backend_url="http://127.0.0.1:18111", paper_port=0)
+
+
+def test_frontend_os_allowlist_is_case_insensitive_and_rejects_alias_duplicates():
+    import tools.analysis_native_startup_v1 as analysis
+
+    parent = {
+        "Path": "C:\\Windows", "SYSTEMROOT": "C:\\Windows",
+        "arms_current_paper_admin_token": "SHOULD_NOT_LEAK",
+        "OpenAI_Api_Key": "SHOULD_NOT_LEAK",
+        "nOdE_oPtIoNs": "SHOULD_NOT_LEAK",
+        "NEXT_PUBLIC_CURRENT_PAPER_API_URL": "SHOULD_NOT_LEAK",
+    }
+    with patch.object(os, "environ", parent):
+        env = analysis.frontend_build_env(backend_url="http://127.0.0.1:18111")
+    assert env == {
+        "PATH": "C:\\Windows", "SystemRoot": "C:\\Windows",
+        "NEXT_PUBLIC_API_URL": "http://127.0.0.1:18111",
+        "NEXT_TELEMETRY_DISABLED": "1", "NODE_ENV": "production",
+    }
+    with patch.object(os, "environ", {"Path": "one", "PATH": "two"}):
+        with pytest.raises(ValueError, match="FRONTEND_ENV_DUPLICATE_OS_KEY"):
+            analysis.frontend_build_env(backend_url="http://127.0.0.1:18111")
 
 
 def test_startup_failure_before_seam_closes_owned_paper_resources(
@@ -231,10 +292,20 @@ def test_read_routes_cannot_enable_paper_and_post_requires_admin(
     service, _ = _paper(tmp_path, api_settings)
     control = Mock(side_effect=RuntimeError("AWAITING_MARKET_DATA"))
     monkeypatch.setattr(service, "control", control)
-    app = create_current_paper_app_v1(service=service, admin_token="test-admin")
+    origin = "http://127.0.0.1:13001"
+    app = create_current_paper_app_v1(
+        service=service, admin_token="test-admin", dashboard_origin=origin,
+    )
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
         assert client.get("/api/v2/paper/readiness").status_code == 200
+        allowed = client.get("/api/v2/backtesting/dashboard", headers={"Origin": origin})
+        rejected = client.get(
+            "/api/v2/backtesting/dashboard", headers={"Origin": "http://127.0.0.1:13002"},
+        )
+        assert allowed.status_code == rejected.status_code == 200
+        assert allowed.headers["access-control-allow-origin"] == origin
+        assert "access-control-allow-origin" not in rejected.headers
         assert control.call_count == 0
         assert client.post("/api/v2/paper/enable").status_code == 401
         assert control.call_count == 0
