@@ -1,0 +1,1257 @@
+{
+  "schema": "ARMS_CURRENT_DIRECT_CLOCK_DEPENDENCIES_R21X_V1",
+  "reviewed_against": "de3ae56c20a0dcb5b8a1d7b65e610687141eb1e4 + R21W diagnostic summary",
+  "scope": "All non-test backend Python direct clock calls using the Sprint15T predicate.",
+  "line_role": "Diagnostic location only; source path, owner, callee, and ordinal identify each reviewed call.",
+  "direct_clock_dependencies": [
+    {
+      "path": "backend/market_data/analysis_time_profile_v1.py",
+      "consequence": "SPRINT15X_SOURCE_RELATIVE_OBSERVATIONS_ONLY_NO_ABSOLUTE_AUTHORITY",
+      "introduced_by": "backend/tests/market_analysis_time_sprint15x.json",
+      "calls": [
+        {
+          "owner": "MarketAnalysisTimeProfileV1._now",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 90,
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/fresh_native_adapter_v1.py",
+      "consequence": "SPRINT15Y_LOCAL_FILE_TAIL_NO_ABSOLUTE_OR_EXECUTION_AUTHORITY",
+      "introduced_by": "backend/tests/fresh_native_adapter_sprint15y.json",
+      "calls": [
+        {
+          "owner": "FreshNativeAdapterV1.__init__",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 167,
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        },
+        {
+          "owner": "FreshNativeAdapterV1.sample",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 630,
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        }
+      ]
+    },
+    {
+      "path": "backend/account/account_state_manager_v2.py",
+      "consequence": "LOCAL_ACCOUNT_TRADING_DATE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "AccountStateManagerV2.__init__",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 94,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "AccountStateManagerV2.__init__",
+          "callee": "self._clock",
+          "ordinal": 1,
+          "line": 96,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "AccountStateManagerV2.record_daily_pnl",
+          "callee": "self._clock",
+          "ordinal": 1,
+          "line": 485,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "AccountStateManagerV2.reset_daily_state",
+          "callee": "self._clock",
+          "ordinal": 1,
+          "line": 555,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/api/dashboard_live_api_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "create_dashboard_live_router_v2.get_dashboard_live",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 46,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/api/routers/certified_economic_news_refresh_api_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "create_certified_economic_news_refresh_router_v2.get_certified_economic_news_coverage",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 75,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/api/routers/market.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "_market_snapshot_availability",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 751,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/backtest_engine_pipeline_adapter_v2.py",
+      "consequence": "RESEARCH_OR_CERTIFICATION_METADATA_NOT_LIVE_CLOCK_AUTHORITY",
+      "calls": [
+        {
+          "owner": "BacktestEnginePipelineAdapterV2.run",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 69,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "BacktestEnginePipelineAdapterV2.run",
+          "callee": "datetime.now",
+          "ordinal": 2,
+          "line": 142,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/backtest_pipeline_v2.py",
+      "consequence": "RESEARCH_OR_CERTIFICATION_METADATA_NOT_LIVE_CLOCK_AUTHORITY",
+      "calls": [
+        {
+          "owner": "BacktestPipelineV2._normalize_candle",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 300,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/backtesting_job_v2.py",
+      "consequence": "RESEARCH_OR_CERTIFICATION_METADATA_NOT_LIVE_CLOCK_AUTHORITY",
+      "calls": [
+        {
+          "owner": "BacktestingJobV2.__init__",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 49,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "BacktestingJobV2.start",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 98,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "BacktestingJobV2.finish",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 138,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "BacktestingJobV2.fail",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 166,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "BacktestingJobV2.cancel",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 188,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/certified_current_paper_authority_factory_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "owner": "create_certified_current_paper_service_v1",
+          "callee": "clock",
+          "ordinal": 1,
+          "line": 84,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/current_paper_entry_authority_v1.py",
+      "consequence": "CURRENT_PAPER_ENTRY_TIME_ADMISSION",
+      "calls": [
+        {
+          "owner": "CurrentPaperEntryAuthorityV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 97,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/current_paper_runtime_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "owner": "CurrentPaperServiceV1.health_eligible",
+          "callee": "self.gate.clock",
+          "ordinal": 1,
+          "line": 497,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "CurrentPaperServiceV1.publish_health",
+          "callee": "self.gate.clock",
+          "ordinal": 1,
+          "line": 518,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "CurrentPaperServiceV1.get_snapshot",
+          "callee": "g.clock",
+          "ordinal": 1,
+          "line": 605,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/operational_paper_soak_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "owner": "main",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 110,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "clock",
+          "ordinal": 1,
+          "line": 126,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "clock",
+          "ordinal": 2,
+          "line": 128,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "clock",
+          "ordinal": 3,
+          "line": 152,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "clock",
+          "ordinal": 4,
+          "line": 158,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "time.monotonic",
+          "ordinal": 1,
+          "line": 166,
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "owner": "main",
+          "callee": "time.monotonic",
+          "ordinal": 2,
+          "line": 168,
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "owner": "main",
+          "callee": "clock",
+          "ordinal": 5,
+          "line": 169,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "clock",
+          "ordinal": 6,
+          "line": 197,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "time.monotonic",
+          "ordinal": 3,
+          "line": 198,
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "owner": "main",
+          "callee": "time.monotonic",
+          "ordinal": 4,
+          "line": 199,
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "owner": "main",
+          "callee": "clock",
+          "ordinal": 7,
+          "line": 243,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/operational_paper_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "owner": "OperationalPaperV1.__init__",
+          "callee": "self.gate.clock",
+          "ordinal": 1,
+          "line": 60,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "OperationalPaperV1._accepted_frame",
+          "callee": "self.gate.clock",
+          "ordinal": 1,
+          "line": 93,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "OperationalPaperV1._accepted_frame",
+          "callee": "self.gate.clock",
+          "ordinal": 2,
+          "line": 100,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "OperationalPaperV1.poll",
+          "callee": "self.gate.clock",
+          "ordinal": 1,
+          "line": 173,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "OperationalPaperV1.get_snapshot",
+          "callee": "self.gate.clock",
+          "ordinal": 1,
+          "line": 201,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "OperationalPaperV1.report",
+          "callee": "self.gate.clock",
+          "ordinal": 1,
+          "line": 239,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/connectors/paper_broker_connector_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "PaperBrokerConnectorV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 149,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_auto_refresh_engine_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "DashboardAutoRefreshEngineV2.start",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 97,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_event_bus_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "DashboardEventBusV2.publish",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 105,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_live_data_service_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "DashboardLiveDataServiceV2.get_snapshot",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 40,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_refresh_service_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "DashboardRefreshServiceV2.refresh",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 145,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_websocket_broadcaster_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "DashboardWebSocketBroadcasterV2.broadcast_update",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 118,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/dashboard_websocket_hub_v2.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "DashboardWebSocketHubV2.broadcast",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 171,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/execution/oco_manager_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "OCOManagerV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 38,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/execution/protective_order_registry_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "ProtectiveOrderRegistryV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 47,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/execution/trade_execution_engine.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "TradeExecutionEngine.execute",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 89,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/execution/trade_logger_v2.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "TradeLoggerV2.log",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 45,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/journal/trade_journal_engine.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "TradeJournalEngine.record_trade",
+          "callee": "datetime.utcnow",
+          "ordinal": 1,
+          "line": 86,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/journal/trade_journal_v2.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "TradeJournalV2.record_open_trade",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 260,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "TradeJournalV2.close_trade",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 451,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/current_candle_authority_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "owner": "CurrentCandleAuthorityV1.reasons",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 182,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "CurrentCandleAuthorityV1.age_seconds",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 205,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "CurrentCandleAuthorityV1.admit",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 243,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/market_data_hub_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "MarketDataHubV2.process_market_price",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 161,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/native_certification_v1.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "owner": "NativeCertificationCaptureV1.poll",
+          "callee": "self.reader.service.gate.clock",
+          "ordinal": 1,
+          "line": 81,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "NativeCertificationCaptureV1.report",
+          "callee": "self.reader.service.gate.clock",
+          "ordinal": 1,
+          "line": 129,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 221,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "datetime.now",
+          "ordinal": 2,
+          "line": 240,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "time.monotonic",
+          "ordinal": 1,
+          "line": 258,
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "owner": "main",
+          "callee": "time.monotonic",
+          "ordinal": 2,
+          "line": 260,
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "owner": "main",
+          "callee": "datetime.now",
+          "ordinal": 3,
+          "line": 271,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "main",
+          "callee": "time.monotonic",
+          "ordinal": 3,
+          "line": 276,
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "owner": "main",
+          "callee": "time.monotonic",
+          "ordinal": 4,
+          "line": 278,
+          "authority": "MONOTONIC_ELAPSED"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/ninjatrader_market_reader_v1.py",
+      "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
+      "calls": [
+        {
+          "owner": "NinjaTraderMarketReaderV1.__init__",
+          "callee": "service.gate.clock",
+          "ordinal": 1,
+          "line": 73,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "NinjaTraderMarketReaderV1._frame",
+          "callee": "self.service.gate.clock",
+          "ordinal": 1,
+          "line": 101,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "NinjaTraderMarketReaderV1.poll",
+          "callee": "self.service.gate.clock",
+          "ordinal": 1,
+          "line": 148,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "NinjaTraderMarketReaderV1.get_snapshot",
+          "callee": "self.service.gate.clock",
+          "ordinal": 1,
+          "line": 177,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/risk/risk_event_logger_v1.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "RiskEventLoggerV1.log_event",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 37,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/certified_economic_news_data_lifecycle_v2.py",
+      "consequence": "CERTIFICATION_COVERAGE_AND_FRESHNESS",
+      "calls": [
+        {
+          "owner": "CertifiedEconomicNewsDataLifecycleV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 75,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/certified_market_hours_data_lifecycle_v2.py",
+      "consequence": "CERTIFICATION_COVERAGE_AND_FRESHNESS",
+      "calls": [
+        {
+          "owner": "CertifiedMarketHoursDataLifecycleV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 58,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/data_collector.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "owner": "DataCollector.get_historical_candles",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 38,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/durable_execution_state_v2.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "DurableExecutionStateV2.record_evidence",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 295,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/execution_simulator.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "owner": "ExecutionSimulator.execute",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 77,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "ExecutionSimulator.execute",
+          "callee": "datetime.now",
+          "ordinal": 2,
+          "line": 151,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/execution_state_store_v2.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "ExecutionStateStoreV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 354,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/graceful_shutdown_service_v2.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "owner": "GracefulShutdownServiceV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 52,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/live_candle_store.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "LiveCandleStore.ingest",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 49,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/current_paper_economic_news_authority_v1.py",
+      "consequence": "CURRENT_PAPER_SIGNED_NEWS_ISSUANCE_EXPIRY_AND_ADMISSION",
+      "calls": [
+        {
+          "owner": "CurrentPaperEconomicNewsAuthorityV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 201,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "CurrentPaperEconomicNewsAuthorityV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 2,
+          "line": 207,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "CurrentPaperEconomicNewsAuthorityV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 3,
+          "line": 215,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/live_market_analysis_service.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "owner": "LiveMarketAnalysisService._calculate_signal_age_seconds",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 135,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "LiveMarketAnalysisService.analyze",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 2979,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/price_feed_service_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "PriceFeedServiceV2.process_price",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 218,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/runtime_admission_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "RuntimeAdmissionV2.__init__",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 25,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
+          "owner": "RuntimeAdmissionV2.validate_market",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 51,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_runtime_v3.py",
+      "consequence": "DISABLED_SIM_NATIVE_ADMISSION_USES_CANONICAL_RUNTIME_CLOCK; NO_EXTERNAL_CLOCK_AUTHORITY_OR_NATIVE_SUBMIT",
+      "introduced_by": "SIM_E2E_PHASE4",
+      "calls": [
+        {
+          "owner": "NativeAdmissionProducerV3.produce",
+          "callee": "admission.clock",
+          "ordinal": 1,
+          "line": 137,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/startup_coordinator_v2.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "owner": "StartupCoordinatorV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 46,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/state_recovery_service_v2.py",
+      "consequence": "LEGACY_OR_ALTERNATE_SERVICE_AUDIT_REQUIRED_BEFORE_ATTACHMENT",
+      "calls": [
+        {
+          "owner": "StateRecoveryServiceV2._utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 40,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/trade_lifecycle_service_v2.py",
+      "consequence": "MARKET_VALIDATION_OR_EXECUTION_DEPENDENCY_NOT_EXTERNAL_AUTHORITY",
+      "calls": [
+        {
+          "owner": "TradeLifecycleServiceV2._reserve_submission",
+          "callee": "time.monotonic",
+          "ordinal": 1,
+          "line": 536,
+          "authority": "MONOTONIC_ELAPSED"
+        },
+        {
+          "owner": "TradeLifecycleServiceV2.submit_signal",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 1809,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/trade_logger.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "TradeLogger.save",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 16,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/analysis_startup_v1.py",
+      "consequence": "HEALTH_GATE_QPC_ONLY; NO_ABSOLUTE_TIME_AUTHORITY; NO_ACTIVATION_BEFORE_FINAL_GATE",
+      "introduced_by": "backend/tests/analysis_startup_sprint15yr1.json",
+      "calls": [
+        {
+          "owner": "AnalysisStartupV1.__init__",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 20,
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        },
+        {
+          "owner": "AnalysisStartupV1._now",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 34,
+          "authority": "INJECTED_SAME_HOST_QPC_NOMINAL_ELAPSED_ONLY"
+        }
+      ]
+    },
+    {
+      "path": "backend/market_data/sim_native_evidence_v2.py",
+      "consequence": "SIM_NATIVE_EVIDENCE_FRESHNESS_VALIDATION_ONLY_NO_EXECUTION_AUTHORITY",
+      "introduced_by": "R48W6F",
+      "calls": [
+        {
+          "owner": "SimNativeEvidenceReaderV2._decode",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 348,
+          "authority": "INJECTED_UTC_CLOCK_FOR_EVIDENCE_AGE_VALIDATION_ONLY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_runtime_snapshot_reader_v2.py",
+      "consequence": "SIM_NATIVE_RUNTIME_SNAPSHOT_FRESHNESS",
+      "introduced_by": "R48X12C",
+      "calls": [
+        {
+          "owner": "SimNativeRuntimeSnapshotReaderV2._validate_time",
+          "callee": "self._clock",
+          "ordinal": 1,
+          "line": 242,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_integration_v3.py",
+      "consequence": "Authenticated command publication rechecks canonical admission expiry; no new clock authority",
+      "introduced_by": "SIM_E2E_PHASE5R",
+      "calls": [
+        {
+          "owner": "NativeSimIntegrationV3.publish_admitted",
+          "callee": "self.runtime.lifecycle.runtime_admission_v2.clock",
+          "ordinal": 1,
+          "line": 47,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_admission_runtime_evidence_v3.py",
+      "consequence": "SIM_NATIVE configuration expiry and authentication validity, followed by heartbeat and expiry revalidation after I/O; wall-clock error can affect admission evidence and preflight.",
+      "introduced_by": "86658d95d3b6b9a9e92b8307142907fe5d32fc54: Compose read-only SIM_NATIVE admission evidence and first-trade preflight",
+      "calls": [
+        {
+          "owner": "SimNativeAdmissionRuntimeEvidenceV3.__init__",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 19,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeAdmissionRuntimeEvidenceV3.inspect",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 55,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeAdmissionRuntimeEvidenceV3.inspect",
+          "callee": "self.clock",
+          "ordinal": 2,
+          "line": 67,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeAdmissionRuntimeEvidenceV3.inspect",
+          "callee": "self.clock",
+          "ordinal": 3,
+          "line": 84,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_dashboard_reader_v3.py",
+      "consequence": "Heartbeat age and future/stale classification for dashboard observations also consumed by admission evidence; not exclusively display-only and not an external UTC guarantee.",
+      "introduced_by": "ccaa7a71778e93db14b7fe910214697834d4b1ec: feat(dashboard): add read-only SIM_NATIVE runtime observations",
+      "calls": [
+        {
+          "owner": "SimNativeDashboardReaderV3.__init__",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 65,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeDashboardReaderV3.get_snapshot",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 112,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_economic_news_authority_v1.py",
+      "consequence": "SIM_NATIVE configuration-context lookup, post-I/O package validity, and final coverage/blackout/expiry checks; regression checks do not establish absolute clock accuracy.",
+      "introduced_by": "625996a6afebc4bce6b8c86bfd24bb2c836be9da: feat: add certified SIM_NATIVE economic news authority",
+      "calls": [
+        {
+          "owner": "SimNativeEconomicNewsLifecycleV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 152,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeEconomicNewsLifecycleV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 2,
+          "line": 153,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeEconomicNewsLifecycleV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 3,
+          "line": 159,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_financial_diagnostic_v3.py",
+      "consequence": "Durable failure-observation timestamp only; wall jumps can distort audit chronology but this timestamp does not authorize execution or reconstruct financial state.",
+      "introduced_by": "3b0e6dd29168e44bece994e216f45bb19562853a: Add durable SIM_NATIVE financial diagnostics and replay stress certification",
+      "calls": [
+        {
+          "owner": "SimNativeFinancialDiagnosticV3.record",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 78,
+          "authority": "HOST_WALL_METADATA_ONLY; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_financial_runtime_service_v3.py",
+      "consequence": "Configuration time validity gates financial processing; delegated wall clocks feed market-hours, news, L1 and admission evidence. Published observation time and read-time age/expiry affect dashboard availability and preflight, not fill identity.",
+      "introduced_by": "78efc5f7e1e6e24f1c02e27fef989a1daa8d9a4c: feat(sim): own native financial runtime and durable dashboard projection",
+      "calls": [
+        {
+          "owner": "SimNativeFinancialRuntimeServiceV3.__init__",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 25,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeFinancialRuntimeServiceV3._verify",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 47,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeFinancialRuntimeServiceV3.start",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 98,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeFinancialRuntimeServiceV3.start",
+          "callee": "self.clock",
+          "ordinal": 2,
+          "line": 101,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeFinancialRuntimeServiceV3.start",
+          "callee": "self.clock",
+          "ordinal": 3,
+          "line": 104,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeFinancialRuntimeServiceV3.start",
+          "callee": "self.clock",
+          "ordinal": 4,
+          "line": 106,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeFinancialRuntimeServiceV3._capture",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 255,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeFinancialRuntimeServiceV3.get_snapshot",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 266,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_l1_authority_v1.py",
+      "consequence": "Startup, poll-start, post-read and inspection wall samples constrain heartbeat and quote age alongside separate elapsed-time checks. Post-read sampling rejects regression and avoids judging concurrent frames against old poll time; external UTC accuracy remains unproven.",
+      "introduced_by": "64b86e709240b2e5794d9a08f4d558e5c63f3e51: feat: add SIM_NATIVE native L1 quote authority",
+      "calls": [
+        {
+          "owner": "SimNativeL1AuthorityV1.__init__",
+          "callee": "clock",
+          "ordinal": 1,
+          "line": 58,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeL1AuthorityV1.poll",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 132,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeL1AuthorityV1.poll",
+          "callee": "self.clock",
+          "ordinal": 2,
+          "line": 157,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeL1AuthorityV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 204,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    },
+    {
+      "path": "backend/services/sim_native_market_hours_authority_v1.py",
+      "consequence": "SIM_NATIVE configuration-context lookup and post-I/O package expiry, Chicago date coverage and market-session evaluation; wall-clock error can misclassify validity or session boundaries.",
+      "introduced_by": "5d9289bf1188835b5eeeac0dc647a1f55782a48b: feat: bind SIM_NATIVE market hours to fresh authenticated calendar evidence",
+      "calls": [
+        {
+          "owner": "SimNativeMarketHoursLifecycleV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 212,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeMarketHoursLifecycleV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 2,
+          "line": 214,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        }
+      ]
+    }
+  ]
+}

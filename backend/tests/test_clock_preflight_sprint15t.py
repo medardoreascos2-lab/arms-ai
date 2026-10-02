@@ -17,6 +17,7 @@ from backend.tests.test_current_paper_sprint10 import gate, event
 from backend.tests.test_session_lifecycle_sprint12 import special_gate
 from backend.market_data.session_state_v1 import SessionStateAuthorityV1
 from backend.backtesting.closed_bar_aggregator_v1 import ClosedBarAggregatorV1
+from backend.tests.clock_direct_dependencies_r21x_v1 import scan_direct_clock_calls
 
 ERRORS_MS = [0, -10, 10, -50, 50, -100, 100, -150, 150, -250, 250, -1000, 1000]
 BOUNDARIES_MS = [-1, 0, 1, 50, 150, 1000]
@@ -558,19 +559,31 @@ def test_current_paper_preboundary_defer_live_artifact_certifies_ordered_no_exec
 
 
 def test_direct_dependency_inventory_cannot_silently_omit_a_clock_call():
-    import ast
-    manifest=json.loads(Path("backend/tests/clock_preflight_sprint15t.json").read_text())
-    expected={(row["path"],c["line"],c["call"]) for row in manifest["direct_clock_dependencies"]
-              if row["path"].endswith(".py") for c in row["calls"]}
-    actual=set()
-    for path in Path("backend").rglob("*.py"):
-        if "tests" in path.parts:continue
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
-            if isinstance(node,ast.Call):
-                name=ast.unparse(node.func)
-                if name in ("datetime.now","datetime.utcnow","time.time","time.monotonic","time.perf_counter","clock") or name.endswith((".clock","._clock")):
-                    actual.add((path.as_posix(),node.lineno,name))
-    assert actual==expected
+    from collections import Counter
+
+    inventory=json.loads(Path("backend/tests/clock_direct_dependencies_r21x_v1.json").read_text())
+    assert inventory["schema"] == "ARMS_CURRENT_DIRECT_CLOCK_DEPENDENCIES_R21X_V1"
+    expected=[]
+    for row in inventory["direct_clock_dependencies"]:
+        assert row["path"].startswith("backend/") and row["path"].endswith(".py")
+        assert row["consequence"]
+        for call in row["calls"]:
+            assert call["authority"] and isinstance(call["line"],int) and call["line"]>0
+            expected.append((row["path"],call["owner"],call["callee"],call["ordinal"]))
+    actual=[(call["path"],call["owner"],call["callee"],call["ordinal"])
+            for call in scan_direct_clock_calls()]
+    assert len(expected)==len(set(expected)), "duplicate reviewed clock-call identity"
+    assert Counter(actual)==Counter(expected)
+
+
+def test_current_clock_scanner_distinguishes_owner_and_repeated_calls(tmp_path):
+    source=tmp_path/"backend"/"clock_example.py"
+    source.parent.mkdir()
+    source.write_text("def first(clock):\n    clock()\n    clock()\n"
+                      "def second(clock):\n    clock()\n",encoding="utf-8")
+    calls=scan_direct_clock_calls(source.parent)
+    assert [(call["owner"],call["callee"],call["ordinal"]) for call in calls]==[
+        ("first","clock",1),("first","clock",2),("second","clock",1)]
 
 
 def test_offline_model_is_not_imported_by_runtime():

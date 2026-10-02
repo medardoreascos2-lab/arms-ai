@@ -51,6 +51,7 @@ export function currentPaperRows(snapshot: JsonObject): [string, JsonValue | und
   return paperRcRows(snapshot).map(([label, value]): [string, JsonValue | undefined] =>
     label === "PAPER STATUS" ? [label, snapshot.mode === "CURRENT_MARKET_PAPER" &&
       snapshot.paper_ready === true ? "PAPER READY" : "BLOCKED"] : [label, value]).concat([
+    ["SESSION DECISION SUMMARY", snapshot.session_decision_summary],
     ["EXECUTION KIND", snapshot.execution_kind],
     ["EXECUTION MODE", status(snapshot.execution_mode, ["LOCAL_PAPER"])],
     ["CANONICAL TIMEFRAME", status(snapshot.canonical_timeframe, ["1m"])],

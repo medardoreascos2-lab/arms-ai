@@ -102,15 +102,19 @@ test('all declared modes remain visible and only explicit PAPER mode can be read
 });
 
 test('current feed projection preserves canonical values and separates replay readiness', () => {
+  const summary = {total_hold_decisions:2,total_buy_decisions:1,total_sell_decisions:0,
+    max_confidence_observed:.95,max_confluence_observed:.8,plan_count:1,submission_count:1};
   const input = {mode:'CURRENT_MARKET_PAPER',paper_ready:true,execution_kind:'SIMULATED / PAPER',
     market_data:{provider:'FIXTURE',contract:'NQ TEST',connected:true,data_age_seconds:2,version:4},
-    account_overview:{balance:150540},recovery_required:false};
+    account_overview:{balance:150540},recovery_required:false,session_decision_summary:summary};
   const before = JSON.stringify(input);
   const rows = Object.fromEntries(exports.currentPaperRows(input));
   assert.equal(rows['PAPER STATUS'],'PAPER READY');
   assert.equal(rows['CURRENT CONTRACT'],'NQ TEST');
   assert.equal(rows['DATA AGE SECONDS'],2);
   assert.equal(rows.BALANCE,150540);
+  assert.deepEqual(rows['SESSION DECISION SUMMARY'],summary);
+  assert.equal(Object.fromEntries(exports.currentPaperRows({}))['SESSION DECISION SUMMARY'],undefined);
   assert.equal(Object.fromEntries(exports.paperRcRows(input))['PAPER STATUS'],'BLOCKED');
   assert.equal(Object.fromEntries(exports.currentPaperRows({...input,paper_ready:false}))['PAPER STATUS'],'BLOCKED');
   assert.equal(Object.fromEntries(exports.currentPaperRows({mode:'PAPER_RESEARCH',paper_ready:true}))['PAPER STATUS'],'BLOCKED');

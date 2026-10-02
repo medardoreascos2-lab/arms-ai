@@ -6,6 +6,7 @@ its finite-input boundary changes; strategy, costs, exits and risk do not.
 from copy import deepcopy
 from hashlib import sha256
 import json
+from math import isfinite
 from pathlib import Path
 from threading import RLock
 
@@ -15,6 +16,25 @@ from backend.backtesting.paper_runtime_v1 import PaperRuntimeV1
 from backend.market_data.certified_bootstrap_v1 import CertifiedBootstrap
 from backend.market_data.current_candle_authority_v1 import CurrentCandleAuthorityV1
 from backend.market_data.session_state_v1 import SessionStateAuthorityV1, readiness_matrix
+from backend.strategies.trading_strategy_v2 import TradingActionV2
+
+
+_SUMMARY_COUNT_LIMIT = 2**63 - 1
+
+
+def _empty_decision_summary():
+    return dict(total_hold_decisions=0, total_buy_decisions=0,
+                total_sell_decisions=0, max_confidence_observed=None,
+                max_confluence_observed=None, plan_count=0, submission_count=0)
+
+
+def _finite_diagnostic(value):
+    if type(value) not in (int, float):
+        return None
+    try:
+        return value if isfinite(value) else None
+    except (OverflowError, ValueError):
+        return None
 
 
 class _CurrentAccountingV1(HistoricalAccountingV1):
@@ -71,6 +91,7 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
         self.health_eligible = health_eligible
         self.strategy_bootstrap = None
         self.strategy_bootstrap_bar_count = 0
+        self._session_decision_summary = _empty_decision_summary()
         super().__init__(**kwargs)
 
         if self._paper is not None:
@@ -303,6 +324,46 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
             and not self.gate.reasons()
         )
 
+    def _process(self, observation):
+        # Only a completed canonical processing pass can contribute diagnostics.
+        super()._process(observation)
+        decision = self._last_decision
+        if decision is None:
+            return
+        summary = self._session_decision_summary
+        action_key = {
+            TradingActionV2.HOLD: "total_hold_decisions",
+            TradingActionV2.BUY: "total_buy_decisions",
+            TradingActionV2.SELL: "total_sell_decisions",
+        }.get(decision.action)
+        if action_key is not None:
+            summary[action_key] = min(summary[action_key] + 1, _SUMMARY_COUNT_LIMIT)
+        confidence = _finite_diagnostic(decision.confidence)
+        if confidence is not None:
+            current = summary["max_confidence_observed"]
+            summary["max_confidence_observed"] = confidence if current is None else max(current, confidence)
+        metadata = decision.metadata
+        confluence = _finite_diagnostic(metadata.get("confluence_score") if isinstance(metadata, dict) else None)
+        if confluence is not None:
+            current = summary["max_confluence_observed"]
+            summary["max_confluence_observed"] = confluence if current is None else max(current, confluence)
+        if self._last_plan is not None:
+            summary["plan_count"] = min(summary["plan_count"] + 1, _SUMMARY_COUNT_LIMIT)
+        if self._last_submission is not None:
+            summary["submission_count"] = min(summary["submission_count"] + 1, _SUMMARY_COUNT_LIMIT)
+
+    def ingest(self, observation, *, received_at):
+        with self._lock:
+            committed = self._session_decision_summary.copy()
+            try:
+                return super().ingest(observation, received_at=received_at)
+            except BaseException:
+                # Generic ingest rolls back the event/checkpoint transaction.
+                # Keep the published diagnostic aligned with that last commit.
+                self._session_decision_summary = committed
+                self._snapshot["session_decision_summary"] = deepcopy(committed)
+                raise
+
     def _reasons(self):
         extra = self.gate.reasons()
         if self.entry_authority is None:
@@ -313,8 +374,18 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
 
     def _publish(self):
         super()._publish()
+        # A malformed diagnostic score must not make checkpoint JSON fail.
+        # Preserve the canonical decision object; omit only the invalid score
+        # from its detached, published representation.
+        latest = self._snapshot.get("latest_decision")
+        metadata = latest.get("metadata") if isinstance(latest, dict) else None
+        if isinstance(metadata, dict) and "confluence_score" in metadata:
+            score = metadata["confluence_score"]
+            if type(score) in (int, float) and _finite_diagnostic(score) is None:
+                del metadata["confluence_score"]
 
         self._snapshot.update(
+            session_decision_summary=deepcopy(self._session_decision_summary),
             mode="CURRENT_MARKET_PAPER",
             clock="CURRENT_PROVIDER_CLOSED_BAR",
             execution_kind="SIMULATED / PAPER",
@@ -490,7 +561,8 @@ class CurrentPaperServiceV1:
             g = self.gate
             snapshot = (self._runtime.get_snapshot() if self._runtime is not None else
                         dict(account_overview=None, paper_ready=False, config_hash=g.digest,
-                             readiness_reasons=["AWAITING_MARKET_DATA", "PAPER_DISABLED"]))
+                             readiness_reasons=["AWAITING_MARKET_DATA", "PAPER_DISABLED"],
+                             session_decision_summary=_empty_decision_summary()))
             reasons = list(dict.fromkeys(snapshot["readiness_reasons"] + g.reasons()
                                          + (["STOPPED"] if self._stopped else [])))
             if not self.health_eligible():
