@@ -28,6 +28,17 @@ from .package_verification import (
     StagingPackageVerificationReport,
     verify_reconstructable_staging_package,
 )
+from .load_rehearsal import (
+    STAGING_LOAD_PROFILES,
+    StagingLatencyMetrics,
+    StagingLoadObservation,
+    StagingLoadOperation,
+    StagingLoadProfile,
+    StagingLoadProfileName,
+    StagingLoadRehearsal,
+    StagingLoadRehearsalReport,
+    TenantIsolationViolation,
+)
 
 __all__ = [
     "STATIC_SCAN_CHECKS",
@@ -44,6 +55,15 @@ __all__ = [
     "StagingRestorePolicy",
     "StagingPackageVerificationError",
     "StagingPackageVerificationReport",
+    "STAGING_LOAD_PROFILES",
+    "StagingLatencyMetrics",
+    "StagingLoadObservation",
+    "StagingLoadOperation",
+    "StagingLoadProfile",
+    "StagingLoadProfileName",
+    "StagingLoadRehearsal",
+    "StagingLoadRehearsalReport",
+    "TenantIsolationViolation",
     "create_encrypted_staging_backup",
     "deserialize_staging_backup_payload",
     "open_encrypted_staging_backup",
