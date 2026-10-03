@@ -13,3 +13,10 @@ content hashes use the isolated R32B canonical JSON codec. The codec emits
 UTF-8 bytes with sorted keys, normalized exact decimal text, explicit units
 and currency, canonical UTC timestamps, strict schema decoding, and SHA-256
 content hashes. It still performs no persistence or network I/O.
+
+R32C adds a pure read authorization boundary. It reuses the Phase 2 role,
+permission, feature entitlement, user status, and identity semantics; binds
+every principal and account scope to one tenant; resolves only known accounts;
+and denies missing authentication, cross-tenant access, unavailable grants,
+unknown accounts, and scope violations. Tenant admin behavior is explicit and
+still carries no canonical admin, execution, or production mutation authority.
