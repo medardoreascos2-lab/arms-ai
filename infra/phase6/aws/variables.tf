@@ -89,3 +89,25 @@ variable "certificate_arn" {
   default     = null
   nullable    = true
 }
+
+variable "database_instance_class" {
+  description = "Reviewed RDS staging size."
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "database_multi_az" {
+  description = "Explicit availability/cost decision; false is never reported as HA."
+  type        = bool
+  default     = false
+}
+
+variable "database_backup_retention_days" {
+  type    = number
+  default = 7
+}
+
+variable "database_max_connections" {
+  type    = number
+  default = 100
+}

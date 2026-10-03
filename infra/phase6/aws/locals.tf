@@ -21,3 +21,16 @@ module "network" {
   certificate_arn      = var.certificate_arn
   tags                 = local.required_tags
 }
+
+module "database" {
+  source = "./modules/database"
+
+  name_prefix               = local.name_prefix
+  database_subnet_ids       = module.network.private_database_subnet_ids
+  database_security_group_id = module.network.security_group_ids.database
+  instance_class            = var.database_instance_class
+  multi_az                  = var.database_multi_az
+  backup_retention_days     = var.database_backup_retention_days
+  max_connections           = var.database_max_connections
+  tags                      = local.required_tags
+}

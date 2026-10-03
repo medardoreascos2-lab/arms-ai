@@ -22,3 +22,13 @@ output "network" {
     dns_tls_placeholders        = module.network.dns_tls_placeholders
   }
 }
+
+output "database" {
+  description = "Private PostgreSQL connection metadata and safety contract."
+  value = {
+    endpoint    = module.database.endpoint
+    port        = module.database.port
+    resource_id = module.database.resource_id
+    contract    = module.database.contract
+  }
+}
