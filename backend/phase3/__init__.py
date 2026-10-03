@@ -1,5 +1,18 @@
 """Phase 3 durable runtime and research contracts."""
 
+from .audit_log import (
+    AUDIT_SERIALIZATION_FORMAT,
+    AuditEvent,
+    AuditEventKind,
+    AuditLog,
+    AuditLogError,
+    AuditLogIntegrityError,
+    StoredAuditEvent,
+    audit_event_hash,
+    deserialize_audit_event,
+    serialize_audit_event,
+)
+
 from .durable_store import (
     STORE_FORMAT,
     STORE_MIGRATIONS,
@@ -96,6 +109,16 @@ from .state_contracts import (
 )
 
 __all__ = [
+    "AUDIT_SERIALIZATION_FORMAT",
+    "AuditEvent",
+    "AuditEventKind",
+    "AuditLog",
+    "AuditLogError",
+    "AuditLogIntegrityError",
+    "StoredAuditEvent",
+    "audit_event_hash",
+    "deserialize_audit_event",
+    "serialize_audit_event",
     "EVALUATION_SERIALIZATION_FORMAT",
     "EvaluationAppendResult",
     "EvaluationRepository",

@@ -64,7 +64,7 @@ def raw_bootstrap_store(tmp_path):
 def test_builtin_migration_upgrades_bootstrap_store_on_writable_open(tmp_path):
     path = raw_bootstrap_store(tmp_path)
     with Phase3DurableStateStore.open(path) as store:
-        assert store.schema_version == STORE_SCHEMA_VERSION == 4
+        assert store.schema_version == STORE_SCHEMA_VERSION == 5
         history = store._connection.execute(
             "SELECT version, name, checksum FROM phase3_schema_migrations ORDER BY version"
         ).fetchall()

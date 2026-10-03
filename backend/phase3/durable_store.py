@@ -230,6 +230,39 @@ STORE_MIGRATIONS = (
                 BEGIN SELECT RAISE(ABORT, 'phase3 evaluations are append only'); END""",
         ),
     ),
+    Phase3Migration(
+        version=5,
+        name="audit_log",
+        statements=(
+            """CREATE TABLE phase3_audit_events (
+                tenant_id TEXT NOT NULL,
+                event_id TEXT NOT NULL CHECK (length(event_id) = 64),
+                event_kind TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                recorded_at TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_version TEXT NOT NULL,
+                source_simulated INTEGER NOT NULL CHECK (source_simulated IN (0, 1)),
+                actor_user_id TEXT,
+                account_id TEXT,
+                profile_config_hash TEXT,
+                payload BLOB NOT NULL,
+                payload_sha256 TEXT NOT NULL CHECK (length(payload_sha256) = 64),
+                PRIMARY KEY (tenant_id, event_id),
+                FOREIGN KEY (tenant_id) REFERENCES phase3_tenants(tenant_id)
+            )""",
+            """CREATE INDEX phase3_audit_events_time
+                ON phase3_audit_events(tenant_id, occurred_at, event_id)""",
+            """CREATE INDEX phase3_audit_events_kind_time
+                ON phase3_audit_events(tenant_id, event_kind, occurred_at, event_id)""",
+            """CREATE TRIGGER phase3_audit_events_no_update
+                BEFORE UPDATE ON phase3_audit_events
+                BEGIN SELECT RAISE(ABORT, 'phase3 audit events are append only'); END""",
+            """CREATE TRIGGER phase3_audit_events_no_delete
+                BEFORE DELETE ON phase3_audit_events
+                BEGIN SELECT RAISE(ABORT, 'phase3 audit events are append only'); END""",
+        ),
+    ),
 )
 STORE_SCHEMA_VERSION = _BOOTSTRAP_SCHEMA_VERSION + len(STORE_MIGRATIONS)
 STORE_SCHEMA_CHECKSUM = migration_chain_checksum(
@@ -242,10 +275,13 @@ _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("index", "phase3_records_kind_time"),
     ("index", "phase3_evaluations_account_time"),
     ("index", "phase3_evaluations_snapshot_time"),
+    ("index", "phase3_audit_events_kind_time"),
+    ("index", "phase3_audit_events_time"),
     ("index", "phase3_snapshots_captured_time"),
     ("index", "phase3_snapshots_latest"),
     ("table", "phase3_accounts"),
     ("table", "phase3_account_snapshots"),
+    ("table", "phase3_audit_events"),
     ("table", "phase3_evaluations"),
     ("table", "phase3_profiles"),
     ("table", "phase3_schema_migrations"),
@@ -255,6 +291,8 @@ _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("table", "phase3_users"),
     ("trigger", "phase3_migrations_no_delete"),
     ("trigger", "phase3_migrations_no_update"),
+    ("trigger", "phase3_audit_events_no_delete"),
+    ("trigger", "phase3_audit_events_no_update"),
     ("trigger", "phase3_evaluations_no_delete"),
     ("trigger", "phase3_evaluations_no_update"),
     ("trigger", "phase3_records_no_delete"),

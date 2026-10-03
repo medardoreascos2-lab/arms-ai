@@ -69,3 +69,13 @@ be marked authoritative. Incomplete or unresolved evaluations remain durable
 evidence with `authoritative=false`; callers cannot override that value. Reads
 are tenant scoped, snapshot ordered, integrity checked, and carry no execution,
 production mutation, or administrative authority.
+
+R32I adds a tenant-scoped append-only audit log for snapshot, profile,
+evaluation, authorization, notification, research-job, and candidate-review
+events. Each event has a deterministic content-derived identity, canonical
+exact payload bytes, and a separate storage hash. Duplicate delivery is
+idempotent, while database triggers reject update and delete. Safe payload
+contracts reject secret-bearing field names and unsupported numeric types.
+Audit subjects may name denied or rejected accounts without creating or
+mutating those accounts. Reads are integrity checked and never grant execution,
+production mutation, or administrative authority.
