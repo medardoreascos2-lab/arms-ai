@@ -137,6 +137,16 @@ from .operational_health import (
     OperationalHealthModel,
     OperationalHealthReport,
 )
+from .operational_alerts import (
+    OperationalAlertEvaluation,
+    OperationalAlertInputs,
+    OperationalAlertKind,
+    OperationalAlertPolicy,
+    OperationalAlertReport,
+    OperationalAlertSeverity,
+    OperationalAlertState,
+    OperationalAlertThresholds,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -175,6 +185,14 @@ __all__ = [
     "OperationalMetric",
     "OperationalMetricName",
     "OperationalMetricsSnapshot",
+    "OperationalAlertEvaluation",
+    "OperationalAlertInputs",
+    "OperationalAlertKind",
+    "OperationalAlertPolicy",
+    "OperationalAlertReport",
+    "OperationalAlertSeverity",
+    "OperationalAlertState",
+    "OperationalAlertThresholds",
     "OperationalHealthModel",
     "OperationalHealthReport",
     "POSTGRES_TABLES",
