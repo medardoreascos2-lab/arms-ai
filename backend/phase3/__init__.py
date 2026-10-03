@@ -1,5 +1,14 @@
 """Phase 3 durable runtime and research contracts."""
 
+from .financial_serialization import (
+    SERIALIZATION_FORMAT,
+    canonical_decimal_text,
+    deserialize_state_record,
+    serialize_state_record,
+    state_record_hash,
+    verify_serialized_hash,
+)
+
 from .state_contracts import (
     AccountIdentity,
     DecimalUnit,
@@ -26,4 +35,10 @@ __all__ = [
     "SourceIdentity",
     "TenantIdentity",
     "UserIdentity",
+    "SERIALIZATION_FORMAT",
+    "canonical_decimal_text",
+    "deserialize_state_record",
+    "serialize_state_record",
+    "state_record_hash",
+    "verify_serialized_hash",
 ]
