@@ -169,6 +169,14 @@ from .local_backup import (
     load_completed_local_backup,
     serialize_backup_completion,
 )
+from .restore_validation import (
+    BackupRestoreValidator,
+    RestoreDestinationMode,
+    RestoreTableEvidence,
+    RestoreTableExpectation,
+    RestoreValidationPlan,
+    RestoreValidationReport,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -195,6 +203,7 @@ __all__ = [
     "BackupArtifactKind",
     "BackupCompletionMarker",
     "BackupManifest",
+    "BackupRestoreValidator",
     "ComponentHealth",
     "ComponentHealthObservation",
     "DeadLetterInspection",
@@ -267,6 +276,11 @@ __all__ = [
     "RetryOperationError",
     "RetryOperationResult",
     "RetryOperationsPolicy",
+    "RestoreDestinationMode",
+    "RestoreTableEvidence",
+    "RestoreTableExpectation",
+    "RestoreValidationPlan",
+    "RestoreValidationReport",
     "SQLiteDatabaseAdapter",
     "SQLiteDatabaseConnection",
     "ScheduledJobSpec",
