@@ -97,3 +97,13 @@ drawdown, average R, optional MAE/MFE, reconciled session and regime breakdowns,
 and gate-reason counts. Reports are hash identified and sort challengers only by
 stable strategy ID. They contain no score, rank, automatic winner, production
 recommendation, execution authority, or production mutation authority.
+
+Decision-trace analytics classify HOLD, BUY, SELL, blocked signals, near misses,
+and candidate entries against one outcome per trace. Outcomes for HOLDs and
+rejected entries must carry the explicit
+`HYPOTHETICAL_COUNTERFACTUAL_NOT_OBSERVED_EXECUTION` label; accepted entries
+must use observed outcomes. The result identifies poor and profitable HOLD
+counterfactuals, gates that prevented losses or blocked profitable
+opportunities, and descriptive factor correlations. Correlations state that
+they are associations rather than causation, and the analytics cannot rewrite
+strategy state or authorize execution.

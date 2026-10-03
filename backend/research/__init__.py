@@ -127,6 +127,19 @@ from .research_report import (
     StrategyResearchEvidence,
     StrategyResearchSection,
 )
+from .decision_trace_analytics import (
+    HYPOTHETICAL_LABEL,
+    DecisionClassification,
+    DecisionTraceAnalyticsResult,
+    DecisionTraceOutcome,
+    DecisionTraceRecord,
+    DecisionTraceResearchAnalytics,
+    FactorSuccessAssociation,
+    GateOutcomeSummary,
+    TraceAction,
+    TraceActionSummary,
+    TraceOutcomeKind,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -236,4 +249,15 @@ __all__ = [
     "StrategyReportSource",
     "StrategyResearchEvidence",
     "StrategyResearchSection",
+    "HYPOTHETICAL_LABEL",
+    "DecisionClassification",
+    "DecisionTraceAnalyticsResult",
+    "DecisionTraceOutcome",
+    "DecisionTraceRecord",
+    "DecisionTraceResearchAnalytics",
+    "FactorSuccessAssociation",
+    "GateOutcomeSummary",
+    "TraceAction",
+    "TraceActionSummary",
+    "TraceOutcomeKind",
 ]
