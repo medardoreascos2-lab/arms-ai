@@ -6,7 +6,12 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 import pytest
 
-from backend.phase3 import Phase3DurableStateStore, Phase3ReadOnlyRuntime
+from backend.phase3 import (
+    AccountIdentity,
+    Phase3DurableStateStore,
+    Phase3ReadOnlyRuntime,
+    ReadAuthorizationBoundary,
+)
 from backend.phase4 import (
     OperationalAlertPolicy,
     RequestReplayProtector,
@@ -39,7 +44,9 @@ def _composition(tmp_path, *, database_outside_root=False):
     store = Phase3DurableStateStore.create(database_path)
     application_runtime = Phase3ReadOnlyRuntime(
         store,
-        authorization=phase4_dependencies.application_runtime.authorization_boundary,
+        authorization=ReadAuthorizationBoundary(frozenset({
+            AccountIdentity("tenant-a", "account-1"),
+        })),
         registry=canonical_profile_registry(),
     )
     phase4_dependencies = replace(
