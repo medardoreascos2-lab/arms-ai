@@ -9,7 +9,7 @@ from __future__ import annotations
 import base64
 import binascii
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import json
@@ -151,6 +151,26 @@ class StagingBackupPayload:
         )
         object.__setattr__(self, "hash_manifest", manifest)
         object.__setattr__(self, "payload_id", _sha256(_payload_bytes(self, include_id=False)))
+
+
+@dataclass(frozen=True)
+class StagingRestorePolicy:
+    expected_database_schema_version: int
+    maximum_backup_age: timedelta
+    evaluated_at: datetime
+    execution_authorized: bool = field(default=False, init=False)
+    production_mutation_authorized: bool = field(default=False, init=False)
+    production_restore_authorized: bool = field(default=False, init=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.expected_database_schema_version) is not int
+            or self.expected_database_schema_version < 1
+        ):
+            raise ValueError("expected_database_schema_version must be positive")
+        if not isinstance(self.maximum_backup_age, timedelta) or self.maximum_backup_age <= timedelta(0):
+            raise ValueError("maximum_backup_age must be positive")
+        object.__setattr__(self, "evaluated_at", _utc(self.evaluated_at, "evaluated_at"))
 
 
 def _payload_document(
@@ -470,9 +490,28 @@ def create_encrypted_staging_backup(
     return cipher.encrypt(serialize_staging_backup_payload(payload))
 
 
+def validate_staging_restore(
+    payload: StagingBackupPayload,
+    policy: StagingRestorePolicy,
+) -> StagingBackupPayload:
+    if not isinstance(payload, StagingBackupPayload):
+        raise ValueError("payload must be a StagingBackupPayload")
+    if not isinstance(policy, StagingRestorePolicy):
+        raise ValueError("policy must be a StagingRestorePolicy")
+    if payload.database_schema_version != policy.expected_database_schema_version:
+        raise StagingBackupEncryptionError("staging backup database schema mismatch")
+    if payload.created_at > policy.evaluated_at:
+        raise StagingBackupEncryptionError("staging backup creation time is in the future")
+    if policy.evaluated_at - payload.created_at > policy.maximum_backup_age:
+        raise StagingBackupEncryptionError("staging backup manifest is stale")
+    return payload
+
+
 def open_encrypted_staging_backup(
     envelope: bytes,
     cipher: StagingBackupCipher,
+    *,
+    restore_policy: StagingRestorePolicy | None = None,
 ) -> StagingBackupPayload:
     if not isinstance(cipher, StagingBackupCipher):
         raise ValueError("cipher must implement StagingBackupCipher")
@@ -480,6 +519,9 @@ def open_encrypted_staging_backup(
         raise StagingBackupEncryptionError("staging backup cipher authority is invalid")
     plaintext = cipher.decrypt(envelope)
     try:
-        return deserialize_staging_backup_payload(plaintext)
+        payload = deserialize_staging_backup_payload(plaintext)
     except ValueError as exc:
         raise StagingBackupEncryptionError("decrypted staging backup payload is invalid") from exc
+    if restore_policy is not None:
+        return validate_staging_restore(payload, restore_policy)
+    return payload

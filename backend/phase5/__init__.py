@@ -9,10 +9,12 @@ from .encrypted_backup import (
     StagingBackupCipher,
     StagingBackupEncryptionError,
     StagingBackupPayload,
+    StagingRestorePolicy,
     create_encrypted_staging_backup,
     deserialize_staging_backup_payload,
     open_encrypted_staging_backup,
     serialize_staging_backup_payload,
+    validate_staging_restore,
 )
 
 __all__ = [
@@ -24,8 +26,10 @@ __all__ = [
     "StagingBackupCipher",
     "StagingBackupEncryptionError",
     "StagingBackupPayload",
+    "StagingRestorePolicy",
     "create_encrypted_staging_backup",
     "deserialize_staging_backup_payload",
     "open_encrypted_staging_backup",
     "serialize_staging_backup_payload",
+    "validate_staging_restore",
 ]
