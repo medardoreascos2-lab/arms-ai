@@ -141,6 +141,55 @@ STORE_MIGRATIONS = (
             "ON phase3_state_records(tenant_id, committed_at, record_id)",
         ),
     ),
+    Phase3Migration(
+        version=3,
+        name="account_snapshot_repository",
+        statements=(
+            """CREATE TABLE phase3_account_snapshots (
+                tenant_id TEXT NOT NULL,
+                snapshot_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_version TEXT NOT NULL,
+                source_simulated INTEGER NOT NULL CHECK (source_simulated IN (0, 1)),
+                profile_config_hash TEXT NOT NULL,
+                currency TEXT NOT NULL CHECK (length(currency) = 3),
+                sequence INTEGER NOT NULL CHECK (sequence > 0),
+                captured_at TEXT NOT NULL,
+                received_at TEXT NOT NULL,
+                stored_at TEXT NOT NULL,
+                snapshot_hash TEXT NOT NULL CHECK (length(snapshot_hash) = 64),
+                payload BLOB NOT NULL,
+                payload_sha256 TEXT NOT NULL CHECK (length(payload_sha256) = 64),
+                PRIMARY KEY (tenant_id, snapshot_id),
+                UNIQUE (
+                    tenant_id, account_id, source_id, source_version, source_simulated,
+                    profile_config_hash, currency, sequence
+                ),
+                FOREIGN KEY (tenant_id) REFERENCES phase3_tenants(tenant_id),
+                FOREIGN KEY (tenant_id, account_id)
+                    REFERENCES phase3_accounts(tenant_id, account_id),
+                FOREIGN KEY (profile_config_hash)
+                    REFERENCES phase3_profiles(config_hash)
+            )""",
+            """CREATE INDEX phase3_snapshots_latest
+                ON phase3_account_snapshots(
+                    tenant_id, account_id, source_id, source_version, source_simulated,
+                    profile_config_hash, currency, sequence DESC
+                )""",
+            """CREATE INDEX phase3_snapshots_captured_time
+                ON phase3_account_snapshots(
+                    tenant_id, account_id, source_id, source_version, source_simulated,
+                    profile_config_hash, currency, captured_at, sequence
+                )""",
+            """CREATE TRIGGER phase3_snapshots_no_update
+                BEFORE UPDATE ON phase3_account_snapshots
+                BEGIN SELECT RAISE(ABORT, 'phase3 snapshots are append only'); END""",
+            """CREATE TRIGGER phase3_snapshots_no_delete
+                BEFORE DELETE ON phase3_account_snapshots
+                BEGIN SELECT RAISE(ABORT, 'phase3 snapshots are append only'); END""",
+        ),
+    ),
 )
 STORE_SCHEMA_VERSION = _BOOTSTRAP_SCHEMA_VERSION + len(STORE_MIGRATIONS)
 STORE_SCHEMA_CHECKSUM = migration_chain_checksum(
@@ -151,7 +200,10 @@ _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("index", "phase3_records_account_time"),
     ("index", "phase3_records_commit_time"),
     ("index", "phase3_records_kind_time"),
+    ("index", "phase3_snapshots_captured_time"),
+    ("index", "phase3_snapshots_latest"),
     ("table", "phase3_accounts"),
+    ("table", "phase3_account_snapshots"),
     ("table", "phase3_profiles"),
     ("table", "phase3_schema_migrations"),
     ("table", "phase3_state_records"),
@@ -162,6 +214,8 @@ _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("trigger", "phase3_migrations_no_update"),
     ("trigger", "phase3_records_no_delete"),
     ("trigger", "phase3_records_no_update"),
+    ("trigger", "phase3_snapshots_no_delete"),
+    ("trigger", "phase3_snapshots_no_update"),
 })
 
 
@@ -226,6 +280,23 @@ def _parse_canonical_utc(value: object, name: str) -> datetime:
     if _canonical_utc(parsed, name) != value:
         raise DurableStoreIntegrityError(f"{name} is not canonical UTC")
     return parsed
+
+
+def _profile_account_size_payload(profile: object) -> bytes:
+    account_size = getattr(profile, "account_size", None)
+    if account_size is None:
+        raise ValueError("profile must carry account_size")
+    return json.dumps(
+        {
+            "currency": account_size.currency,
+            "unit": account_size.unit.value,
+            "value": canonical_decimal_text(account_size.value),
+        },
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
 
 class Phase3DurableStateStore:
@@ -486,17 +557,7 @@ class Phase3DurableStateStore:
             profile_hash = None
             if record.profile is not None:
                 profile_hash = record.profile.config_hash
-                profile_payload = json.dumps(
-                    {
-                        "currency": record.profile.account_size.currency,
-                        "unit": record.profile.account_size.unit.value,
-                        "value": canonical_decimal_text(record.profile.account_size.value),
-                    },
-                    ensure_ascii=False,
-                    allow_nan=False,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ).encode("utf-8")
+                profile_payload = _profile_account_size_payload(record.profile)
                 connection.execute(
                     """
                     INSERT OR IGNORE INTO phase3_profiles(

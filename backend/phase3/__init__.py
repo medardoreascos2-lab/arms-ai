@@ -43,6 +43,20 @@ from .snapshot_ingestion import (
     SnapshotSourceKind,
     evaluate_snapshot_ingestion,
 )
+from .snapshot_repository import (
+    SNAPSHOT_SERIALIZATION_FORMAT,
+    AccountSnapshotRepository,
+    SnapshotAppendResult,
+    SnapshotRepositoryConflictError,
+    SnapshotRepositoryError,
+    SnapshotRepositoryIntegrityError,
+    SnapshotRepositoryOrderError,
+    SnapshotRepositoryRejectedError,
+    SnapshotStreamIdentity,
+    StoredAccountSnapshot,
+    deserialize_account_snapshot,
+    serialize_account_snapshot,
+)
 from .storage_migrations import (
     MigrationApplyError,
     MigrationApplyResult,
@@ -125,4 +139,16 @@ __all__ = [
     "SnapshotIngestionSource",
     "SnapshotSourceKind",
     "evaluate_snapshot_ingestion",
+    "SNAPSHOT_SERIALIZATION_FORMAT",
+    "AccountSnapshotRepository",
+    "SnapshotAppendResult",
+    "SnapshotRepositoryConflictError",
+    "SnapshotRepositoryError",
+    "SnapshotRepositoryIntegrityError",
+    "SnapshotRepositoryOrderError",
+    "SnapshotRepositoryRejectedError",
+    "SnapshotStreamIdentity",
+    "StoredAccountSnapshot",
+    "deserialize_account_snapshot",
+    "serialize_account_snapshot",
 ]

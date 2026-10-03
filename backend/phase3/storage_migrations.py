@@ -17,6 +17,11 @@ _DESTRUCTIVE = re.compile(
     r"REINDEX|TRUNCATE)\b",
     re.IGNORECASE,
 )
+_APPEND_ONLY_TRIGGER = re.compile(
+    r"^CREATE TRIGGER [a-z][a-z0-9_]* BEFORE (UPDATE|DELETE) ON "
+    r"[a-z][a-z0-9_]* BEGIN SELECT RAISE\(ABORT, '[a-z0-9 -]+'\); END$",
+    re.IGNORECASE,
+)
 
 
 class MigrationError(RuntimeError):
@@ -59,16 +64,18 @@ def _validate_forward_statement(statement: str) -> None:
         raise ValueError("migration statements must be nonempty stripped strings")
     if "--" in statement or "/*" in statement or "*/" in statement:
         raise ValueError("migration SQL comments are forbidden")
+    normalized = " ".join(statement.split())
+    if _APPEND_ONLY_TRIGGER.fullmatch(normalized) is not None:
+        return
     if _DESTRUCTIVE.search(statement) is not None:
         raise ValueError("destructive or data-mutating migration SQL is forbidden")
-    normalized = " ".join(statement.upper().split())
-    create_allowed = normalized.startswith((
+    upper = normalized.upper()
+    create_allowed = upper.startswith((
         "CREATE TABLE ",
         "CREATE INDEX ",
         "CREATE UNIQUE INDEX ",
-        "CREATE TRIGGER ",
     ))
-    alter_allowed = normalized.startswith("ALTER TABLE ") and " ADD COLUMN " in normalized
+    alter_allowed = upper.startswith("ALTER TABLE ") and " ADD COLUMN " in upper
     if not (create_allowed or alter_allowed):
         raise ValueError("migration SQL must create an object or add a column")
 

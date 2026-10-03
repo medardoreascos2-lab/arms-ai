@@ -64,7 +64,7 @@ def raw_bootstrap_store(tmp_path):
 def test_builtin_migration_upgrades_bootstrap_store_on_writable_open(tmp_path):
     path = raw_bootstrap_store(tmp_path)
     with Phase3DurableStateStore.open(path) as store:
-        assert store.schema_version == STORE_SCHEMA_VERSION == 2
+        assert store.schema_version == STORE_SCHEMA_VERSION == 3
         history = store._connection.execute(
             "SELECT version, name, checksum FROM phase3_schema_migrations ORDER BY version"
         ).fetchall()
@@ -218,6 +218,19 @@ def test_destructive_or_mutating_migration_sql_is_rejected(statement):
 def test_non_forward_or_noncanonical_migration_sql_is_rejected(statement):
     with pytest.raises(ValueError):
         next_migration(statement)
+
+
+def test_only_restrictive_append_only_triggers_are_allowed():
+    trigger = next_migration(
+        "CREATE TRIGGER test_no_update BEFORE UPDATE ON test_rows "
+        "BEGIN SELECT RAISE(ABORT, 'rows are append only'); END"
+    )
+    assert trigger.statements[0].startswith("CREATE TRIGGER")
+    with pytest.raises(ValueError, match="forbidden"):
+        next_migration(
+            "CREATE TRIGGER test_mutating AFTER UPDATE ON test_rows "
+            "BEGIN DELETE FROM test_rows; END"
+        )
 
 
 def test_plan_requires_immutable_contiguous_unique_migrations():

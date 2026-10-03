@@ -47,3 +47,15 @@ and the metadata version advance in one `BEGIN IMMEDIATE` transaction; any SQL
 failure rolls the complete transaction back to the prior valid schema. Writable
 startup applies pending registered migrations idempotently. Read-only startup
 never migrates and fails closed when the file is behind the supported schema.
+
+R32G adds the durable account snapshot repository. It stores the complete
+immutable Phase 2 snapshot with exact tagged decimals, source timestamp offsets,
+the original snapshot content hash, and a second hash over canonical Phase 3
+bytes. Stream identity includes tenant, account, source version and simulation
+mode, profile hash, and currency. Database uniqueness plus append-only triggers
+enforce deterministic duplicate handling and prevent overwrite. New sequences
+and capture times must advance monotonically. Reads support identity lookup,
+latest, ordered history, and bounded half-open time ranges. Rejected ingestion
+decisions return before a transaction and create no tenant, account, profile, or
+snapshot rows. The repository remains read-only with respect to source accounts
+and carries no execution or production mutation authority.
