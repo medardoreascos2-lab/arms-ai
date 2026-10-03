@@ -4,15 +4,17 @@ The replay runtime supplies durable ingestion and canonical accounting. Only
 its finite-input boundary changes; strategy, costs, exits and risk do not.
 """
 from copy import deepcopy
+from contextlib import closing
 from hashlib import sha256
 import json
 from math import isfinite
 from pathlib import Path
+import sqlite3
 from threading import RLock
 
 from backend.backtesting.historical_accounting_v1 import HistoricalAccountingV1
 from backend.backtesting.paper_research_v1 import PaperResearchSessionV1
-from backend.backtesting.paper_runtime_v1 import PaperRuntimeV1
+from backend.backtesting.paper_runtime_v1 import PaperRuntimeV1, _encode, _plain
 from backend.market_data.certified_bootstrap_v1 import CertifiedBootstrap
 from backend.market_data.current_candle_authority_v1 import CurrentCandleAuthorityV1
 from backend.market_data.session_state_v1 import SessionStateAuthorityV1, readiness_matrix
@@ -20,6 +22,11 @@ from backend.strategies.trading_strategy_v2 import TradingActionV2
 
 
 _SUMMARY_COUNT_LIMIT = 2**63 - 1
+# This covers the existing 3,000-close multiday continuity test while keeping
+# a finite hard limit. Exhaustion stops the next eligible observation before
+# strategy or financial processing; evidence is never silently replaced.
+MAX_DECISION_TRACE_RECORDS = 4096
+MAX_DECISION_TRACE_READ = 100
 
 
 def _empty_decision_summary():
@@ -35,6 +42,18 @@ def _finite_diagnostic(value):
         return value if isfinite(value) else None
     except (OverflowError, ValueError):
         return None
+
+
+def _diagnostic_plain(value):
+    """Detach diagnostic values without making a nonfinite score a write fault."""
+    value = _plain(value)
+    if isinstance(value, dict):
+        return {key: _diagnostic_plain(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_diagnostic_plain(item) for item in value]
+    if type(value) is float and not isfinite(value):
+        return None
+    return value
 
 
 class _CurrentAccountingV1(HistoricalAccountingV1):
@@ -92,9 +111,40 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
         self.strategy_bootstrap = None
         self.strategy_bootstrap_bar_count = 0
         self._session_decision_summary = _empty_decision_summary()
+        self._trace_table_ready = False
+        self._trace_limit = MAX_DECISION_TRACE_RECORDS
+        self._pending_trace = None
+        self._trace_in_process = False
+        self._trace_entry_evaluations = []
+        self._trace_entry_inspected = False
+        self._trace_readiness_reasons = None
         super().__init__(**kwargs)
 
         if self._paper is not None:
+            try:
+                self._db.execute("""
+                    CREATE TABLE decision_trace (
+                        sequence INTEGER PRIMARY KEY,
+                        event_id INTEGER NOT NULL UNIQUE,
+                        fingerprint TEXT NOT NULL UNIQUE,
+                        canonical_observation_id TEXT NOT NULL UNIQUE,
+                        action TEXT NOT NULL CHECK(action IN ('HOLD','BUY','SELL')),
+                        confidence REAL,
+                        confluence REAL,
+                        plan_present INTEGER NOT NULL CHECK(plan_present IN (0,1)),
+                        submission_present INTEGER NOT NULL CHECK(submission_present IN (0,1)),
+                        payload TEXT NOT NULL,
+                        payload_sha256 TEXT NOT NULL
+                    )
+                """)
+                self._db.commit()
+                self._trace_table_ready = True
+            except BaseException:
+                self._fault = "RECOVERY_REQUIRED"
+                self._enabled = False
+                self._db.close()
+                self._db = None
+                raise
             self._install_current_submission_guard()
 
         # Existing namespaces are recovery evidence only.
@@ -291,14 +341,31 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
         life.current_paper_pre_submit = self._current_pre_submit
 
     def _entry_reasons(self):
+        inspected = False
+        gates = {"health": dict(status="NOT_EVALUATED", reasons=[])}
         if self.entry_authority is None or self._paper is None:
-            return ["ENTRY_AUTHORITY_MISSING"]
-        if self.health_eligible is None or not self.health_eligible():
-            return ["CURRENT_PAPER_HEALTH_UNAVAILABLE"]
-        runtime = self._paper.runtime
-        return self.entry_authority.inspect(row=runtime.current,
-            decision=self._last_decision,
-            open_positions=len(runtime.lifecycle.get_active_positions()))
+            reasons = ["ENTRY_AUTHORITY_MISSING"]
+        else:
+            health = self.health_eligible is not None and self.health_eligible()
+            gates["health"] = dict(status="PASS" if health else "BLOCKED",
+                reasons=[] if health else ["CURRENT_PAPER_HEALTH_UNAVAILABLE"])
+            if not health:
+                reasons = ["CURRENT_PAPER_HEALTH_UNAVAILABLE"]
+            else:
+                runtime = self._paper.runtime
+                inspected = True
+                if self._trace_in_process:
+                    self._trace_entry_inspected = True
+                reasons = self.entry_authority.inspect(row=runtime.current,
+                    decision=self._last_decision,
+                    open_positions=len(runtime.lifecycle.get_active_positions()),
+                    diagnostic=gates)
+        if self._trace_in_process:
+            self._trace_entry_evaluations.append(dict(
+                blocking_reasons=list(reasons),
+                entry_authority_inspected=inspected,
+                infrastructure_gates=_diagnostic_plain(gates)))
+        return reasons
 
     def _authority_reasons(self):
         reasons = super()._authority_reasons()
@@ -325,8 +392,18 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
         )
 
     def _process(self, observation):
-        # Only a completed canonical processing pass can contribute diagnostics.
-        super()._process(observation)
+        # The limit is checked before any strategy, account, or execution work.
+        # The generic ingest has already durably marked this event INFLIGHT.
+        if self._db.execute("SELECT count(*) FROM decision_trace").fetchone()[0] >= self._trace_limit:
+            raise RuntimeError("DECISION_TRACE_CAPACITY_REACHED")
+        self._trace_entry_evaluations = []
+        self._trace_entry_inspected = False
+        self._trace_readiness_reasons = None
+        self._trace_in_process = True
+        try:
+            super()._process(observation)
+        finally:
+            self._trace_in_process = False
         decision = self._last_decision
         if decision is None:
             return
@@ -351,6 +428,100 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
             summary["plan_count"] = min(summary["plan_count"] + 1, _SUMMARY_COUNT_LIMIT)
         if self._last_submission is not None:
             summary["submission_count"] = min(summary["submission_count"] + 1, _SUMMARY_COUNT_LIMIT)
+        self._pending_trace = self._decision_trace(observation, decision)
+
+    def _decision_trace(self, observation, decision):
+        metadata = decision.metadata if isinstance(decision.metadata, dict) else {}
+        evidence = _diagnostic_plain(self._strategy_evidence)
+        quality = evidence.get("quality") or {}
+        confluence = evidence.get("confluence") or {}
+        identity = dict(source_sha256=observation.source_sha256,
+            source_file=observation.source_file, source_row=observation.source_row,
+            raw_row_sha256=sha256(observation.raw_row.encode("utf-8")).hexdigest(),
+            event_id=observation.event_id,
+            canonical_timestamp=observation.canonical_timestamp.isoformat(),
+            trading_date=observation.trading_date,
+            provider=observation.provider,
+            instrument=self.gate.contract.instrument,
+            contract=observation.contract)
+        canonical_id = sha256(_encode(identity).encode("utf-8")).hexdigest()
+        if self._trace_entry_inspected:
+            gate_status = "EVALUATED"
+        elif self._trace_entry_evaluations:
+            gate_status = "NOT_EVALUATED_ENTRY_AUTHORITY_SKIPPED"
+        elif decision.action is TradingActionV2.HOLD:
+            gate_status = "NOT_EVALUATED_NON_ACTIONABLE_DECISION"
+        elif self._trace_readiness_reasons:
+            gate_status = "NOT_EVALUATED_READINESS_BLOCKED"
+        else:
+            gate_status = "NOT_EVALUATED_UPSTREAM_BLOCKED"
+        return dict(canonical_observation_id=canonical_id,
+            event_fingerprint=sha256(repr(observation).encode()).hexdigest(),
+            observation=identity, action=decision.action.value,
+            confidence=_finite_diagnostic(decision.confidence),
+            decision_reason=decision.reason,
+            decision_metadata=_diagnostic_plain(metadata),
+            trade_quality_score=quality.get("score"),
+            trade_quality_grade=None,
+            trade_quality_grade_status="NOT_PRODUCED_BY_QUALITY_ENGINE",
+            trade_quality_reasons=quality.get("reasons", metadata.get("trade_quality_reasons", [])),
+            confluence_score=_finite_diagnostic(metadata.get("confluence_score")),
+            confluence_engine_score=_finite_diagnostic(confluence.get("score")),
+            confluence_grade=confluence.get("grade", metadata.get("grade")),
+            confluence_approved=confluence.get("approved"),
+            confluence_status=confluence.get("status", "OBSERVED" if confluence else "NOT_OBSERVED"),
+            strategy_evidence=evidence,
+            entry_gate_status=gate_status,
+            entry_gate_evaluations=deepcopy(self._trace_entry_evaluations),
+            news_l1_spread_status=("EVALUATED_SEE_ENTRY_GATE_EVALUATIONS"
+                if self._trace_entry_inspected else "NOT_EVALUATED"),
+            progression_readiness_reasons=(deepcopy(self._trace_readiness_reasons)
+                if self._trace_readiness_reasons is not None else "NOT_EVALUATED"))
+
+    def _save(self):
+        if not self._trace_table_ready:
+            return super()._save()
+        trace = self._pending_trace
+        if trace is not None:
+            sequence = self._db.execute("SELECT count(*) FROM decision_trace").fetchone()[0] + 1
+            if sequence > self._trace_limit:
+                raise RuntimeError("DECISION_TRACE_CAPACITY_REACHED")
+            plan = deepcopy(self._snapshot["plan"])
+            submission = deepcopy(self._snapshot["submission"])
+            risk = deepcopy(self._snapshot["risk_evaluation"])
+            committed = dict(trace, sequence=sequence, event_id=self._cursor - 1,
+                plan_present=plan is not None, plan=plan,
+                submission_present=submission is not None, submission=submission,
+                submission_outcome=({key: submission.get(key) for key in
+                    ("accepted", "reason", "blocking_reasons")}
+                    if isinstance(submission, dict) else "NOT_EVALUATED"),
+                prepared_order_present=(submission.get("prepared_order") is not None
+                    if isinstance(submission, dict) else False),
+                execution_present=(submission.get("execution") is not None
+                    if isinstance(submission, dict) else False),
+                risk_status="EVALUATED" if risk else "NOT_EVALUATED",
+                risk_evaluation=risk if risk else "NOT_EVALUATED")
+            payload = _encode(committed)
+            self._db.execute("INSERT INTO decision_trace VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (sequence, committed["event_id"], trace["event_fingerprint"],
+                 trace["canonical_observation_id"], trace["action"],
+                 trace["confidence"], trace["confluence_score"],
+                 int(committed["plan_present"]), int(committed["submission_present"]), payload,
+                 sha256(payload.encode("utf-8")).hexdigest()))
+        counts = dict(self._db.execute(
+            "SELECT action,count(*) FROM decision_trace GROUP BY action").fetchall())
+        maxima = self._db.execute("SELECT max(confidence),max(confluence),"
+            "sum(plan_present),sum(submission_present) FROM decision_trace").fetchone()
+        summary = self._session_decision_summary
+        if any(counts.get(action, 0) != summary[key] for action, key in (
+                ("HOLD", "total_hold_decisions"), ("BUY", "total_buy_decisions"),
+                ("SELL", "total_sell_decisions"))) or (
+                (maxima[0], maxima[1], maxima[2] or 0, maxima[3] or 0) !=
+                (summary["max_confidence_observed"], summary["max_confluence_observed"],
+                 summary["plan_count"], summary["submission_count"])):
+            raise RuntimeError("DECISION_TRACE_SUMMARY_MISMATCH")
+        super()._save()  # Same transaction as event completion and journal.
+        self._pending_trace = None
 
     def ingest(self, observation, *, received_at):
         with self._lock:
@@ -362,6 +533,7 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
                 # Keep the published diagnostic aligned with that last commit.
                 self._session_decision_summary = committed
                 self._snapshot["session_decision_summary"] = deepcopy(committed)
+                self._pending_trace = None
                 raise
 
     def _reasons(self):
@@ -370,7 +542,35 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
             extra.append("ENTRY_AUTHORITY_MISSING")
         if self.health_eligible is None or not self.health_eligible():
             extra.append("CURRENT_PAPER_HEALTH_UNAVAILABLE")
-        return list(dict.fromkeys(super()._reasons() + extra))
+        reasons = list(dict.fromkeys(super()._reasons() + extra))
+        if self._trace_in_process and self._last_decision is not None:
+            self._trace_readiness_reasons = list(reasons)
+        return reasons
+
+    def get_decision_trace(self, *, limit=MAX_DECISION_TRACE_READ):
+        """Detached, bounded, committed evidence; never resumes a namespace."""
+        if type(limit) is not int or not 1 <= limit <= MAX_DECISION_TRACE_READ:
+            raise ValueError("DECISION_TRACE_READ_LIMIT")
+        with self._lock:
+            with closing(sqlite3.connect(self._path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
+                present = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='decision_trace'").fetchone()
+                if not present:
+                    return dict(status="UNAVAILABLE_LEGACY", records=[], total=0,
+                        operational_state_restored=False)
+                completed = ("FROM decision_trace AS trace JOIN events AS event "
+                    "ON event.id=trace.event_id AND event.fingerprint=trace.fingerprint "
+                    "WHERE event.phase='COMPLETED'")
+                total = db.execute("SELECT count(*) " + completed).fetchone()[0]
+                records = []
+                for payload, digest in db.execute(
+                        "SELECT trace.payload,trace.payload_sha256 " + completed +
+                        " ORDER BY trace.sequence DESC LIMIT ?", (limit,)):
+                    if sha256(payload.encode("utf-8")).hexdigest() != digest:
+                        return dict(status="UNREADABLE_RECONCILIATION_REQUIRED",
+                            records=[], total=total, operational_state_restored=False)
+                    records.append(json.loads(payload))
+                return dict(status="COMMITTED_EVIDENCE", records=records, total=total,
+                    operational_state_restored=False)
 
     def _publish(self):
         super()._publish()
@@ -620,6 +820,15 @@ class CurrentPaperServiceV1:
                 if session.segment_start and self._runtime and hasattr(self._runtime, "_htf") else 0
                 for tf in ("15m", "1h")}
             return deepcopy(snapshot)
+
+    def get_decision_trace(self, *, limit=MAX_DECISION_TRACE_READ):
+        if type(limit) is not int or not 1 <= limit <= MAX_DECISION_TRACE_READ:
+            raise ValueError("DECISION_TRACE_READ_LIMIT")
+        with self._lock:
+            if self._runtime is None:
+                return dict(status="AWAITING_MARKET_DATA", records=[], total=0,
+                    operational_state_restored=False)
+            return self._runtime.get_decision_trace(limit=limit)
 
     def control(self, command):
         with self._lock:
