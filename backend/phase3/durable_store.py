@@ -190,6 +190,46 @@ STORE_MIGRATIONS = (
                 BEGIN SELECT RAISE(ABORT, 'phase3 snapshots are append only'); END""",
         ),
     ),
+    Phase3Migration(
+        version=4,
+        name="evaluation_repository",
+        statements=(
+            """CREATE TABLE phase3_evaluations (
+                tenant_id TEXT NOT NULL,
+                evaluation_id TEXT NOT NULL,
+                snapshot_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                profile_config_hash TEXT NOT NULL,
+                evaluated_at TEXT NOT NULL,
+                stored_at TEXT NOT NULL,
+                authoritative INTEGER NOT NULL CHECK (authoritative IN (0, 1)),
+                source_status TEXT,
+                payload BLOB NOT NULL,
+                payload_sha256 TEXT NOT NULL CHECK (length(payload_sha256) = 64),
+                PRIMARY KEY (tenant_id, evaluation_id),
+                FOREIGN KEY (tenant_id, snapshot_id)
+                    REFERENCES phase3_account_snapshots(tenant_id, snapshot_id),
+                FOREIGN KEY (tenant_id, account_id)
+                    REFERENCES phase3_accounts(tenant_id, account_id),
+                FOREIGN KEY (profile_config_hash)
+                    REFERENCES phase3_profiles(config_hash)
+            )""",
+            """CREATE INDEX phase3_evaluations_snapshot_time
+                ON phase3_evaluations(
+                    tenant_id, snapshot_id, evaluated_at, evaluation_id
+                )""",
+            """CREATE INDEX phase3_evaluations_account_time
+                ON phase3_evaluations(
+                    tenant_id, account_id, evaluated_at, evaluation_id
+                )""",
+            """CREATE TRIGGER phase3_evaluations_no_update
+                BEFORE UPDATE ON phase3_evaluations
+                BEGIN SELECT RAISE(ABORT, 'phase3 evaluations are append only'); END""",
+            """CREATE TRIGGER phase3_evaluations_no_delete
+                BEFORE DELETE ON phase3_evaluations
+                BEGIN SELECT RAISE(ABORT, 'phase3 evaluations are append only'); END""",
+        ),
+    ),
 )
 STORE_SCHEMA_VERSION = _BOOTSTRAP_SCHEMA_VERSION + len(STORE_MIGRATIONS)
 STORE_SCHEMA_CHECKSUM = migration_chain_checksum(
@@ -200,10 +240,13 @@ _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("index", "phase3_records_account_time"),
     ("index", "phase3_records_commit_time"),
     ("index", "phase3_records_kind_time"),
+    ("index", "phase3_evaluations_account_time"),
+    ("index", "phase3_evaluations_snapshot_time"),
     ("index", "phase3_snapshots_captured_time"),
     ("index", "phase3_snapshots_latest"),
     ("table", "phase3_accounts"),
     ("table", "phase3_account_snapshots"),
+    ("table", "phase3_evaluations"),
     ("table", "phase3_profiles"),
     ("table", "phase3_schema_migrations"),
     ("table", "phase3_state_records"),
@@ -212,6 +255,8 @@ _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("table", "phase3_users"),
     ("trigger", "phase3_migrations_no_delete"),
     ("trigger", "phase3_migrations_no_update"),
+    ("trigger", "phase3_evaluations_no_delete"),
+    ("trigger", "phase3_evaluations_no_update"),
     ("trigger", "phase3_records_no_delete"),
     ("trigger", "phase3_records_no_update"),
     ("trigger", "phase3_snapshots_no_delete"),

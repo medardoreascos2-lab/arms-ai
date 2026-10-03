@@ -59,3 +59,13 @@ latest, ordered history, and bounded half-open time ranges. Rejected ingestion
 decisions return before a transaction and create no tenant, account, profile, or
 snapshot rows. The repository remains read-only with respect to source accounts
 and carries no execution or production mutation authority.
+
+R32H adds an append-only evaluation repository linked by foreign key to the
+durable snapshot and profile evidence. It preserves every V2 rule outcome,
+blocking and failure reason, warning, exact computed metric, rule version, and
+source-review status in deterministic hashed bytes. Authority is derived by the
+repository: only a current verified source with no incomplete-data outcome can
+be marked authoritative. Incomplete or unresolved evaluations remain durable
+evidence with `authoritative=false`; callers cannot override that value. Reads
+are tenant scoped, snapshot ordered, integrity checked, and carry no execution,
+production mutation, or administrative authority.

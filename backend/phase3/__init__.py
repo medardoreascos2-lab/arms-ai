@@ -21,6 +21,18 @@ from .financial_serialization import (
     state_record_hash,
     verify_serialized_hash,
 )
+from .evaluation_repository import (
+    EVALUATION_SERIALIZATION_FORMAT,
+    EvaluationAppendResult,
+    EvaluationRepository,
+    EvaluationRepositoryConflictError,
+    EvaluationRepositoryError,
+    EvaluationRepositoryIntegrityError,
+    EvaluationRepositoryRejectedError,
+    StoredEvaluation,
+    deserialize_evaluation,
+    serialize_evaluation,
+)
 from .read_authorization import (
     READ_REQUIREMENTS,
     AccountReadScope,
@@ -84,6 +96,16 @@ from .state_contracts import (
 )
 
 __all__ = [
+    "EVALUATION_SERIALIZATION_FORMAT",
+    "EvaluationAppendResult",
+    "EvaluationRepository",
+    "EvaluationRepositoryConflictError",
+    "EvaluationRepositoryError",
+    "EvaluationRepositoryIntegrityError",
+    "EvaluationRepositoryRejectedError",
+    "StoredEvaluation",
+    "deserialize_evaluation",
+    "serialize_evaluation",
     "STORE_FORMAT",
     "STORE_MIGRATIONS",
     "STORE_SCHEMA_CHECKSUM",
