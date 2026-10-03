@@ -188,6 +188,11 @@ from .resource_governor import (
     ResearchResourceRequest,
     ResearchResourceUsage,
 )
+from .provenance import (
+    ProvenanceConflictError,
+    ResearchProvenanceRecord,
+    ResearchProvenanceRegistry,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -344,4 +349,7 @@ __all__ = [
     "ResearchResourceLimits",
     "ResearchResourceRequest",
     "ResearchResourceUsage",
+    "ProvenanceConflictError",
+    "ResearchProvenanceRecord",
+    "ResearchProvenanceRegistry",
 ]
