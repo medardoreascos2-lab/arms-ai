@@ -65,6 +65,18 @@ from .secret_providers import (
     SecretProviderUnavailableError,
     SecretReference,
 )
+from .secret_redaction import (
+    REDACTED,
+    REDACTED_BINARY,
+    REDACTED_CYCLE,
+    REDACTED_UNSUPPORTED,
+    RedactedRecord,
+    RedactionChannel,
+    SecretRedactor,
+    redact_mapping,
+    redact_text,
+    sensitive_key,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -110,6 +122,12 @@ __all__ = [
     "ProductionMigrationResult",
     "ProductionMigrationRunner",
     "REQUIRED_CAPABILITIES",
+    "REDACTED",
+    "REDACTED_BINARY",
+    "REDACTED_CYCLE",
+    "REDACTED_UNSUPPORTED",
+    "RedactedRecord",
+    "RedactionChannel",
     "SQLiteDatabaseAdapter",
     "SQLiteDatabaseConnection",
     "SecretMaterial",
@@ -119,9 +137,13 @@ __all__ = [
     "SecretProviderError",
     "SecretProviderUnavailableError",
     "SecretReference",
+    "SecretRedactor",
     "TenantStateRepository",
     "decode_exact_decimal",
     "encode_exact_decimal",
     "postgres_migration_chain_checksum",
+    "redact_mapping",
+    "redact_text",
+    "sensitive_key",
     "validate_postgres_migration_plan",
 ]
