@@ -41,3 +41,11 @@ output "secret_references" {
     rotation_contract  = module.secrets.rotation_contract
   }
 }
+
+output "identity" {
+  description = "External OIDC validation contract and isolated service roles."
+  value = {
+    oidc_contract     = module.identity.oidc_contract
+    service_role_arns = module.identity.service_role_arns
+  }
+}

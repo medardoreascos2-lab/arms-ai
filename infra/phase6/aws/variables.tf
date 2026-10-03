@@ -118,3 +118,18 @@ variable "rotation_hook_arn" {
   default     = null
   nullable    = true
 }
+
+variable "oidc_issuer" {
+  description = "Operator-approved external staging issuer."
+  type        = string
+}
+
+variable "oidc_audience" {
+  description = "Dedicated ARMS staging audience."
+  type        = string
+}
+
+variable "oidc_jwks_uri" {
+  description = "HTTPS JWKS endpoint for the approved issuer."
+  type        = string
+}

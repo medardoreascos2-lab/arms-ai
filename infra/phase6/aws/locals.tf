@@ -43,3 +43,15 @@ module "secrets" {
   rotation_lambda_arn = var.rotation_hook_arn
   tags               = local.required_tags
 }
+
+module "identity" {
+  source = "./modules/identity"
+
+  name_prefix              = local.name_prefix
+  environment              = var.environment
+  oidc_issuer              = var.oidc_issuer
+  oidc_audience            = var.oidc_audience
+  oidc_jwks_uri            = var.oidc_jwks_uri
+  secret_reader_policy_arns = module.secrets.reader_policy_arns
+  tags                     = local.required_tags
+}
