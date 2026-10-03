@@ -107,3 +107,11 @@ counterfactuals, gates that prevented losses or blocked profitable
 opportunities, and descriptive factor correlations. Correlations state that
 they are associations rather than causation, and the analytics cannot rewrite
 strategy state or authorize execution.
+
+Regime performance analytics aggregate exact outcomes by the five supported
+market regimes and by Asia, London, and New York sessions. Labels must already
+exist on the source observation as typed values. Missing labels remain counted
+as unlabeled evidence, so the engine never infers a regime or session from time,
+price, or another proxy. Bucket and overall counts reconcile, inputs and results
+are hash identified, and the output carries no strategy rewrite or execution
+authority.

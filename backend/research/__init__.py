@@ -140,6 +140,14 @@ from .decision_trace_analytics import (
     TraceActionSummary,
     TraceOutcomeKind,
 )
+from .regime_performance import (
+    MarketRegimeLabel,
+    PerformanceBucket,
+    RegimePerformanceAnalytics,
+    RegimePerformanceObservation,
+    RegimePerformanceResult,
+    TradingSessionLabel,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -260,4 +268,10 @@ __all__ = [
     "TraceAction",
     "TraceActionSummary",
     "TraceOutcomeKind",
+    "MarketRegimeLabel",
+    "PerformanceBucket",
+    "RegimePerformanceAnalytics",
+    "RegimePerformanceObservation",
+    "RegimePerformanceResult",
+    "TradingSessionLabel",
 ]
