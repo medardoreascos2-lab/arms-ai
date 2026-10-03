@@ -147,6 +147,15 @@ from .operational_alerts import (
     OperationalAlertState,
     OperationalAlertThresholds,
 )
+from .backup_manifest import (
+    BACKUP_MANIFEST_FORMAT,
+    MAX_BACKUP_MANIFEST_BYTES,
+    BackupArtifact,
+    BackupArtifactKind,
+    BackupManifest,
+    deserialize_backup_manifest,
+    serialize_backup_manifest,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -163,6 +172,11 @@ __all__ = [
     "DatabaseReadOnlyError",
     "DatabaseTarget",
     "DatabaseTenantIsolationError",
+    "BACKUP_MANIFEST_FORMAT",
+    "MAX_BACKUP_MANIFEST_BYTES",
+    "BackupArtifact",
+    "BackupArtifactKind",
+    "BackupManifest",
     "ComponentHealth",
     "ComponentHealthObservation",
     "DeadLetterInspection",
@@ -267,11 +281,13 @@ __all__ = [
     "WorkerSupervisorStatus",
     "build_operational_metrics_snapshot",
     "decode_exact_decimal",
+    "deserialize_backup_manifest",
     "encode_exact_decimal",
     "postgres_migration_chain_checksum",
     "redact_mapping",
     "redact_text",
     "safe_dimensions",
+    "serialize_backup_manifest",
     "sensitive_key",
     "validate_postgres_migration_plan",
 ]
