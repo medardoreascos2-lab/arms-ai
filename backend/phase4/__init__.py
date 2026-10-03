@@ -220,8 +220,24 @@ from .deployment_config import (
     Phase4Feature,
     SecretProviderMode,
 )
+from .build_manifest import (
+    BUILD_MANIFEST_FORMAT,
+    BuildArtifact,
+    BuildManifest,
+    BuildManifestError,
+    DependencyVersion,
+    deserialize_build_manifest,
+    generate_build_manifest,
+    parse_dependency_versions,
+    serialize_build_manifest,
+    write_build_manifest,
+)
 
 __all__ = [
+    "BUILD_MANIFEST_FORMAT",
+    "BuildArtifact",
+    "BuildManifest",
+    "BuildManifestError",
     "DatabaseAccessMode",
     "DatabaseAdapter",
     "DatabaseAdapterRegistry",
@@ -237,6 +253,7 @@ __all__ = [
     "DatabaseTarget",
     "DatabaseTenantIsolationError",
     "DeploymentEnvironment",
+    "DependencyVersion",
     "DisasterScenario",
     "BACKUP_MANIFEST_FORMAT",
     "BACKUP_ARTIFACT_PATHS",
@@ -393,7 +410,10 @@ __all__ = [
     "decode_exact_decimal",
     "deserialize_backup_manifest",
     "deserialize_backup_completion",
+    "deserialize_build_manifest",
     "encode_exact_decimal",
+    "generate_build_manifest",
+    "parse_dependency_versions",
     "postgres_migration_chain_checksum",
     "redact_mapping",
     "redact_text",
@@ -402,6 +422,8 @@ __all__ = [
     "load_completed_local_backup",
     "serialize_backup_completion",
     "serialize_backup_manifest",
+    "serialize_build_manifest",
     "sensitive_key",
     "validate_postgres_migration_plan",
+    "write_build_manifest",
 ]
