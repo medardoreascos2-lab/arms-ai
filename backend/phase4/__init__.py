@@ -232,6 +232,13 @@ from .build_manifest import (
     serialize_build_manifest,
     write_build_manifest,
 )
+from .package_validation import (
+    PACKAGE_MANIFEST_FILENAME,
+    PackageValidationError,
+    PackageValidationReport,
+    assemble_phase4_package,
+    validate_phase4_package,
+)
 
 __all__ = [
     "BUILD_MANIFEST_FORMAT",
@@ -304,6 +311,9 @@ __all__ = [
     "OperationalAlertThresholds",
     "OperationalHealthModel",
     "OperationalHealthReport",
+    "PACKAGE_MANIFEST_FILENAME",
+    "PackageValidationError",
+    "PackageValidationReport",
     "Phase4TransportAction",
     "Phase4TransportAuthorizationBoundary",
     "Phase4TransportRequest",
@@ -407,6 +417,7 @@ __all__ = [
     "WorkerSupervisorConfig",
     "WorkerSupervisorStatus",
     "build_operational_metrics_snapshot",
+    "assemble_phase4_package",
     "decode_exact_decimal",
     "deserialize_backup_manifest",
     "deserialize_backup_completion",
@@ -425,5 +436,6 @@ __all__ = [
     "serialize_build_manifest",
     "sensitive_key",
     "validate_postgres_migration_plan",
+    "validate_phase4_package",
     "write_build_manifest",
 ]

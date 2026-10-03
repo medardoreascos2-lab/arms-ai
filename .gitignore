@@ -21,3 +21,4 @@ tmp_*/
 
 # ARMS AI local development runner state
 .arms-dev/
+phase4-build-manifest.json
