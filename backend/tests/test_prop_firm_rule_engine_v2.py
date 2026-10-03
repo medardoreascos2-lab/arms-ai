@@ -8,7 +8,7 @@ import pytest
 
 from backend.prop_firms import (
     AccountSnapshot, AccountStage, ConsistencyApplication, ConsistencyMode, ConsistencyPolicy,
-    ContractLimitPolicy, DailyLossEnforcement, DailyLossPolicy, DrawdownModel,
+    ContractLimitEnforcement, ContractLimitPolicy, DailyLossEnforcement, DailyLossPolicy, DrawdownModel,
     DrawdownPolicy, DrawdownTransition, ExposurePosition, ExposureWeight, InstrumentGroup,
     PayoutCycleSnapshot, PayoutFractionBasis, PayoutPolicy, PayoutRequest, PayoutTier,
     PropFirmProfile, ReferenceUpdateMode, ResetBoundary, RuleStatus, SourceEvidence, SourceReview,
@@ -70,6 +70,19 @@ def test_temporary_session_block_does_not_fail_account_and_resets_on_new_session
     assert next(o for o in blocked.outcomes if o.rule_id == "daily_loss").reset_at == NOW+timedelta(hours=3)
     next_session = snapshot(daily_pnl=D("0"), session_id="s3", daily_pnl_session_id="s3")
     assert evaluate_account_v2(p, next_session).trading_allowed_now
+
+
+def test_traded_contract_limit_preserves_reason_and_blocks_without_account_failure():
+    p = profile(contract_limit=ContractLimitPolicy(
+        5, maximum_traded=10,
+        breach_enforcement=ContractLimitEnforcement.TRADING_BLOCK,
+    ))
+    result = evaluate_account_v2(p, snapshot(contracts_open=2, contracts_traded=11))
+    assert result.account_valid and not result.account_failed
+    assert not result.trading_allowed_now
+    contract = next(o for o in result.outcomes if o.rule_id == "contracts")
+    assert contract.status == RuleStatus.TRADING_BLOCKED
+    assert contract.reason == "TRADED_CONTRACT_LIMIT_BREACHED"
 
 
 def test_session_pnl_mismatch_fails_closed():

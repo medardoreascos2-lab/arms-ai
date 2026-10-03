@@ -11,7 +11,7 @@ from .rule_engine_v1 import (
 )
 
 from .models_v1 import (
-    ConsistencyApplication, DailyLossEnforcement, DrawdownTransition, ExposurePosition, ExposureWeight,
+    ConsistencyApplication, ContractLimitEnforcement, DailyLossEnforcement, DrawdownTransition, ExposurePosition, ExposureWeight,
     InstrumentGroup,
     PayoutCycleSnapshot, PayoutFractionBasis, PayoutTier, ReferenceUpdateMode, ResetBoundary,
     SourceEvidence, SourceReview, SourceStatus, WeightedExposurePolicy,

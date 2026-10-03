@@ -9,7 +9,7 @@ from enum import Enum
 
 from .models_v1 import (
     AccountSnapshot, AccountStage, ConsistencyApplication, ConsistencyMode, DailyLossEnforcement, DrawdownModel,
-    PayoutFractionBasis, PayoutRequest, PropFirmProfile, ReferenceUpdateMode, ResetBoundary,
+    ContractLimitEnforcement, PayoutFractionBasis, PayoutRequest, PropFirmProfile, ReferenceUpdateMode, ResetBoundary,
     SourceStatus, ValueBasis,
 )
 from .rule_engine_v1 import evaluate_consistency
@@ -18,6 +18,7 @@ from .rule_engine_v1 import evaluate_consistency
 class RuleStatus(str, Enum):
     PASS = "PASS"
     SESSION_BLOCKED = "SESSION_BLOCKED"
+    TRADING_BLOCKED = "TRADING_BLOCKED"
     ACCOUNT_FAILED = "ACCOUNT_FAILED"
     OBJECTIVE_PENDING = "OBJECTIVE_PENDING"
     WARNING = "WARNING"
@@ -224,24 +225,28 @@ def _daily_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> RuleO
 def _contract_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> tuple[RuleOutcome, dict]:
     policy = profile.contract_limit
     metrics: dict = {}
+    if policy.unavailable_reason is not None:
+        return _out("contracts", RuleScope.TRADING, RuleStatus.INCOMPLETE_DATA,
+                    policy.unavailable_reason), metrics
+    breach_reason = None
     if policy.maximum_open is not None:
         if snapshot.contracts_open is None:
             return _out("contracts", RuleScope.TRADING, RuleStatus.INCOMPLETE_DATA,
                         "MISSING_CONTRACTS_OPEN"), metrics
         metrics["remaining_contract_capacity"] = policy.maximum_open - snapshot.contracts_open
         if snapshot.contracts_open > policy.maximum_open:
-            return _out("contracts", RuleScope.ACCOUNT, RuleStatus.ACCOUNT_FAILED,
-                        "OPEN_CONTRACT_LIMIT_BREACHED"), metrics
+            breach_reason = "OPEN_CONTRACT_LIMIT_BREACHED"
     if policy.maximum_traded is not None:
         if snapshot.contracts_traded is None:
             return _out("contracts", RuleScope.TRADING, RuleStatus.INCOMPLETE_DATA,
                         "MISSING_CONTRACTS_TRADED"), metrics
         if snapshot.contracts_traded > policy.maximum_traded:
-            return _out("contracts", RuleScope.ACCOUNT, RuleStatus.ACCOUNT_FAILED,
-                        "TRADED_CONTRACT_LIMIT_BREACHED"), metrics
+            breach_reason = breach_reason or "TRADED_CONTRACT_LIMIT_BREACHED"
     weighted = policy.weighted_exposure
-    if weighted is None:
+    if weighted is None and breach_reason is None:
         return _out("contracts", RuleScope.TRADING, RuleStatus.PASS, "CONTRACT_LIMIT_PASS"), metrics
+    if weighted is None:
+        return _contract_breach(policy, metrics, breach_reason)
     if snapshot.exposures is None:
         return _out("contracts", RuleScope.TRADING, RuleStatus.INCOMPLETE_DATA,
                     "MISSING_EXPOSURES"), metrics
@@ -264,9 +269,21 @@ def _contract_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> tu
     metrics["weighted_exposure_total"] = total
     metrics["remaining_exposure_capacity"] = weighted.maximum_units - total
     if total > weighted.maximum_units:
-        return _out("contracts", RuleScope.ACCOUNT, RuleStatus.ACCOUNT_FAILED,
-                    "WEIGHTED_EXPOSURE_LIMIT_BREACHED"), metrics
+        return _contract_breach(policy, metrics, "WEIGHTED_EXPOSURE_LIMIT_BREACHED")
+    if breach_reason is not None:
+        return _contract_breach(policy, metrics, breach_reason)
     return _out("contracts", RuleScope.TRADING, RuleStatus.PASS, "CONTRACT_LIMIT_PASS"), metrics
+
+
+def _contract_breach(policy, metrics: dict, reason: str) -> tuple[RuleOutcome, dict]:
+    mapping = {
+        ContractLimitEnforcement.ACCOUNT_FAIL: (RuleScope.ACCOUNT, RuleStatus.ACCOUNT_FAILED),
+        ContractLimitEnforcement.TRADING_BLOCK: (RuleScope.TRADING, RuleStatus.TRADING_BLOCKED),
+        ContractLimitEnforcement.WARNING_ONLY: (RuleScope.TRADING, RuleStatus.WARNING),
+        ContractLimitEnforcement.OBJECTIVE_ONLY: (RuleScope.STAGE, RuleStatus.OBJECTIVE_PENDING),
+    }
+    scope, status = mapping[policy.breach_enforcement]
+    return _out("contracts", scope, status, reason), metrics
 
 
 def _aggregate(profile: PropFirmProfile, outcomes: list[RuleOutcome], metrics: dict,
@@ -277,7 +294,7 @@ def _aggregate(profile: PropFirmProfile, outcomes: list[RuleOutcome], metrics: d
     )
     trading_allowed = account_valid and not any(
         o.scope == RuleScope.TRADING and o.status in (
-            RuleStatus.SESSION_BLOCKED, RuleStatus.INCOMPLETE_DATA
+            RuleStatus.SESSION_BLOCKED, RuleStatus.TRADING_BLOCKED, RuleStatus.INCOMPLETE_DATA
         ) for o in outcomes
     )
     stage_met = account_valid and not any(
@@ -296,7 +313,7 @@ def _aggregate(profile: PropFirmProfile, outcomes: list[RuleOutcome], metrics: d
     if payout_requested and profile.payout.require_session_clear:
         payout_ok = payout_ok and trading_allowed
     blocked = tuple(dict.fromkeys(o.reason for o in outcomes if o.status in (
-        RuleStatus.SESSION_BLOCKED, RuleStatus.ACCOUNT_FAILED,
+        RuleStatus.SESSION_BLOCKED, RuleStatus.TRADING_BLOCKED, RuleStatus.ACCOUNT_FAILED,
         RuleStatus.OBJECTIVE_PENDING, RuleStatus.INCOMPLETE_DATA
     )))
     return AccountEvaluationV2(
@@ -354,7 +371,7 @@ def evaluate_account_v2(
         source_status = profile.source_review.status_at(snapshot.as_of) if snapshot.as_of else profile.source_review.status
         if source_status != SourceStatus.CURRENT_VERIFIED:
             must_block = require_current_sources or source_status in (
-                SourceStatus.SOURCE_CONFLICT, SourceStatus.INCOMPLETE
+                SourceStatus.SOURCE_CONFLICT, SourceStatus.INCOMPLETE, SourceStatus.SOURCE_UNAVAILABLE
             )
             scope = RuleScope.ACCOUNT if must_block else RuleScope.TRADING
             status = RuleStatus.INCOMPLETE_DATA if must_block else RuleStatus.WARNING

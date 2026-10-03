@@ -7,7 +7,8 @@ from datetime import timedelta
 from decimal import Decimal
 
 from .models_v1 import (
-    AccountSnapshot, AccountStage, ConsistencyApplication, ConsistencyMode, DailyLossEnforcement, DrawdownModel, PayoutRequest,
+    AccountSnapshot, AccountStage, ConsistencyApplication, ConsistencyMode,
+    ContractLimitEnforcement, DailyLossEnforcement, DrawdownModel, PayoutRequest,
     PropFirmProfile, ResetBoundary, RuleEvaluationResult, ValueBasis,
 )
 
@@ -199,6 +200,8 @@ def _requires_v2(profile: PropFirmProfile) -> bool:
         or profile.consistency.application != ConsistencyApplication.STAGE
         or profile.contract_limit.weighted_exposure is not None
         or profile.contract_limit.maximum_open is None
+        or profile.contract_limit.unavailable_reason is not None
+        or profile.contract_limit.breach_enforcement != ContractLimitEnforcement.ACCOUNT_FAIL
         or payout.minimum_winning_days_per_cycle or payout.minimum_trading_days_per_cycle
         or payout.minimum_profit_since_last_payout is not None
         or payout.minimum_payout_amount is not None

@@ -74,6 +74,13 @@ class DailyLossEnforcement(str, Enum):
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
 
+class ContractLimitEnforcement(str, Enum):
+    ACCOUNT_FAIL = "ACCOUNT_FAIL"
+    TRADING_BLOCK = "TRADING_BLOCK"
+    WARNING_ONLY = "WARNING_ONLY"
+    OBJECTIVE_ONLY = "OBJECTIVE_ONLY"
+
+
 class ResetBoundary(str, Enum):
     SESSION_END = "SESSION_END"
     TRADING_DAY_END = "TRADING_DAY_END"
@@ -101,6 +108,7 @@ class SourceStatus(str, Enum):
     STALE_REVIEW_REQUIRED = "STALE_REVIEW_REQUIRED"
     SOURCE_CONFLICT = "SOURCE_CONFLICT"
     INCOMPLETE = "INCOMPLETE"
+    SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"
 
 
 @dataclass(frozen=True)
@@ -112,6 +120,8 @@ class SourceEvidence:
     effective_to: datetime | None = None
     rule_heading: str | None = None
     normalized_source_hash: str | None = None
+    temporary: bool = False
+    review_required: bool = False
 
     def __post_init__(self) -> None:
         if (not isinstance(self.source_url, str) or not self.source_url.startswith(("https://", "http://"))
@@ -124,6 +134,8 @@ class SourceEvidence:
         _aware(self.effective_to, "source effective_to")
         if self.effective_from and self.effective_to and self.effective_to <= self.effective_from:
             raise ValueError("source effective_to must follow effective_from")
+        _bool(self.temporary, "temporary")
+        _bool(self.review_required, "review_required")
 
 
 @dataclass(frozen=True)
@@ -349,16 +361,31 @@ class ContractLimitPolicy:
     maximum_open: int | None
     maximum_traded: int | None = None
     weighted_exposure: WeightedExposurePolicy | None = None
+    breach_enforcement: ContractLimitEnforcement = ContractLimitEnforcement.ACCOUNT_FAIL
+    unavailable_reason: str | None = None
 
     def __post_init__(self) -> None:
         _nonnegative(self.maximum_open, "maximum_open")
         _nonnegative(self.maximum_traded, "maximum_traded")
-        if self.maximum_open == 0 or (self.maximum_open is None and self.weighted_exposure is None):
-            raise ValueError("maximum_open or weighted_exposure is required")
+        if not isinstance(self.breach_enforcement, ContractLimitEnforcement):
+            raise ValueError("invalid contract limit enforcement")
         if self.weighted_exposure is not None and not isinstance(self.weighted_exposure, WeightedExposurePolicy):
             raise ValueError("invalid weighted_exposure policy")
+        if self.unavailable_reason is not None and (
+            not isinstance(self.unavailable_reason, str) or not self.unavailable_reason.strip()
+        ):
+            raise ValueError("unavailable_reason must be a nonempty string")
+        if self.maximum_open == 0:
+            raise ValueError("maximum_open must be positive")
         if self.maximum_traded == 0:
             raise ValueError("maximum_traded must be positive")
+        if self.maximum_open is None and self.weighted_exposure is None and self.unavailable_reason is None:
+            raise ValueError("maximum_open, weighted_exposure, or unavailable_reason is required")
+        if self.unavailable_reason is not None and any((
+            self.maximum_open is not None, self.maximum_traded is not None,
+            self.weighted_exposure is not None,
+        )):
+            raise ValueError("unavailable contract policy cannot carry numeric limits")
 
 
 @dataclass(frozen=True)
