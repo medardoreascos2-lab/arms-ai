@@ -364,7 +364,3 @@ class DatabaseAdapterRegistry:
                 f"{target.backend.value.lower()} adapter is not registered"
             )
         return adapter.connect(target)
-
-
-
-
