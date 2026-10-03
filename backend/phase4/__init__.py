@@ -106,6 +106,14 @@ from .scheduler_supervision import (
     SchedulerRunStatus,
     SchedulerSupervisor,
 )
+from .retry_operations import (
+    DeadLetterInspection,
+    DurableRetryOperations,
+    RetryAuthorizationDecision,
+    RetryOperationError,
+    RetryOperationResult,
+    RetryOperationsPolicy,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -122,7 +130,9 @@ __all__ = [
     "DatabaseReadOnlyError",
     "DatabaseTarget",
     "DatabaseTenantIsolationError",
+    "DeadLetterInspection",
     "DisabledSecretProvider",
+    "DurableRetryOperations",
     "EnvironmentSecretProvider",
     "FileSecretProvider",
     "FutureCloudSecretProvider",
@@ -160,6 +170,10 @@ __all__ = [
     "RedactedRecord",
     "RedactionChannel",
     "RestartPolicy",
+    "RetryAuthorizationDecision",
+    "RetryOperationError",
+    "RetryOperationResult",
+    "RetryOperationsPolicy",
     "SQLiteDatabaseAdapter",
     "SQLiteDatabaseConnection",
     "ScheduledJobSpec",
