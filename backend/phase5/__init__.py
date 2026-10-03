@@ -1,5 +1,13 @@
 """Phase 5 staging validation contracts with no production authority."""
 
+from .app_rollback import (
+    AppRollbackStatus,
+    StagingAppRollbackRehearsal,
+    StagingAppRollbackReport,
+    StagingReleaseArtifact,
+    StagingRollbackHealth,
+    StagingRuntimeSnapshot,
+)
 from .artifact_scan import (
     STATIC_SCAN_CHECKS,
     StaticScanFinding,
@@ -41,6 +49,7 @@ from .load_rehearsal import (
 )
 
 __all__ = [
+    "AppRollbackStatus",
     "STATIC_SCAN_CHECKS",
     "StaticScanFinding",
     "StaticScanReport",
@@ -55,6 +64,11 @@ __all__ = [
     "StagingRestorePolicy",
     "StagingPackageVerificationError",
     "StagingPackageVerificationReport",
+    "StagingAppRollbackRehearsal",
+    "StagingAppRollbackReport",
+    "StagingReleaseArtifact",
+    "StagingRollbackHealth",
+    "StagingRuntimeSnapshot",
     "STAGING_LOAD_PROFILES",
     "StagingLatencyMetrics",
     "StagingLoadObservation",
