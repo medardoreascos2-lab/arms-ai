@@ -63,3 +63,12 @@ module "observability" {
   log_retention_days = var.telemetry_log_retention_days
   tags              = local.required_tags
 }
+
+module "backup" {
+  source = "./modules/backup"
+
+  name_prefix   = local.name_prefix
+  bucket_name   = var.backup_bucket_name
+  retention_days = var.backup_retention_days
+  tags          = local.required_tags
+}

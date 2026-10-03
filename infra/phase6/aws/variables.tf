@@ -138,3 +138,13 @@ variable "telemetry_log_retention_days" {
   type    = number
   default = 30
 }
+
+variable "backup_bucket_name" {
+  description = "Globally unique operator-approved staging backup bucket name."
+  type        = string
+}
+
+variable "backup_retention_days" {
+  type    = number
+  default = 30
+}

@@ -59,3 +59,13 @@ output "observability" {
     contract                    = module.observability.telemetry_contract
   }
 }
+
+output "backup" {
+  description = "Encrypted off-host backup references and separated access policies."
+  value = {
+    bucket_arn               = module.backup.bucket_arn
+    backup_writer_policy_arn = module.backup.backup_writer_policy_arn
+    restore_reader_policy_arn = module.backup.restore_reader_policy_arn
+    contract                 = module.backup.backup_contract
+  }
+}
