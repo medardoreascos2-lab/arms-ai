@@ -27,3 +27,14 @@ and freshness policy; requires complete risk and payout state; detects
 inconsistent high-water and exposure data; and handles retries deterministically
 as accepted, idempotent duplicate, or rejection. It returns only immutable
 decisions and cursors and performs no write.
+
+R32E adds a dedicated SQLite state store for Phase 3. It persists canonical
+R32B bytes and their SHA-256 hashes in append-only state records, normalizes
+tenant/account/user/profile identities behind foreign keys, and bootstraps a
+checksummed schema and migration history. Writable handles use WAL,
+`synchronous=FULL`, explicit transactions, and foreign-key enforcement. A
+read-only reopen uses SQLite `mode=ro` plus `query_only`. Startup verifies the
+database, store identity, schema version, bootstrap checksum, and migration
+history. Reads revalidate both payload hashes and indexed identity columns.
+The store never discovers, adopts, or migrates the legacy V8 database and
+exposes no broker, execution, production mutation, or canonical admin authority.
