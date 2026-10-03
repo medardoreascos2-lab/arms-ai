@@ -142,3 +142,8 @@ minimums, a cumulative multiple-testing budget, a parameter-combination budget,
 an unopened and distinct holdout, temporal leakage separation, and a maximum
 candidate complexity score. Any violation blocks optimization and reports every
 reason; admission never grants execution authority.
+
+The resource governor evaluates CPU, concurrent jobs, memory, disk, dataset and
+experiment counts, and maximum runtime per job before work reaches a queue. It
+reports every exceeded limit and fails closed. Evaluation is side-effect free:
+even an accepted reservation does not mutate a queue or authorize execution.

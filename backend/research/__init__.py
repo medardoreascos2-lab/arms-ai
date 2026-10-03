@@ -181,6 +181,13 @@ from .overfitting_guards import (
     ResearchOverfittingGuard,
     ResearchSearchDeclaration,
 )
+from .resource_governor import (
+    ResearchResourceDecision,
+    ResearchResourceGovernor,
+    ResearchResourceLimits,
+    ResearchResourceRequest,
+    ResearchResourceUsage,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -332,4 +339,9 @@ __all__ = [
     "OverfittingGuardResult",
     "ResearchOverfittingGuard",
     "ResearchSearchDeclaration",
+    "ResearchResourceDecision",
+    "ResearchResourceGovernor",
+    "ResearchResourceLimits",
+    "ResearchResourceRequest",
+    "ResearchResourceUsage",
 ]
