@@ -25,3 +25,12 @@ list, and an action/block summary. Every run replays the same immutable bars
 through a fresh strategy instance a second time and rejects divergent output.
 The runner has no broker, PAPER, LIVE, portfolio, or
 production state integration and every authority flag remains false.
+
+Strategy experiments bind a stable experiment ID to a parent production
+version, an exact candidate parameter set, immutable dataset IDs, and strictly
+ordered train, validation, and test windows. Each frozen lifecycle record has a
+deterministic hash and links to the prior revision hash. Allowed research states
+are `RESEARCH`, `BACKTESTED`, `VALIDATION_FAILED`, `VALIDATION_PASSED`,
+`PAPER_CHALLENGER`, `REJECTED`, and `PROMOTION_CANDIDATE`. There is no
+`PRODUCTION` research state, and no lifecycle transition grants execution or
+production assignment authority.

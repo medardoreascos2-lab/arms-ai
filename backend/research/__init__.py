@@ -35,6 +35,12 @@ from .backtest_runner import (
     ResearchStrategyIdentity,
     ResearchTrade,
 )
+from .experiment import (
+    ExperimentTransitionError,
+    ExperimentWindow,
+    StrategyExperiment,
+    StrategyExperimentStatus,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -68,4 +74,8 @@ __all__ = [
     "ResearchStrategyError",
     "ResearchStrategyIdentity",
     "ResearchTrade",
+    "ExperimentTransitionError",
+    "ExperimentWindow",
+    "StrategyExperiment",
+    "StrategyExperimentStatus",
 ]
