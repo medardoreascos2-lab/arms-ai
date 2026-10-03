@@ -36,6 +36,11 @@ from .package_verification import (
     StagingPackageVerificationReport,
     verify_reconstructable_staging_package,
 )
+from .restore_escalation import (
+    EncryptedRestoreEscalation,
+    RestoreEscalationPlan,
+    RestoreEscalationReport,
+)
 from .load_rehearsal import (
     STAGING_LOAD_PROFILES,
     StagingLatencyMetrics,
@@ -54,6 +59,7 @@ __all__ = [
     "StaticScanFinding",
     "StaticScanReport",
     "ENCRYPTED_STAGING_BACKUP_FORMAT",
+    "EncryptedRestoreEscalation",
     "LOCAL_TEST_CIPHER_ALGORITHM",
     "STAGING_BACKUP_PAYLOAD_FORMAT",
     "EphemeralStagingBackupKey",
@@ -62,6 +68,8 @@ __all__ = [
     "StagingBackupEncryptionError",
     "StagingBackupPayload",
     "StagingRestorePolicy",
+    "RestoreEscalationPlan",
+    "RestoreEscalationReport",
     "StagingPackageVerificationError",
     "StagingPackageVerificationReport",
     "StagingAppRollbackRehearsal",
