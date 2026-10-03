@@ -175,6 +175,12 @@ from .promotion_review import (
     ProductionPromotionReviewBuilder,
     REQUIRED_PROMOTION_EVIDENCE,
 )
+from .overfitting_guards import (
+    OverfittingGuardPolicy,
+    OverfittingGuardResult,
+    ResearchOverfittingGuard,
+    ResearchSearchDeclaration,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -322,4 +328,8 @@ __all__ = [
     "ProductionPromotionReview",
     "ProductionPromotionReviewBuilder",
     "REQUIRED_PROMOTION_EVIDENCE",
+    "OverfittingGuardPolicy",
+    "OverfittingGuardResult",
+    "ResearchOverfittingGuard",
+    "ResearchSearchDeclaration",
 ]

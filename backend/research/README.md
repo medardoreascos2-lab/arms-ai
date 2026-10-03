@@ -136,3 +136,9 @@ their source hashes. Missing evidence yields `NOT_READY`; failed evidence yields
 `RESEARCH_CONTINUE`; complete passing evidence yields only
 `READY_FOR_HUMAN_REVIEW`. Human review is always required, and the package has
 no automatic promotion, production mutation, or execution authority.
+
+Research overfitting guards admit parameter searches only after enforcing sample
+minimums, a cumulative multiple-testing budget, a parameter-combination budget,
+an unopened and distinct holdout, temporal leakage separation, and a maximum
+candidate complexity score. Any violation blocks optimization and reports every
+reason; admission never grants execution authority.
