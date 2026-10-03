@@ -352,6 +352,8 @@ class DailyLossPolicy:
     limit: Decimal | None = None
     enforcement: DailyLossEnforcement = DailyLossEnforcement.ACCOUNT_FAIL
     reset_boundary: ResetBoundary = ResetBoundary.SESSION_END
+    scaling_fraction_of_peak_eod_profit: Decimal | None = None
+    scaling_activation_balance: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.enforcement, DailyLossEnforcement):
@@ -359,10 +361,25 @@ class DailyLossPolicy:
         if not isinstance(self.reset_boundary, ResetBoundary):
             raise ValueError("invalid reset boundary")
         _money(self.limit, "daily loss limit", positive=self.limit is not None)
-        if self.limit is None and self.enforcement not in (DailyLossEnforcement.ACCOUNT_FAIL, DailyLossEnforcement.NOT_APPLICABLE):
+        _money(self.scaling_fraction_of_peak_eod_profit,
+               "scaling_fraction_of_peak_eod_profit",
+               positive=self.scaling_fraction_of_peak_eod_profit is not None)
+        _money(self.scaling_activation_balance, "scaling_activation_balance",
+               positive=self.scaling_activation_balance is not None)
+        dynamic = self.scaling_fraction_of_peak_eod_profit is not None
+        if dynamic != (self.scaling_activation_balance is not None):
+            raise ValueError("daily loss scaling fields must be configured together")
+        if (self.scaling_fraction_of_peak_eod_profit is not None
+                and self.scaling_fraction_of_peak_eod_profit > 1):
+            raise ValueError("daily loss scaling fraction cannot exceed one")
+        if self.limit is None and not dynamic and self.enforcement not in (
+            DailyLossEnforcement.ACCOUNT_FAIL, DailyLossEnforcement.NOT_APPLICABLE
+        ):
             raise ValueError("active daily loss enforcement requires a limit")
         if self.limit is not None and self.enforcement == DailyLossEnforcement.NOT_APPLICABLE:
             raise ValueError("NOT_APPLICABLE cannot carry a limit")
+        if dynamic and self.enforcement == DailyLossEnforcement.NOT_APPLICABLE:
+            raise ValueError("NOT_APPLICABLE cannot carry daily loss scaling")
 
 
 @dataclass(frozen=True)
@@ -639,6 +656,9 @@ class PropFirmProfile:
             raise ValueError("starting_balance must be nonnegative")
         if self.source_review is not None and not isinstance(self.source_review, SourceReview):
             raise ValueError("invalid source_review")
+        if (self.daily_loss.scaling_activation_balance is not None
+                and self.daily_loss.scaling_activation_balance <= self.starting_balance):
+            raise ValueError("daily loss scaling activation must exceed starting balance")
         if self.scaling is not None and not isinstance(self.scaling, ScalingPolicy):
             raise ValueError("invalid scaling policy")
         if self.scaling is not None:

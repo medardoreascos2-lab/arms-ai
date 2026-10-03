@@ -177,6 +177,17 @@ def _daily_outcome(
 ) -> RuleOutcome:
     policy = profile.daily_loss
     limit = limit_override if limit_override is not None else policy.limit
+    if (limit_override is None
+            and policy.scaling_fraction_of_peak_eod_profit is not None):
+        if snapshot.highest_end_of_day_balance is None:
+            return _out("daily_loss", RuleScope.TRADING, RuleStatus.INCOMPLETE_DATA,
+                        "MISSING_PEAK_END_OF_DAY_BALANCE_FOR_DAILY_LOSS")
+        if snapshot.highest_end_of_day_balance < profile.starting_balance:
+            return _out("daily_loss", RuleScope.TRADING, RuleStatus.INCOMPLETE_DATA,
+                        "INVALID_PEAK_END_OF_DAY_PROFIT_FOR_DAILY_LOSS")
+        if snapshot.highest_end_of_day_balance > policy.scaling_activation_balance:
+            peak_profit = snapshot.highest_end_of_day_balance - profile.starting_balance
+            limit = peak_profit * policy.scaling_fraction_of_peak_eod_profit
     if limit is None:
         return _out("daily_loss", RuleScope.TRADING, RuleStatus.NOT_APPLICABLE,
                     "DAILY_LOSS_NOT_APPLICABLE")

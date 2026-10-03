@@ -130,6 +130,49 @@ def test_explicit_not_applicable_daily_loss():
     assert status(evaluate_account_v2(p, snapshot()), "daily_loss") == RuleStatus.NOT_APPLICABLE
 
 
+def test_daily_loss_can_transition_from_fixed_to_peak_eod_profit_fraction():
+    p = profile(daily_loss=DailyLossPolicy(
+        D("1200"), DailyLossEnforcement.SESSION_BLOCK, ResetBoundary.SESSION_END,
+        D("0.60"), D("52100"),
+    ))
+    at_activation = evaluate_account_v2(
+        p, snapshot(highest_end_of_day_balance=D("52100"), daily_pnl=D("-1300"))
+    )
+    assert status(at_activation, "daily_loss") == RuleStatus.SESSION_BLOCKED
+    above_activation = evaluate_account_v2(
+        p, snapshot(highest_end_of_day_balance=D("53000"), daily_pnl=D("-1300"))
+    )
+    assert status(above_activation, "daily_loss") == RuleStatus.PASS
+
+
+def test_dynamic_daily_loss_fails_closed_without_peak_eod_balance():
+    p = profile(daily_loss=DailyLossPolicy(
+        None, DailyLossEnforcement.SESSION_BLOCK, ResetBoundary.SESSION_END,
+        D("0.60"), D("52100"),
+    ))
+    result = evaluate_account_v2(p, snapshot(highest_end_of_day_balance=None))
+    assert not result.trading_allowed_now
+    assert status(result, "daily_loss") == RuleStatus.INCOMPLETE_DATA
+    assert "MISSING_PEAK_END_OF_DAY_BALANCE_FOR_DAILY_LOSS" in result.blocking_reasons
+
+
+def test_daily_loss_scaling_configuration_is_validated():
+    with pytest.raises(ValueError):
+        DailyLossPolicy(D("500"), scaling_fraction_of_peak_eod_profit=D("0.60"))
+    with pytest.raises(ValueError):
+        DailyLossPolicy(D("500"), scaling_fraction_of_peak_eod_profit=D("1.01"),
+                        scaling_activation_balance=D("52000"))
+    with pytest.raises(ValueError):
+        DailyLossPolicy(None, DailyLossEnforcement.NOT_APPLICABLE,
+                        scaling_fraction_of_peak_eod_profit=D("0.60"),
+                        scaling_activation_balance=D("52000"))
+    with pytest.raises(ValueError):
+        profile(daily_loss=DailyLossPolicy(
+            D("500"), scaling_fraction_of_peak_eod_profit=D("0.60"),
+            scaling_activation_balance=D("50000"),
+        ))
+
+
 def test_zero_start_balance_is_explicit_and_negative_rejected():
     with pytest.raises(ValueError):
         profile(starting_balance=D("0"))
