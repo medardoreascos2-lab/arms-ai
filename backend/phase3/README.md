@@ -38,3 +38,12 @@ database, store identity, schema version, bootstrap checksum, and migration
 history. Reads revalidate both payload hashes and indexed identity columns.
 The store never discovers, adopts, or migrates the legacy V8 database and
 exposes no broker, execution, production mutation, or canonical admin authority.
+
+R32F adds a forward-only migration framework for that isolated store. Migration
+versions must be contiguous, immutable, checksum-stable, and limited to schema
+creation or `ADD COLUMN` operations. Applied history and the cumulative schema
+checksum are validated before any write. All pending steps, history receipts,
+and the metadata version advance in one `BEGIN IMMEDIATE` transaction; any SQL
+failure rolls the complete transaction back to the prior valid schema. Writable
+startup applies pending registered migrations idempotently. Read-only startup
+never migrates and fails closed when the file is behind the supported schema.

@@ -21,6 +21,7 @@ from backend.phase3 import (
     Phase3DurableStateStore,
     PropFirmProfileIdentity,
     STORE_FORMAT,
+    STORE_MIGRATIONS,
     STORE_SCHEMA_CHECKSUM,
     STORE_SCHEMA_VERSION,
     SchemaIdentity,
@@ -65,7 +66,7 @@ def test_create_bootstraps_isolated_versioned_store(tmp_path):
     path = tmp_path / "phase3-state.sqlite3"
     with Phase3DurableStateStore.create(path) as store:
         assert store.path == path.resolve()
-        assert store.schema_version == STORE_SCHEMA_VERSION == 1
+        assert store.schema_version == STORE_SCHEMA_VERSION == 2
         assert store.read_only is False
         assert store.execution_authorized is False
         assert store.production_mutation_authorized is False
@@ -73,7 +74,7 @@ def test_create_bootstraps_isolated_versioned_store(tmp_path):
         metadata = store._connection.execute(
             "SELECT store_format, schema_version, schema_checksum FROM phase3_store_metadata"
         ).fetchone()
-        assert metadata == (STORE_FORMAT, 1, STORE_SCHEMA_CHECKSUM)
+        assert metadata == (STORE_FORMAT, 2, STORE_SCHEMA_CHECKSUM)
         assert store._connection.execute("PRAGMA foreign_keys").fetchone() == (1,)
         assert store._connection.execute("PRAGMA synchronous").fetchone() == (2,)
         assert store._connection.execute("PRAGMA journal_mode").fetchone() == ("wal",)
@@ -84,7 +85,11 @@ def test_bootstrap_records_checksumed_migration_history(tmp_path):
         rows = store._connection.execute(
             "SELECT version, name, checksum FROM phase3_schema_migrations"
         ).fetchall()
-        assert rows == [(1, "phase3_bootstrap", STORE_SCHEMA_CHECKSUM)]
+        assert rows[0][0:2] == (1, "phase3_bootstrap")
+        assert rows[1:] == [
+            (migration.version, migration.name, migration.checksum)
+            for migration in STORE_MIGRATIONS
+        ]
 
 
 def test_append_round_trip_preserves_exact_canonical_record(tmp_path):
@@ -264,7 +269,7 @@ def test_metadata_mismatch_blocks_reopen(tmp_path):
             "UPDATE phase3_store_metadata SET schema_checksum = ? WHERE singleton = 1",
             ("0" * 64,),
         )
-    with pytest.raises(DurableStoreIntegrityError, match="metadata mismatch"):
+    with pytest.raises(DurableStoreIntegrityError, match="migration validation failed"):
         Phase3DurableStateStore.open(path)
 
 
@@ -274,7 +279,7 @@ def test_unknown_sqlite_database_is_not_adopted_or_migrated(tmp_path):
         connection.execute("CREATE TABLE legacy(value REAL)")
         connection.execute("INSERT INTO legacy VALUES (1.25)")
     before = path.read_bytes()
-    with pytest.raises(DurableStoreIntegrityError, match="invalid phase3 store schema"):
+    with pytest.raises(DurableStoreIntegrityError, match="migration validation failed"):
         Phase3DurableStateStore.open(path)
     assert path.read_bytes() == before
 

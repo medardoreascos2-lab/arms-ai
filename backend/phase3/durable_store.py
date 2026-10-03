@@ -16,10 +16,16 @@ from .financial_serialization import (
     verify_serialized_hash,
 )
 from .state_contracts import DurableStateRecord
+from .storage_migrations import (
+    MigrationError,
+    Phase3Migration,
+    apply_phase3_migrations,
+    migration_chain_checksum,
+)
 
 
 STORE_FORMAT = "arms.phase3.sqlite-state-store"
-STORE_SCHEMA_VERSION = 1
+_BOOTSTRAP_SCHEMA_VERSION = 1
 
 _SCHEMA_OBJECTS_SQL = """
 CREATE TABLE phase3_store_metadata (
@@ -122,12 +128,28 @@ BEGIN
 END;
 """.strip()
 
-STORE_SCHEMA_CHECKSUM = hashlib.sha256(
+_BOOTSTRAP_SCHEMA_CHECKSUM = hashlib.sha256(
     _SCHEMA_OBJECTS_SQL.encode("utf-8")
 ).hexdigest()
 
+STORE_MIGRATIONS = (
+    Phase3Migration(
+        version=2,
+        name="record_commit_time_index",
+        statements=(
+            "CREATE INDEX phase3_records_commit_time "
+            "ON phase3_state_records(tenant_id, committed_at, record_id)",
+        ),
+    ),
+)
+STORE_SCHEMA_VERSION = _BOOTSTRAP_SCHEMA_VERSION + len(STORE_MIGRATIONS)
+STORE_SCHEMA_CHECKSUM = migration_chain_checksum(
+    _BOOTSTRAP_SCHEMA_CHECKSUM, STORE_MIGRATIONS
+)
+
 _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("index", "phase3_records_account_time"),
+    ("index", "phase3_records_commit_time"),
     ("index", "phase3_records_kind_time"),
     ("table", "phase3_accounts"),
     ("table", "phase3_profiles"),
@@ -234,6 +256,7 @@ class Phase3DurableStateStore:
         try:
             cls._configure_writable(connection)
             cls._bootstrap(connection)
+            cls._migrate(connection)
             cls._verify_connection(connection)
         except BaseException:
             connection.close()
@@ -259,6 +282,8 @@ class Phase3DurableStateStore:
             connection.execute("PRAGMA foreign_keys=ON")
             connection.execute("PRAGMA busy_timeout=5000")
         try:
+            if not read_only:
+                cls._migrate(connection)
             cls._verify_connection(connection)
             if not read_only:
                 cls._configure_writable(connection)
@@ -288,7 +313,12 @@ class Phase3DurableStateStore:
                     schema_checksum, created_at
                 ) VALUES (1, ?, ?, ?, ?)
                 """,
-                (STORE_FORMAT, STORE_SCHEMA_VERSION, STORE_SCHEMA_CHECKSUM, applied_at),
+                (
+                    STORE_FORMAT,
+                    _BOOTSTRAP_SCHEMA_VERSION,
+                    _BOOTSTRAP_SCHEMA_CHECKSUM,
+                    applied_at,
+                ),
             )
             connection.execute(
                 """
@@ -296,13 +326,33 @@ class Phase3DurableStateStore:
                     version, name, checksum, applied_at
                 ) VALUES (?, ?, ?, ?)
                 """,
-                (STORE_SCHEMA_VERSION, "phase3_bootstrap", STORE_SCHEMA_CHECKSUM, applied_at),
+                (
+                    _BOOTSTRAP_SCHEMA_VERSION,
+                    "phase3_bootstrap",
+                    _BOOTSTRAP_SCHEMA_CHECKSUM,
+                    applied_at,
+                ),
             )
             connection.execute("COMMIT")
         except BaseException:
             if connection.in_transaction:
                 connection.execute("ROLLBACK")
             raise
+
+    @staticmethod
+    def _migrate(connection: sqlite3.Connection) -> None:
+        try:
+            apply_phase3_migrations(
+                connection,
+                store_format=STORE_FORMAT,
+                bootstrap_checksum=_BOOTSTRAP_SCHEMA_CHECKSUM,
+                migrations=STORE_MIGRATIONS,
+                applied_at=datetime.now(timezone.utc),
+            )
+        except MigrationError as exc:
+            raise DurableStoreIntegrityError(
+                f"phase3 store migration validation failed: {exc}"
+            ) from exc
 
     @staticmethod
     def _verify_connection(connection: sqlite3.Connection) -> None:
@@ -316,7 +366,8 @@ class Phase3DurableStateStore:
             ).fetchone()
             migrations = connection.execute(
                 """
-                SELECT version, name, checksum FROM phase3_schema_migrations
+                SELECT version, name, checksum, applied_at
+                FROM phase3_schema_migrations
                 ORDER BY version
                 """
             ).fetchall()
@@ -337,12 +388,19 @@ class Phase3DurableStateStore:
         ):
             raise DurableStoreIntegrityError("phase3 store metadata mismatch")
         _parse_canonical_utc(metadata[3], "created_at")
-        if migrations != [(
-            STORE_SCHEMA_VERSION,
+        expected_migrations = [(
+            _BOOTSTRAP_SCHEMA_VERSION,
             "phase3_bootstrap",
-            STORE_SCHEMA_CHECKSUM,
-        )]:
+            _BOOTSTRAP_SCHEMA_CHECKSUM,
+        )]
+        expected_migrations.extend(
+            (migration.version, migration.name, migration.checksum)
+            for migration in STORE_MIGRATIONS
+        )
+        if [row[:3] for row in migrations] != expected_migrations:
             raise DurableStoreIntegrityError("phase3 migration history mismatch")
+        for version, _, _, applied_at in migrations:
+            _parse_canonical_utc(applied_at, f"migration_{version}_applied_at")
         if schema_objects != _REQUIRED_SCHEMA_OBJECTS:
             raise DurableStoreIntegrityError("phase3 schema objects mismatch")
         foreign_keys = connection.execute("PRAGMA foreign_keys").fetchone()

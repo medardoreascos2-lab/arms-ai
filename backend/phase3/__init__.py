@@ -2,6 +2,7 @@
 
 from .durable_store import (
     STORE_FORMAT,
+    STORE_MIGRATIONS,
     STORE_SCHEMA_CHECKSUM,
     STORE_SCHEMA_VERSION,
     DurableStoreConflictError,
@@ -42,6 +43,17 @@ from .snapshot_ingestion import (
     SnapshotSourceKind,
     evaluate_snapshot_ingestion,
 )
+from .storage_migrations import (
+    MigrationApplyError,
+    MigrationApplyResult,
+    MigrationError,
+    MigrationForwardOnlyError,
+    MigrationIntegrityError,
+    Phase3Migration,
+    apply_phase3_migrations,
+    migration_chain_checksum,
+    validate_migration_plan,
+)
 
 from .state_contracts import (
     AccountIdentity,
@@ -59,6 +71,7 @@ from .state_contracts import (
 
 __all__ = [
     "STORE_FORMAT",
+    "STORE_MIGRATIONS",
     "STORE_SCHEMA_CHECKSUM",
     "STORE_SCHEMA_VERSION",
     "DurableStoreConflictError",
@@ -68,6 +81,15 @@ __all__ = [
     "Phase3DurableStateStore",
     "StoreAppendResult",
     "StoredStateRecord",
+    "MigrationApplyError",
+    "MigrationApplyResult",
+    "MigrationError",
+    "MigrationForwardOnlyError",
+    "MigrationIntegrityError",
+    "Phase3Migration",
+    "apply_phase3_migrations",
+    "migration_chain_checksum",
+    "validate_migration_plan",
     "AccountIdentity",
     "DecimalUnit",
     "DurableDecimal",
