@@ -79,3 +79,13 @@ contracts reject secret-bearing field names and unsupported numeric types.
 Audit subjects may name denied or rejected accounts without creating or
 mutating those accounts. Reads are integrity checked and never grant execution,
 production mutation, or administrative authority.
+
+R32J adds a persistence-only durable outbox. Immutable content-derived event
+IDs and tenant-scoped dedupe keys make enqueue retries deterministic. Each row
+starts in `PENDING` with zero attempts, an explicit next-attempt time, nullable
+sanitized error storage, and created/updated timestamps. Ready reads are tenant
+scoped and ordered. The contract targets at-least-once delivery with
+exactly-once-effect intent: a future worker may retry delivery, while consumers
+must honor the stable event ID or dedupe key. This milestone contains no
+transport, network client, claim worker, broker integration, or execution
+authority.

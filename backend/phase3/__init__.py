@@ -34,6 +34,21 @@ from .financial_serialization import (
     state_record_hash,
     verify_serialized_hash,
 )
+from .outbox import (
+    OUTBOX_SERIALIZATION_FORMAT,
+    DurableOutbox,
+    OutboxConflictError,
+    OutboxEnqueueResult,
+    OutboxError,
+    OutboxEvent,
+    OutboxIntegrityError,
+    OutboxStatus,
+    StoredOutboxEvent,
+    deserialize_outbox_event,
+    outbox_event_hash,
+    sanitize_outbox_error,
+    serialize_outbox_event,
+)
 from .evaluation_repository import (
     EVALUATION_SERIALIZATION_FORMAT,
     EvaluationAppendResult,
@@ -109,6 +124,19 @@ from .state_contracts import (
 )
 
 __all__ = [
+    "OUTBOX_SERIALIZATION_FORMAT",
+    "DurableOutbox",
+    "OutboxConflictError",
+    "OutboxEnqueueResult",
+    "OutboxError",
+    "OutboxEvent",
+    "OutboxIntegrityError",
+    "OutboxStatus",
+    "StoredOutboxEvent",
+    "deserialize_outbox_event",
+    "outbox_event_hash",
+    "sanitize_outbox_error",
+    "serialize_outbox_event",
     "AUDIT_SERIALIZATION_FORMAT",
     "AuditEvent",
     "AuditEventKind",

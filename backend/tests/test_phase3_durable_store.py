@@ -66,7 +66,7 @@ def test_create_bootstraps_isolated_versioned_store(tmp_path):
     path = tmp_path / "phase3-state.sqlite3"
     with Phase3DurableStateStore.create(path) as store:
         assert store.path == path.resolve()
-        assert store.schema_version == STORE_SCHEMA_VERSION == 5
+        assert store.schema_version == STORE_SCHEMA_VERSION == 6
         assert store.read_only is False
         assert store.execution_authorized is False
         assert store.production_mutation_authorized is False
@@ -74,7 +74,7 @@ def test_create_bootstraps_isolated_versioned_store(tmp_path):
         metadata = store._connection.execute(
             "SELECT store_format, schema_version, schema_checksum FROM phase3_store_metadata"
         ).fetchone()
-        assert metadata == (STORE_FORMAT, 5, STORE_SCHEMA_CHECKSUM)
+        assert metadata == (STORE_FORMAT, 6, STORE_SCHEMA_CHECKSUM)
         assert store._connection.execute("PRAGMA foreign_keys").fetchone() == (1,)
         assert store._connection.execute("PRAGMA synchronous").fetchone() == (2,)
         assert store._connection.execute("PRAGMA journal_mode").fetchone() == ("wal",)

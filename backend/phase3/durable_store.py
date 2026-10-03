@@ -263,6 +263,35 @@ STORE_MIGRATIONS = (
                 BEGIN SELECT RAISE(ABORT, 'phase3 audit events are append only'); END""",
         ),
     ),
+    Phase3Migration(
+        version=6,
+        name="outbox_foundation",
+        statements=(
+            """CREATE TABLE phase3_outbox (
+                tenant_id TEXT NOT NULL,
+                event_id TEXT NOT NULL CHECK (length(event_id) = 64),
+                dedupe_key TEXT NOT NULL,
+                event_kind TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (
+                    status IN ('PENDING', 'IN_PROGRESS', 'DELIVERED', 'DEAD_LETTER')
+                ),
+                attempt_count INTEGER NOT NULL CHECK (attempt_count >= 0),
+                next_attempt_at TEXT NOT NULL,
+                last_error TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                payload BLOB NOT NULL,
+                payload_sha256 TEXT NOT NULL CHECK (length(payload_sha256) = 64),
+                PRIMARY KEY (tenant_id, event_id),
+                UNIQUE (tenant_id, dedupe_key),
+                FOREIGN KEY (tenant_id) REFERENCES phase3_tenants(tenant_id)
+            )""",
+            """CREATE INDEX phase3_outbox_ready
+                ON phase3_outbox(tenant_id, status, next_attempt_at, event_id)""",
+            """CREATE INDEX phase3_outbox_updated
+                ON phase3_outbox(tenant_id, updated_at, event_id)""",
+        ),
+    ),
 )
 STORE_SCHEMA_VERSION = _BOOTSTRAP_SCHEMA_VERSION + len(STORE_MIGRATIONS)
 STORE_SCHEMA_CHECKSUM = migration_chain_checksum(
@@ -277,12 +306,15 @@ _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("index", "phase3_evaluations_snapshot_time"),
     ("index", "phase3_audit_events_kind_time"),
     ("index", "phase3_audit_events_time"),
+    ("index", "phase3_outbox_ready"),
+    ("index", "phase3_outbox_updated"),
     ("index", "phase3_snapshots_captured_time"),
     ("index", "phase3_snapshots_latest"),
     ("table", "phase3_accounts"),
     ("table", "phase3_account_snapshots"),
     ("table", "phase3_audit_events"),
     ("table", "phase3_evaluations"),
+    ("table", "phase3_outbox"),
     ("table", "phase3_profiles"),
     ("table", "phase3_schema_migrations"),
     ("table", "phase3_state_records"),
