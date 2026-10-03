@@ -55,3 +55,11 @@ module "identity" {
   secret_reader_policy_arns = module.secrets.reader_policy_arns
   tags                     = local.required_tags
 }
+
+module "observability" {
+  source = "./modules/observability"
+
+  name_prefix       = local.name_prefix
+  log_retention_days = var.telemetry_log_retention_days
+  tags              = local.required_tags
+}

@@ -133,3 +133,8 @@ variable "oidc_jwks_uri" {
   description = "HTTPS JWKS endpoint for the approved issuer."
   type        = string
 }
+
+variable "telemetry_log_retention_days" {
+  type    = number
+  default = 30
+}

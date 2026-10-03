@@ -49,3 +49,13 @@ output "identity" {
     service_role_arns = module.identity.service_role_arns
   }
 }
+
+output "observability" {
+  description = "Staging log, metric, alarm and dashboard contract."
+  value = {
+    log_group_names             = module.observability.log_group_names
+    alert_topic_arn             = module.observability.alert_topic_arn
+    telemetry_writer_policy_arn = module.observability.telemetry_writer_policy_arn
+    contract                    = module.observability.telemetry_contract
+  }
+}
