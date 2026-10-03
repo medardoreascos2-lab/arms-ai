@@ -157,6 +157,16 @@ from .feature_attribution import (
     FeatureAttributionResult,
     StrategyFeatureAttribution,
 )
+from .paper_challenger_validation import (
+    PaperChallengerValidationModel,
+    PaperChallengerValidationReport,
+    PaperFaultEvidence,
+    PaperReferenceComparison,
+    PaperSessionEvidence,
+    PaperStrategyIdentity,
+    PaperTradeEvidence,
+    PaperValidationMetrics,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -290,4 +300,12 @@ __all__ = [
     "FeatureAttributionObservation",
     "FeatureAttributionResult",
     "StrategyFeatureAttribution",
+    "PaperChallengerValidationModel",
+    "PaperChallengerValidationReport",
+    "PaperFaultEvidence",
+    "PaperReferenceComparison",
+    "PaperSessionEvidence",
+    "PaperStrategyIdentity",
+    "PaperTradeEvidence",
+    "PaperValidationMetrics",
 ]

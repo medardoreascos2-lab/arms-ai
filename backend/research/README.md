@@ -123,3 +123,9 @@ median-stratified outcome comparison. Every metric is labeled as descriptive or
 predictive association, never causation. Reports preserve source hashes, state
 the limits of source-provided counterfactual predictions and in-sample evidence,
 and cannot rewrite a strategy or authorize execution.
+
+PAPER challenger validation binds one immutable `PAPER_CHALLENGER` identity to
+closed simulated sessions, trades, faults, reconciled metrics, and a pinned
+`PRODUCTION_REFERENCE` comparison. Trade evidence must be explicitly simulated;
+session identities and time windows reconcile before a report is produced. The
+hash-identified report has no broker, LIVE, or production mutation authority.
