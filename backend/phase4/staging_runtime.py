@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.phase3.research_api import ResearchApiSources, create_phase3_research_router
 from backend.phase3.runtime import Phase3ReadOnlyRuntime
@@ -23,7 +25,13 @@ from .operational_metrics import MetricsExporter
 from .restore_validation import BackupRestoreValidator
 from .scheduler_supervision import SchedulerSupervisor
 from .secret_providers import SecretProvider
-from .transport_authorization import Phase4TransportAuthorizationBoundary
+from .transport_authorization import (
+    AuthenticatedTransportPrincipal,
+    Phase4TransportAction,
+    Phase4TransportAuthorizationBoundary,
+    Phase4TransportRequest,
+    TransportAuthorizationCode,
+)
 from .worker_supervisor import WorkerSupervisor
 
 
@@ -50,6 +58,8 @@ class Phase4StagingDependencies:
     research_queue: ResearchJobQueue
     status_sources: Phase3StatusSources
     research_sources: ResearchApiSources
+    principal_resolver: Callable[[Request], AuthenticatedTransportPrincipal | None]
+    clock: Callable[[], datetime]
 
     def __post_init__(self) -> None:
         expected = (
@@ -75,6 +85,10 @@ class Phase4StagingDependencies:
         for value, kind, name in expected:
             if not isinstance(value, kind):
                 raise ValueError(f"{name} has an invalid type")
+        if not callable(self.principal_resolver):
+            raise ValueError("principal_resolver must be callable")
+        if not callable(self.clock):
+            raise ValueError("clock must be callable")
 
 
 @dataclass(frozen=True)
@@ -110,6 +124,33 @@ def _require_no_authority(name: str, component: object) -> None:
             raise Phase4StagingCompositionError(
                 f"{name} cannot carry {attribute}"
             )
+
+
+def _authorized_router(
+    source: APIRouter,
+    *,
+    action: Phase4TransportAction,
+    dependencies: Phase4StagingDependencies,
+) -> APIRouter:
+    def authorize(request: Request) -> None:
+        try:
+            principal = dependencies.principal_resolver(request)
+            tenant_id = principal.tenant_claim if principal is not None else "unauthenticated"
+            decision = dependencies.authorization.evaluate(
+                principal,
+                Phase4TransportRequest(action, tenant_id),
+                evaluated_at=dependencies.clock(),
+            )
+        except Exception:
+            raise HTTPException(status_code=401, detail="AUTHENTICATION_REQUIRED") from None
+        if decision.code is TransportAuthorizationCode.MISSING_AUTH:
+            raise HTTPException(status_code=401, detail="AUTHENTICATION_REQUIRED")
+        if not decision.allowed:
+            raise HTTPException(status_code=403, detail="AUTHORIZATION_DENIED")
+
+    router = APIRouter()
+    router.include_router(source, dependencies=[Depends(authorize)])
+    return router
 
 
 def compose_phase4_staging_runtime(
@@ -179,7 +220,15 @@ def compose_phase4_staging_runtime(
 
     return Phase4StagingRuntime(
         dependencies=dependencies,
-        status_router=create_phase3_status_router(dependencies.status_sources),
-        research_router=create_phase3_research_router(dependencies.research_sources),
+        status_router=_authorized_router(
+            create_phase3_status_router(dependencies.status_sources),
+            action=Phase4TransportAction.HEALTH_READ,
+            dependencies=dependencies,
+        ),
+        research_router=_authorized_router(
+            create_phase3_research_router(dependencies.research_sources),
+            action=Phase4TransportAction.OPERATIONS_READ,
+            dependencies=dependencies,
+        ),
         component_names=tuple(sorted(components)),
     )

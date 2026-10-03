@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
 
+from backend.entitlements import UserRole
 from backend.phase3 import (
     Phase3DurableStateStore,
     Phase3ReadOnlyRuntime,
@@ -47,6 +48,7 @@ from backend.phase4 import (
 )
 from backend.prop_firms import canonical_profile_registry
 from backend.research.research_scheduler import ResearchJobQueue
+from backend.tests.test_phase4_transport_authorization import user as transport_user
 
 
 NOW = datetime(2026, 10, 4, 12, tzinfo=timezone.utc)
@@ -151,6 +153,8 @@ def _dependencies(tmp_path, *, features=frozenset(Phase4Feature)):
         research_queue=ResearchJobQueue(),
         status_sources=_status_sources(),
         research_sources=_research_sources(),
+        principal_resolver=lambda request: transport_user(),
+        clock=lambda: NOW,
     )
     return dependencies, counters
 
@@ -201,6 +205,48 @@ def test_composed_apis_are_read_only_and_return_detached_local_data(tmp_path):
         assert research.json()["read_only"] is True
         assert client.post("/api/phase3/status", json={}).status_code == 405
         assert client.post("/api/phase3/research/challengers", json={}).status_code == 405
+    finally:
+        dependencies.application_runtime.store.close()
+
+
+def test_composed_apis_deny_missing_or_broken_authentication(tmp_path):
+    dependencies, _ = _dependencies(tmp_path)
+    try:
+        for resolver in (lambda request: None, lambda request: 1 / 0):
+            runtime = compose_phase4_staging_runtime(
+                replace(dependencies, principal_resolver=resolver)
+            )
+            app = FastAPI()
+            app.include_router(runtime.status_router)
+            app.include_router(runtime.research_router)
+            client = TestClient(app)
+            assert client.get("/api/phase3/status").status_code == 401
+            assert client.get("/api/phase3/research/challengers").status_code == 401
+    finally:
+        dependencies.application_runtime.store.close()
+
+
+def test_composed_research_api_denies_authenticated_principal_without_permission(tmp_path):
+    dependencies, _ = _dependencies(tmp_path)
+    research_calls = []
+    restricted = replace(
+        dependencies,
+        principal_resolver=lambda request: transport_user(role=UserRole.VIEWER),
+        research_sources=ResearchApiSources(*(
+            (lambda name=name: research_calls.append(name) or ())
+            for name in ResearchApiSources.__dataclass_fields__
+        )),
+    )
+    try:
+        runtime = compose_phase4_staging_runtime(restricted)
+        app = FastAPI()
+        app.include_router(runtime.research_router)
+
+        response = TestClient(app).get("/api/phase3/research/challengers")
+
+        assert response.status_code == 403
+        assert response.json() == {"detail": "AUTHORIZATION_DENIED"}
+        assert research_calls == []
     finally:
         dependencies.application_runtime.store.close()
 
