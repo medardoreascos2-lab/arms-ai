@@ -10,3 +10,21 @@ from .event_domain import (
     create_notification_event,
     safe_payload,
 )
+from .dispatch import (
+    DisabledNotificationProvider,
+    DispatchAttempt,
+    DispatchResult,
+    DispatchStatus,
+    FakeNotificationProvider,
+    FixedWindowNotificationRateLimiter,
+    InMemoryNotificationDedupeStore,
+    NotificationDedupeStore,
+    NotificationDispatcher,
+    NotificationProvider,
+    NotificationProviderKind,
+    NotificationRateLimiter,
+    ProviderAttemptResult,
+    ProviderAttemptStatus,
+    RetryPolicy,
+    RetryWaiter,
+)

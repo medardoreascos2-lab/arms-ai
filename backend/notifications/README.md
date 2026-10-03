@@ -7,3 +7,11 @@
 Payloads accept only scalar strings, integers, booleans, finite `Decimal` values, and `None`. Sensitive keys and recognizable credential text are redacted by default or rejected under the strict policy. Nested objects, floats, binary data, and partial profile identity are rejected.
 
 This milestone contains no dispatcher, provider, credential, network call, message send, broker action, or execution authority.
+
+## Dispatch foundation (R27B)
+
+`dispatch.py` adds provider-independent delivery contracts, disabled and deterministic fake providers, bounded process-local deduplication, fixed-window rate limiting, explicit retry scheduling, and immutable delivery results. Telegram, WhatsApp, email, and in-app are provider seams only.
+
+The dispatcher validates the already-redacted event before a provider sees it. Dedupe and rate-limit failures stop before provider delivery. A delivery whose dedupe commit cannot be confirmed is reported as `DELIVERY_UNCONFIRMED` and its in-flight claim remains reserved to prevent an automatic resend.
+
+There are no credentials, network clients, background workers, live transports, broker calls, trading state mutations, or execution authority in this package. Process-local dedupe state does not survive restart; persistent delivery state remains a future integration concern.
