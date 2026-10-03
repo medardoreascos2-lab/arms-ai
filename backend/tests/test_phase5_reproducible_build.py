@@ -1,6 +1,7 @@
 """R57A deterministic local Phase 5 staging package tests."""
 
 import hashlib
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -45,6 +46,12 @@ def _package_files(root: Path):
     }
 
 
+def _make_writable(root: Path):
+    for path in root.rglob("*"):
+        if path.is_file():
+            os.chmod(path, 0o666)
+
+
 def test_two_staging_builds_are_identical_and_record_complete_provenance(tmp_path):
     source = _source(tmp_path / "source")
     first = tmp_path / "package-a"
@@ -72,42 +79,46 @@ def test_two_staging_builds_are_identical_and_record_complete_provenance(tmp_pat
         )
         outputs.append(result.stdout)
 
-    first_files = _package_files(first)
-    second_files = _package_files(second)
-    manifest = deserialize_build_manifest(first_files[PACKAGE_MANIFEST_FILENAME])
+    try:
+        first_files = _package_files(first)
+        second_files = _package_files(second)
+        manifest = deserialize_build_manifest(first_files[PACKAGE_MANIFEST_FILENAME])
 
-    assert first_files == second_files
-    assert outputs[0] == outputs[1]
-    assert outputs[0].startswith("PHASE5_STAGING_PACKAGE_VALID")
-    assert "deployment_authorized=false" in outputs[0]
-    assert validate_phase4_package(first) == validate_phase4_package(second)
-    assert manifest.source_git_sha == GIT_SHA
-    assert manifest.phase3_schema_version == STORE_SCHEMA_VERSION
-    assert manifest.phase4_migration_version == POSTGRES_SCHEMA_VERSION
-    assert tuple((item.name, item.version) for item in manifest.dependency_versions) == (
-        ("fastapi", "0.139.2"),
-        ("uvicorn", "0.51.0"),
-    )
-    assert manifest.feature_flags == tuple(
-        sorted(feature.value for feature in REQUIRED_STAGING_FEATURES)
-    )
-    assert tuple(item.path for item in manifest.artifacts) == (
-        "backend/phase3/runtime.py",
-        "backend/phase4/runtime.py",
-        "backend/phase5/runtime.py",
-        "requirements.txt",
-    )
-    assert {
-        item.path: item.sha256 for item in manifest.artifacts
-    } == {
-        path: hashlib.sha256(payload).hexdigest()
-        for path, payload in first_files.items()
-        if path != PACKAGE_MANIFEST_FILENAME
-    }
-    assert "unlisted.txt" not in first_files
-    assert manifest.execution_authorized is False
-    assert manifest.production_mutation_authorized is False
-    assert manifest.deployment_authorized is False
+        assert first_files == second_files
+        assert outputs[0] == outputs[1]
+        assert outputs[0].startswith("PHASE5_STAGING_PACKAGE_VALID")
+        assert "deployment_authorized=false" in outputs[0]
+        assert validate_phase4_package(first) == validate_phase4_package(second)
+        assert manifest.source_git_sha == GIT_SHA
+        assert manifest.phase3_schema_version == STORE_SCHEMA_VERSION
+        assert manifest.phase4_migration_version == POSTGRES_SCHEMA_VERSION
+        assert tuple((item.name, item.version) for item in manifest.dependency_versions) == (
+            ("fastapi", "0.139.2"),
+            ("uvicorn", "0.51.0"),
+        )
+        assert manifest.feature_flags == tuple(
+            sorted(feature.value for feature in REQUIRED_STAGING_FEATURES)
+        )
+        assert tuple(item.path for item in manifest.artifacts) == (
+            "backend/phase3/runtime.py",
+            "backend/phase4/runtime.py",
+            "backend/phase5/runtime.py",
+            "requirements.txt",
+        )
+        assert {
+            item.path: item.sha256 for item in manifest.artifacts
+        } == {
+            path: hashlib.sha256(payload).hexdigest()
+            for path, payload in first_files.items()
+            if path != PACKAGE_MANIFEST_FILENAME
+        }
+        assert "unlisted.txt" not in first_files
+        assert manifest.execution_authorized is False
+        assert manifest.production_mutation_authorized is False
+        assert manifest.deployment_authorized is False
+    finally:
+        _make_writable(first)
+        _make_writable(second)
 
 
 def test_staging_build_tool_has_no_image_push_or_runtime_start_authority():

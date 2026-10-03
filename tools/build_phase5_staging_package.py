@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -86,6 +87,9 @@ def build_staging_package(
         destination_root.resolve(strict=False),
         serialize_build_manifest(manifest),
     )
+    for path in destination_root.resolve(strict=True).rglob("*"):
+        if path.is_file():
+            os.chmod(path, 0o444)
     return manifest, report
 
 
