@@ -248,6 +248,13 @@ from .load_harness import (
     LoadSample,
     LoadTestReport,
 )
+from .staging_runtime import (
+    REQUIRED_STAGING_FEATURES,
+    Phase4StagingCompositionError,
+    Phase4StagingDependencies,
+    Phase4StagingRuntime,
+    compose_phase4_staging_runtime,
+)
 
 __all__ = [
     "BUILD_MANIFEST_FORMAT",
@@ -309,6 +316,7 @@ __all__ = [
     "LoadOperation",
     "LoadSample",
     "LoadTestReport",
+    "REQUIRED_STAGING_FEATURES",
     "METRIC_UNITS",
     "METRIC_COMPONENTS",
     "MetricUnit",
@@ -336,6 +344,9 @@ __all__ = [
     "Phase4RequestEnvelope",
     "Phase4DeploymentConfig",
     "Phase4Feature",
+    "Phase4StagingCompositionError",
+    "Phase4StagingDependencies",
+    "Phase4StagingRuntime",
     "POSTGRES_TABLES",
     "PostgresAppendResult",
     "PostgresConnectionFactory",
@@ -433,6 +444,7 @@ __all__ = [
     "WorkerSupervisorConfig",
     "WorkerSupervisorStatus",
     "build_operational_metrics_snapshot",
+    "compose_phase4_staging_runtime",
     "assemble_phase4_package",
     "decode_exact_decimal",
     "deserialize_backup_manifest",
