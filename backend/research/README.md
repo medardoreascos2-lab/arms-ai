@@ -43,3 +43,14 @@ sample size are explicit. Every run is replayed twice with fresh workflows.
 Training and validation failures remain in the result with their window index,
 stage, code, and reason; aggregate metrics separately report failed windows and
 failed validation outcomes so neither can disappear inside successful totals.
+
+Strict out-of-sample validation is a separate two-step boundary. A candidate can
+be frozen only after its experiment reaches `VALIDATION_PASSED`, after the
+validation interval ends, and before the OOS interval starts. The freeze pins
+the candidate parameters, experiment hash, predeclared gates, OOS interval, and
+exact dataset record and byte hashes. Validation later exposes only bars inside
+that interval to a fresh evaluator, repeats the evaluation, and fails closed on
+changed data, insufficient samples, invalid metrics, evaluator errors, or
+non-determinism. Reports include pass/fail, every blocking gate, exact metrics,
+drawdown, and trade count. Confidence intervals are explicitly marked as not
+implemented rather than estimated without a safe statistical contract.

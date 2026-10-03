@@ -58,6 +58,20 @@ from .walk_forward import (
     WalkForwardWindowStatus,
     generate_walk_forward_windows,
 )
+from .oos_validator import (
+    FrozenOosCandidate,
+    OosCandidateFreezeError,
+    OosDataError,
+    OosDeterminismError,
+    OosEvaluationContext,
+    OosEvaluationError,
+    OosMetrics,
+    OosOutcome,
+    OosValidationError,
+    OosValidationResult,
+    OosValidationRules,
+    OutOfSampleValidator,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -110,4 +124,16 @@ __all__ = [
     "WalkForwardWindowResult",
     "WalkForwardWindowStatus",
     "generate_walk_forward_windows",
+    "FrozenOosCandidate",
+    "OosCandidateFreezeError",
+    "OosDataError",
+    "OosDeterminismError",
+    "OosEvaluationContext",
+    "OosEvaluationError",
+    "OosMetrics",
+    "OosOutcome",
+    "OosValidationError",
+    "OosValidationResult",
+    "OosValidationRules",
+    "OutOfSampleValidator",
 ]
