@@ -32,3 +32,12 @@ output "database" {
     contract    = module.database.contract
   }
 }
+
+output "secret_references" {
+  description = "Opaque staging secret references and reader policies; no values."
+  value = {
+    secret_arns        = module.secrets.secret_arns
+    reader_policy_arns = module.secrets.reader_policy_arns
+    rotation_contract  = module.secrets.rotation_contract
+  }
+}

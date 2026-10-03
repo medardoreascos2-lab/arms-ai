@@ -34,3 +34,12 @@ module "database" {
   max_connections           = var.database_max_connections
   tags                      = local.required_tags
 }
+
+module "secrets" {
+  source = "./modules/secrets"
+
+  name_prefix        = local.name_prefix
+  environment        = var.environment
+  rotation_lambda_arn = var.rotation_hook_arn
+  tags               = local.required_tags
+}

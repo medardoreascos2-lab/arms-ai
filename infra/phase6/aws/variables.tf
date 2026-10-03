@@ -111,3 +111,10 @@ variable "database_max_connections" {
   type    = number
   default = 100
 }
+
+variable "rotation_hook_arn" {
+  description = "Optional approved rotation Lambda ARN; null leaves hooks unbound."
+  type        = string
+  default     = null
+  nullable    = true
+}
