@@ -63,3 +63,29 @@ variable "additional_tags" {
     error_message = "additional_tags cannot override protected governance tags."
   }
 }
+
+variable "vpc_cidr" {
+  description = "Private staging network CIDR."
+  type        = string
+  default     = "10.86.0.0/16"
+}
+
+variable "allowed_ingress_cidrs" {
+  description = "Operator-approved HTTPS source ranges; empty by default."
+  type        = set(string)
+  default     = []
+}
+
+variable "staging_hostname" {
+  description = "Approved staging DNS placeholder. No record is created in R71B."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "certificate_arn" {
+  description = "Approved ACM certificate placeholder. No listener is created in R71B."
+  type        = string
+  default     = null
+  nullable    = true
+}
