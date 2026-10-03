@@ -100,3 +100,19 @@ must deduplicate by the stable event ID or dedupe key. Shutdown prevents new
 claims. Time, lease tokens, and delivery are injected for deterministic tests.
 The module includes no Telegram, HTTP, broker, order, or other production
 transport and grants no execution or external-delivery authority.
+
+R32L composes the read-only operational path for one source-account snapshot.
+It validates freshness and sequencing, checks every required account,
+evaluation, portfolio, journal, and notification read permission before an
+operational write, resolves the exact current canonical prop-firm profile, and
+then appends the snapshot and its evaluation evidence. The same immutable
+snapshot feeds the Phase 2 multi-account evaluator, portfolio analytics, and
+journal analytics. Deterministic risk, failure, and payout events are queued in
+the local outbox and each completed stage is appended to the audit log.
+Rejections and authorization denials may append audit evidence, while creating
+no account, snapshot, evaluation, or outbox row. Exact retries reuse stable
+snapshot, evaluation, notification, and audit identities. “Read-only” refers
+to broker and source-account behavior: the isolated Phase 3 evidence store is
+append-only by design. The composition imports no broker or external delivery
+adapter and exposes no execution, production mutation, source-account mutation,
+or external-delivery authority.

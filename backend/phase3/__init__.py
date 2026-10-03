@@ -58,6 +58,13 @@ from .worker import (
     WorkerStepResult,
     WorkerStepStatus,
 )
+from .runtime import (
+    Phase3ReadOnlyRuntime,
+    ReadOnlyRuntimeRequest,
+    ReadOnlyRuntimeResult,
+    RuntimeCompositionError,
+    RuntimeStatus,
+)
 from .evaluation_repository import (
     EVALUATION_SERIALIZATION_FORMAT,
     EvaluationAppendResult,
@@ -153,6 +160,11 @@ __all__ = [
     "WorkerLeaseLostError",
     "WorkerStepResult",
     "WorkerStepStatus",
+    "Phase3ReadOnlyRuntime",
+    "ReadOnlyRuntimeRequest",
+    "ReadOnlyRuntimeResult",
+    "RuntimeCompositionError",
+    "RuntimeStatus",
     "AUDIT_SERIALIZATION_FORMAT",
     "AuditEvent",
     "AuditEventKind",
