@@ -148,10 +148,13 @@ from .state_contracts import (
     UserIdentity,
 )
 from .research_api import ResearchApiSources, create_phase3_research_router
+from .status_api import Phase3StatusSources, create_phase3_status_router
 
 __all__ = [
     "ResearchApiSources",
     "create_phase3_research_router",
+    "Phase3StatusSources",
+    "create_phase3_status_router",
     "OUTBOX_SERIALIZATION_FORMAT",
     "DurableOutbox",
     "OutboxConflictError",

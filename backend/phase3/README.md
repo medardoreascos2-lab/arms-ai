@@ -135,3 +135,9 @@ experiments, challengers, reports, and promotion reviews. Read models are
 injected, copied into detached JSON payloads, and fail with a read-only 503 when
 unavailable. The router is deliberately not mounted into the frozen V8 app and
 contains no mutation, execution, or production promotion endpoint.
+
+R34B composes runtime, snapshot-ingestion, evaluation, outbox, worker, and
+research-queue health through one standalone GET-only status route. All six
+injected readers must succeed before a detached JSON snapshot is returned; any
+missing or invalid component fails the entire read with 503. The route is not
+mounted into frozen V8 and grants no execution or production mutation authority.
