@@ -23,6 +23,11 @@ from .encrypted_backup import (
     serialize_staging_backup_payload,
     validate_staging_restore,
 )
+from .package_verification import (
+    StagingPackageVerificationError,
+    StagingPackageVerificationReport,
+    verify_reconstructable_staging_package,
+)
 
 __all__ = [
     "STATIC_SCAN_CHECKS",
@@ -37,10 +42,13 @@ __all__ = [
     "StagingBackupEncryptionError",
     "StagingBackupPayload",
     "StagingRestorePolicy",
+    "StagingPackageVerificationError",
+    "StagingPackageVerificationReport",
     "create_encrypted_staging_backup",
     "deserialize_staging_backup_payload",
     "open_encrypted_staging_backup",
     "serialize_staging_backup_payload",
     "scan_staging_package",
     "validate_staging_restore",
+    "verify_reconstructable_staging_package",
 ]
