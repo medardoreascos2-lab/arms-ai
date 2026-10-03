@@ -25,7 +25,7 @@ The static, balance-based, and equity-based models differ by the permitted compa
 
 Daily loss used is `max(0, -daily_pnl)`; zero remaining breaches. Open contract count may equal the cap (zero new capacity), while an existing count above the cap breaches. An optional traded contract cap checks cumulative traded contracts from the snapshot.
 
-Consistency is the configured best-day profit divided by either total profit or realized PnL. Its denominator must be positive and at least the configured minimum. The fraction breaches only when above the configured maximum. Disabled policies have no effect.
+Consistency is the configured best-day profit divided by either total profit or realized PnL. Its denominator must be positive and at least the configured minimum. A policy explicitly chooses whether equality at the configured maximum passes or breaches. Disabled policies have no effect.
 
 Account evaluation aggregates active drawdown, daily loss, contract, consistency, minimum trading days, and profit-target conditions. Payout evaluation includes account conditions plus the configured payout gates. The requested payout must not exceed available profit. Minimum balance and drawdown buffer are checked *after* subtracting the requested amount; the buffer uses the drawdown comparison basis. A prior payout cooldown requires an explicit count and, when count is positive, the last payout time. No payout state is changed.
 
@@ -45,6 +45,8 @@ For weighted exposure, the profile contains a maximum in `Decimal` units, instru
 
 A payout-cycle snapshot carries cycle identity, prior payout count and time, profits and days since the previous payout, cycle start, cumulative withdrawals, and optional requested amount. The payout policy can set minimum winning/trading days, minimum cycle profit, minimum request, balance or available-profit percentage basis, fixed caps, buffer, waiting period, and sorted payout-count tiers. Consistency can be configured for stage, payout cycle, or both. The engine only evaluates supplied cycle facts. **NO PAYOUT ACTION, NO ACCOUNT MUTATION, NO CYCLE MUTATION.**
 
+V2 profiles may also define scaling tiers resolved from the supplied prior end-of-day balance. A resolved tier can override the active exposure cap and daily loss limit. Evaluation access periods require an explicit account start time. Rolling inactivity rules require an exact caller-supplied window, qualifying-day count, and profit threshold once the first window matures. Payout rules may require qualifying days at an exact threshold and cap the number of prior payouts. Missing or mismatched lifecycle evidence fails closed; the engine never derives it from trades.
+
 Profiles can include immutable source evidence with URL, title, retrieval time in UTC, optional effective dates, heading, normalized hash, and temporary-review markers. Review status is `CURRENT_VERIFIED`, `STALE_REVIEW_REQUIRED`, `SOURCE_CONFLICT`, `SOURCE_UNAVAILABLE`, or `INCOMPLETE`. An explicit review deadline can make a current review stale at evaluation time; age alone does not. Callers can require verified-current sources. Conflicting, unavailable, or incomplete sources always fail closed. Source metadata and all extension policies participate in the profile's configuration hash.
 
 The package performs no network, database, broker, order, position, PAPER, LIVE, or payout action. Source verification, account snapshot reconstruction, and execution authorization belong to separate components.
@@ -56,3 +58,11 @@ The package performs no network, database, broker, order, position, PAPER, LIVE,
 Express Funded Account Standard and Consistency profiles are deliberately `INCOMPLETE`. They model the zero starting balance, end-of-day maximum loss behavior, post-first-payout zero floor, optional daily loss limit, payout cycles, payout caps, 50% balance cap, minimum payout, and 40% consistency path where applicable. The official scaling table is image-only in the reviewed source, so contract evaluation always returns `SCALING_PLAN_TIER_DATA_UNAVAILABLE` and blocks trading and payout eligibility. The engine does not guess or transcribe the missing tiers.
 
 Live Funded and Pro Account are separate support records with explicit unsupported reasons. They do not create evaluable profiles. The limited-time doubled payout-cap variant is opt-in, marks its evidence as temporary and review-required, and has a one-day source review deadline.
+
+## Apex profiles (R24C)
+
+`apex_profiles.py` models the current EOD Drawdown and Intraday Trailing products introduced on 2026-03-01. Evaluation profiles cover 25K, 50K, 100K, and 150K sizes, published targets and drawdowns, 30-day access, fixed 10:1 mini/micro exposure limits, the EOD daily session loss limit, and the absence of that limit in Intraday evaluations. Rithmic and WealthCharts evaluation floors cap at the target balance; Tradovate remains uncapped as documented. Contract excess blocks trading without marking an account failure.
+
+Performance profiles model dynamic contract and daily-loss tiers from prior EOD balance, the starting-balance-plus-$100 drawdown cap, the rolling 30-day activity requirement, five payout-qualifying days, strict-under-50% payout consistency, the $500 minimum, safety-net balance, six-payout maximum, and payout-number caps. The 50K performance profiles are `SOURCE_CONFLICT` and therefore fail closed because the official scaling and daily-loss pages disagree at the 5,999/6,000 boundary. No value is silently chosen to authorize activity.
+
+Legacy products remain a separate, unimplemented support record. Current-product profiles never stand in for legacy accounts. All Apex outcomes remain read-only policy evaluations and provide no trading or payout side effect.

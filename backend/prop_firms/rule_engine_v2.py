@@ -171,9 +171,13 @@ def evaluate_drawdown_v2(profile: PropFirmProfile, snapshot: AccountSnapshot) ->
     return DrawdownResultV2(floor, phase, remaining, breached, outcome)
 
 
-def _daily_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> RuleOutcome:
+def _daily_outcome(
+    profile: PropFirmProfile, snapshot: AccountSnapshot,
+    limit_override: Decimal | None = None,
+) -> RuleOutcome:
     policy = profile.daily_loss
-    if policy.limit is None:
+    limit = limit_override if limit_override is not None else policy.limit
+    if limit is None:
         return _out("daily_loss", RuleScope.TRADING, RuleStatus.NOT_APPLICABLE,
                     "DAILY_LOSS_NOT_APPLICABLE")
     if snapshot.daily_pnl is None:
@@ -204,9 +208,9 @@ def _daily_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> RuleO
             return RuleOutcome("daily_loss", RuleScope.TRADING, RuleStatus.SESSION_BLOCKED,
                                "PRIOR_SESSION_BLOCK_ACTIVE", (), boundary)
     used = max(Decimal("0"), -snapshot.daily_pnl)
-    if used < policy.limit:
+    if used < limit:
         return _out("daily_loss", RuleScope.TRADING, RuleStatus.PASS, "DAILY_LOSS_PASS",
-                    used=used, remaining=policy.limit - used)
+                    used=used, remaining=limit - used)
     mapping = {
         DailyLossEnforcement.SESSION_BLOCK: (RuleScope.TRADING, RuleStatus.SESSION_BLOCKED),
         DailyLossEnforcement.ACCOUNT_FAIL: (RuleScope.ACCOUNT, RuleStatus.ACCOUNT_FAILED),
@@ -215,14 +219,17 @@ def _daily_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> RuleO
     }
     scope, status = mapping[policy.enforcement]
     outcome = _out("daily_loss", scope, status, "DAILY_LOSS_LIMIT_BREACHED",
-                   used=used, remaining=policy.limit - used)
+                   used=used, remaining=limit - used)
     if status == RuleStatus.SESSION_BLOCKED:
         return RuleOutcome(outcome.rule_id, outcome.scope, outcome.status, outcome.reason,
                            outcome.evidence, boundary)
     return outcome
 
 
-def _contract_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> tuple[RuleOutcome, dict]:
+def _contract_outcome(
+    profile: PropFirmProfile, snapshot: AccountSnapshot,
+    maximum_units_override: Decimal | None = None,
+) -> tuple[RuleOutcome, dict]:
     policy = profile.contract_limit
     metrics: dict = {}
     if policy.unavailable_reason is not None:
@@ -266,13 +273,41 @@ def _contract_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> tu
             return _out("contracts", RuleScope.TRADING, RuleStatus.INCOMPLETE_DATA,
                         "UNSUPPORTED_EXPOSURE_MAPPING", instrument=position.instrument), metrics
         total += weight * position.quantity
+    maximum_units = maximum_units_override if maximum_units_override is not None else weighted.maximum_units
     metrics["weighted_exposure_total"] = total
-    metrics["remaining_exposure_capacity"] = weighted.maximum_units - total
-    if total > weighted.maximum_units:
+    metrics["remaining_exposure_capacity"] = maximum_units - total
+    if total > maximum_units:
         return _contract_breach(policy, metrics, "WEIGHTED_EXPOSURE_LIMIT_BREACHED")
     if breach_reason is not None:
         return _contract_breach(policy, metrics, breach_reason)
     return _out("contracts", RuleScope.TRADING, RuleStatus.PASS, "CONTRACT_LIMIT_PASS"), metrics
+
+
+def _scaling_outcome(
+    profile: PropFirmProfile, snapshot: AccountSnapshot,
+) -> tuple[RuleOutcome, Decimal | None, Decimal | None, dict]:
+    policy = profile.scaling
+    if policy is None:
+        return (_out("scaling", RuleScope.TRADING, RuleStatus.NOT_APPLICABLE,
+                     "SCALING_NOT_APPLICABLE"), None, None, {})
+    if snapshot.prior_end_of_day_balance is None:
+        return (_out("scaling", RuleScope.TRADING, RuleStatus.INCOMPLETE_DATA,
+                     "MISSING_PRIOR_END_OF_DAY_BALANCE"), None, None, {})
+    profit = snapshot.prior_end_of_day_balance - profile.starting_balance
+    tier = policy.tiers[0]
+    for candidate in policy.tiers:
+        if profit >= candidate.minimum_profit:
+            tier = candidate
+        else:
+            break
+    metrics = {
+        "active_scaling_tier": tier.name,
+        "scaling_profit": profit,
+        "active_maximum_units": tier.maximum_units,
+        "active_daily_loss_limit": tier.daily_loss_limit,
+    }
+    return (_out("scaling", RuleScope.TRADING, RuleStatus.PASS, "SCALING_TIER_RESOLVED",
+                 tier=tier.name, profit=profit), tier.maximum_units, tier.daily_loss_limit, metrics)
 
 
 def _contract_breach(policy, metrics: dict, reason: str) -> tuple[RuleOutcome, dict]:
@@ -284,6 +319,63 @@ def _contract_breach(policy, metrics: dict, reason: str) -> tuple[RuleOutcome, d
     }
     scope, status = mapping[policy.breach_enforcement]
     return _out("contracts", scope, status, reason), metrics
+
+
+def _access_period_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> RuleOutcome:
+    if profile.maximum_access_days is None:
+        return _out("access_period", RuleScope.ACCOUNT, RuleStatus.NOT_APPLICABLE,
+                    "ACCESS_PERIOD_NOT_APPLICABLE")
+    if snapshot.account_started_at is None:
+        return _out("access_period", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "MISSING_ACCOUNT_START_TIME")
+    if snapshot.as_of is None:
+        return _out("access_period", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "MISSING_SNAPSHOT_TIME")
+    if snapshot.account_started_at > snapshot.as_of:
+        return _out("access_period", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "INVALID_ACCOUNT_START_TIME")
+    expires_at = snapshot.account_started_at + timedelta(days=profile.maximum_access_days)
+    if snapshot.as_of >= expires_at:
+        return RuleOutcome("access_period", RuleScope.ACCOUNT, RuleStatus.ACCOUNT_FAILED,
+                           "ACCOUNT_ACCESS_PERIOD_EXPIRED", (), expires_at)
+    return _out("access_period", RuleScope.ACCOUNT, RuleStatus.PASS,
+                "ACCOUNT_ACCESS_PERIOD_PASS")
+
+
+def _inactivity_outcome(profile: PropFirmProfile, snapshot: AccountSnapshot) -> RuleOutcome:
+    policy = profile.inactivity
+    if policy is None:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.NOT_APPLICABLE,
+                    "INACTIVITY_NOT_APPLICABLE")
+    if snapshot.account_started_at is None:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "MISSING_ACCOUNT_START_TIME")
+    if snapshot.as_of is None:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "MISSING_SNAPSHOT_TIME")
+    if snapshot.account_started_at > snapshot.as_of:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "INVALID_ACCOUNT_START_TIME")
+    if snapshot.as_of < snapshot.account_started_at + timedelta(days=policy.window_calendar_days):
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.PASS,
+                    "INACTIVITY_WINDOW_NOT_MATURE")
+    if snapshot.activity_window_days is None or snapshot.qualifying_activity_days is None:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "MISSING_ACTIVITY_WINDOW_DATA")
+    if snapshot.activity_window_days != policy.window_calendar_days:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "ACTIVITY_WINDOW_MISMATCH")
+    if snapshot.activity_day_profit_threshold is None:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "MISSING_ACTIVITY_PROFIT_THRESHOLD")
+    if snapshot.activity_day_profit_threshold != policy.minimum_day_profit:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
+                    "ACTIVITY_PROFIT_THRESHOLD_MISMATCH")
+    if snapshot.qualifying_activity_days < policy.minimum_qualifying_days:
+        return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.ACCOUNT_FAILED,
+                    "INACTIVITY_REQUIREMENT_BREACHED")
+    return _out("inactivity", RuleScope.ACCOUNT, RuleStatus.PASS,
+                "INACTIVITY_REQUIREMENT_PASS")
 
 
 def _aggregate(profile: PropFirmProfile, outcomes: list[RuleOutcome], metrics: dict,
@@ -379,13 +471,18 @@ def evaluate_account_v2(
     elif require_current_sources:
         outcomes.append(_out("source_review", RuleScope.ACCOUNT, RuleStatus.INCOMPLETE_DATA,
                              "MISSING_SOURCE_REVIEW"))
+    outcomes.append(_access_period_outcome(profile, snapshot))
+    outcomes.append(_inactivity_outcome(profile, snapshot))
     drawdown = evaluate_drawdown_v2(profile, snapshot)
     outcomes.append(drawdown.outcome)
     metrics.update(effective_drawdown_floor=drawdown.effective_drawdown_floor,
                    drawdown_model_phase=drawdown.drawdown_model_phase,
                    remaining_drawdown=drawdown.remaining_drawdown)
-    outcomes.append(_daily_outcome(profile, snapshot))
-    contract, contract_metrics = _contract_outcome(profile, snapshot)
+    scaling, maximum_units, daily_loss_limit, scaling_metrics = _scaling_outcome(profile, snapshot)
+    outcomes.append(scaling)
+    metrics.update(scaling_metrics)
+    outcomes.append(_daily_outcome(profile, snapshot, daily_loss_limit))
+    contract, contract_metrics = _contract_outcome(profile, snapshot, maximum_units)
     outcomes.append(contract)
     metrics.update(contract_metrics)
     consistency = (evaluate_consistency(profile, snapshot)
@@ -443,8 +540,9 @@ def evaluate_payout_v2(
 
     cycle_required = any((
         policy.minimum_winning_days_per_cycle, policy.minimum_trading_days_per_cycle,
+        policy.minimum_qualifying_days_per_cycle,
         policy.minimum_profit_since_last_payout is not None, policy.consistency_per_cycle,
-        bool(policy.tiers),
+        bool(policy.tiers), policy.maximum_payout_count is not None,
     ))
     cycle = snapshot.payout_cycle
     if cycle_required and cycle is None:
@@ -477,6 +575,13 @@ def evaluate_payout_v2(
                                  "PAYOUT_MINIMUM_TRADING_DAYS_NOT_MET"))
 
     if cycle is not None:
+        if policy.maximum_payout_count is not None:
+            if cycle.payout_count is None:
+                outcomes.append(_out("payout_count", RuleScope.PAYOUT, RuleStatus.INCOMPLETE_DATA,
+                                     "MISSING_PAYOUT_COUNT"))
+            elif cycle.payout_count >= policy.maximum_payout_count:
+                outcomes.append(_out("payout_count", RuleScope.PAYOUT, RuleStatus.OBJECTIVE_PENDING,
+                                     "PAYOUT_COUNT_LIMIT_REACHED"))
         if policy.minimum_trading_days_per_cycle:
             if cycle.trading_days_since_last_payout is None:
                 outcomes.append(_out("payout_cycle_days", RuleScope.PAYOUT, RuleStatus.INCOMPLETE_DATA,
@@ -491,6 +596,22 @@ def evaluate_payout_v2(
             elif cycle.winning_days_since_last_payout < policy.minimum_winning_days_per_cycle:
                 outcomes.append(_out("payout_cycle_wins", RuleScope.PAYOUT, RuleStatus.OBJECTIVE_PENDING,
                                      "PAYOUT_CYCLE_WINNING_DAYS_NOT_MET"))
+        if policy.minimum_qualifying_days_per_cycle:
+            if cycle.qualifying_days_since_last_payout is None:
+                outcomes.append(_out("payout_cycle_qualifying_days", RuleScope.PAYOUT,
+                                     RuleStatus.INCOMPLETE_DATA, "MISSING_CYCLE_QUALIFYING_DAYS"))
+            elif cycle.qualifying_day_profit_threshold is None:
+                outcomes.append(_out("payout_cycle_qualifying_days", RuleScope.PAYOUT,
+                                     RuleStatus.INCOMPLETE_DATA,
+                                     "MISSING_CYCLE_QUALIFYING_DAY_THRESHOLD"))
+            elif cycle.qualifying_day_profit_threshold != policy.minimum_qualifying_day_profit:
+                outcomes.append(_out("payout_cycle_qualifying_days", RuleScope.PAYOUT,
+                                     RuleStatus.INCOMPLETE_DATA,
+                                     "CYCLE_QUALIFYING_DAY_THRESHOLD_MISMATCH"))
+            elif cycle.qualifying_days_since_last_payout < policy.minimum_qualifying_days_per_cycle:
+                outcomes.append(_out("payout_cycle_qualifying_days", RuleScope.PAYOUT,
+                                     RuleStatus.OBJECTIVE_PENDING,
+                                     "PAYOUT_CYCLE_QUALIFYING_DAYS_NOT_MET"))
         if policy.minimum_profit_since_last_payout is not None:
             if cycle.profit_since_last_payout is None:
                 outcomes.append(_out("payout_cycle_profit", RuleScope.PAYOUT, RuleStatus.INCOMPLETE_DATA,
@@ -516,7 +637,12 @@ def evaluate_payout_v2(
             else:
                 fraction = cycle.best_day_profit_since_last_payout / cycle.profit_since_last_payout
                 metrics["cycle_best_day_fraction"] = fraction
-                if fraction > profile.consistency.maximum_best_day_fraction:
+                breached = (
+                    fraction > profile.consistency.maximum_best_day_fraction
+                    if profile.consistency.maximum_is_inclusive
+                    else fraction >= profile.consistency.maximum_best_day_fraction
+                )
+                if breached:
                     outcomes.append(_out("payout_cycle_consistency", RuleScope.PAYOUT,
                                          RuleStatus.OBJECTIVE_PENDING,
                                          "PAYOUT_CYCLE_CONSISTENCY_NOT_MET"))

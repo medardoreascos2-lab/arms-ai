@@ -150,10 +150,12 @@ def evaluate_consistency(profile: PropFirmProfile, snapshot: AccountSnapshot) ->
     if snapshot.best_day_profit < 0:
         return ConsistencyEvaluation(None, basis, True, "INVALID_BEST_DAY_PROFIT")
     fraction = snapshot.best_day_profit / basis
+    breached = (fraction > policy.maximum_best_day_fraction
+                if policy.maximum_is_inclusive
+                else fraction >= policy.maximum_best_day_fraction)
     return ConsistencyEvaluation(fraction, basis,
-                                 fraction > policy.maximum_best_day_fraction,
-                                 "CONSISTENCY_LIMIT_BREACHED" if fraction > policy.maximum_best_day_fraction
-                                 else None)
+                                 breached,
+                                 "CONSISTENCY_LIMIT_BREACHED" if breached else None)
 
 
 def _profile_reasons(profile: PropFirmProfile, snapshot: AccountSnapshot) -> list[str]:
@@ -202,9 +204,15 @@ def _requires_v2(profile: PropFirmProfile) -> bool:
         or profile.contract_limit.maximum_open is None
         or profile.contract_limit.unavailable_reason is not None
         or profile.contract_limit.breach_enforcement != ContractLimitEnforcement.ACCOUNT_FAIL
+        or profile.scaling is not None or profile.inactivity is not None
+        or profile.maximum_access_days is not None
+        or not profile.consistency.maximum_is_inclusive
         or payout.minimum_winning_days_per_cycle or payout.minimum_trading_days_per_cycle
+        or payout.minimum_qualifying_days_per_cycle
+        or payout.minimum_qualifying_day_profit is not None
         or payout.minimum_profit_since_last_payout is not None
         or payout.minimum_payout_amount is not None
+        or payout.maximum_payout_count is not None
         or payout.maximum_fraction_basis.value != "AVAILABLE_PROFIT"
         or payout.tiers or payout.consistency_per_cycle
         or not payout.require_session_clear

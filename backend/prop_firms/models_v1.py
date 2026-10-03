@@ -13,6 +13,7 @@ import json
 class AccountStage(str, Enum):
     EVALUATION = "EVALUATION"
     FUNDED = "FUNDED"
+    PERFORMANCE = "PERFORMANCE"
     EXPRESS = "EXPRESS"
     PRO = "PRO"
     LIVE = "LIVE"
@@ -287,15 +288,23 @@ class PayoutCycleSnapshot:
     withdrawals_total: Decimal | None = None
     requested_payout_amount: Decimal | None = None
     best_day_profit_since_last_payout: Decimal | None = None
+    qualifying_days_since_last_payout: int | None = None
+    qualifying_day_profit_threshold: Decimal | None = None
 
     def __post_init__(self) -> None:
         if self.cycle_id is not None and (not isinstance(self.cycle_id, str) or not self.cycle_id.strip()):
             raise ValueError("cycle_id must be a nonempty string")
-        for name in ("payout_count", "winning_days_since_last_payout", "trading_days_since_last_payout"):
+        for name in (
+            "payout_count", "winning_days_since_last_payout", "trading_days_since_last_payout",
+            "qualifying_days_since_last_payout",
+        ):
             _nonnegative(getattr(self, name), name)
         for name in ("profit_since_last_payout", "withdrawals_total",
-                     "requested_payout_amount", "best_day_profit_since_last_payout"):
+                     "requested_payout_amount", "best_day_profit_since_last_payout",
+                     "qualifying_day_profit_threshold"):
             _money(getattr(self, name), name)
+        if self.qualifying_day_profit_threshold is not None and self.qualifying_day_profit_threshold <= 0:
+            raise ValueError("qualifying_day_profit_threshold must be positive")
         _aware(self.last_payout_at, "last_payout_at")
         _aware(self.current_cycle_start, "current_cycle_start")
 
@@ -389,6 +398,51 @@ class ContractLimitPolicy:
 
 
 @dataclass(frozen=True)
+class ScalingTier:
+    name: str
+    minimum_profit: Decimal
+    maximum_units: Decimal
+    daily_loss_limit: Decimal
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("scaling tier name is required")
+        _money(self.minimum_profit, "minimum_profit")
+        _money(self.maximum_units, "maximum_units", positive=True)
+        _money(self.daily_loss_limit, "daily_loss_limit", positive=True)
+        if self.minimum_profit is None or self.minimum_profit < 0:
+            raise ValueError("minimum_profit must be nonnegative")
+
+
+@dataclass(frozen=True)
+class ScalingPolicy:
+    tiers: tuple[ScalingTier, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.tiers, tuple) or not self.tiers:
+            raise ValueError("scaling policy requires immutable tiers")
+        if any(not isinstance(tier, ScalingTier) for tier in self.tiers):
+            raise ValueError("invalid scaling tier")
+        minimums = [tier.minimum_profit for tier in self.tiers]
+        if minimums[0] != 0 or minimums != sorted(minimums) or len(minimums) != len(set(minimums)):
+            raise ValueError("scaling tiers must start at zero with unique ascending thresholds")
+
+
+@dataclass(frozen=True)
+class InactivityPolicy:
+    window_calendar_days: int
+    minimum_qualifying_days: int
+    minimum_day_profit: Decimal
+
+    def __post_init__(self) -> None:
+        _nonnegative(self.window_calendar_days, "window_calendar_days")
+        _nonnegative(self.minimum_qualifying_days, "minimum_qualifying_days")
+        _money(self.minimum_day_profit, "minimum_day_profit", positive=True)
+        if self.window_calendar_days == 0 or self.minimum_qualifying_days == 0:
+            raise ValueError("inactivity policy values must be positive")
+
+
+@dataclass(frozen=True)
 class TradingDayPolicy:
     minimum_days: int = 0
 
@@ -403,9 +457,11 @@ class ConsistencyPolicy:
     minimum_profit_basis: Decimal | None = None
     calculation_mode: ConsistencyMode | None = None
     application: ConsistencyApplication = ConsistencyApplication.STAGE
+    maximum_is_inclusive: bool = True
 
     def __post_init__(self) -> None:
         _bool(self.enabled, "consistency enabled")
+        _bool(self.maximum_is_inclusive, "maximum_is_inclusive")
         if self.calculation_mode is not None and not isinstance(self.calculation_mode, ConsistencyMode):
             raise ValueError("calculation_mode must be a ConsistencyMode")
         if not isinstance(self.application, ConsistencyApplication):
@@ -440,8 +496,11 @@ class PayoutPolicy:
     minimum_days_since_prior_payout: int = 0
     minimum_winning_days_per_cycle: int = 0
     minimum_trading_days_per_cycle: int = 0
+    minimum_qualifying_days_per_cycle: int = 0
+    minimum_qualifying_day_profit: Decimal | None = None
     minimum_profit_since_last_payout: Decimal | None = None
     minimum_payout_amount: Decimal | None = None
+    maximum_payout_count: int | None = None
     maximum_fraction_basis: PayoutFractionBasis = PayoutFractionBasis.AVAILABLE_PROFIT
     tiers: tuple[PayoutTier, ...] = ()
     consistency_per_cycle: bool = False
@@ -454,6 +513,10 @@ class PayoutPolicy:
         _nonnegative(self.minimum_days_since_prior_payout, "minimum_days_since_prior_payout")
         _nonnegative(self.minimum_winning_days_per_cycle, "minimum_winning_days_per_cycle")
         _nonnegative(self.minimum_trading_days_per_cycle, "minimum_trading_days_per_cycle")
+        _nonnegative(self.minimum_qualifying_days_per_cycle, "minimum_qualifying_days_per_cycle")
+        _nonnegative(self.maximum_payout_count, "maximum_payout_count")
+        if self.maximum_payout_count == 0:
+            raise ValueError("maximum_payout_count must be positive")
         if not isinstance(self.maximum_fraction_basis, PayoutFractionBasis):
             raise ValueError("invalid maximum_fraction_basis")
         if not isinstance(self.tiers, tuple) or any(not isinstance(t, PayoutTier) for t in self.tiers):
@@ -461,10 +524,17 @@ class PayoutPolicy:
         counts = [t.from_payout_count for t in self.tiers]
         if len(counts) != len(set(counts)) or counts != sorted(counts):
             raise ValueError("payout tiers must be unique and sorted")
-        for name in ("minimum_profit_since_last_payout", "minimum_payout_amount"):
+        for name in (
+            "minimum_profit_since_last_payout", "minimum_payout_amount",
+            "minimum_qualifying_day_profit",
+        ):
             value = getattr(self, name)
             if value is not None:
                 _money(value, name, positive=True)
+        if (self.minimum_qualifying_days_per_cycle == 0) != (
+            self.minimum_qualifying_day_profit is None
+        ):
+            raise ValueError("qualifying payout days require both count and profit threshold")
         for name in ("minimum_buffer", "minimum_balance", "minimum_profit", "maximum_payout_amount"):
             _money(getattr(self, name), name)
         if any(getattr(self, name) is not None and getattr(self, name) < 0 for name in (
@@ -482,7 +552,10 @@ class PayoutPolicy:
             self.maximum_payout_amount is not None, self.maximum_payout_fraction is not None,
             self.consistency_required, self.minimum_days_since_prior_payout,
             self.minimum_winning_days_per_cycle, self.minimum_trading_days_per_cycle,
+            self.minimum_qualifying_days_per_cycle,
+            self.minimum_qualifying_day_profit is not None,
             self.minimum_profit_since_last_payout is not None, self.minimum_payout_amount is not None,
+            self.maximum_payout_count is not None,
             self.maximum_fraction_basis != PayoutFractionBasis.AVAILABLE_PROFIT,
             bool(self.tiers), self.consistency_per_cycle, not self.require_session_clear
         )):
@@ -523,6 +596,9 @@ class PropFirmProfile:
     source_reference: str | None = None
     allow_zero_starting_balance: bool = False
     source_review: SourceReview | None = None
+    scaling: ScalingPolicy | None = None
+    inactivity: InactivityPolicy | None = None
+    maximum_access_days: int | None = None
     config_hash: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -553,6 +629,21 @@ class PropFirmProfile:
             raise ValueError("starting_balance must be nonnegative")
         if self.source_review is not None and not isinstance(self.source_review, SourceReview):
             raise ValueError("invalid source_review")
+        if self.scaling is not None and not isinstance(self.scaling, ScalingPolicy):
+            raise ValueError("invalid scaling policy")
+        if self.scaling is not None:
+            weighted = self.contract_limit.weighted_exposure
+            if weighted is None:
+                raise ValueError("scaling requires weighted exposure limits")
+            if self.daily_loss.enforcement == DailyLossEnforcement.NOT_APPLICABLE:
+                raise ValueError("scaling requires active daily loss enforcement")
+            if any(tier.maximum_units > weighted.maximum_units for tier in self.scaling.tiers):
+                raise ValueError("scaling tier exceeds configured exposure ceiling")
+        if self.inactivity is not None and not isinstance(self.inactivity, InactivityPolicy):
+            raise ValueError("invalid inactivity policy")
+        _nonnegative(self.maximum_access_days, "maximum_access_days")
+        if self.maximum_access_days == 0:
+            raise ValueError("maximum_access_days must be positive")
         if self.profit_target is not None:
             _money(self.profit_target, "profit_target", positive=True)
         payload = json.dumps(_canonical(self), sort_keys=True, separators=(",", ":"))
@@ -601,6 +692,7 @@ class AccountProgram:
 @dataclass(frozen=True)
 class AccountSnapshot:
     as_of: datetime | None = None
+    account_started_at: datetime | None = None
     stage: AccountStage | None = None
     starting_balance: Decimal | None = None
     current_balance: Decimal | None = None
@@ -611,6 +703,7 @@ class AccountSnapshot:
     highest_balance: Decimal | None = None
     highest_equity: Decimal | None = None
     highest_end_of_day_balance: Decimal | None = None
+    prior_end_of_day_balance: Decimal | None = None
     contracts_open: int | None = None
     contracts_traded: int | None = None
     trading_days: int | None = None
@@ -629,9 +722,13 @@ class AccountSnapshot:
     prior_account_failed: bool | None = None
     exposures: tuple[ExposurePosition, ...] | None = None
     payout_cycle: PayoutCycleSnapshot | None = None
+    activity_window_days: int | None = None
+    qualifying_activity_days: int | None = None
+    activity_day_profit_threshold: Decimal | None = None
 
     def __post_init__(self) -> None:
         _aware(self.as_of, "as_of")
+        _aware(self.account_started_at, "account_started_at")
         _aware(self.last_payout_at, "last_payout_at")
         _aware(self.session_ends_at, "session_ends_at")
         _aware(self.trading_day_ends_at, "trading_day_ends_at")
@@ -648,14 +745,20 @@ class AccountSnapshot:
             raise ValueError("invalid payout_cycle")
         if self.stage is not None and not isinstance(self.stage, AccountStage):
             raise ValueError("stage must be an AccountStage")
-        for name in ("contracts_open", "contracts_traded", "trading_days", "prior_payout_count"):
+        for name in (
+            "contracts_open", "contracts_traded", "trading_days", "prior_payout_count",
+            "activity_window_days", "qualifying_activity_days",
+        ):
             _nonnegative(getattr(self, name), name)
         for name in (
             "starting_balance", "current_balance", "current_equity", "realized_pnl",
             "unrealized_pnl", "daily_pnl", "highest_balance", "highest_equity",
-            "highest_end_of_day_balance", "best_day_profit", "total_profit", "withdrawals"
+            "highest_end_of_day_balance", "prior_end_of_day_balance", "best_day_profit",
+            "total_profit", "withdrawals", "activity_day_profit_threshold"
         ):
             _money(getattr(self, name), name)
+        if self.activity_day_profit_threshold is not None and self.activity_day_profit_threshold <= 0:
+            raise ValueError("activity_day_profit_threshold must be positive")
 
 
 @dataclass(frozen=True)

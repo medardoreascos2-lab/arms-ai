@@ -11,7 +11,8 @@ from backend.prop_firms import (
     ContractLimitEnforcement, ContractLimitPolicy, DailyLossEnforcement, DailyLossPolicy, DrawdownModel,
     DrawdownPolicy, DrawdownTransition, ExposurePosition, ExposureWeight, InstrumentGroup,
     PayoutCycleSnapshot, PayoutFractionBasis, PayoutPolicy, PayoutRequest, PayoutTier,
-    PropFirmProfile, ReferenceUpdateMode, ResetBoundary, RuleStatus, SourceEvidence, SourceReview,
+    PropFirmProfile, ReferenceUpdateMode, ResetBoundary, RuleStatus, ScalingPolicy, ScalingTier,
+    SourceEvidence, SourceReview,
     SourceStatus, TradingDayPolicy, ValueBasis, WeightedExposurePolicy,
     evaluate_account, evaluate_account_v2, evaluate_drawdown_v2, evaluate_payout_v2,
 )
@@ -384,6 +385,36 @@ def test_invalid_extension_configuration_rejected():
     with pytest.raises(ValueError):
         PayoutPolicy(True, tiers=(PayoutTier(1, maximum_amount=D("100")),
                                   PayoutTier(0, maximum_amount=D("100"))))
+    scaling = ScalingPolicy((ScalingTier("L1", D("0"), D("2"), D("500")),))
+    with pytest.raises(ValueError):
+        profile(scaling=scaling)
+    with pytest.raises(ValueError):
+        profile(
+            scaling=scaling,
+            contract_limit=ContractLimitPolicy(
+                None, weighted_exposure=WeightedExposurePolicy(
+                    D("1"), (ExposureWeight("NQ", D("1")),)
+                ),
+            ),
+        )
+
+
+def test_scaling_missing_prior_eod_balance_blocks_dynamic_limits():
+    p = profile(
+        scaling=ScalingPolicy((ScalingTier("L1", D("0"), D("2"), D("500")),)),
+        contract_limit=ContractLimitPolicy(
+            None, weighted_exposure=WeightedExposurePolicy(
+                D("2"), (ExposureWeight("NQ", D("1")),)
+            ),
+            breach_enforcement=ContractLimitEnforcement.TRADING_BLOCK,
+        ),
+    )
+    result = evaluate_account_v2(
+        p, snapshot(exposures=(ExposurePosition("NQ", 1),), prior_end_of_day_balance=None)
+    )
+    assert not result.trading_allowed_now
+    assert status(result, "scaling") == RuleStatus.INCOMPLETE_DATA
+    assert "MISSING_PRIOR_END_OF_DAY_BALANCE" in result.blocking_reasons
 
 
 
