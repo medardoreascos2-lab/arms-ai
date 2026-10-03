@@ -34,3 +34,12 @@ are `RESEARCH`, `BACKTESTED`, `VALIDATION_FAILED`, `VALIDATION_PASSED`,
 `PAPER_CHALLENGER`, `REJECTED`, and `PROMOTION_CANDIDATE`. There is no
 `PRODUCTION` research state, and no lifecycle transition grants execution or
 production assignment authority.
+
+The walk-forward engine builds deterministic fixed-size rolling windows from a
+verified dataset. Each window exposes only its training bars to candidate
+selection, freezes the resulting parameter set and training hash, then exposes
+only later validation bars to evaluation. Window sizes, step size, and minimum
+sample size are explicit. Every run is replayed twice with fresh workflows.
+Training and validation failures remain in the result with their window index,
+stage, code, and reason; aggregate metrics separately report failed windows and
+failed validation outcomes so neither can disappear inside successful totals.

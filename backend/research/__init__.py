@@ -41,6 +41,23 @@ from .experiment import (
     StrategyExperiment,
     StrategyExperimentStatus,
 )
+from .walk_forward import (
+    WalkForwardAggregate,
+    WalkForwardCandidate,
+    WalkForwardContext,
+    WalkForwardDataError,
+    WalkForwardDeterminismError,
+    WalkForwardEngineError,
+    WalkForwardFailureStage,
+    WalkForwardMetrics,
+    WalkForwardPlan,
+    WalkForwardResearchEngine,
+    WalkForwardResult,
+    WalkForwardWindow,
+    WalkForwardWindowResult,
+    WalkForwardWindowStatus,
+    generate_walk_forward_windows,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -78,4 +95,19 @@ __all__ = [
     "ExperimentWindow",
     "StrategyExperiment",
     "StrategyExperimentStatus",
+    "WalkForwardAggregate",
+    "WalkForwardCandidate",
+    "WalkForwardContext",
+    "WalkForwardDataError",
+    "WalkForwardDeterminismError",
+    "WalkForwardEngineError",
+    "WalkForwardFailureStage",
+    "WalkForwardMetrics",
+    "WalkForwardPlan",
+    "WalkForwardResearchEngine",
+    "WalkForwardResult",
+    "WalkForwardWindow",
+    "WalkForwardWindowResult",
+    "WalkForwardWindowStatus",
+    "generate_walk_forward_windows",
 ]
