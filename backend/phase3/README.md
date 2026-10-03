@@ -116,3 +116,16 @@ to broker and source-account behavior: the isolated Phase 3 evidence store is
 append-only by design. The composition imports no broker or external delivery
 adapter and exposes no execution, production mutation, source-account mutation,
 or external-delivery authority.
+
+R32M makes runtime restart behavior explicit. The composed runtime exposes
+typed checkpoints at committed storage boundaries so crash tests can stop at
+snapshot, evaluation, outbox, or audit stages. `Phase3RuntimeRecovery` inspects
+the deterministic snapshot, evaluation, notification outbox, and correlated
+audit identities, reports the exact incomplete stage, replays the original
+authorized request, and then proves that all expected durable effects exist.
+Retries reuse immutable identities, so evaluation and outbox effects are not
+duplicated. Expired worker leases remain recoverable by a restarted worker and
+are fenced by owner, token, expiry, and attempt count. Recovery has no broker,
+source-account mutation, production mutation, or external-delivery authority;
+worker delivery remains limited to an explicitly injected test or safe
+transport.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -57,7 +58,11 @@ from .snapshot_repository import (
     SnapshotStreamIdentity,
     StoredAccountSnapshot,
 )
-from .state_contracts import DurableStatePayload, UserIdentity as StateUserIdentity
+from .state_contracts import (
+    DurableStatePayload,
+    TenantIdentity,
+    UserIdentity as StateUserIdentity,
+)
 
 
 class RuntimeCompositionError(RuntimeError):
@@ -68,6 +73,19 @@ class RuntimeStatus(str, Enum):
     COMPLETED = "COMPLETED"
     REJECTED = "REJECTED"
     DENIED = "DENIED"
+
+
+class RuntimeCheckpoint(str, Enum):
+    """Durable boundaries exposed only for deterministic recovery orchestration."""
+
+    SNAPSHOT_COMMITTED = "SNAPSHOT_COMMITTED"
+    BEFORE_EVALUATION_COMMIT = "BEFORE_EVALUATION_COMMIT"
+    EVALUATION_COMMITTED = "EVALUATION_COMMITTED"
+    BEFORE_OUTBOX_ENQUEUE = "BEFORE_OUTBOX_ENQUEUE"
+    OUTBOX_BEFORE_COMMIT = "OUTBOX_BEFORE_COMMIT"
+    OUTBOX_ENQUEUED = "OUTBOX_ENQUEUED"
+    AUDIT_COMMITTED = "AUDIT_COMMITTED"
+    COMPLETED = "COMPLETED"
 
 
 @dataclass(frozen=True)
@@ -243,6 +261,31 @@ def _notification_events(
     )
 
 
+def _notification_outbox_event(
+    *,
+    tenant: TenantIdentity,
+    snapshot: PropFirmAccountSnapshot,
+    evaluation: AccountEvaluationV2,
+    evaluation_id: str,
+    notification: NotificationEvent,
+    occurred_at: datetime,
+) -> OutboxEvent:
+    return OutboxEvent(
+        tenant=tenant,
+        event_kind=notification.event_type.value,
+        dedupe_key=f"notification:{notification.dedupe_identity}",
+        payload=DurableStatePayload(tuple(sorted((
+            ("account_id", snapshot.account_id),
+            ("blocking_reasons", evaluation.blocking_reasons),
+            ("evaluation_id", evaluation_id),
+            ("notification_event_id", notification.event_id),
+            ("severity", notification.severity.value),
+        )))),
+        created_at=occurred_at,
+        available_at=occurred_at,
+    )
+
+
 class Phase3ReadOnlyRuntime:
     """Composes Phase 3 evidence while preserving source-account read-only safety."""
 
@@ -412,9 +455,17 @@ class Phase3ReadOnlyRuntime:
         request: ReadOnlyRuntimeRequest,
         *,
         now: datetime,
+        checkpoint: Callable[[RuntimeCheckpoint], None] | None = None,
     ) -> ReadOnlyRuntimeResult:
         if not isinstance(request, ReadOnlyRuntimeRequest):
             raise ValueError("request must be a ReadOnlyRuntimeRequest")
+        if checkpoint is not None and not callable(checkpoint):
+            raise ValueError("checkpoint must be callable or None")
+
+        def reached(value: RuntimeCheckpoint) -> None:
+            if checkpoint is not None:
+                checkpoint(value)
+
         now = _aware(now, "now")
         ingestion = request.ingestion
         occurred_at = ingestion.received_at
@@ -501,6 +552,7 @@ class Phase3ReadOnlyRuntime:
             decision,
             stored_at=stored_at,
         )
+        reached(RuntimeCheckpoint.SNAPSHOT_COMMITTED)
         payout_requests = (
             {snapshot.account_id: request.payout_request}
             if request.payout_request is not None else None
@@ -520,6 +572,7 @@ class Phase3ReadOnlyRuntime:
             )
         )
         evaluation_id = f"evaluation:{snapshot_result.record.snapshot_id}"
+        reached(RuntimeCheckpoint.BEFORE_EVALUATION_COMMIT)
         evaluation_result = self.evaluations.append(
             tenant_id=ingestion.tenant.tenant_id,
             evaluation_id=evaluation_id,
@@ -528,6 +581,7 @@ class Phase3ReadOnlyRuntime:
             evaluated_at=occurred_at,
             stored_at=stored_at,
         )
+        reached(RuntimeCheckpoint.EVALUATION_COMMITTED)
         diagnostics = evaluate_accounts(
             self.registry,
             (snapshot,),
@@ -559,23 +613,25 @@ class Phase3ReadOnlyRuntime:
         )
         queued = []
         for notification in notifications:
-            payload = DurableStatePayload(tuple(sorted((
-                ("account_id", snapshot.account_id),
-                ("blocking_reasons", evaluation.blocking_reasons),
-                ("evaluation_id", evaluation_id),
-                ("notification_event_id", notification.event_id),
-                ("severity", notification.severity.value),
-            ))))
-            queued.append(self.outbox.enqueue(OutboxEvent(
-                tenant=ingestion.tenant,
-                event_kind=notification.event_type.value,
-                dedupe_key=f"notification:{notification.dedupe_identity}",
-                payload=payload,
-                created_at=occurred_at,
-                available_at=occurred_at,
-            )))
+            reached(RuntimeCheckpoint.BEFORE_OUTBOX_ENQUEUE)
+            queued.append(self.outbox.enqueue(
+                _notification_outbox_event(
+                    tenant=ingestion.tenant,
+                    snapshot=snapshot,
+                    evaluation=evaluation,
+                    evaluation_id=evaluation_id,
+                    notification=notification,
+                    occurred_at=occurred_at,
+                ),
+                before_commit=(
+                    None if checkpoint is None else
+                    lambda: reached(RuntimeCheckpoint.OUTBOX_BEFORE_COMMIT)
+                ),
+            ))
+            reached(RuntimeCheckpoint.OUTBOX_ENQUEUED)
 
-        audits = [
+        audits = []
+        audits.append(
             self._audit(
                 request,
                 kind=AuditEventKind.SNAPSHOT_RECEIVED,
@@ -583,7 +639,10 @@ class Phase3ReadOnlyRuntime:
                 recorded_at=stored_at,
                 fields=(("snapshot_id", snapshot_result.record.snapshot_id),),
                 causation_id=snapshot_result.record.snapshot_id,
-            ),
+            )
+        )
+        reached(RuntimeCheckpoint.AUDIT_COMMITTED)
+        audits.append(
             self._audit(
                 request,
                 kind=AuditEventKind.PROFILE_RESOLVED,
@@ -594,7 +653,10 @@ class Phase3ReadOnlyRuntime:
                     ("source_status", resolved.source_status.value),
                 ),
                 causation_id=snapshot_result.record.snapshot_id,
-            ),
+            )
+        )
+        reached(RuntimeCheckpoint.AUDIT_COMMITTED)
+        audits.append(
             self._audit(
                 request,
                 kind=AuditEventKind.EVALUATION_COMPLETED,
@@ -606,8 +668,9 @@ class Phase3ReadOnlyRuntime:
                     ("trading_allowed_now", evaluation.trading_allowed_now),
                 ),
                 causation_id=evaluation_id,
-            ),
-        ]
+            )
+        )
+        reached(RuntimeCheckpoint.AUDIT_COMMITTED)
         for notification, queued_item in zip(notifications, queued):
             audits.append(self._audit(
                 request,
@@ -621,6 +684,8 @@ class Phase3ReadOnlyRuntime:
                 ),
                 causation_id=evaluation_id,
             ))
+            reached(RuntimeCheckpoint.AUDIT_COMMITTED)
+        reached(RuntimeCheckpoint.COMPLETED)
         return ReadOnlyRuntimeResult(
             status=RuntimeStatus.COMPLETED,
             ingestion_decision=decision,

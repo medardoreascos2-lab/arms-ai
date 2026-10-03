@@ -62,8 +62,17 @@ from .runtime import (
     Phase3ReadOnlyRuntime,
     ReadOnlyRuntimeRequest,
     ReadOnlyRuntimeResult,
+    RuntimeCheckpoint,
     RuntimeCompositionError,
     RuntimeStatus,
+)
+from .recovery import (
+    Phase3RuntimeRecovery,
+    RecoveryStage,
+    RecoveryStatus,
+    RuntimeRecoveryError,
+    RuntimeRecoveryResult,
+    RuntimeRecoveryState,
 )
 from .evaluation_repository import (
     EVALUATION_SERIALIZATION_FORMAT,
@@ -163,8 +172,15 @@ __all__ = [
     "Phase3ReadOnlyRuntime",
     "ReadOnlyRuntimeRequest",
     "ReadOnlyRuntimeResult",
+    "RuntimeCheckpoint",
     "RuntimeCompositionError",
     "RuntimeStatus",
+    "Phase3RuntimeRecovery",
+    "RecoveryStage",
+    "RecoveryStatus",
+    "RuntimeRecoveryError",
+    "RuntimeRecoveryResult",
+    "RuntimeRecoveryState",
     "AUDIT_SERIALIZATION_FORMAT",
     "AuditEvent",
     "AuditEventKind",

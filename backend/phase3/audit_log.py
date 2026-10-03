@@ -417,3 +417,24 @@ class AuditLog:
             values + (limit,),
         ).fetchall()
         return tuple(self._record(row) for row in rows)
+
+    def for_correlation(
+        self, *, tenant_id: str, correlation_id: str
+    ) -> tuple[StoredAuditEvent, ...]:
+        TenantIdentity(tenant_id)
+        if _optional_text(correlation_id, "correlation_id") is None:
+            raise ValueError("correlation_id must be nonempty text")
+        rows = self._connection().execute(
+            """SELECT tenant_id, event_id, event_kind, occurred_at, recorded_at,
+                      source_id, source_version, source_simulated, actor_user_id,
+                      account_id, profile_config_hash, payload, payload_sha256
+               FROM phase3_audit_events
+               WHERE tenant_id = ?
+               ORDER BY occurred_at, event_id""",
+            (tenant_id,),
+        ).fetchall()
+        records = tuple(self._record(row) for row in rows)
+        return tuple(
+            item for item in records
+            if item.event.correlation_id == correlation_id
+        )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -321,12 +322,19 @@ class DurableOutbox:
             updated, payload_hash, lease_owner, lease_token, lease_expires, delivered,
         )
 
-    def enqueue(self, event: OutboxEvent) -> OutboxEnqueueResult:
+    def enqueue(
+        self,
+        event: OutboxEvent,
+        *,
+        before_commit: Callable[[], None] | None = None,
+    ) -> OutboxEnqueueResult:
         connection = self._connection()
         if self.store.read_only:
             raise DurableStoreReadOnlyError("phase3 store is read-only")
         if not isinstance(event, OutboxEvent):
             raise ValueError("event must be an OutboxEvent")
+        if before_commit is not None and not callable(before_commit):
+            raise ValueError("before_commit must be callable or None")
         payload = serialize_outbox_event(event)
         payload_hash = hashlib.sha256(payload).hexdigest()
         tenant_id = event.tenant.tenant_id
@@ -344,6 +352,8 @@ class DurableOutbox:
                     raise OutboxConflictError(
                         "dedupe key already identifies different immutable content"
                     )
+                if before_commit is not None:
+                    before_commit()
                 connection.execute("COMMIT")
                 return OutboxEnqueueResult(record, False, True)
             connection.execute(
@@ -367,6 +377,8 @@ class DurableOutbox:
                 (tenant_id, event.event_id),
             ).fetchone()
             record = self._record(row)
+            if before_commit is not None:
+                before_commit()
             connection.execute("COMMIT")
             return OutboxEnqueueResult(record, True, False)
         except BaseException:
