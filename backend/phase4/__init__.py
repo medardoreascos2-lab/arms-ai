@@ -205,6 +205,15 @@ from .transport_authorization import (
     TransportAuthorizationDecision,
     TransportAuthorizationRequirement,
 )
+from .request_replay import (
+    Phase4RequestEnvelope,
+    ReplayProtectionCode,
+    ReplayProtectionDecision,
+    ReplayProtectionPolicy,
+    ReplayProtectionScope,
+    RequestEffect,
+    RequestReplayProtector,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -274,6 +283,7 @@ __all__ = [
     "Phase4TransportAction",
     "Phase4TransportAuthorizationBoundary",
     "Phase4TransportRequest",
+    "Phase4RequestEnvelope",
     "POSTGRES_TABLES",
     "PostgresAppendResult",
     "PostgresConnectionFactory",
@@ -309,6 +319,12 @@ __all__ = [
     "RedactionChannel",
     "RecoveryAction",
     "RecoveryDrillStatus",
+    "ReplayProtectionCode",
+    "ReplayProtectionDecision",
+    "ReplayProtectionPolicy",
+    "ReplayProtectionScope",
+    "RequestEffect",
+    "RequestReplayProtector",
     "RestartPolicy",
     "RetryAuthorizationDecision",
     "RetryOperationError",
