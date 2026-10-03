@@ -149,12 +149,22 @@ from .state_contracts import (
 )
 from .research_api import ResearchApiSources, create_phase3_research_router
 from .status_api import Phase3StatusSources, create_phase3_status_router
+from .dashboard_contracts import (
+    DashboardProjection,
+    DashboardProjectionKind,
+    Phase3DashboardBundle,
+    REQUIRED_FIELDS,
+)
 
 __all__ = [
     "ResearchApiSources",
     "create_phase3_research_router",
     "Phase3StatusSources",
     "create_phase3_status_router",
+    "DashboardProjection",
+    "DashboardProjectionKind",
+    "Phase3DashboardBundle",
+    "REQUIRED_FIELDS",
     "OUTBOX_SERIALIZATION_FORMAT",
     "DurableOutbox",
     "OutboxConflictError",

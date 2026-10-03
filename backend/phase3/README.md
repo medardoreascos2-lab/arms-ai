@@ -141,3 +141,9 @@ research-queue health through one standalone GET-only status route. All six
 injected readers must succeed before a detached JSON snapshot is returned; any
 missing or invalid component fails the entire read with 503. The route is not
 mounted into frozen V8 and grants no execution or production mutation authority.
+
+R34C defines frontend-independent projections for account status, prop-firm
+status, portfolio, research runs, challengers, and promotion reviews. Each
+projection has an exact scalar field contract, source hash, UTC observation
+time, and deterministic hash. A bundle is valid only when every projection kind
+appears exactly once. No frozen V8 page or frontend module is changed.
