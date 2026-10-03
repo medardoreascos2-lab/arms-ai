@@ -72,3 +72,11 @@ module "backup" {
   retention_days = var.backup_retention_days
   tags          = local.required_tags
 }
+
+module "registry" {
+  source = "./modules/registry"
+
+  name_prefix         = local.name_prefix
+  retained_image_count = var.registry_retained_image_count
+  tags                = local.required_tags
+}

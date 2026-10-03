@@ -69,3 +69,14 @@ output "backup" {
     contract                 = module.backup.backup_contract
   }
 }
+
+output "registry" {
+  description = "Private immutable OCI registry and separated access policies."
+  value = {
+    repository_arn      = module.registry.repository_arn
+    repository_url      = module.registry.repository_url
+    publisher_policy_arn = module.registry.publisher_policy_arn
+    puller_policy_arn   = module.registry.puller_policy_arn
+    contract            = module.registry.release_contract
+  }
+}
