@@ -175,10 +175,12 @@ def test_allowed_transitions_append_hash_chained_revisions_and_evidence():
     ("initial", "target"),
     (
         (ChallengerStatus.RESEARCH, ChallengerStatus.PAPER_CHALLENGER),
+        (ChallengerStatus.RESEARCH, ChallengerStatus.PROMOTION_CANDIDATE),
         (ChallengerStatus.RESEARCH, ChallengerStatus.PRODUCTION_REFERENCE),
         (ChallengerStatus.CHALLENGER, ChallengerStatus.RESEARCH),
         (ChallengerStatus.CHALLENGER, ChallengerStatus.PRODUCTION_REFERENCE),
         (ChallengerStatus.PAPER_CHALLENGER, ChallengerStatus.CHALLENGER),
+        (ChallengerStatus.PAPER_CHALLENGER, ChallengerStatus.PROMOTION_CANDIDATE),
     ),
 )
 def test_unauthorized_transitions_fail_without_mutating_history(initial, target):
@@ -294,12 +296,12 @@ def test_list_is_sorted_and_filterable_and_unknown_lookup_is_read_only():
     assert item.history("unknown") == ()
 
 
-def test_status_model_has_no_production_candidate_or_execution_alias():
+def test_status_model_exposes_promotion_candidate_but_no_production_alias():
     assert {status.value for status in ChallengerStatus} == {
         "PRODUCTION_REFERENCE",
         "RESEARCH",
         "CHALLENGER",
         "PAPER_CHALLENGER",
+        "PROMOTION_CANDIDATE",
     }
     assert not hasattr(ChallengerStatus, "PRODUCTION")
-    assert not hasattr(ChallengerStatus, "PROMOTION_CANDIDATE")

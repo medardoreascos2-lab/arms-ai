@@ -72,3 +72,11 @@ canonical parameter set, evidence IDs, status, and a hash-chained promotion
 history. Research IDs cannot overwrite the production reference, transitions
 cannot skip stages or move backward, and neither the registry nor any status
 grants PAPER, LIVE, execution, or production-mutation authority.
+
+The promotion gate evaluates a `PAPER_CHALLENGER` against explicit thresholds
+for trade count, independent OOS periods, walk-forward consistency, drawdown,
+profit factor, expectancy, stress survival, and parameter stability. Evidence
+must bind the current immutable challenger revision and its registered evidence
+IDs. A passing result can only recommend `PROMOTION_CANDIDATE` for later human
+review; it cannot mutate the registry, select production, or authorize any
+execution mode.

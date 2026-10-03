@@ -34,6 +34,7 @@ class ChallengerStatus(str, Enum):
     RESEARCH = "RESEARCH"
     CHALLENGER = "CHALLENGER"
     PAPER_CHALLENGER = "PAPER_CHALLENGER"
+    PROMOTION_CANDIDATE = "PROMOTION_CANDIDATE"
 
 
 _TRANSITIONS = {
@@ -41,6 +42,7 @@ _TRANSITIONS = {
     ChallengerStatus.RESEARCH: frozenset({ChallengerStatus.CHALLENGER}),
     ChallengerStatus.CHALLENGER: frozenset({ChallengerStatus.PAPER_CHALLENGER}),
     ChallengerStatus.PAPER_CHALLENGER: frozenset(),
+    ChallengerStatus.PROMOTION_CANDIDATE: frozenset(),
 }
 
 

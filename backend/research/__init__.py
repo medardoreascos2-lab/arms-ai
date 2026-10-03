@@ -95,6 +95,15 @@ from .challenger_registry import (
     StrategyChallengerRecord,
     StrategyChallengerRegistry,
 )
+from .promotion_gate import (
+    PromotionCriterionResult,
+    PromotionEvidence,
+    PromotionGateCriteria,
+    PromotionGateError,
+    PromotionGateOutcome,
+    PromotionGateResult,
+    StrategyPromotionGate,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -178,4 +187,11 @@ __all__ = [
     "PromotionHistoryEntry",
     "StrategyChallengerRecord",
     "StrategyChallengerRegistry",
+    "PromotionCriterionResult",
+    "PromotionEvidence",
+    "PromotionGateCriteria",
+    "PromotionGateError",
+    "PromotionGateOutcome",
+    "PromotionGateResult",
+    "StrategyPromotionGate",
 ]
