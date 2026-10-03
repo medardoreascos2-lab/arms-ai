@@ -187,6 +187,12 @@ from .disaster_recovery import (
     SyntheticRecoveryIncident,
     render_synthetic_recovery_runbook,
 )
+from .service_identity import (
+    ServiceCredentialRotation,
+    ServiceIdentity,
+    ServicePermission,
+    ServiceTenantScope,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -318,6 +324,10 @@ __all__ = [
     "SecretProviderUnavailableError",
     "SecretReference",
     "SecretRedactor",
+    "ServiceCredentialRotation",
+    "ServiceIdentity",
+    "ServicePermission",
+    "ServiceTenantScope",
     "SupervisedProcess",
     "SupervisorError",
     "SupervisorLeaseError",
