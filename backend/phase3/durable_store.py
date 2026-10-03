@@ -292,6 +292,19 @@ STORE_MIGRATIONS = (
                 ON phase3_outbox(tenant_id, updated_at, event_id)""",
         ),
     ),
+    Phase3Migration(
+        version=7,
+        name="outbox_worker_leases",
+        statements=(
+            "ALTER TABLE phase3_outbox ADD COLUMN lease_owner TEXT",
+            "ALTER TABLE phase3_outbox ADD COLUMN lease_token TEXT",
+            "ALTER TABLE phase3_outbox ADD COLUMN lease_expires_at TEXT",
+            "ALTER TABLE phase3_outbox ADD COLUMN delivered_at TEXT",
+            """CREATE INDEX phase3_outbox_claim
+                ON phase3_outbox(tenant_id, status, next_attempt_at,
+                                 lease_expires_at, created_at, event_id)""",
+        ),
+    ),
 )
 STORE_SCHEMA_VERSION = _BOOTSTRAP_SCHEMA_VERSION + len(STORE_MIGRATIONS)
 STORE_SCHEMA_CHECKSUM = migration_chain_checksum(
@@ -307,6 +320,7 @@ _REQUIRED_SCHEMA_OBJECTS = frozenset({
     ("index", "phase3_audit_events_kind_time"),
     ("index", "phase3_audit_events_time"),
     ("index", "phase3_outbox_ready"),
+    ("index", "phase3_outbox_claim"),
     ("index", "phase3_outbox_updated"),
     ("index", "phase3_snapshots_captured_time"),
     ("index", "phase3_snapshots_latest"),

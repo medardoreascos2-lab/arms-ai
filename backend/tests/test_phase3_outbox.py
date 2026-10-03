@@ -151,6 +151,18 @@ def test_database_constraints_reject_invalid_mutable_state(tmp_path):
             outbox.by_id(tenant_id="tenant-a", event_id=item.event_id)
 
 
+def test_worker_state_combinations_are_integrity_checked(tmp_path):
+    with Phase3DurableStateStore.create(tmp_path / "phase3.sqlite3") as store:
+        item = event()
+        outbox = DurableOutbox(store)
+        outbox.enqueue(item)
+        store._connection.execute(
+            "UPDATE phase3_outbox SET status = 'IN_PROGRESS', attempt_count = 1"
+        )
+        with pytest.raises(OutboxIntegrityError, match="in-progress"):
+            outbox.by_id(tenant_id="tenant-a", event_id=item.event_id)
+
+
 def test_error_sanitizer_redacts_secrets_flattens_and_bounds_text():
     sanitized = sanitize_outbox_error(
         "delivery failed\napi_key=super-secret token:abc123 retry"

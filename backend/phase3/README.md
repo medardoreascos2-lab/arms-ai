@@ -89,3 +89,14 @@ exactly-once-effect intent: a future worker may retry delivery, while consumers
 must honor the stable event ID or dedupe key. This milestone contains no
 transport, network client, claim worker, broker integration, or execution
 authority.
+
+R32K adds an isolated single-event worker around that outbox. A transactional
+claim assigns a bounded lease and increments the durable attempt count. Success
+marks the stable event ID delivered; failures store sanitized diagnostics and
+schedule deterministic exponential backoff, then move the event to a terminal
+dead-letter state at the configured attempt limit. Expired leases are recovered
+by another worker, so delivery remains at least once and downstream consumers
+must deduplicate by the stable event ID or dedupe key. Shutdown prevents new
+claims. Time, lease tokens, and delivery are injected for deterministic tests.
+The module includes no Telegram, HTTP, broker, order, or other production
+transport and grants no execution or external-delivery authority.

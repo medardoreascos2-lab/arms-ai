@@ -49,6 +49,15 @@ from .outbox import (
     sanitize_outbox_error,
     serialize_outbox_event,
 )
+from .worker import (
+    OutboxWorker,
+    WorkerClaim,
+    WorkerConfig,
+    WorkerError,
+    WorkerLeaseLostError,
+    WorkerStepResult,
+    WorkerStepStatus,
+)
 from .evaluation_repository import (
     EVALUATION_SERIALIZATION_FORMAT,
     EvaluationAppendResult,
@@ -137,6 +146,13 @@ __all__ = [
     "outbox_event_hash",
     "sanitize_outbox_error",
     "serialize_outbox_event",
+    "OutboxWorker",
+    "WorkerClaim",
+    "WorkerConfig",
+    "WorkerError",
+    "WorkerLeaseLostError",
+    "WorkerStepResult",
+    "WorkerStepStatus",
     "AUDIT_SERIALIZATION_FORMAT",
     "AuditEvent",
     "AuditEventKind",

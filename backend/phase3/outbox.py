@@ -199,6 +199,10 @@ class StoredOutboxEvent:
     last_error: str | None
     updated_at: datetime
     storage_hash: str
+    lease_owner: str | None
+    lease_token: str | None
+    lease_expires_at: datetime | None
+    delivered_at: datetime | None
     execution_authorized: bool = field(default=False, init=False)
     production_mutation_authorized: bool = field(default=False, init=False)
 
@@ -213,7 +217,8 @@ class OutboxEnqueueResult:
 
 _SELECT = """
 SELECT tenant_id, event_id, dedupe_key, event_kind, status, attempt_count,
-       next_attempt_at, last_error, created_at, updated_at, payload, payload_sha256
+       next_attempt_at, last_error, created_at, updated_at, payload, payload_sha256,
+       lease_owner, lease_token, lease_expires_at, delivered_at
 FROM phase3_outbox
 """
 
@@ -238,6 +243,7 @@ class DurableOutbox:
         (
             tenant_id, event_id, dedupe_key, event_kind, status, attempt_count,
             next_attempt_at, last_error, created_at, updated_at, payload, payload_hash,
+            lease_owner, lease_token, lease_expires_at, delivered_at,
         ) = row
         if (
             not isinstance(payload, bytes)
@@ -252,6 +258,14 @@ class DurableOutbox:
             next_attempt = _parse_canonical_utc(next_attempt_at, "next_attempt_at")
             created = _parse_canonical_utc(created_at, "created_at")
             updated = _parse_canonical_utc(updated_at, "updated_at")
+            lease_expires = (
+                _parse_canonical_utc(lease_expires_at, "lease_expires_at")
+                if lease_expires_at is not None else None
+            )
+            delivered = (
+                _parse_canonical_utc(delivered_at, "delivered_at")
+                if delivered_at is not None else None
+            )
         except (TypeError, ValueError, DurableStoreIntegrityError) as exc:
             raise OutboxIntegrityError("stored outbox event is invalid") from exc
         if (
@@ -272,9 +286,39 @@ class DurableOutbox:
             or updated < created
         ):
             raise OutboxIntegrityError("stored outbox index or state mismatch")
+        lease_values = (lease_owner, lease_token, lease_expires)
+        if outbox_status is OutboxStatus.IN_PROGRESS:
+            if (
+                not isinstance(lease_owner, str) or not lease_owner
+                or not isinstance(lease_token, str) or not lease_token
+                or lease_expires is None or lease_expires <= updated
+                or delivered is not None or last_error is not None
+                or attempt_count < 1
+            ):
+                raise OutboxIntegrityError("in-progress outbox lease is invalid")
+        elif any(value is not None for value in lease_values):
+            raise OutboxIntegrityError("inactive outbox event retains a lease")
+        if outbox_status is OutboxStatus.DELIVERED:
+            if (
+                delivered is None or delivered != updated
+                or last_error is not None or attempt_count < 1
+            ):
+                raise OutboxIntegrityError("delivered outbox state is invalid")
+        elif delivered is not None:
+            raise OutboxIntegrityError("undelivered outbox event has delivered_at")
+        if (
+            outbox_status is OutboxStatus.DEAD_LETTER
+            and (not last_error or attempt_count < 1)
+        ):
+            raise OutboxIntegrityError("dead-letter outbox state requires an error")
+        if (
+            outbox_status is OutboxStatus.PENDING
+            and attempt_count > 0 and not last_error
+        ):
+            raise OutboxIntegrityError("retrying outbox state requires an error")
         return StoredOutboxEvent(
             event, outbox_status, attempt_count, next_attempt, last_error,
-            updated, payload_hash,
+            updated, payload_hash, lease_owner, lease_token, lease_expires, delivered,
         )
 
     def enqueue(self, event: OutboxEvent) -> OutboxEnqueueResult:
