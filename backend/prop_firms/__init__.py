@@ -20,3 +20,8 @@ from .rule_engine_v2 import (
     AccountEvaluationV2, DrawdownResultV2, RuleOutcome, RuleScope, RuleStatus,
     evaluate_account_v2, evaluate_drawdown_v2, evaluate_payout_v2,
 )
+from .profile_registry import (
+    AmbiguousProfileError, ProfileDescriptor, ProfileNotFoundError,
+    ProfileRegistryError, ProfileSourceStatusError, PropFirmProfileRegistry,
+    ResolvedProfile, canonical_profile_registry,
+)

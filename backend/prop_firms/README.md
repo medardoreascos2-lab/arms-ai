@@ -74,3 +74,11 @@ Legacy products remain a separate, unimplemented support record. Current-product
 PRO+ is represented only as a read-only `LIVE` policy profile. It models the verified EOD drawdown, absence of a payout buffer, 90% trader share, and no daily loss limit. It contains no broker adapter, activation, order route, or LIVE authorization.
 
 All three stages are deliberately `INCOMPLETE`. Test still needs explicit approved-hours and counter-position snapshot semantics. PRO and PRO+ additionally need aligned Sunday-Friday weekly activity, dynamic prohibited-news state, and price-limit state. The verified numeric outcomes remain visible, while source status prevents `account_valid`, `trading_allowed_now`, or `payout_eligible` from becoming true. A discretionary PRO-to-PRO+ transition is metadata only.
+
+## Profile registry (R25A)
+
+`profile_registry.py` provides an immutable temporal registry over all normalized firm profiles. Resolution uses exact firm, program, stage, account size, effective timestamp, and optional version. Ambiguous variants require the caller to supply the exact version. Overlapping windows for the same version are rejected when the registry is constructed.
+
+`resolve_profile` accepts only `CURRENT_VERIFIED` by default. Inspection of incomplete, conflicting, unavailable, or stale profiles requires the caller to pass `required_source_status=None`; the returned `ResolvedProfile` still includes the actual status. A profile without source review metadata is treated as `INCOMPLETE`. Listing and status methods always calculate status at the supplied timezone-aware timestamp and never relabel an expired review as current.
+
+The registry is read-only. It selects configuration and performs no account, payout, PAPER, LIVE, broker, position, or order action.
