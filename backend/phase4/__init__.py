@@ -114,6 +114,18 @@ from .retry_operations import (
     RetryOperationResult,
     RetryOperationsPolicy,
 )
+from .operational_metrics import (
+    METRIC_UNITS,
+    InMemoryMetricsExporter,
+    MetricUnit,
+    MetricsExportResult,
+    MetricsExporter,
+    OperationalMetric,
+    OperationalMetricName,
+    OperationalMetricsSnapshot,
+    build_operational_metrics_snapshot,
+    safe_dimensions,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -137,6 +149,14 @@ __all__ = [
     "FileSecretProvider",
     "FutureCloudSecretProvider",
     "InMemorySchedulerLeaseStore",
+    "InMemoryMetricsExporter",
+    "METRIC_UNITS",
+    "MetricUnit",
+    "MetricsExportResult",
+    "MetricsExporter",
+    "OperationalMetric",
+    "OperationalMetricName",
+    "OperationalMetricsSnapshot",
     "POSTGRES_TABLES",
     "PostgresAppendResult",
     "PostgresConnectionFactory",
@@ -207,11 +227,13 @@ __all__ = [
     "WorkerSupervisor",
     "WorkerSupervisorConfig",
     "WorkerSupervisorStatus",
+    "build_operational_metrics_snapshot",
     "decode_exact_decimal",
     "encode_exact_decimal",
     "postgres_migration_chain_checksum",
     "redact_mapping",
     "redact_text",
+    "safe_dimensions",
     "sensitive_key",
     "validate_postgres_migration_plan",
 ]
