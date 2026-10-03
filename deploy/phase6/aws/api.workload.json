@@ -1,0 +1,100 @@
+{
+  "schema": "arms.phase6.aws.workload/v1",
+  "environment": "staging",
+  "provider": "aws",
+  "workload": {
+    "name": "api",
+    "kind": "ecs-fargate-service",
+    "replicas": {
+      "desired": 2,
+      "minimum": 2,
+      "maximum": 4,
+      "availability_zones": 2
+    },
+    "image": {
+      "uri": "{{REGISTRY_URL}}@{{IMAGE_DIGEST}}",
+      "digest_required": true,
+      "signature_required": true,
+      "provenance_required": true,
+      "scan_gate_required": true
+    },
+    "runtime": {
+      "cpu_units": 512,
+      "memory_mib": 1024,
+      "container_port": 8000,
+      "read_only_root_filesystem": true,
+      "run_as_non_root": true,
+      "linux_capabilities_drop": ["ALL"],
+      "stop_timeout_seconds": 30
+    },
+    "network": {
+      "subnet_boundary": "private_workload",
+      "security_group_boundary": "api",
+      "assign_public_ip": false,
+      "ingress_from": ["tls_load_balancer"],
+      "egress_to": ["private_postgresql", "private_aws_endpoints"]
+    },
+    "identity": {
+      "task_role_arn": "{{API_TASK_ROLE_ARN}}",
+      "execution_role_arn": "{{API_EXECUTION_ROLE_ARN}}",
+      "shared_role_allowed": false
+    },
+    "configuration": {
+      "ARMS_ENVIRONMENT": "staging",
+      "ARMS_AUTH_REQUIRED": "true",
+      "ARMS_OIDC_ISSUER": "{{OIDC_ISSUER}}",
+      "ARMS_OIDC_AUDIENCE": "{{OIDC_AUDIENCE}}",
+      "ARMS_OIDC_JWKS_URI": "{{OIDC_JWKS_URI}}",
+      "ARMS_TENANT_CLAIM": "tenant_id",
+      "ARMS_ROLE_CLAIM": "roles",
+      "ARMS_DATABASE_HOST": "{{DATABASE_HOST}}",
+      "ARMS_DATABASE_PORT": "{{DATABASE_PORT}}",
+      "ARMS_LOG_GROUP": "{{API_LOG_GROUP}}",
+      "ARMS_DEBUG": "false",
+      "ARMS_EXECUTION_AUTHORIZED": "false",
+      "ARMS_BROKER_ENABLED": "false",
+      "ARMS_PAPER_ENABLED": "false",
+      "ARMS_LIVE_ENABLED": "false",
+      "ARMS_PRODUCTION_MUTATION_AUTHORIZED": "false"
+    },
+    "secret_references": [
+      {
+        "name": "ARMS_DATABASE_CREDENTIAL",
+        "value_from": "{{APPLICATION_DATABASE_SECRET_ARN}}"
+      }
+    ],
+    "health": {
+      "liveness": {
+        "method": "GET",
+        "path": "/health/live",
+        "interval_seconds": 30,
+        "timeout_seconds": 5,
+        "failure_threshold": 3,
+        "side_effects_allowed": false
+      },
+      "readiness": {
+        "method": "GET",
+        "path": "/health/ready",
+        "interval_seconds": 15,
+        "timeout_seconds": 5,
+        "failure_threshold": 2,
+        "side_effects_allowed": false,
+        "required_dependencies": ["database", "secret_provider", "identity_jwks"]
+      }
+    },
+    "deployment": {
+      "minimum_healthy_percent": 100,
+      "maximum_percent": 200,
+      "circuit_breaker": true,
+      "rollback_on_failure": true,
+      "wait_for_steady_state": true
+    }
+  },
+  "authority": {
+    "broker": false,
+    "paper": false,
+    "live": false,
+    "production": false,
+    "financial_execution": false
+  }
+}
