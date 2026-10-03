@@ -239,6 +239,15 @@ from .package_validation import (
     assemble_phase4_package,
     validate_phase4_package,
 )
+from .load_harness import (
+    DomainLoadMetrics,
+    IsolatedLoadHarness,
+    LoadDomain,
+    LoadHarnessConfig,
+    LoadOperation,
+    LoadSample,
+    LoadTestReport,
+)
 
 __all__ = [
     "BUILD_MANIFEST_FORMAT",
@@ -261,6 +270,7 @@ __all__ = [
     "DatabaseTenantIsolationError",
     "DeploymentEnvironment",
     "DependencyVersion",
+    "DomainLoadMetrics",
     "DisasterScenario",
     "BACKUP_MANIFEST_FORMAT",
     "BACKUP_ARTIFACT_PATHS",
@@ -290,9 +300,15 @@ __all__ = [
     "HealthThresholds",
     "InMemorySchedulerLeaseStore",
     "InMemoryMetricsExporter",
+    "IsolatedLoadHarness",
     "LocalBackupResult",
     "LocalBackupRunner",
     "LocalBackupSources",
+    "LoadDomain",
+    "LoadHarnessConfig",
+    "LoadOperation",
+    "LoadSample",
+    "LoadTestReport",
     "METRIC_UNITS",
     "METRIC_COMPONENTS",
     "MetricUnit",
