@@ -31,6 +31,7 @@ class DrawdownModel(str, Enum):
 class ValueBasis(str, Enum):
     BALANCE = "BALANCE"
     EQUITY = "EQUITY"
+    MIN_BALANCE_OR_EQUITY = "MIN_BALANCE_OR_EQUITY"
 
 
 class ConsistencyMode(str, Enum):
@@ -54,9 +55,237 @@ def _nonnegative(value: int | None, name: str) -> None:
         raise ValueError(f"{name} must be a nonnegative integer")
 
 
+def _bool(value: bool, name: str) -> None:
+    if type(value) is not bool:
+        raise ValueError(f"{name} must be a boolean")
+
+
 def _aware(value: datetime | None, name: str) -> None:
     if value is not None and (value.tzinfo is None or value.utcoffset() is None):
         raise ValueError(f"{name} must be timezone-aware")
+
+
+
+class DailyLossEnforcement(str, Enum):
+    SESSION_BLOCK = "SESSION_BLOCK"
+    ACCOUNT_FAIL = "ACCOUNT_FAIL"
+    WARNING_ONLY = "WARNING_ONLY"
+    OBJECTIVE_ONLY = "OBJECTIVE_ONLY"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
+class ResetBoundary(str, Enum):
+    SESSION_END = "SESSION_END"
+    TRADING_DAY_END = "TRADING_DAY_END"
+
+
+class ReferenceUpdateMode(str, Enum):
+    FIXED_START = "FIXED_START"
+    INTRADAY_EQUITY = "INTRADAY_EQUITY"
+    END_OF_DAY_BALANCE = "END_OF_DAY_BALANCE"
+
+
+class ConsistencyApplication(str, Enum):
+    STAGE = "STAGE"
+    PAYOUT_CYCLE = "PAYOUT_CYCLE"
+    BOTH = "BOTH"
+
+
+class PayoutFractionBasis(str, Enum):
+    AVAILABLE_PROFIT = "AVAILABLE_PROFIT"
+    CURRENT_BALANCE = "CURRENT_BALANCE"
+
+
+class SourceStatus(str, Enum):
+    CURRENT_VERIFIED = "CURRENT_VERIFIED"
+    STALE_REVIEW_REQUIRED = "STALE_REVIEW_REQUIRED"
+    SOURCE_CONFLICT = "SOURCE_CONFLICT"
+    INCOMPLETE = "INCOMPLETE"
+
+
+@dataclass(frozen=True)
+class SourceEvidence:
+    source_url: str
+    source_title: str
+    retrieved_at_utc: datetime
+    effective_from: datetime | None = None
+    effective_to: datetime | None = None
+    rule_heading: str | None = None
+    normalized_source_hash: str | None = None
+
+    def __post_init__(self) -> None:
+        if (not isinstance(self.source_url, str) or not self.source_url.startswith(("https://", "http://"))
+                or not isinstance(self.source_title, str) or not self.source_title.strip()):
+            raise ValueError("source URL and title are required")
+        _aware(self.retrieved_at_utc, "retrieved_at_utc")
+        if self.retrieved_at_utc is None or self.retrieved_at_utc.utcoffset().total_seconds() != 0:
+            raise ValueError("retrieved_at_utc must be UTC")
+        _aware(self.effective_from, "source effective_from")
+        _aware(self.effective_to, "source effective_to")
+        if self.effective_from and self.effective_to and self.effective_to <= self.effective_from:
+            raise ValueError("source effective_to must follow effective_from")
+
+
+@dataclass(frozen=True)
+class SourceReview:
+    status: SourceStatus
+    reviewed_at: datetime
+    sources: tuple[SourceEvidence, ...] = ()
+    review_due_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.status, SourceStatus):
+            raise ValueError("invalid source status")
+        _aware(self.reviewed_at, "reviewed_at")
+        _aware(self.review_due_at, "review_due_at")
+        if self.reviewed_at is None or not isinstance(self.sources, tuple):
+            raise ValueError("review date and immutable source tuple required")
+        if any(not isinstance(source, SourceEvidence) for source in self.sources):
+            raise ValueError("invalid source evidence")
+        if self.status == SourceStatus.CURRENT_VERIFIED and not self.sources:
+            raise ValueError("verified review requires source evidence")
+        if self.review_due_at is not None and self.review_due_at < self.reviewed_at:
+            raise ValueError("review_due_at cannot precede reviewed_at")
+        if any(source.retrieved_at_utc > self.reviewed_at for source in self.sources):
+            raise ValueError("source cannot be retrieved after review")
+
+    def status_at(self, at: datetime) -> SourceStatus:
+        _aware(at, "at")
+        if at is None:
+            raise ValueError("at is required")
+        if (self.status == SourceStatus.CURRENT_VERIFIED and self.review_due_at is not None
+                and at > self.review_due_at):
+            return SourceStatus.STALE_REVIEW_REQUIRED
+        return self.status
+
+
+@dataclass(frozen=True)
+class DrawdownTransition:
+    floor_lock: bool = False
+    post_event_payout_count: int | None = None
+    post_event_fixed_floor: Decimal | None = None
+
+    def __post_init__(self) -> None:
+        _bool(self.floor_lock, "floor_lock")
+        _nonnegative(self.post_event_payout_count, "post_event_payout_count")
+        _money(self.post_event_fixed_floor, "post_event_fixed_floor")
+        if (self.post_event_payout_count is None) != (self.post_event_fixed_floor is None):
+            raise ValueError("post-event count and fixed floor must be configured together")
+        if self.post_event_payout_count == 0:
+            raise ValueError("post-event count must be positive")
+
+
+@dataclass(frozen=True)
+class ExposureWeight:
+    key: str
+    units_per_contract: Decimal
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.key, str) or not self.key.strip():
+            raise ValueError("weight key is required")
+        _money(self.units_per_contract, "units_per_contract", positive=True)
+
+
+@dataclass(frozen=True)
+class InstrumentGroup:
+    instrument: str
+    product_group: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.instrument, str) or not self.instrument.strip():
+            raise ValueError("instrument is required")
+        if not isinstance(self.product_group, str) or not self.product_group.strip():
+            raise ValueError("product_group is required")
+
+
+@dataclass(frozen=True)
+class WeightedExposurePolicy:
+    maximum_units: Decimal
+    instrument_weights: tuple[ExposureWeight, ...] = ()
+    product_group_weights: tuple[ExposureWeight, ...] = ()
+    instrument_groups: tuple[InstrumentGroup, ...] = ()
+
+    def __post_init__(self) -> None:
+        _money(self.maximum_units, "maximum_units", positive=True)
+        for mapping in (self.instrument_weights, self.product_group_weights):
+            if not isinstance(mapping, tuple) or any(not isinstance(v, ExposureWeight) for v in mapping):
+                raise ValueError("exposure weights must be immutable tuples")
+            keys = [v.key for v in mapping]
+            if len(keys) != len(set(keys)):
+                raise ValueError("duplicate exposure weight")
+        if not isinstance(self.instrument_groups, tuple) or any(not isinstance(v, InstrumentGroup) for v in self.instrument_groups):
+            raise ValueError("instrument_groups must be an immutable tuple")
+        names = [v.instrument for v in self.instrument_groups]
+        if len(names) != len(set(names)):
+            raise ValueError("duplicate instrument group mapping")
+        if self.product_group_weights and not self.instrument_groups:
+            raise ValueError("group weights require trusted instrument mappings")
+        if not self.instrument_weights and not self.product_group_weights:
+            raise ValueError("weighted exposure requires at least one weight")
+
+
+@dataclass(frozen=True)
+class ExposurePosition:
+    instrument: str
+    quantity: int
+    product_group: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.instrument, str) or not self.instrument.strip():
+            raise ValueError("instrument is required")
+        _nonnegative(self.quantity, "quantity")
+        if self.product_group is not None and not isinstance(self.product_group, str):
+            raise ValueError("product_group must be a string")
+
+
+@dataclass(frozen=True)
+class PayoutTier:
+    from_payout_count: int
+    maximum_amount: Decimal | None = None
+    maximum_fraction: Decimal | None = None
+    minimum_profit_since_last_payout: Decimal | None = None
+    minimum_winning_days_per_cycle: int | None = None
+
+    def __post_init__(self) -> None:
+        _nonnegative(self.from_payout_count, "from_payout_count")
+        if self.maximum_amount is not None:
+            _money(self.maximum_amount, "tier maximum_amount", positive=True)
+        if self.maximum_fraction is not None:
+            _money(self.maximum_fraction, "tier maximum_fraction", positive=True)
+            if self.maximum_fraction > 1:
+                raise ValueError("tier maximum_fraction cannot exceed one")
+        if self.minimum_profit_since_last_payout is not None:
+            _money(self.minimum_profit_since_last_payout, "tier minimum profit", positive=True)
+        _nonnegative(self.minimum_winning_days_per_cycle, "tier minimum winning days")
+        if all(v is None for v in (self.maximum_amount, self.maximum_fraction,
+                                    self.minimum_profit_since_last_payout,
+                                    self.minimum_winning_days_per_cycle)):
+            raise ValueError("tier must configure at least one rule")
+
+
+@dataclass(frozen=True)
+class PayoutCycleSnapshot:
+    cycle_id: str | None = None
+    payout_count: int | None = None
+    last_payout_at: datetime | None = None
+    profit_since_last_payout: Decimal | None = None
+    winning_days_since_last_payout: int | None = None
+    trading_days_since_last_payout: int | None = None
+    current_cycle_start: datetime | None = None
+    withdrawals_total: Decimal | None = None
+    requested_payout_amount: Decimal | None = None
+    best_day_profit_since_last_payout: Decimal | None = None
+
+    def __post_init__(self) -> None:
+        if self.cycle_id is not None and (not isinstance(self.cycle_id, str) or not self.cycle_id.strip()):
+            raise ValueError("cycle_id must be a nonempty string")
+        for name in ("payout_count", "winning_days_since_last_payout", "trading_days_since_last_payout"):
+            _nonnegative(getattr(self, name), name)
+        for name in ("profit_since_last_payout", "withdrawals_total",
+                     "requested_payout_amount", "best_day_profit_since_last_payout"):
+            _money(getattr(self, name), name)
+        _aware(self.last_payout_at, "last_payout_at")
+        _aware(self.current_cycle_start, "current_cycle_start")
 
 
 @dataclass(frozen=True)
@@ -65,14 +294,20 @@ class DrawdownPolicy:
     maximum_loss: Decimal | None = None
     breach_basis: ValueBasis | None = None
     floor_cap: Decimal | None = None
+    transition: DrawdownTransition | None = None
+    reference_update_mode: ReferenceUpdateMode | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.model, DrawdownModel):
             raise ValueError("drawdown model must be a DrawdownModel")
         if self.breach_basis is not None and not isinstance(self.breach_basis, ValueBasis):
             raise ValueError("breach_basis must be a ValueBasis")
+        if self.transition is not None and not isinstance(self.transition, DrawdownTransition):
+            raise ValueError("invalid drawdown transition")
+        if self.reference_update_mode is not None and not isinstance(self.reference_update_mode, ReferenceUpdateMode):
+            raise ValueError("invalid reference update mode")
         if self.model == DrawdownModel.NONE:
-            if any(v is not None for v in (self.maximum_loss, self.breach_basis, self.floor_cap)):
+            if any(v is not None for v in (self.maximum_loss, self.breach_basis, self.floor_cap, self.transition, self.reference_update_mode)):
                 raise ValueError("NONE drawdown cannot carry limits")
             return
         _money(self.maximum_loss, "maximum_loss", positive=True)
@@ -94,21 +329,34 @@ class DrawdownPolicy:
 @dataclass(frozen=True)
 class DailyLossPolicy:
     limit: Decimal | None = None
+    enforcement: DailyLossEnforcement = DailyLossEnforcement.ACCOUNT_FAIL
+    reset_boundary: ResetBoundary = ResetBoundary.SESSION_END
 
     def __post_init__(self) -> None:
-        _money(self.limit, "daily loss limit", positive=True)
+        if not isinstance(self.enforcement, DailyLossEnforcement):
+            raise ValueError("invalid daily loss enforcement")
+        if not isinstance(self.reset_boundary, ResetBoundary):
+            raise ValueError("invalid reset boundary")
+        _money(self.limit, "daily loss limit", positive=self.limit is not None)
+        if self.limit is None and self.enforcement not in (DailyLossEnforcement.ACCOUNT_FAIL, DailyLossEnforcement.NOT_APPLICABLE):
+            raise ValueError("active daily loss enforcement requires a limit")
+        if self.limit is not None and self.enforcement == DailyLossEnforcement.NOT_APPLICABLE:
+            raise ValueError("NOT_APPLICABLE cannot carry a limit")
 
 
 @dataclass(frozen=True)
 class ContractLimitPolicy:
-    maximum_open: int
+    maximum_open: int | None
     maximum_traded: int | None = None
+    weighted_exposure: WeightedExposurePolicy | None = None
 
     def __post_init__(self) -> None:
         _nonnegative(self.maximum_open, "maximum_open")
         _nonnegative(self.maximum_traded, "maximum_traded")
-        if self.maximum_open == 0:
-            raise ValueError("maximum_open must be positive")
+        if self.maximum_open == 0 or (self.maximum_open is None and self.weighted_exposure is None):
+            raise ValueError("maximum_open or weighted_exposure is required")
+        if self.weighted_exposure is not None and not isinstance(self.weighted_exposure, WeightedExposurePolicy):
+            raise ValueError("invalid weighted_exposure policy")
         if self.maximum_traded == 0:
             raise ValueError("maximum_traded must be positive")
 
@@ -127,10 +375,16 @@ class ConsistencyPolicy:
     maximum_best_day_fraction: Decimal | None = None
     minimum_profit_basis: Decimal | None = None
     calculation_mode: ConsistencyMode | None = None
+    application: ConsistencyApplication = ConsistencyApplication.STAGE
 
     def __post_init__(self) -> None:
+        _bool(self.enabled, "consistency enabled")
         if self.calculation_mode is not None and not isinstance(self.calculation_mode, ConsistencyMode):
             raise ValueError("calculation_mode must be a ConsistencyMode")
+        if not isinstance(self.application, ConsistencyApplication):
+            raise ValueError("invalid consistency application")
+        if not self.enabled and self.application != ConsistencyApplication.STAGE:
+            raise ValueError("disabled consistency cannot have payout-cycle application")
         if not self.enabled:
             if any(v is not None for v in (
                 self.maximum_best_day_fraction, self.minimum_profit_basis, self.calculation_mode
@@ -157,10 +411,33 @@ class PayoutPolicy:
     maximum_payout_fraction: Decimal | None = None
     consistency_required: bool = False
     minimum_days_since_prior_payout: int = 0
+    minimum_winning_days_per_cycle: int = 0
+    minimum_trading_days_per_cycle: int = 0
+    minimum_profit_since_last_payout: Decimal | None = None
+    minimum_payout_amount: Decimal | None = None
+    maximum_fraction_basis: PayoutFractionBasis = PayoutFractionBasis.AVAILABLE_PROFIT
+    tiers: tuple[PayoutTier, ...] = ()
+    consistency_per_cycle: bool = False
+    require_session_clear: bool = True
 
     def __post_init__(self) -> None:
+        for name in ("enabled", "consistency_required", "consistency_per_cycle", "require_session_clear"):
+            _bool(getattr(self, name), name)
         _nonnegative(self.minimum_trading_days, "minimum_trading_days")
         _nonnegative(self.minimum_days_since_prior_payout, "minimum_days_since_prior_payout")
+        _nonnegative(self.minimum_winning_days_per_cycle, "minimum_winning_days_per_cycle")
+        _nonnegative(self.minimum_trading_days_per_cycle, "minimum_trading_days_per_cycle")
+        if not isinstance(self.maximum_fraction_basis, PayoutFractionBasis):
+            raise ValueError("invalid maximum_fraction_basis")
+        if not isinstance(self.tiers, tuple) or any(not isinstance(t, PayoutTier) for t in self.tiers):
+            raise ValueError("tiers must be an immutable tuple")
+        counts = [t.from_payout_count for t in self.tiers]
+        if len(counts) != len(set(counts)) or counts != sorted(counts):
+            raise ValueError("payout tiers must be unique and sorted")
+        for name in ("minimum_profit_since_last_payout", "minimum_payout_amount"):
+            value = getattr(self, name)
+            if value is not None:
+                _money(value, name, positive=True)
         for name in ("minimum_buffer", "minimum_balance", "minimum_profit", "maximum_payout_amount"):
             _money(getattr(self, name), name)
         if any(getattr(self, name) is not None and getattr(self, name) < 0 for name in (
@@ -176,7 +453,11 @@ class PayoutPolicy:
             self.minimum_trading_days, self.minimum_buffer is not None,
             self.minimum_balance is not None, self.minimum_profit is not None,
             self.maximum_payout_amount is not None, self.maximum_payout_fraction is not None,
-            self.consistency_required, self.minimum_days_since_prior_payout
+            self.consistency_required, self.minimum_days_since_prior_payout,
+            self.minimum_winning_days_per_cycle, self.minimum_trading_days_per_cycle,
+            self.minimum_profit_since_last_payout is not None, self.minimum_payout_amount is not None,
+            self.maximum_fraction_basis != PayoutFractionBasis.AVAILABLE_PROFIT,
+            bool(self.tiers), self.consistency_per_cycle, not self.require_session_clear
         )):
             raise ValueError("disabled payout policy cannot carry requirements")
 
@@ -213,9 +494,12 @@ class PropFirmProfile:
     profit_target: Decimal | None = None
     effective_to: datetime | None = None
     source_reference: str | None = None
+    allow_zero_starting_balance: bool = False
+    source_review: SourceReview | None = None
     config_hash: str = field(init=False)
 
     def __post_init__(self) -> None:
+        _bool(self.allow_zero_starting_balance, "allow_zero_starting_balance")
         if not all(isinstance(v, str) and v.strip() for v in (
             self.firm_id, self.program_id, self.version
         )):
@@ -237,7 +521,11 @@ class PropFirmProfile:
         if self.effective_to is not None and self.effective_to <= self.effective_from:
             raise ValueError("effective_to must follow effective_from")
         _money(self.account_size, "account_size", positive=True)
-        _money(self.starting_balance, "starting_balance", positive=True)
+        _money(self.starting_balance, "starting_balance", positive=True if not self.allow_zero_starting_balance else False)
+        if self.starting_balance is None or self.starting_balance < 0:
+            raise ValueError("starting_balance must be nonnegative")
+        if self.source_review is not None and not isinstance(self.source_review, SourceReview):
+            raise ValueError("invalid source_review")
         if self.profit_target is not None:
             _money(self.profit_target, "profit_target", positive=True)
         payload = json.dumps(_canonical(self), sort_keys=True, separators=(",", ":"))
@@ -304,10 +592,33 @@ class AccountSnapshot:
     withdrawals: Decimal | None = None
     prior_payout_count: int | None = None
     last_payout_at: datetime | None = None
+    session_id: str | None = None
+    daily_pnl_session_id: str | None = None
+    prior_session_blocked: bool | None = None
+    blocked_session_id: str | None = None
+    session_ends_at: datetime | None = None
+    trading_day_ends_at: datetime | None = None
+    prior_drawdown_floor: Decimal | None = None
+    prior_account_failed: bool | None = None
+    exposures: tuple[ExposurePosition, ...] | None = None
+    payout_cycle: PayoutCycleSnapshot | None = None
 
     def __post_init__(self) -> None:
         _aware(self.as_of, "as_of")
         _aware(self.last_payout_at, "last_payout_at")
+        _aware(self.session_ends_at, "session_ends_at")
+        _aware(self.trading_day_ends_at, "trading_day_ends_at")
+        _money(self.prior_drawdown_floor, "prior_drawdown_floor")
+        if self.prior_account_failed is not None and type(self.prior_account_failed) is not bool:
+            raise ValueError("prior_account_failed must be a boolean")
+        if self.prior_session_blocked is not None and type(self.prior_session_blocked) is not bool:
+            raise ValueError("prior_session_blocked must be a boolean")
+        if self.blocked_session_id is not None and not isinstance(self.blocked_session_id, str):
+            raise ValueError("blocked_session_id must be a string")
+        if self.exposures is not None and (not isinstance(self.exposures, tuple) or any(not isinstance(v, ExposurePosition) for v in self.exposures)):
+            raise ValueError("exposures must be an immutable tuple")
+        if self.payout_cycle is not None and not isinstance(self.payout_cycle, PayoutCycleSnapshot):
+            raise ValueError("invalid payout_cycle")
         if self.stage is not None and not isinstance(self.stage, AccountStage):
             raise ValueError("stage must be an AccountStage")
         for name in ("contracts_open", "contracts_traded", "trading_days", "prior_payout_count"):

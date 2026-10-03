@@ -7,8 +7,8 @@ from datetime import timedelta
 from decimal import Decimal
 
 from .models_v1 import (
-    AccountSnapshot, AccountStage, ConsistencyMode, DrawdownModel, PayoutRequest,
-    PropFirmProfile, RuleEvaluationResult, ValueBasis,
+    AccountSnapshot, AccountStage, ConsistencyApplication, ConsistencyMode, DailyLossEnforcement, DrawdownModel, PayoutRequest,
+    PropFirmProfile, ResetBoundary, RuleEvaluationResult, ValueBasis,
 )
 
 
@@ -52,6 +52,8 @@ def _value(snapshot: AccountSnapshot, basis: ValueBasis) -> Decimal | None:
 
 def evaluate_drawdown(profile: PropFirmProfile, snapshot: AccountSnapshot) -> DrawdownEvaluation:
     policy = profile.drawdown
+    if policy.transition is not None or policy.reference_update_mode is not None or policy.breach_basis == ValueBasis.MIN_BALANCE_OR_EQUITY:
+        return DrawdownEvaluation(None, None, True, "UNSUPPORTED_POLICY_USE_V2")
     if policy.model == DrawdownModel.NONE:
         return DrawdownEvaluation(None, None, False, None)
     if snapshot.starting_balance is None:
@@ -95,6 +97,8 @@ def evaluate_drawdown(profile: PropFirmProfile, snapshot: AccountSnapshot) -> Dr
 
 def evaluate_daily_loss(profile: PropFirmProfile, snapshot: AccountSnapshot) -> DailyLossEvaluation:
     limit = profile.daily_loss.limit
+    if profile.daily_loss.enforcement != DailyLossEnforcement.ACCOUNT_FAIL:
+        return DailyLossEvaluation(limit, None, None, True, "UNSUPPORTED_POLICY_USE_V2")
     if limit is None:
         return DailyLossEvaluation(None, None, None, False, None)
     if snapshot.daily_pnl is None:
@@ -107,6 +111,8 @@ def evaluate_daily_loss(profile: PropFirmProfile, snapshot: AccountSnapshot) -> 
 
 def evaluate_contract_limit(profile: PropFirmProfile, snapshot: AccountSnapshot) -> ContractLimitEvaluation:
     maximum = profile.contract_limit.maximum_open
+    if profile.contract_limit.weighted_exposure is not None or maximum is None:
+        return ContractLimitEvaluation(maximum or 0, None, None, True, "UNSUPPORTED_POLICY_USE_V2")
     if snapshot.contracts_open is None:
         return ContractLimitEvaluation(maximum, None, None, True, "MISSING_CONTRACTS_OPEN")
     remaining = maximum - snapshot.contracts_open
@@ -126,6 +132,8 @@ def evaluate_contract_limit(profile: PropFirmProfile, snapshot: AccountSnapshot)
 
 def evaluate_consistency(profile: PropFirmProfile, snapshot: AccountSnapshot) -> ConsistencyEvaluation:
     policy = profile.consistency
+    if policy.application != ConsistencyApplication.STAGE:
+        return ConsistencyEvaluation(None, None, True, "UNSUPPORTED_POLICY_USE_V2")
     if not policy.enabled:
         return ConsistencyEvaluation(None, None, False, None)
     if snapshot.best_day_profit is None:
@@ -179,8 +187,31 @@ def _result(profile: PropFirmProfile, reasons: list[str], metrics: dict,
                                 tuple(sorted(metrics.items())), profile.identity, profile.version)
 
 
+def _requires_v2(profile: PropFirmProfile) -> bool:
+    payout = profile.payout
+    return bool(
+        profile.allow_zero_starting_balance or profile.source_review is not None
+        or profile.drawdown.transition is not None
+        or profile.drawdown.reference_update_mode is not None
+        or profile.drawdown.breach_basis == ValueBasis.MIN_BALANCE_OR_EQUITY
+        or profile.daily_loss.enforcement != DailyLossEnforcement.ACCOUNT_FAIL
+        or profile.daily_loss.reset_boundary != ResetBoundary.SESSION_END
+        or profile.consistency.application != ConsistencyApplication.STAGE
+        or profile.contract_limit.weighted_exposure is not None
+        or profile.contract_limit.maximum_open is None
+        or payout.minimum_winning_days_per_cycle or payout.minimum_trading_days_per_cycle
+        or payout.minimum_profit_since_last_payout is not None
+        or payout.minimum_payout_amount is not None
+        or payout.maximum_fraction_basis.value != "AVAILABLE_PROFIT"
+        or payout.tiers or payout.consistency_per_cycle
+        or not payout.require_session_clear
+    )
+
+
 def evaluate_account(profile: PropFirmProfile, snapshot: AccountSnapshot) -> RuleEvaluationResult:
     """Assess configured account rules and stage completion. This grants no trade authority."""
+    if _requires_v2(profile):
+        return _result(profile, ["UNSUPPORTED_POLICY_USE_V2"], {})
     reasons = _profile_reasons(profile, snapshot)
     metrics: dict = {}
     drawdown = evaluate_drawdown(profile, snapshot)
@@ -223,6 +254,8 @@ def evaluate_payout(
 ) -> RuleEvaluationResult:
     """Assess payout conditions without changing balances or recording a payout."""
     policy = profile.payout
+    if _requires_v2(profile):
+        return _result(profile, ["UNSUPPORTED_POLICY_USE_V2"], {})
     account = evaluate_account(profile, snapshot)
     reasons = list(account.blocking_reasons)
     metrics = dict(account.metrics)
