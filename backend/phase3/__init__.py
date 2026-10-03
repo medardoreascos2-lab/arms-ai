@@ -147,8 +147,11 @@ from .state_contracts import (
     TenantIdentity,
     UserIdentity,
 )
+from .research_api import ResearchApiSources, create_phase3_research_router
 
 __all__ = [
+    "ResearchApiSources",
+    "create_phase3_research_router",
     "OUTBOX_SERIALIZATION_FORMAT",
     "DurableOutbox",
     "OutboxConflictError",

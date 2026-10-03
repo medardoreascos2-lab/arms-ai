@@ -129,3 +129,9 @@ are fenced by owner, token, expiry, and attempt count. Recovery has no broker,
 source-account mutation, production mutation, or external-delivery authority;
 worker delivery remains limited to an explicitly injected test or safe
 transport.
+
+R34A adds a standalone research router with GET-only collections for datasets,
+experiments, challengers, reports, and promotion reviews. Read models are
+injected, copied into detached JSON payloads, and fail with a read-only 503 when
+unavailable. The router is deliberately not mounted into the frozen V8 app and
+contains no mutation, execution, or production promotion endpoint.
