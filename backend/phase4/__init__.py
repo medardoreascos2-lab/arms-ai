@@ -214,6 +214,12 @@ from .request_replay import (
     RequestEffect,
     RequestReplayProtector,
 )
+from .deployment_config import (
+    DeploymentEnvironment,
+    Phase4DeploymentConfig,
+    Phase4Feature,
+    SecretProviderMode,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -230,6 +236,7 @@ __all__ = [
     "DatabaseReadOnlyError",
     "DatabaseTarget",
     "DatabaseTenantIsolationError",
+    "DeploymentEnvironment",
     "DisasterScenario",
     "BACKUP_MANIFEST_FORMAT",
     "BACKUP_ARTIFACT_PATHS",
@@ -284,6 +291,8 @@ __all__ = [
     "Phase4TransportAuthorizationBoundary",
     "Phase4TransportRequest",
     "Phase4RequestEnvelope",
+    "Phase4DeploymentConfig",
+    "Phase4Feature",
     "POSTGRES_TABLES",
     "PostgresAppendResult",
     "PostgresConnectionFactory",
@@ -358,6 +367,7 @@ __all__ = [
     "SecretProviderUnavailableError",
     "SecretReference",
     "SecretRedactor",
+    "SecretProviderMode",
     "ServiceCredentialRotation",
     "ServiceIdentity",
     "ServicePermission",
