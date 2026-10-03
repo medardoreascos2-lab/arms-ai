@@ -22,6 +22,18 @@ from .database_abstraction import (
     decode_exact_decimal,
     encode_exact_decimal,
 )
+from .postgresql_adapter import (
+    POSTGRES_TABLES,
+    PostgresAppendResult,
+    PostgresConnectionFactory,
+    PostgresDatabaseAdapter,
+    PostgresDatabaseConnection,
+    PostgresDBAPIConnection,
+    PostgresDocument,
+    PostgresRecordKind,
+    PostgresStoredDocument,
+    PostgresTenantRepository,
+)
 
 __all__ = [
     "DatabaseAccessMode",
@@ -38,6 +50,16 @@ __all__ = [
     "DatabaseReadOnlyError",
     "DatabaseTarget",
     "DatabaseTenantIsolationError",
+    "POSTGRES_TABLES",
+    "PostgresAppendResult",
+    "PostgresConnectionFactory",
+    "PostgresDatabaseAdapter",
+    "PostgresDatabaseConnection",
+    "PostgresDBAPIConnection",
+    "PostgresDocument",
+    "PostgresRecordKind",
+    "PostgresStoredDocument",
+    "PostgresTenantRepository",
     "REQUIRED_CAPABILITIES",
     "SQLiteDatabaseAdapter",
     "SQLiteDatabaseConnection",
