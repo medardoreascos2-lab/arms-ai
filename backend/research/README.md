@@ -89,3 +89,11 @@ estimated storage, and absolute maintenance windows are enforced before each
 enqueue. Open, stale, idle, and maintenance states create only deferred job
 evidence. The scheduler has no OS scheduler, worker, trading, or production
 strategy mutation authority.
+
+Automated research reports bind the current immutable registry revision and its
+complete evidence set for the production reference and every challenger. Each
+side-by-side section includes trades, win rate, expectancy, profit factor,
+drawdown, average R, optional MAE/MFE, reconciled session and regime breakdowns,
+and gate-reason counts. Reports are hash identified and sort challengers only by
+stable strategy ID. They contain no score, rank, automatic winner, production
+recommendation, execution authority, or production mutation authority.

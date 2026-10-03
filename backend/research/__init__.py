@@ -117,6 +117,16 @@ from .research_scheduler import (
     ResearchSchedulerMode,
     WeekendResearchScheduler,
 )
+from .research_report import (
+    AutomatedResearchReport,
+    AutomatedResearchReportBuilder,
+    ResearchBreakdownRow,
+    ResearchPerformanceMetrics,
+    ResearchReportError,
+    StrategyReportSource,
+    StrategyResearchEvidence,
+    StrategyResearchSection,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -218,4 +228,12 @@ __all__ = [
     "ResearchSchedulerLimits",
     "ResearchSchedulerMode",
     "WeekendResearchScheduler",
+    "AutomatedResearchReport",
+    "AutomatedResearchReportBuilder",
+    "ResearchBreakdownRow",
+    "ResearchPerformanceMetrics",
+    "ResearchReportError",
+    "StrategyReportSource",
+    "StrategyResearchEvidence",
+    "StrategyResearchSection",
 ]
