@@ -82,3 +82,9 @@ All three stages are deliberately `INCOMPLETE`. Test still needs explicit approv
 `resolve_profile` accepts only `CURRENT_VERIFIED` by default. Inspection of incomplete, conflicting, unavailable, or stale profiles requires the caller to pass `required_source_status=None`; the returned `ResolvedProfile` still includes the actual status. A profile without source review metadata is treated as `INCOMPLETE`. Listing and status methods always calculate status at the supplied timezone-aware timestamp and never relabel an expired review as current.
 
 The registry is read-only. It selects configuration and performs no account, payout, PAPER, LIVE, broker, position, or order action.
+
+## Identified account snapshot (R25B)
+
+`PropFirmAccountSnapshot` binds an immutable `AccountSnapshot` to account ID, firm, program, stage, account size, exact profile version, capture time, data source, and an explicit simulated-data flag. It exposes balance, equity, realized and unrealized PnL, daily PnL, high-water marks, open exposure, trading and winning days, best day, payout-cycle profit, hard-breach state, and session-block state without recalculating or substituting values.
+
+The wrapper requires its stage and capture time to match the nested rule state. Missing optional risk values remain `None` so evaluation fails closed. A deterministic SHA-256 content hash covers identity, provenance, and every nested state field. Constructing or reading a snapshot performs no broker, account, order, payout, PAPER, or LIVE action.

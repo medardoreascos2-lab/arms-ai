@@ -25,3 +25,4 @@ from .profile_registry import (
     ProfileRegistryError, ProfileSourceStatusError, PropFirmProfileRegistry,
     ResolvedProfile, canonical_profile_registry,
 )
+from .account_snapshot import PropFirmAccountSnapshot
