@@ -100,3 +100,9 @@ Current source status is required by default. Unverified analysis is an explicit
 `prop_firm_policy_api_v1.py` exposes four isolated operations: list temporal profile descriptors, resolve one exact profile, evaluate one identified snapshot, and evaluate multiple identified snapshots. Request schemas reject unknown fields, retain missing risk values, require snapshot identity and timestamps, and convert JSON into the immutable domain models. Monetary response values are encoded as decimal strings.
 
 The API is evaluation-only. Its POST operations calculate diagnostics and do not create a resource or mutate state. The router has no broker, PAPER, LIVE, position, portfolio, account, payout, or journal dependency, and every evaluation response retains `execution_authorized=false`. It is intentionally not registered in the operational application; a future host can mount it only after choosing an explicit deployment and access boundary.
+
+## Multi-account portfolio analytics (R26A)
+
+`analyze_prop_firm_portfolio` projects immutable identified account snapshots and their canonical rule diagnostics into aggregate balance, equity, realized and unrealized PnL, drawdown utilization, daily-limit utilization, exposure, payout readiness, and account, firm, and stage distributions. It does not use the mutable execution `PortfolioManagerV2` as an analytics authority.
+
+Missing monetary or exposure values are never replaced with zero. Each aggregate carries a known-data subtotal, the account IDs with missing values, and a complete total only when every snapshot supplied that value. Utilization is reported per account with explicit `AVAILABLE`, `NOT_APPLICABLE`, or `INCOMPLETE` status. The output and nested diagnostics hard-code `execution_authorized=False`; analysis performs no broker, PAPER, LIVE, position, payout, account, or journal action.

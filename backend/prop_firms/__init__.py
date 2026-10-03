@@ -29,3 +29,8 @@ from .account_snapshot import PropFirmAccountSnapshot
 from .multi_account_evaluator import (
     AccountDiagnosticEvaluation, MultiAccountDiagnosticSummary, evaluate_accounts,
 )
+from .portfolio_analytics import (
+    AccountDistribution, AccountUtilization, AnalyticsAvailability,
+    ExposureAnalytics, NumericAggregate, PayoutReadiness,
+    PropFirmPortfolioAnalytics, UtilizationSummary, analyze_prop_firm_portfolio,
+)
