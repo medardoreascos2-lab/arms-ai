@@ -72,6 +72,18 @@ from .oos_validator import (
     OosValidationRules,
     OutOfSampleValidator,
 )
+from .stress_engine import (
+    DecimalDistribution,
+    IntegerDistribution,
+    ResearchStressConfig,
+    ResearchStressEngine,
+    ResearchStressError,
+    ResearchStressInput,
+    ResearchStressResult,
+    StressResamplingModel,
+    StressSimulation,
+    StressTrade,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -136,4 +148,14 @@ __all__ = [
     "OosValidationResult",
     "OosValidationRules",
     "OutOfSampleValidator",
+    "DecimalDistribution",
+    "IntegerDistribution",
+    "ResearchStressConfig",
+    "ResearchStressEngine",
+    "ResearchStressError",
+    "ResearchStressInput",
+    "ResearchStressResult",
+    "StressResamplingModel",
+    "StressSimulation",
+    "StressTrade",
 ]

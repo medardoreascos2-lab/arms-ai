@@ -54,3 +54,13 @@ changed data, insufficient samples, invalid metrics, evaluator errors, or
 non-determinism. Reports include pass/fail, every blocking gate, exact metrics,
 drawdown, and trade count. Confidence intervals are explicitly marked as not
 implemented rather than estimated without a safe statistical contract.
+
+The stress engine consumes reconciled trade evidence tied to a source run and
+result hash. A required seed drives deterministic trade-order permutation,
+loss-streak clustering, or return bootstrap paths. Every path can also apply
+conservative fee and slippage multipliers, added spread cost, and independent
+missed fills. The result retains every simulation and reports exact-decimal PnL
+and drawdown distributions, a loss-streak distribution, and a first-passage
+risk-of-ruin frequency. Its report names the RNG, model assumptions, seed, and
+cost scenario and states that simulated results are neither guarantees nor
+forecasts of future performance.
