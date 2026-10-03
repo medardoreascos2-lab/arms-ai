@@ -20,3 +20,10 @@ every principal and account scope to one tenant; resolves only known accounts;
 and denies missing authentication, cross-tenant access, unavailable grants,
 unknown accounts, and scope violations. Tenant admin behavior is explicit and
 still carries no canonical admin, execution, or production mutation authority.
+
+R32D adds a pure account snapshot ingestion contract. It binds the Phase 2
+snapshot to tenant, account, profile, source, currency, sequence, receipt time,
+and freshness policy; requires complete risk and payout state; detects
+inconsistent high-water and exposure data; and handles retries deterministically
+as accepted, idempotent duplicate, or rejection. It returns only immutable
+decisions and cursors and performs no write.

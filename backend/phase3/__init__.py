@@ -20,6 +20,16 @@ from .read_authorization import (
     ReadRequest,
     ReadRequirement,
 )
+from .snapshot_ingestion import (
+    IngestionCode,
+    SnapshotCursor,
+    SnapshotFreshnessPolicy,
+    SnapshotIngestionDecision,
+    SnapshotIngestionRequest,
+    SnapshotIngestionSource,
+    SnapshotSourceKind,
+    evaluate_snapshot_ingestion,
+)
 
 from .state_contracts import (
     AccountIdentity,
@@ -63,4 +73,12 @@ __all__ = [
     "ReadAuthorizationBoundary",
     "ReadRequest",
     "ReadRequirement",
+    "IngestionCode",
+    "SnapshotCursor",
+    "SnapshotFreshnessPolicy",
+    "SnapshotIngestionDecision",
+    "SnapshotIngestionRequest",
+    "SnapshotIngestionSource",
+    "SnapshotSourceKind",
+    "evaluate_snapshot_ingestion",
 ]
