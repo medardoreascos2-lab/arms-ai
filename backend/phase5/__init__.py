@@ -50,6 +50,14 @@ from .restore_escalation import (
     RestoreEscalationPlan,
     RestoreEscalationReport,
 )
+from .staging_runtime import (
+    REQUIRED_PHASE5_STAGING_COMPONENTS,
+    Phase5LocalStagingDependencies,
+    Phase5LocalStagingRuntime,
+    Phase5StagingComponent,
+    Phase5StagingCompositionError,
+    compose_phase5_local_staging_runtime,
+)
 from .load_rehearsal import (
     STAGING_LOAD_PROFILES,
     StagingLatencyMetrics,
@@ -80,6 +88,11 @@ __all__ = [
     "StagingRestorePolicy",
     "RestoreEscalationPlan",
     "RestoreEscalationReport",
+    "REQUIRED_PHASE5_STAGING_COMPONENTS",
+    "Phase5LocalStagingDependencies",
+    "Phase5LocalStagingRuntime",
+    "Phase5StagingComponent",
+    "Phase5StagingCompositionError",
     "Phase5FailureAction",
     "Phase5FailureDrillReport",
     "Phase5FailureDrillStatus",
@@ -102,6 +115,7 @@ __all__ = [
     "StagingLoadRehearsalReport",
     "TenantIsolationViolation",
     "create_encrypted_staging_backup",
+    "compose_phase5_local_staging_runtime",
     "deserialize_staging_backup_payload",
     "open_encrypted_staging_backup",
     "render_phase5_failure_drill_runbook",
