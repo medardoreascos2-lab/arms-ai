@@ -54,10 +54,10 @@ def _database(path: Path) -> bytes:
     return path.read_bytes()
 
 
-def _audit(*, corrupt: bool = False) -> bytes:
+def _audit(*, corrupt: bool = False, tenants=("tenant-a", "tenant-b")) -> bytes:
     previous = "0" * 64
     entries = []
-    for sequence, tenant in enumerate(("tenant-a", "tenant-b"), start=1):
+    for sequence, tenant in enumerate(tenants, start=1):
         evidence = {
             "event": "RESTORE_CHECKPOINT",
             "previous_hash": previous,
@@ -121,6 +121,7 @@ def test_incompatible_app_rollback_escalates_to_verified_isolated_restore(tmp_pa
     source_hash = hashlib.sha256(database).hexdigest()
     archive, cipher, payload = _archive(database)
     destination = tmp_path / "isolated-restore" / "restored.sqlite3"
+    destination.parent.mkdir()
     rollback = _rollback()
 
     report = EncryptedRestoreEscalation().rehearse(
@@ -128,7 +129,12 @@ def test_incompatible_app_rollback_escalates_to_verified_isolated_restore(tmp_pa
         archive,
         cipher,
         _policy(),
-        RestoreEscalationPlan(source, destination, ("tenant-a", "tenant-b")),
+        RestoreEscalationPlan(
+            source,
+            destination.parent,
+            destination,
+            ("tenant-a", "tenant-b"),
+        ),
     )
 
     assert rollback.status is AppRollbackStatus.BLOCKED_SCHEMA
@@ -161,6 +167,7 @@ def test_restore_requires_schema_escalation_and_never_materializes_for_healthy_r
     archive, cipher, _ = _archive(database)
     compatible = _rollback(schema_version=2)
     destination = tmp_path / "isolated" / "restored.sqlite3"
+    destination.parent.mkdir()
 
     with pytest.raises(ValueError, match="blocked schema"):
         EncryptedRestoreEscalation().rehearse(
@@ -168,7 +175,12 @@ def test_restore_requires_schema_escalation_and_never_materializes_for_healthy_r
             archive,
             cipher,
             _policy(),
-            RestoreEscalationPlan(source, destination, ("tenant-a", "tenant-b")),
+            RestoreEscalationPlan(
+                source,
+                destination.parent,
+                destination,
+                ("tenant-a", "tenant-b"),
+            ),
         )
 
     assert destination.exists() is False
@@ -190,7 +202,12 @@ def test_existing_destination_is_never_overwritten(tmp_path):
             archive,
             cipher,
             _policy(),
-            RestoreEscalationPlan(source, destination, ("tenant-a", "tenant-b")),
+            RestoreEscalationPlan(
+                source,
+                destination.parent,
+                destination,
+                ("tenant-a", "tenant-b"),
+            ),
         )
 
     assert destination.read_bytes() == b"existing-isolated-evidence"
@@ -203,6 +220,7 @@ def test_invalid_audit_chain_fails_closed_and_cleans_isolated_staging(tmp_path):
     database = _database(source)
     archive, cipher, _ = _archive(database, audit=_audit(corrupt=True))
     destination = tmp_path / "isolated" / "restored.sqlite3"
+    destination.parent.mkdir()
 
     with pytest.raises(ValueError, match="audit continuity sequence"):
         EncryptedRestoreEscalation().rehearse(
@@ -210,9 +228,76 @@ def test_invalid_audit_chain_fails_closed_and_cleans_isolated_staging(tmp_path):
             archive,
             cipher,
             _policy(),
-            RestoreEscalationPlan(source, destination, ("tenant-a", "tenant-b")),
+            RestoreEscalationPlan(
+                source,
+                destination.parent,
+                destination,
+                ("tenant-a", "tenant-b"),
+            ),
         )
 
     assert destination.exists() is False
     assert source.read_bytes() == database
     assert list(destination.parent.glob(".restore-*.sqlite3")) == []
+
+
+@pytest.mark.parametrize(
+    "audit, message",
+    (
+        (_audit(tenants=("tenant-a", "tenant-c")), "tenant scope"),
+        (_audit(tenants=("tenant-a",)), "tenant coverage"),
+        (
+            b'{"entries":[],"entries":[],"tip":"' + b"0" * 64 + b'"}',
+            "duplicate fields",
+        ),
+    ),
+)
+def test_restore_rejects_cross_tenant_incomplete_or_ambiguous_audit_evidence(
+    tmp_path,
+    audit,
+    message,
+):
+    source = tmp_path / "active" / "staging.sqlite3"
+    source.parent.mkdir()
+    database = _database(source)
+    archive, cipher, _ = _archive(database, audit=audit)
+    restore_root = tmp_path / "isolated"
+    restore_root.mkdir()
+    destination = restore_root / "restored.sqlite3"
+
+    with pytest.raises(ValueError, match=message):
+        EncryptedRestoreEscalation().rehearse(
+            _rollback(),
+            archive,
+            cipher,
+            _policy(),
+            RestoreEscalationPlan(
+                source,
+                restore_root,
+                destination,
+                ("tenant-a", "tenant-b"),
+            ),
+        )
+
+    assert destination.exists() is False
+    assert source.read_bytes() == database
+    assert list(restore_root.glob(".restore-*.sqlite3")) == []
+
+
+def test_restore_destination_cannot_escape_explicit_isolated_root(tmp_path):
+    source = tmp_path / "active" / "staging.sqlite3"
+    source.parent.mkdir()
+    _database(source)
+    restore_root = tmp_path / "isolated"
+    restore_root.mkdir()
+    escaped = tmp_path / "escaped.sqlite3"
+
+    with pytest.raises(ValueError, match="inside isolated root"):
+        RestoreEscalationPlan(
+            source,
+            restore_root,
+            escaped,
+            ("tenant-a", "tenant-b"),
+        )
+
+    assert escaped.exists() is False

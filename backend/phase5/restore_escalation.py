@@ -20,6 +20,7 @@ from .encrypted_backup import (
 
 
 _SHA256_LENGTH = 64
+_MAX_EVIDENCE_BYTES = 16 * 1024 * 1024
 
 
 def _canonical(document: object) -> bytes:
@@ -36,19 +37,62 @@ def _sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _load_evidence_document(payload: bytes, label: str) -> dict[str, object]:
+    if not isinstance(payload, bytes) or not payload or len(payload) > _MAX_EVIDENCE_BYTES:
+        raise ValueError(f"{label} document is invalid")
+
+    def unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        document: dict[str, object] = {}
+        for key, value in pairs:
+            if key in document:
+                raise ValueError(f"{label} document contains duplicate fields")
+            document[key] = value
+        return document
+
+    try:
+        document = json.loads(
+            payload.decode("utf-8"),
+            object_pairs_hook=unique_object,
+            parse_float=lambda _: (_ for _ in ()).throw(
+                ValueError(f"{label} document contains floating-point values")
+            ),
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError(f"{label} document contains non-finite values")
+            ),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise ValueError(f"{label} document is invalid") from None
+    if not isinstance(document, dict):
+        raise ValueError(f"{label} document is invalid")
+    return document
+
+
 @dataclass(frozen=True)
 class RestoreEscalationPlan:
     active_database: Path
+    isolated_restore_root: Path
     isolated_destination: Path
     expected_tenants: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        for name in ("active_database", "isolated_destination"):
-            if not isinstance(getattr(self, name), Path):
-                raise ValueError(f"{name} must be a Path")
+        for name in (
+            "active_database",
+            "isolated_restore_root",
+            "isolated_destination",
+        ):
+            path = getattr(self, name)
+            if not isinstance(path, Path) or not path.is_absolute():
+                raise ValueError(f"{name} must be an absolute Path")
         source = self.active_database.resolve(strict=False)
+        root = self.isolated_restore_root.resolve(strict=True)
         destination = self.isolated_destination.resolve(strict=False)
-        if source == destination or source.parent == destination.parent:
+        if self.isolated_restore_root.is_symlink() or not root.is_dir():
+            raise ValueError("isolated restore root must be a non-symlink directory")
+        try:
+            destination.relative_to(root)
+        except ValueError:
+            raise ValueError("restore destination must remain inside isolated root") from None
+        if destination == root or source == destination or source.parent == destination.parent:
             raise ValueError("restore destination must be isolated from active source")
         if (
             not isinstance(self.expected_tenants, tuple)
@@ -110,7 +154,14 @@ class EncryptedRestoreEscalation:
         source = plan.active_database.resolve(strict=True)
         if not source.is_file():
             raise ValueError("active source must be a regular file")
+        if plan.isolated_restore_root.is_symlink():
+            raise ValueError("isolated restore root cannot be a symbolic link")
+        restore_root = plan.isolated_restore_root.resolve(strict=True)
         destination = plan.isolated_destination.resolve(strict=False)
+        try:
+            destination.relative_to(restore_root)
+        except ValueError:
+            raise ValueError("restore destination escaped isolated root") from None
         if destination.exists():
             raise FileExistsError("isolated restore destination already exists")
         if destination.parent.is_symlink():
@@ -138,7 +189,10 @@ class EncryptedRestoreEscalation:
                 policy.expected_database_schema_version,
                 plan.expected_tenants,
             )
-            audit_tip = self._validate_audit(payload.audit_continuity)
+            audit_tip = self._validate_audit(
+                payload.audit_continuity,
+                plan.expected_tenants,
+            )
             evaluation_id = self._validate_research(payload.research_provenance)
             if _sha256(source.read_bytes()) != source_hash_before:
                 raise ValueError("active source changed during isolated restore")
@@ -196,24 +250,33 @@ class EncryptedRestoreEscalation:
         return schema, tenants
 
     @staticmethod
-    def _validate_audit(payload: bytes) -> str:
-        document = json.loads(payload)
+    def _validate_audit(payload: bytes, expected_tenants: tuple[str, ...]) -> str:
+        document = _load_evidence_document(payload, "audit continuity")
         if not isinstance(document, dict) or set(document) != {"entries", "tip"}:
             raise ValueError("audit continuity document is invalid")
         entries = document["entries"]
         if not isinstance(entries, list) or not entries:
             raise ValueError("audit continuity entries are invalid")
         previous = "0" * _SHA256_LENGTH
+        seen_tenants: set[str] = set()
+        allowed_tenants = set(expected_tenants)
         for sequence, entry in enumerate(entries, start=1):
             if not isinstance(entry, dict) or set(entry) != {
                 "event", "hash", "previous_hash", "sequence", "tenant_id"
             }:
                 raise ValueError("audit continuity entry is invalid")
+            tenant_id = entry["tenant_id"]
+            if not isinstance(tenant_id, str) or tenant_id not in allowed_tenants:
+                raise ValueError("audit continuity tenant scope is invalid")
+            event = entry["event"]
+            if not isinstance(event, str) or not event:
+                raise ValueError("audit continuity event is invalid")
+            seen_tenants.add(tenant_id)
             evidence = {
-                "event": entry["event"],
+                "event": event,
                 "previous_hash": entry["previous_hash"],
                 "sequence": entry["sequence"],
-                "tenant_id": entry["tenant_id"],
+                "tenant_id": tenant_id,
             }
             if entry["sequence"] != sequence or entry["previous_hash"] != previous:
                 raise ValueError("audit continuity sequence is invalid")
@@ -223,11 +286,13 @@ class EncryptedRestoreEscalation:
             previous = expected
         if document["tip"] != previous:
             raise ValueError("audit continuity tip is invalid")
+        if seen_tenants != allowed_tenants:
+            raise ValueError("audit continuity tenant coverage is incomplete")
         return previous
 
     @staticmethod
     def _validate_research(payload: bytes) -> str:
-        document = json.loads(payload)
+        document = _load_evidence_document(payload, "research provenance")
         if not isinstance(document, dict) or set(document) != {
             "dataset_sha256", "evaluation_id", "strategy_sha256"
         }:
