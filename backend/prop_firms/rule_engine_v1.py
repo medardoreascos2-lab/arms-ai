@@ -213,6 +213,7 @@ def _requires_v2(profile: PropFirmProfile) -> bool:
         or payout.minimum_profit_since_last_payout is not None
         or payout.minimum_payout_amount is not None
         or payout.maximum_payout_count is not None
+        or payout.trader_profit_fraction is not None or payout.require_flat
         or payout.maximum_fraction_basis.value != "AVAILABLE_PROFIT"
         or payout.tiers or payout.consistency_per_cycle
         or not payout.require_session_clear

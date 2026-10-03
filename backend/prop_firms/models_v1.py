@@ -501,13 +501,18 @@ class PayoutPolicy:
     minimum_profit_since_last_payout: Decimal | None = None
     minimum_payout_amount: Decimal | None = None
     maximum_payout_count: int | None = None
+    trader_profit_fraction: Decimal | None = None
+    require_flat: bool = False
     maximum_fraction_basis: PayoutFractionBasis = PayoutFractionBasis.AVAILABLE_PROFIT
     tiers: tuple[PayoutTier, ...] = ()
     consistency_per_cycle: bool = False
     require_session_clear: bool = True
 
     def __post_init__(self) -> None:
-        for name in ("enabled", "consistency_required", "consistency_per_cycle", "require_session_clear"):
+        for name in (
+            "enabled", "consistency_required", "consistency_per_cycle",
+            "require_session_clear", "require_flat",
+        ):
             _bool(getattr(self, name), name)
         _nonnegative(self.minimum_trading_days, "minimum_trading_days")
         _nonnegative(self.minimum_days_since_prior_payout, "minimum_days_since_prior_payout")
@@ -517,6 +522,10 @@ class PayoutPolicy:
         _nonnegative(self.maximum_payout_count, "maximum_payout_count")
         if self.maximum_payout_count == 0:
             raise ValueError("maximum_payout_count must be positive")
+        _money(self.trader_profit_fraction, "trader_profit_fraction",
+               positive=self.trader_profit_fraction is not None)
+        if self.trader_profit_fraction is not None and self.trader_profit_fraction > 1:
+            raise ValueError("trader_profit_fraction cannot exceed one")
         if not isinstance(self.maximum_fraction_basis, PayoutFractionBasis):
             raise ValueError("invalid maximum_fraction_basis")
         if not isinstance(self.tiers, tuple) or any(not isinstance(t, PayoutTier) for t in self.tiers):
@@ -556,6 +565,7 @@ class PayoutPolicy:
             self.minimum_qualifying_day_profit is not None,
             self.minimum_profit_since_last_payout is not None, self.minimum_payout_amount is not None,
             self.maximum_payout_count is not None,
+            self.trader_profit_fraction is not None, self.require_flat,
             self.maximum_fraction_basis != PayoutFractionBasis.AVAILABLE_PROFIT,
             bool(self.tiers), self.consistency_per_cycle, not self.require_session_clear
         )):
@@ -705,6 +715,7 @@ class AccountSnapshot:
     highest_end_of_day_balance: Decimal | None = None
     prior_end_of_day_balance: Decimal | None = None
     contracts_open: int | None = None
+    working_orders: int | None = None
     contracts_traded: int | None = None
     trading_days: int | None = None
     best_day_profit: Decimal | None = None
@@ -746,7 +757,7 @@ class AccountSnapshot:
         if self.stage is not None and not isinstance(self.stage, AccountStage):
             raise ValueError("stage must be an AccountStage")
         for name in (
-            "contracts_open", "contracts_traded", "trading_days", "prior_payout_count",
+            "contracts_open", "working_orders", "contracts_traded", "trading_days", "prior_payout_count",
             "activity_window_days", "qualifying_activity_days",
         ):
             _nonnegative(getattr(self, name), name)

@@ -538,6 +538,20 @@ def evaluate_payout_v2(
                              "PAYOUT_DISABLED"))
         return _aggregate(profile, outcomes, metrics, account.source_status, True)
 
+    if policy.trader_profit_fraction is not None:
+        metrics["trader_profit_fraction"] = policy.trader_profit_fraction
+        metrics["estimated_trader_payout"] = request.amount * policy.trader_profit_fraction
+    if policy.require_flat:
+        if snapshot.contracts_open is None or snapshot.working_orders is None:
+            outcomes.append(_out("payout_flat", RuleScope.PAYOUT, RuleStatus.INCOMPLETE_DATA,
+                                 "MISSING_PAYOUT_FLAT_STATE"))
+        elif snapshot.contracts_open > 0 or snapshot.working_orders > 0:
+            outcomes.append(_out("payout_flat", RuleScope.PAYOUT, RuleStatus.OBJECTIVE_PENDING,
+                                 "PAYOUT_REQUIRES_FLAT_ACCOUNT"))
+        else:
+            outcomes.append(_out("payout_flat", RuleScope.PAYOUT, RuleStatus.PASS,
+                                 "PAYOUT_FLAT_STATE_PASS"))
+
     cycle_required = any((
         policy.minimum_winning_days_per_cycle, policy.minimum_trading_days_per_cycle,
         policy.minimum_qualifying_days_per_cycle,

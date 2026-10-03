@@ -385,6 +385,10 @@ def test_invalid_extension_configuration_rejected():
     with pytest.raises(ValueError):
         PayoutPolicy(True, tiers=(PayoutTier(1, maximum_amount=D("100")),
                                   PayoutTier(0, maximum_amount=D("100"))))
+    with pytest.raises(ValueError):
+        PayoutPolicy(True, trader_profit_fraction=D("1.01"))
+    with pytest.raises(ValueError):
+        PayoutPolicy(False, require_flat=True)
     scaling = ScalingPolicy((ScalingTier("L1", D("0"), D("2"), D("500")),))
     with pytest.raises(ValueError):
         profile(scaling=scaling)
@@ -546,6 +550,25 @@ def test_minimum_payout_amount_and_tier_specific_cycle_requirements():
         profit_since_last_payout=D("200")
     )), PayoutRequest(D("200")))
     assert {"PAYOUT_TIER_WINNING_DAYS_NOT_MET", "PAYOUT_TIER_PROFIT_NOT_MET"} <= set(second.blocking_reasons)
+
+
+def test_payout_profit_split_is_reporting_only_and_flat_state_fails_closed():
+    p = profile(payout=PayoutPolicy(
+        True, trader_profit_fraction=D("0.8"), require_flat=True,
+    ))
+    missing = evaluate_payout_v2(p, snapshot(working_orders=None), PayoutRequest(D("200")))
+    assert not missing.payout_eligible
+    assert "MISSING_PAYOUT_FLAT_STATE" in missing.blocking_reasons
+    open_order = evaluate_payout_v2(
+        p, snapshot(contracts_open=0, working_orders=1), PayoutRequest(D("200"))
+    )
+    assert "PAYOUT_REQUIRES_FLAT_ACCOUNT" in open_order.blocking_reasons
+    flat = evaluate_payout_v2(
+        p, snapshot(contracts_open=0, working_orders=0), PayoutRequest(D("200"))
+    )
+    assert flat.payout_eligible
+    assert flat.metric("trader_profit_fraction") == D("0.8")
+    assert flat.metric("estimated_trader_payout") == D("160.0")
 
 
 
