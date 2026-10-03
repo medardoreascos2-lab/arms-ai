@@ -148,6 +148,15 @@ from .regime_performance import (
     RegimePerformanceResult,
     TradingSessionLabel,
 )
+from .feature_attribution import (
+    ATTRIBUTION_INTERPRETATION,
+    ATTRIBUTION_LIMITATIONS,
+    FEATURE_NAMES,
+    FeatureAttributionMetric,
+    FeatureAttributionObservation,
+    FeatureAttributionResult,
+    StrategyFeatureAttribution,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -274,4 +283,11 @@ __all__ = [
     "RegimePerformanceObservation",
     "RegimePerformanceResult",
     "TradingSessionLabel",
+    "ATTRIBUTION_INTERPRETATION",
+    "ATTRIBUTION_LIMITATIONS",
+    "FEATURE_NAMES",
+    "FeatureAttributionMetric",
+    "FeatureAttributionObservation",
+    "FeatureAttributionResult",
+    "StrategyFeatureAttribution",
 ]

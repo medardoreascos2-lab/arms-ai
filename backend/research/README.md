@@ -115,3 +115,11 @@ as unlabeled evidence, so the engine never infers a regime or session from time,
 price, or another proxy. Bucket and overall counts reconcile, inputs and results
 are hash identified, and the output carries no strategy rewrite or execution
 authority.
+
+Feature attribution compares source-provided baseline predictions with matching
+ablation and permutation predictions for BOS, CHOCH, liquidity, FVG, EMA, RSI,
+ATR, trend, HTF, L1, and news. It also reports descriptive correlations and a
+median-stratified outcome comparison. Every metric is labeled as descriptive or
+predictive association, never causation. Reports preserve source hashes, state
+the limits of source-provided counterfactual predictions and in-sample evidence,
+and cannot rewrite a strategy or authorize execution.
