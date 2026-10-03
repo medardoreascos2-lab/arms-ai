@@ -104,6 +104,19 @@ from .promotion_gate import (
     PromotionGateResult,
     StrategyPromotionGate,
 )
+from .research_scheduler import (
+    DeferredResearchJob,
+    MaintenanceWindow,
+    ResearchJobEnqueueResult,
+    ResearchJobKind,
+    ResearchJobQueue,
+    ResearchJobRequest,
+    ResearchScheduleDecision,
+    ResearchSchedulerContext,
+    ResearchSchedulerLimits,
+    ResearchSchedulerMode,
+    WeekendResearchScheduler,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -194,4 +207,15 @@ __all__ = [
     "PromotionGateOutcome",
     "PromotionGateResult",
     "StrategyPromotionGate",
+    "DeferredResearchJob",
+    "MaintenanceWindow",
+    "ResearchJobEnqueueResult",
+    "ResearchJobKind",
+    "ResearchJobQueue",
+    "ResearchJobRequest",
+    "ResearchScheduleDecision",
+    "ResearchSchedulerContext",
+    "ResearchSchedulerLimits",
+    "ResearchSchedulerMode",
+    "WeekendResearchScheduler",
 ]

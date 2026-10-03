@@ -80,3 +80,12 @@ must bind the current immutable challenger revision and its registered evidence
 IDs. A passing result can only recommend `PROMOTION_CANDIDATE` for later human
 review; it cannot mutate the registry, select production, or authorize any
 execution mode.
+
+The weekend research scheduler is an in-process planning boundary with four
+explicit modes: `LIVE_MARKET`, `IDLE`, `WEEKEND_RESEARCH`, and
+`DEEP_RESEARCH`. A fresh closed-market observation is required before any job
+can enter its idempotent research queue. CPU reservations, concurrent jobs,
+estimated storage, and absolute maintenance windows are enforced before each
+enqueue. Open, stale, idle, and maintenance states create only deferred job
+evidence. The scheduler has no OS scheduler, worker, trading, or production
+strategy mutation authority.
