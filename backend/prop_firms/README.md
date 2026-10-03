@@ -88,3 +88,9 @@ The registry is read-only. It selects configuration and performs no account, pay
 `PropFirmAccountSnapshot` binds an immutable `AccountSnapshot` to account ID, firm, program, stage, account size, exact profile version, capture time, data source, and an explicit simulated-data flag. It exposes balance, equity, realized and unrealized PnL, daily PnL, high-water marks, open exposure, trading and winning days, best day, payout-cycle profit, hard-breach state, and session-block state without recalculating or substituting values.
 
 The wrapper requires its stage and capture time to match the nested rule state. Missing optional risk values remain `None` so evaluation fails closed. A deterministic SHA-256 content hash covers identity, provenance, and every nested state field. Constructing or reading a snapshot performs no broker, account, order, payout, PAPER, or LIVE action.
+
+## Multi-account evaluator (R25C)
+
+`evaluate_accounts` resolves and evaluates an immutable tuple of heterogeneous identified snapshots independently. Each result reports account validity, current trading state, objective and payout status, drawdown, daily loss, exposure, consistency, source status, blocking reasons, warnings, failures, metrics, and snapshot hash. A missing, ambiguous, incomplete, conflicting, unavailable, or stale profile blocks only its own account.
+
+Current source status is required by default. Unverified analysis is an explicit option and the underlying rule engine still marks non-current source profiles invalid. Aggregate counts are diagnostics only; both account results and the aggregate hard-code `execution_authorized=False`. This module imports no broker, order, PAPER, or LIVE execution component and performs no mutation.
