@@ -167,6 +167,14 @@ from .paper_challenger_validation import (
     PaperTradeEvidence,
     PaperValidationMetrics,
 )
+from .promotion_review import (
+    PromotionEvidenceKind,
+    PromotionReviewSection,
+    PromotionReviewStatus,
+    ProductionPromotionReview,
+    ProductionPromotionReviewBuilder,
+    REQUIRED_PROMOTION_EVIDENCE,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -308,4 +316,10 @@ __all__ = [
     "PaperStrategyIdentity",
     "PaperTradeEvidence",
     "PaperValidationMetrics",
+    "PromotionEvidenceKind",
+    "PromotionReviewSection",
+    "PromotionReviewStatus",
+    "ProductionPromotionReview",
+    "ProductionPromotionReviewBuilder",
+    "REQUIRED_PROMOTION_EVIDENCE",
 ]

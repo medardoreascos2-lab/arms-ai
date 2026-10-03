@@ -129,3 +129,10 @@ closed simulated sessions, trades, faults, reconciled metrics, and a pinned
 `PRODUCTION_REFERENCE` comparison. Trade evidence must be explicitly simulated;
 session identities and time windows reconcile before a report is produced. The
 hash-identified report has no broker, LIVE, or production mutation authority.
+
+Production promotion review packages candidate, backtest, walk-forward, OOS,
+stress, PAPER challenger, risk-comparison, and parameter-stability evidence with
+their source hashes. Missing evidence yields `NOT_READY`; failed evidence yields
+`RESEARCH_CONTINUE`; complete passing evidence yields only
+`READY_FOR_HUMAN_REVIEW`. Human review is always required, and the package has
+no automatic promotion, production mutation, or execution authority.
