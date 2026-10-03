@@ -94,3 +94,9 @@ The wrapper requires its stage and capture time to match the nested rule state. 
 `evaluate_accounts` resolves and evaluates an immutable tuple of heterogeneous identified snapshots independently. Each result reports account validity, current trading state, objective and payout status, drawdown, daily loss, exposure, consistency, source status, blocking reasons, warnings, failures, metrics, and snapshot hash. A missing, ambiguous, incomplete, conflicting, unavailable, or stale profile blocks only its own account.
 
 Current source status is required by default. Unverified analysis is an explicit option and the underlying rule engine still marks non-current source profiles invalid. Aggregate counts are diagnostics only; both account results and the aggregate hard-code `execution_authorized=False`. This module imports no broker, order, PAPER, or LIVE execution component and performs no mutation.
+
+## Read-only policy API (R25D)
+
+`prop_firm_policy_api_v1.py` exposes four isolated operations: list temporal profile descriptors, resolve one exact profile, evaluate one identified snapshot, and evaluate multiple identified snapshots. Request schemas reject unknown fields, retain missing risk values, require snapshot identity and timestamps, and convert JSON into the immutable domain models. Monetary response values are encoded as decimal strings.
+
+The API is evaluation-only. Its POST operations calculate diagnostics and do not create a resource or mutate state. The router has no broker, PAPER, LIVE, position, portfolio, account, payout, or journal dependency, and every evaluation response retains `execution_authorized=false`. It is intentionally not registered in the operational application; a future host can mount it only after choosing an explicit deployment and access boundary.
