@@ -15,3 +15,11 @@ This milestone contains no dispatcher, provider, credential, network call, messa
 The dispatcher validates the already-redacted event before a provider sees it. Dedupe and rate-limit failures stop before provider delivery. A delivery whose dedupe commit cannot be confirmed is reported as `DELIVERY_UNCONFIRMED` and its in-flight claim remains reserved to prevent an automatic resend.
 
 There are no credentials, network clients, background workers, live transports, broker calls, trading state mutations, or execution authority in this package. Process-local dedupe state does not survive restart; persistent delivery state remains a future integration concern.
+
+## Telegram foundation (R27C)
+
+`telegram.py` defines a Telegram configuration restricted to `DISABLED` and `TEST`, a deterministic plain-text formatter, a transport protocol, a fake recording transport, and a provider adapter that uses the R27B retry result seam. The configuration deliberately has no bot token, endpoint, numeric chat ID, or live mode.
+
+Disabled configuration builds the global disabled provider. Test mode requires an explicit transport and logical channel alias. The formatter revalidates the event payload, escapes string control characters through JSON representation, and rejects oversized output before the transport is called.
+
+No HTTP client, Telegram SDK, network transport, real credential, or actual message send is implemented.

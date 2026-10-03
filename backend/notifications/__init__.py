@@ -28,3 +28,13 @@ from .dispatch import (
     RetryPolicy,
     RetryWaiter,
 )
+from .telegram import (
+    FakeTelegramTransport,
+    TelegramConfiguration,
+    TelegramEventFormatter,
+    TelegramMessage,
+    TelegramMode,
+    TelegramNotificationProvider,
+    TelegramTransport,
+    build_telegram_provider,
+)
