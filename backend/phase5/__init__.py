@@ -50,6 +50,13 @@ from .restore_escalation import (
     RestoreEscalationPlan,
     RestoreEscalationReport,
 )
+from .release_gate import (
+    REQUIRED_EXTERNAL_STAGING_BLOCKERS,
+    Phase5StagingReleaseEvidence,
+    Phase5StagingReleaseGate,
+    Phase5StagingReleaseResult,
+    Phase5StagingReleaseState,
+)
 from .staging_runtime import (
     REQUIRED_PHASE5_STAGING_COMPONENTS,
     Phase5LocalStagingDependencies,
@@ -88,6 +95,11 @@ __all__ = [
     "StagingRestorePolicy",
     "RestoreEscalationPlan",
     "RestoreEscalationReport",
+    "REQUIRED_EXTERNAL_STAGING_BLOCKERS",
+    "Phase5StagingReleaseEvidence",
+    "Phase5StagingReleaseGate",
+    "Phase5StagingReleaseResult",
+    "Phase5StagingReleaseState",
     "REQUIRED_PHASE5_STAGING_COMPONENTS",
     "Phase5LocalStagingDependencies",
     "Phase5LocalStagingRuntime",
