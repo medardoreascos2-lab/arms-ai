@@ -31,6 +31,15 @@ from .encrypted_backup import (
     serialize_staging_backup_payload,
     validate_staging_restore,
 )
+from .failure_drill import (
+    PHASE5_FAILURE_RECOVERY_SEQUENCE,
+    Phase5FailureAction,
+    Phase5FailureDrillReport,
+    Phase5FailureDrillStatus,
+    Phase5FailureEvidence,
+    Phase5SyntheticFailureDrill,
+    render_phase5_failure_drill_runbook,
+)
 from .package_verification import (
     StagingPackageVerificationError,
     StagingPackageVerificationReport,
@@ -61,6 +70,7 @@ __all__ = [
     "ENCRYPTED_STAGING_BACKUP_FORMAT",
     "EncryptedRestoreEscalation",
     "LOCAL_TEST_CIPHER_ALGORITHM",
+    "PHASE5_FAILURE_RECOVERY_SEQUENCE",
     "STAGING_BACKUP_PAYLOAD_FORMAT",
     "EphemeralStagingBackupKey",
     "LocalEphemeralBackupCipher",
@@ -70,6 +80,11 @@ __all__ = [
     "StagingRestorePolicy",
     "RestoreEscalationPlan",
     "RestoreEscalationReport",
+    "Phase5FailureAction",
+    "Phase5FailureDrillReport",
+    "Phase5FailureDrillStatus",
+    "Phase5FailureEvidence",
+    "Phase5SyntheticFailureDrill",
     "StagingPackageVerificationError",
     "StagingPackageVerificationReport",
     "StagingAppRollbackRehearsal",
@@ -89,6 +104,7 @@ __all__ = [
     "create_encrypted_staging_backup",
     "deserialize_staging_backup_payload",
     "open_encrypted_staging_backup",
+    "render_phase5_failure_drill_runbook",
     "serialize_staging_backup_payload",
     "scan_staging_package",
     "validate_staging_restore",
