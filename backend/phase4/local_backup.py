@@ -42,6 +42,29 @@ BACKUP_ARTIFACT_PATHS = MappingProxyType({
 })
 
 
+def _sqlite_schema_version(connection: sqlite3.Connection) -> int:
+    """Read a declared SQLite schema version without guessing or downgrading."""
+
+    pragma_version = connection.execute("PRAGMA user_version").fetchone()[0]
+    if type(pragma_version) is not int or pragma_version < 0:
+        raise ValueError("SQLite user_version is invalid")
+    metadata_table = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+        "AND name = 'phase3_store_metadata'"
+    ).fetchone()
+    if metadata_table is None:
+        return pragma_version
+    row = connection.execute(
+        "SELECT schema_version FROM phase3_store_metadata WHERE singleton = 1"
+    ).fetchone()
+    if row is None or len(row) != 1 or type(row[0]) is not int or row[0] < 1:
+        raise ValueError("Phase 3 schema metadata is invalid")
+    metadata_version = row[0]
+    if pragma_version not in (0, metadata_version):
+        raise ValueError("SQLite schema version declarations conflict")
+    return metadata_version
+
+
 def _utc(value: datetime, name: str) -> datetime:
     if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{name} must be timezone-aware")
@@ -238,7 +261,7 @@ class LocalBackupRunner:
         destination.parent.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as source_db:
             source_db.execute("PRAGMA query_only = ON")
-            actual_version = source_db.execute("PRAGMA user_version").fetchone()[0]
+            actual_version = _sqlite_schema_version(source_db)
             if actual_version != schema_version:
                 raise ValueError("source database schema version does not match")
             with closing(sqlite3.connect(str(destination))) as target_db:
@@ -246,7 +269,7 @@ class LocalBackupRunner:
                 target_db.commit()
                 if target_db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                     raise RuntimeError("SQLite backup integrity check failed")
-                if target_db.execute("PRAGMA user_version").fetchone()[0] != schema_version:
+                if _sqlite_schema_version(target_db) != schema_version:
                     raise RuntimeError("SQLite backup schema version changed")
         if destination.stat().st_size > self._maximum_artifact_bytes:
             raise ValueError("database snapshot exceeds artifact size limit")

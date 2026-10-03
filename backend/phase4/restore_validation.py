@@ -19,6 +19,7 @@ from .local_backup import (
     BACKUP_COMPLETION_FILENAME,
     BACKUP_MANIFEST_FILENAME,
     LocalBackupResult,
+    _sqlite_schema_version,
     load_completed_local_backup,
 )
 
@@ -241,7 +242,7 @@ class BackupRestoreValidator:
                 raise ValueError("restored database integrity check failed")
             if connection.execute("PRAGMA foreign_key_check").fetchall():
                 raise ValueError("restored database foreign key isolation failed")
-            schema_version = connection.execute("PRAGMA user_version").fetchone()[0]
+            schema_version = _sqlite_schema_version(connection)
             if schema_version != plan.expected_database_schema_version:
                 raise ValueError("restored database schema version mismatch")
             for item in plan.tables:

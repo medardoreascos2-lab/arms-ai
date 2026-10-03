@@ -94,6 +94,22 @@ def test_schema_mismatch_fails_without_completion_or_incomplete_directory(tmp_pa
     assert list(destination.iterdir()) == []
 
 
+def test_conflicting_sqlite_schema_declarations_fail_without_backup(tmp_path):
+    sources = source_files(tmp_path / "source")
+    with sqlite3.connect(sources.database) as connection:
+        connection.execute(
+            "CREATE TABLE phase3_store_metadata ("
+            "singleton INTEGER PRIMARY KEY, schema_version INTEGER NOT NULL)"
+        )
+        connection.execute("INSERT INTO phase3_store_metadata VALUES (1, 4)")
+    destination = tmp_path / "backups"
+
+    with pytest.raises(ValueError, match="declarations conflict"):
+        runner(destination).run(sources, database_schema_version=3)
+
+    assert list(destination.iterdir()) == []
+
+
 def test_missing_supporting_artifact_fails_before_staging(tmp_path):
     sources = source_files(tmp_path / "source")
     sources.audit_chain.unlink()
