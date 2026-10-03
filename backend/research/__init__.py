@@ -84,6 +84,17 @@ from .stress_engine import (
     StressSimulation,
     StressTrade,
 )
+from .challenger_registry import (
+    ChallengerConflictError,
+    ChallengerRegistrationResult,
+    ChallengerRegistryError,
+    ChallengerStatus,
+    ChallengerTransitionError,
+    ProductionReferenceDefinition,
+    PromotionHistoryEntry,
+    StrategyChallengerRecord,
+    StrategyChallengerRegistry,
+)
 
 __all__ = [
     "DatasetCertificationStatus",
@@ -158,4 +169,13 @@ __all__ = [
     "StressResamplingModel",
     "StressSimulation",
     "StressTrade",
+    "ChallengerConflictError",
+    "ChallengerRegistrationResult",
+    "ChallengerRegistryError",
+    "ChallengerStatus",
+    "ChallengerTransitionError",
+    "ProductionReferenceDefinition",
+    "PromotionHistoryEntry",
+    "StrategyChallengerRecord",
+    "StrategyChallengerRegistry",
 ]

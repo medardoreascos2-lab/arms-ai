@@ -64,3 +64,11 @@ and drawdown distributions, a loss-streak distribution, and a first-passage
 risk-of-ruin frequency. Its report names the RNG, model assumptions, seed, and
 cost scenario and states that simulated results are neither guarantees nor
 forecasts of future performance.
+
+The challenger registry imports one immutable `PRODUCTION_REFERENCE`, then
+stores new strategy evidence as append-only `RESEARCH`, `CHALLENGER`, and
+`PAPER_CHALLENGER` revisions. Each record binds the strategy source hash,
+canonical parameter set, evidence IDs, status, and a hash-chained promotion
+history. Research IDs cannot overwrite the production reference, transitions
+cannot skip stages or move backward, and neither the registry nor any status
+grants PAPER, LIVE, execution, or production-mutation authority.
