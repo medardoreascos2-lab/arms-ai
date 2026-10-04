@@ -1,4 +1,4 @@
-﻿"""F104E: ranking refuses unknown venue risk and stale market evidence."""
+"""F104E: ranking refuses unknown venue risk and stale market evidence."""
 
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -7,7 +7,7 @@ from decimal import Decimal
 from backend.financial.arbitrage_ranking import ArbitrageCandidate, VenueRisk, rank_arbitrage
 from backend.financial.cross_exchange import analyze_cross_exchange
 from backend.financial.crypto_asset import CryptoAssetIdentity, CryptoAssetKind
-from backend.financial.crypto_quote import CryptoVenueQuote, TransferStatus
+from backend.financial.crypto_quote import CryptoVenueQuote, TransferStatus, VenueOperationalStatus
 from backend.financial.executability import assess_executability
 from backend.financial.market_snapshot import MarketSnapshot
 
@@ -22,7 +22,8 @@ def quote(venue, bid, ask):
                                     bid=Decimal(bid), ask=Decimal(ask)),
         bid_depth_base=Decimal("2"), ask_depth_base=Decimal("2"),
         buy_fee_rate=Decimal("0"), sell_fee_rate=Decimal("0"),
-        withdraw_fee_quote=Decimal("0"), deposit_status=TransferStatus.AVAILABLE,
+        withdraw_fee_quote=Decimal("0"), venue_operational_status=VenueOperationalStatus.AVAILABLE,
+        deposit_status=TransferStatus.AVAILABLE,
         withdraw_status=TransferStatus.AVAILABLE, transfer_network="BITCOIN",
     )
 
@@ -53,6 +54,13 @@ def test_ranking_requires_venue_risk_and_rechecks_freshness():
 def test_forged_paper_assessment_cannot_bypass_transfer_check():
     item = candidate(VenueRisk.LOW)
     item = replace(item, buy_quote=replace(item.buy_quote, transfer_network=None))
+    result = rank_arbitrage((item,), NOW, AGE)
+    assert not result.ranked
+    assert result.excluded[0][1] == "TRANSFER_OR_LIQUIDITY_NOT_VERIFIED"
+
+def test_ranking_rechecks_venue_operational_status():
+    item = candidate(VenueRisk.LOW)
+    item = replace(item, buy_quote=replace(item.buy_quote, venue_operational_status=VenueOperationalStatus.UNKNOWN))
     result = rank_arbitrage((item,), NOW, AGE)
     assert not result.ranked
     assert result.excluded[0][1] == "TRANSFER_OR_LIQUIDITY_NOT_VERIFIED"

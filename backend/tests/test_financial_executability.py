@@ -1,4 +1,4 @@
-﻿"""F104B: missing depth and transfer information never passes checks."""
+"""F104B: missing depth and transfer information never passes checks."""
 
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from backend.financial.cross_exchange import analyze_cross_exchange
 from backend.financial.crypto_asset import CryptoAssetIdentity, CryptoAssetKind
-from backend.financial.crypto_quote import CryptoVenueQuote, TransferStatus
+from backend.financial.crypto_quote import CryptoVenueQuote, TransferStatus, VenueOperationalStatus
 from backend.financial.executability import ExecutabilityClass, assess_executability
 from backend.financial.market_snapshot import MarketSnapshot
 
@@ -23,6 +23,7 @@ def quote(venue, bid, ask, *, complete=False):
         ask_depth_base=Decimal("2") if complete else None,
         buy_fee_rate=Decimal("0"), sell_fee_rate=Decimal("0"),
         withdraw_fee_quote=Decimal("0"),
+        venue_operational_status=VenueOperationalStatus.AVAILABLE if complete else VenueOperationalStatus.UNKNOWN,
         withdraw_status=TransferStatus.AVAILABLE if complete else TransferStatus.UNKNOWN,
         deposit_status=TransferStatus.AVAILABLE if complete else TransferStatus.UNKNOWN,
         transfer_network="BITCOIN" if complete else None,
@@ -60,3 +61,20 @@ def test_insufficient_depth_blocks_even_with_positive_net():
     assert result.classification is ExecutabilityClass.NOT_ACTIONABLE
     assert "INSUFFICIENT_DEPTH" in result.reasons
 
+
+def test_unknown_or_unavailable_venue_never_becomes_paper_candidate():
+    buy, sell = quote("COINBASE", "99", "100", complete=True), quote("KRAKEN", "102", "103", complete=True)
+    unknown = replace(buy, venue_operational_status=VenueOperationalStatus.UNKNOWN)
+    result = assess_executability(opportunity(unknown, sell), unknown, sell, NOW, AGE, Decimal("1"))
+    assert result.classification is ExecutabilityClass.INCOMPLETE_DATA
+    unavailable = replace(buy, venue_operational_status=VenueOperationalStatus.UNAVAILABLE)
+    result = assess_executability(opportunity(unavailable, sell), unavailable, sell, NOW, AGE, Decimal("1"))
+    assert result.classification is ExecutabilityClass.NOT_ACTIONABLE
+
+def test_unavailable_venue_blocks_even_if_other_venue_status_is_unknown():
+    buy, sell = quote("COINBASE", "99", "100", complete=True), quote("KRAKEN", "102", "103", complete=True)
+    unknown = replace(buy, venue_operational_status=VenueOperationalStatus.UNKNOWN)
+    unavailable = replace(sell, venue_operational_status=VenueOperationalStatus.UNAVAILABLE)
+    result = assess_executability(opportunity(unknown, unavailable), unknown, unavailable, NOW, AGE, Decimal("1"))
+    assert result.classification is ExecutabilityClass.NOT_ACTIONABLE
+    assert "VENUE_UNAVAILABLE" in result.reasons

@@ -1,10 +1,10 @@
-﻿"""Pure multi-venue crypto market scanner over supplied quote snapshots."""
+"""Pure multi-venue crypto market scanner over supplied quote snapshots."""
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from backend.financial.crypto_quote import CryptoVenueQuote
+from backend.financial.crypto_quote import CryptoVenueQuote, VenueOperationalStatus
 from backend.financial.market_snapshot import SnapshotState
 
 
@@ -12,6 +12,7 @@ from backend.financial.market_snapshot import SnapshotState
 class VenueScan:
     venue_id: str
     quote_state: SnapshotState
+    venue_status: VenueOperationalStatus
     bid: Decimal | None
     ask: Decimal | None
     bid_depth_base: Decimal | None
@@ -41,7 +42,7 @@ def scan_crypto_market(
     for quote in quotes:
         state = quote.snapshot.freshness(now, maximum_age)
         rows.append(VenueScan(
-            quote.venue_id, state, quote.snapshot.bid, quote.snapshot.ask,
+            quote.venue_id, state, quote.venue_operational_status, quote.snapshot.bid, quote.snapshot.ask,
             quote.bid_depth_base, quote.ask_depth_base, quote.snapshot.source,
         ))
         if state is SnapshotState.FRESH:

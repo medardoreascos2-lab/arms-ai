@@ -1,4 +1,4 @@
-﻿"""Per-venue crypto quote evidence without exchange execution capability."""
+"""Per-venue crypto quote evidence without exchange execution capability."""
 
 from dataclasses import dataclass
 from decimal import Decimal
@@ -7,6 +7,12 @@ from enum import Enum
 from backend.financial.crypto_asset import CryptoAssetIdentity
 from backend.financial.market_snapshot import MarketSnapshot
 from backend.financial.venue import get_venue
+
+
+class VenueOperationalStatus(str, Enum):
+    UNKNOWN = "UNKNOWN"
+    AVAILABLE = "AVAILABLE"
+    UNAVAILABLE = "UNAVAILABLE"
 
 
 class TransferStatus(str, Enum):
@@ -25,6 +31,7 @@ class CryptoVenueQuote:
     buy_fee_rate: Decimal | None = None
     sell_fee_rate: Decimal | None = None
     withdraw_fee_quote: Decimal | None = None
+    venue_operational_status: VenueOperationalStatus = VenueOperationalStatus.UNKNOWN
     deposit_status: TransferStatus = TransferStatus.UNKNOWN
     withdraw_status: TransferStatus = TransferStatus.UNKNOWN
     transfer_network: str | None = None
@@ -46,6 +53,8 @@ class CryptoVenueQuote:
                 not isinstance(value, Decimal) or not value.is_finite() or not 0 <= value < 1
             ):
                 raise ValueError(f"{name} must be a finite fraction")
+        if not isinstance(self.venue_operational_status, VenueOperationalStatus):
+            raise TypeError("venue operational status must be explicit")
         if not isinstance(self.deposit_status, TransferStatus) or not isinstance(self.withdraw_status, TransferStatus):
             raise TypeError("transfer status must be explicit")
         if self.transfer_network is not None and not self.transfer_network.strip():

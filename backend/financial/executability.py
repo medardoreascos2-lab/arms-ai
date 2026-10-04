@@ -1,4 +1,4 @@
-﻿"""Paper-candidate classification only; never confers PAPER execution authority."""
+"""Paper-candidate classification only; never confers PAPER execution authority."""
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -6,7 +6,7 @@ from decimal import Decimal
 from enum import Enum
 
 from backend.financial.cross_exchange import CrossExchangeOpportunity
-from backend.financial.crypto_quote import CryptoVenueQuote, TransferStatus
+from backend.financial.crypto_quote import CryptoVenueQuote, TransferStatus, VenueOperationalStatus
 from backend.financial.market_snapshot import SnapshotState
 
 
@@ -46,6 +46,10 @@ def assess_executability(
         return ExecutabilityAssessment(ExecutabilityClass.NOT_ACTIONABLE, ("QUOTE_NOT_FRESH",))
     unknown = []
     blocked = []
+    if buy.venue_operational_status is VenueOperationalStatus.UNKNOWN or sell.venue_operational_status is VenueOperationalStatus.UNKNOWN:
+        unknown.append("VENUE_STATUS_UNKNOWN")
+    if buy.venue_operational_status is VenueOperationalStatus.UNAVAILABLE or sell.venue_operational_status is VenueOperationalStatus.UNAVAILABLE:
+        blocked.append("VENUE_UNAVAILABLE")
     if buy.ask_depth_base is None or sell.bid_depth_base is None:
         unknown.append("DEPTH_UNKNOWN")
     elif buy.ask_depth_base < opportunity.size_base or sell.bid_depth_base < opportunity.size_base:
