@@ -36,6 +36,7 @@ export function ProductOnboarding() {
   }, [draft]);
 
   const stepNumber = onboardingSteps.indexOf(draft.currentStep) + 1;
+  const canContinue = canAdvanceOnboarding(draft);
   function update(values: Partial<ProductOnboardingDraft>) {
     setDraft((current) => ({ ...current, ...values }));
   }
@@ -99,12 +100,16 @@ export function ProductOnboarding() {
         <p>Your local preview setup is complete. No production account, payment, or trading authority was created.</p>
       </div>}
     </Card>
+    {draft.currentStep !== "DONE" && <p id="onboarding-guidance" className={styles.guidance} aria-live="polite">
+      {canContinue ? "This step is ready to continue." : guidanceFor(draft.currentStep)}
+    </p>}
     <div className={styles.actions}>
       <button type="button" onClick={() => setDraft(previousOnboarding(draft))}
         disabled={draft.currentStep === "WELCOME"}>Back</button>
       {draft.currentStep !== "DONE" && <button type="button"
+        aria-describedby="onboarding-guidance"
         onClick={() => setDraft(advanceOnboarding(draft))}
-        disabled={!canAdvanceOnboarding(draft)}>Continue</button>}
+        disabled={!canContinue}>Continue</button>}
     </div>
   </div>;
 }
@@ -125,5 +130,17 @@ function titleFor(step: ProductOnboardingDraft["currentStep"]): string {
     NOTIFICATION_PREFS: "Notification preferences",
     PRIVACY: "Privacy review",
     DONE: "Setup complete",
+  })[step];
+}
+
+function guidanceFor(step: ProductOnboardingDraft["currentStep"]): string {
+  return ({
+    WELCOME: "Continue when you are ready.",
+    GOALS: "Confirm your optional goal selection before continuing.",
+    FINANCIAL_EXPECTATIONS: "Acknowledge the financial expectations before continuing.",
+    MEMORY_CONSENT: "Choose a memory preference before continuing.",
+    NOTIFICATION_PREFS: "Choose a notification preference before continuing.",
+    PRIVACY: "Confirm that you reviewed the privacy summary before continuing.",
+    DONE: "Setup is complete.",
   })[step];
 }

@@ -42,6 +42,15 @@
   --product-status-success: #9cddbc;
   --product-status-unknown: #c5cbd5;
 
+  /* Compatibility aliases for existing Product modules. */
+  --background: var(--product-bg);
+  --surface: var(--product-surface);
+  --foreground: var(--product-text);
+  --muted: var(--product-text-muted);
+  --border: var(--product-border);
+  --accent: var(--product-accent);
+  --danger: var(--product-status-critical);
+
   min-height: 100vh;
   padding: var(--product-space-4);
   color: var(--product-text);
@@ -50,6 +59,26 @@
   font-family: var(--product-font-sans);
   line-height: var(--product-line-body);
   overflow-wrap: anywhere;
+}
+
+.skipLink {
+  position: fixed;
+  z-index: 100;
+  top: var(--product-space-2);
+  left: var(--product-space-2);
+  padding: var(--product-space-3) var(--product-space-4);
+  border-radius: var(--product-radius-sm);
+  color: var(--product-bg);
+  background: var(--product-accent);
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+
+.skipLink:focus { transform: translateY(0); }
+
+.shell :where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--product-accent);
+  outline-offset: 3px;
 }
 
 .container {
