@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Card, EmptyState, SourceBadge } from "@/components/product/ProductPrimitives";
 import { initialHomeSections } from "@/lib/homeDashboard";
 import styles from "./page.module.css";
 
@@ -13,18 +14,14 @@ export default function ProductHomePage() {
       </p>
       <div className={styles.grid}>
         {initialHomeSections.map((section) => (
-          <section key={section.id} aria-labelledby={`home-${section.id}`} className={styles.section}>
-            <h2 id={`home-${section.id}`} className={styles.sectionTitle}>{section.title}</h2>
-            <p className={styles.purpose}>{section.purpose}</p>
+          <Card key={section.id} id={`home-${section.id}`} title={section.title} description={section.purpose}>
             {section.content.state === "unavailable" && (
-              <p className={styles.unavailable}>
-                Unavailable · {section.content.reason}
-              </p>
+              <EmptyState title="Unavailable" detail={section.content.reason} />
             )}
             {section.content.state === "ready" && (
               <div className={styles.summary}>
                 <p>{section.content.summary}</p>
-                <p className={styles.provenance}>Source: {section.content.source} · As of: {section.content.asOf}</p>
+                <SourceBadge source={section.content.source} asOf={section.content.asOf} />
               </div>
             )}
             {section.content.state === "navigation" && (
@@ -38,7 +35,7 @@ export default function ProductHomePage() {
                 ))}
               </ul>
             )}
-          </section>
+          </Card>
         ))}
       </div>
     </main>

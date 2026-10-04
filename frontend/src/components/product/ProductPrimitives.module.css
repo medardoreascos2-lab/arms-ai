@@ -1,0 +1,43 @@
+.card {
+  min-height: 12rem;
+  padding: var(--product-density-card);
+  border: 1px solid var(--product-border);
+  border-radius: var(--product-radius-lg);
+  background: var(--product-surface);
+}
+.cardTitle { margin: 0; font-size: var(--product-text-lg); font-weight: 600; }
+.description { margin: var(--product-space-1) 0 0; color: var(--product-text-muted); font-size: var(--product-text-sm); }
+.metric { display: grid; gap: var(--product-space-2); }
+.metricValue { font-size: var(--product-text-3xl); font-variant-numeric: tabular-nums; }
+.meta { display: block; color: var(--product-text-muted); font-size: var(--product-text-xs); }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 1.75rem;
+  padding: 0 var(--product-space-3);
+  border: 1px solid currentColor;
+  border-radius: var(--product-radius-pill);
+  font-size: var(--product-text-xs);
+  font-weight: 600;
+}
+.information { color: var(--product-status-info); }
+.watch { color: var(--product-status-watch); }
+.important { color: var(--product-status-important); }
+.critical { color: var(--product-status-critical); }
+.unknown { color: var(--product-status-unknown); }
+.alert { display: grid; gap: var(--product-space-2); padding: var(--product-space-4); border: 1px solid var(--product-border); border-radius: var(--product-radius-md); }
+.alert p, .reasoning p, .state p { margin: 0; color: var(--product-text-muted); font-size: var(--product-text-sm); }
+.reasoning { display: grid; gap: var(--product-space-2); }
+.reasoning ul { margin: 0; padding-left: var(--product-space-5); }
+.state {
+  display: grid;
+  gap: var(--product-space-1);
+  margin-top: var(--product-space-5);
+  padding: var(--product-space-3);
+  border-left: 3px solid var(--product-status-unknown);
+  border-radius: var(--product-radius-sm);
+  background: var(--product-surface-raised);
+  color: var(--product-text);
+  font-size: var(--product-text-sm);
+}
