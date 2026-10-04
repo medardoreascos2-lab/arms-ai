@@ -10,6 +10,7 @@ from backend.medar.memory_candidates import has_secret_like_content
 
 class FuturesInstrument(str, Enum):
     NQ = "NQ"
+    MNQ = "MNQ"
 
 
 class ResearchObservationMode(str, Enum):
@@ -66,3 +67,38 @@ class FuturesResearchMemory:
     @property
     def domain(self) -> DurableMemoryDomain:
         return DurableMemoryDomain[self.instrument.value]
+
+
+class FuturesResearchSessionIndex:
+    """Separate instrument buckets; never combine NQ and MNQ implicitly."""
+
+    def __init__(self, tenant_id: str, owner_id: str, session_id: str, *, max_per_instrument: int = 100):
+        for name, value in (("tenant_id", tenant_id), ("owner_id", owner_id), ("session_id", session_id)):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} is required")
+        if type(max_per_instrument) is not int or not 1 <= max_per_instrument <= 1000:
+            raise ValueError("max_per_instrument must be 1 to 1000")
+        self.tenant_id = tenant_id
+        self.owner_id = owner_id
+        self.session_id = session_id
+        self.max_per_instrument = max_per_instrument
+        self._buckets: dict[FuturesInstrument, list[FuturesResearchMemory]] = {instrument: [] for instrument in FuturesInstrument}
+
+    def add(self, record: FuturesResearchMemory) -> None:
+        if not isinstance(record, FuturesResearchMemory) or (
+            record.tenant_id, record.owner_id, record.session_id
+        ) != (self.tenant_id, self.owner_id, self.session_id):
+            raise PermissionError("futures research session scope mismatch")
+        bucket = self._buckets[record.instrument]
+        if len(bucket) >= self.max_per_instrument:
+            raise ValueError("instrument research capacity exceeded")
+        if any(existing.source_reference == record.source_reference for existing in bucket):
+            raise ValueError("instrument source already recorded")
+        bucket.append(record)
+
+    def list_for(self, instrument: FuturesInstrument, *, tenant_id: str, owner_id: str, session_id: str) -> tuple[FuturesResearchMemory, ...]:
+        if not isinstance(instrument, FuturesInstrument):
+            raise TypeError("explicit NQ or MNQ instrument is required")
+        if (tenant_id, owner_id, session_id) != (self.tenant_id, self.owner_id, self.session_id):
+            raise PermissionError("futures research session scope mismatch")
+        return tuple(self._buckets[instrument])
