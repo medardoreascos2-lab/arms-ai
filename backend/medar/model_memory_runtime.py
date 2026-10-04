@@ -9,6 +9,7 @@ from backend.medar.memory_access import (
 from backend.medar.memory_context_budget import MemoryContextBudget, select_memory_context
 from backend.medar.memory_evidence_references import CitedMemoryContext, build_cited_memory_context
 from backend.medar.memory_hybrid_retrieval import HybridMemoryRetriever
+from backend.medar.memory_injection import require_memory_prompt_safety
 from backend.medar.memory_reranking import MemoryReranker
 from backend.medar.model_provider import ModelInvocation, ModelKind
 from backend.medar.model_router import ModelRoutingRequirement
@@ -134,6 +135,7 @@ class MedarModelMemoryRuntime:
             ),
         )
         cited = build_cited_memory_context(selection, self._store, contexts)
+        require_memory_prompt_safety(cited)
         evidence_lines = tuple(
             f"[{item.reference.memory_id}@{item.reference.version}|{item.reference.source_reference}] {item.content}"
             for item in cited.items
