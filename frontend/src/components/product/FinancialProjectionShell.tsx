@@ -8,6 +8,7 @@ import {
 } from "@/lib/productFinancial";
 import type { FinancialSurface } from "@/lib/financialLocalConfig";
 import styles from "./FinancialProjectionShell.module.css";
+import { FinancialDisclosureStrip } from "./ProductTrustNotices";
 
 export function FinancialProjectionShell({ enabled, surface, children }: {
   enabled: boolean;
@@ -32,6 +33,7 @@ export function FinancialProjectionShell({ enabled, surface, children }: {
     detail="The trusted read-only projection is unavailable." />;
 
   return <div className={styles.shell}>
+    <FinancialDisclosureStrip />
     <div className={styles.statusRow}>
       <Status priority="information" label={response.source_status} />
       <Status priority="watch" label="READ ONLY" />

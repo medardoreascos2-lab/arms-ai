@@ -1,0 +1,11 @@
+.notice {
+  padding: var(--product-space-4);
+  border: 1px solid var(--product-status-watch);
+  border-radius: var(--product-radius-md);
+  background: var(--product-surface);
+}
+.heading { margin: 0; font-size: var(--product-text-base); }
+.disclosures { display: grid; gap: var(--product-space-3); margin: var(--product-space-3) 0 0; }
+.disclosures div { display: grid; gap: var(--product-space-1); }
+.disclosures dt { color: var(--product-status-watch); font-size: var(--product-text-xs); font-weight: 800; letter-spacing: 0.08em; }
+.disclosures dd { margin: 0; color: var(--product-text-muted); font-size: var(--product-text-sm); }

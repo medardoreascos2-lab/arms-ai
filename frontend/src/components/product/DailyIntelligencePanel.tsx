@@ -5,6 +5,7 @@ import { Card, EmptyState, LoadingState, SourceBadge, Status } from "./ProductPr
 import { isFinancialProjection, requestProductFinancial, type ProductFinancialResponse } from "@/lib/productFinancial";
 import { initialDailyInsights } from "@/lib/dailyIntelligence";
 import styles from "./DailyIntelligencePanel.module.css";
+import { FinancialDisclosureStrip } from "./ProductTrustNotices";
 
 export function DailyIntelligencePanel({ localTestEnabled }: { localTestEnabled: boolean }) {
   const [response, setResponse] = useState<ProductFinancialResponse | null>(null);
@@ -29,6 +30,7 @@ export function DailyIntelligencePanel({ localTestEnabled }: { localTestEnabled:
 
   return (
     <div className={styles.panel}>
+      <FinancialDisclosureStrip />
       <div className={styles.statusRow}>
         <Status priority="information" label={response.source_status} />
         <Status priority="watch" label="NOT REAL ACCOUNT DATA" />
@@ -63,6 +65,7 @@ export function DailyIntelligencePanel({ localTestEnabled }: { localTestEnabled:
 
 function Unavailable({ status, reason }: { status: string; reason: string }) {
   return <div className={styles.panel}>
+      <FinancialDisclosureStrip />
     <Status priority="unknown" label={status} />
     <div className={styles.grid}>
       {initialDailyInsights.map((insight) => <Card key={insight.id}
