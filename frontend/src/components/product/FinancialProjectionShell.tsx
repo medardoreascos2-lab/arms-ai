@@ -43,6 +43,7 @@ export function FinancialProjectionShell({ enabled, surface, children }: {
     {response.warnings.length > 0 && <section aria-label="Warnings">
       <h2>Warnings</h2><ul>{response.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
     </section>}
-    <SourceBadge source={response.provenance.source_label} asOf={response.provenance.observed_at} />
+    <SourceBadge source={response.provenance.source_label} asOf={response.provenance.observed_at}
+      freshnessSeconds={response.provenance.freshness_seconds} />
   </div>;
 }

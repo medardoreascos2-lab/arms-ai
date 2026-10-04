@@ -58,7 +58,8 @@ export function DailyIntelligencePanel({ localTestEnabled }: { localTestEnabled:
           <li key={alert.alert_id}>{alert.title}: {alert.detail}</li>)}</ul>
           : <EmptyState title="Unavailable" detail="No verified priorities were supplied." />}
       </Card>
-      <SourceBadge source={response.provenance.source_label} asOf={response.provenance.observed_at} />
+      <SourceBadge source={response.provenance.source_label} asOf={response.provenance.observed_at}
+        freshnessSeconds={response.provenance.freshness_seconds} />
     </div>
   );
 }
@@ -67,6 +68,7 @@ function Unavailable({ status, reason }: { status: string; reason: string }) {
   return <div className={styles.panel}>
       <FinancialDisclosureStrip />
     <Status priority="unknown" label={status} />
+    <SourceBadge source={null} asOf={null} integrationPending={status === "INTEGRATION PENDING"} />
     <div className={styles.grid}>
       {initialDailyInsights.map((insight) => <Card key={insight.id}
         id={"daily-" + insight.id} title={insight.title} description={insight.purpose}>

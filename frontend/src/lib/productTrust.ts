@@ -10,3 +10,30 @@ export const financialDisclosureCopy: Readonly<Record<FinancialDisclosureKind, s
   HYPOTHETICAL: "Synthetic and projected outcomes are hypothetical, not actual results.",
   LIVE_UNAVAILABLE: "Live trading and real-money execution are unavailable.",
 };
+export type ProductProvenanceState = "CURRENT" | "UNKNOWN" | "INTEGRATION_PENDING";
+
+export type ProductProvenance = Readonly<{
+  source: string;
+  asOf: string;
+  freshness: string;
+  state: ProductProvenanceState;
+}>;
+
+export function describeProductProvenance(input: Readonly<{
+  source?: string | null;
+  asOf?: string | null;
+  freshnessSeconds?: number | null;
+  integrationPending?: boolean;
+}>): ProductProvenance {
+  const source = input.source?.trim() || "UNKNOWN";
+  const asOf = input.asOf?.trim() || "UNKNOWN";
+  const validFreshness = typeof input.freshnessSeconds === "number"
+    && Number.isInteger(input.freshnessSeconds) && input.freshnessSeconds >= 0;
+  return Object.freeze({
+    source,
+    asOf,
+    freshness: validFreshness ? `${input.freshnessSeconds}s` : "UNKNOWN",
+    state: input.integrationPending ? "INTEGRATION_PENDING"
+      : source === "UNKNOWN" || asOf === "UNKNOWN" ? "UNKNOWN" : "CURRENT",
+  });
+}

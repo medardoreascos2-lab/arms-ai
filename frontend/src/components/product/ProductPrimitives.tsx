@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { formatConfidence } from "@/lib/productPresentation";
+import { describeProductProvenance } from "@/lib/productTrust";
 import styles from "./ProductPrimitives.module.css";
 
 export type ProductPriority = "information" | "watch" | "important" | "critical" | "unknown";
@@ -48,9 +49,13 @@ export function ConfidenceBadge({ value }: { value: number | null | undefined })
   </span>;
 }
 
-export function SourceBadge({ source, asOf }: { source: string | null; asOf: string | null }) {
+export function SourceBadge({ source, asOf, freshnessSeconds = null, integrationPending = false }: {
+  source: string | null; asOf: string | null;
+  freshnessSeconds?: number | null; integrationPending?: boolean;
+}) {
+  const provenance = describeProductProvenance({ source, asOf, freshnessSeconds, integrationPending });
   return <span className={styles.meta}>
-    Source: {source || "Unknown"} · As of: {asOf || "Unknown"}
+    Source: {provenance.source} · Freshness: {provenance.freshness} · As of: {provenance.asOf} · State: {provenance.state.replaceAll("_", " ")}
   </span>;
 }
 
