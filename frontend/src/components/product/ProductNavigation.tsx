@@ -2,9 +2,9 @@ import Link from "next/link";
 import { linkedNavigation, primaryNavigation } from "@/lib/productNavigation";
 import styles from "./ProductNavigation.module.css";
 
-export function ProductNavigation() {
+function NavigationContents() {
   return (
-    <nav aria-label="Product" className={styles.nav}>
+    <>
       <p className={styles.brand}>ARMS + MEDAR</p>
       <ul className={styles.links}>
         {linkedNavigation().map((entry) => (
@@ -18,6 +18,22 @@ export function ProductNavigation() {
       <p className={styles.planned}>
         Planned: {primaryNavigation.filter((entry) => entry.availability === "planned").map((entry) => entry.label).join(" · ")}
       </p>
-    </nav>
+    </>
+  );
+}
+
+export function ProductNavigation() {
+  return (
+    <>
+      <details className={styles.mobileNav}>
+        <summary className={styles.mobileSummary}>Product navigation</summary>
+        <nav aria-label="Product mobile" className={styles.mobilePanel}>
+          <NavigationContents />
+        </nav>
+      </details>
+      <nav aria-label="Product" className={`${styles.nav} ${styles.desktopNav}`}>
+        <NavigationContents />
+      </nav>
+    </>
   );
 }
