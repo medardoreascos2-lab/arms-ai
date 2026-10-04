@@ -45,6 +45,11 @@ class WebResearchAgent(BoundedAnalysisAgent):
         ModelAccessPolicy.REMOTE_ALLOWED,
     )
 
+    def synthesize(self, findings, sources):
+        from backend.medar.research_synthesis import synthesize_research
+
+        return synthesize_research(findings, sources)
+
 
 class CodingAgent(BoundedAnalysisAgent):
     contract = AgentContract(
