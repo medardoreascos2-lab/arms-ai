@@ -46,6 +46,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P108C Membership usage limits | Complete | Configurable MEDAR/research/portfolio/notification/memory limits; future voice/video quotas unavailable |
 | P109A Billing domain | Complete | Customer/subscription/plan/status/trial/invoice-reference models with payment and charge authority fixed false |
 | P109B Billing provider contract | Complete | Provider-neutral interface reserves future STRIPE/OTHER adapters while connection, webhook, and charge capabilities remain false |
+| P109C Synthetic billing lifecycle | Complete, local synthetic | Deterministic trial/subscribe/upgrade/downgrade/cancel/expire simulation with idempotency and no charge |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
