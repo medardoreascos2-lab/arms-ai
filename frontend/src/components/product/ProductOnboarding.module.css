@@ -1,0 +1,10 @@
+.flow { display: grid; gap: 1rem; max-width: 48rem; }
+.progress, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.progress > span { color: var(--muted); }
+.options { display: grid; gap: 0.7rem; border: 0; padding: 0; }
+.options legend { font-weight: 700; margin-bottom: 0.75rem; }
+.options label { display: flex; gap: 0.6rem; align-items: flex-start; }
+.actions button { border: 1px solid var(--border); border-radius: 0.65rem; padding: 0.7rem 1rem; background: var(--surface); color: var(--foreground); }
+.actions button:focus-visible, .options input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.actions button:disabled { opacity: 0.5; }
+@media (max-width: 42rem) { .actions button { flex: 1; } }

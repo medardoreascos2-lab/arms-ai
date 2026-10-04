@@ -32,7 +32,7 @@ class OnboardingStep(str, Enum):
     PRIVACY = "PRIVACY"
     DONE = "DONE"
 
-class OnboardingGoal(str, Enum):
+`nclass OnboardingGoal(str, Enum):
     TRADING = "TRADING"
     INVESTING = "INVESTING"
     PORTFOLIO = "PORTFOLIO"
@@ -40,7 +40,7 @@ class OnboardingGoal(str, Enum):
     LEARNING = "LEARNING"
     PERSONAL_ASSISTANT = "PERSONAL_ASSISTANT"
 
-class OnboardingMemoryConsent(str, Enum):
+`nclass OnboardingMemoryConsent(str, Enum):
     SESSION_ONLY = "SESSION_ONLY"
     ALLOW_LOW_SENSITIVITY = "ALLOW_LOW_SENSITIVITY"
     REVIEW_BEFORE_SAVE = "REVIEW_BEFORE_SAVE"
@@ -89,7 +89,7 @@ class ProductOnboardingState(BaseModel):
         if len(value) != len(set(value)):
             raise ValueError("selected onboarding goals must be unique")
         return value
-    @model_validator(mode="after")
+`n    @model_validator(mode="after")
     def state_is_consistent(self) -> ProductOnboardingState:
         if self.memory_consent_confirmed != (self.memory_consent is not None):
             raise ValueError("memory consent confirmation must match an explicit choice")
