@@ -49,6 +49,10 @@ class ModelRoute:
     rejection_reasons: tuple[str, ...]
     external_call_authorized: bool = False
 
+    def __post_init__(self) -> None:
+        if self.external_call_authorized:
+            raise ValueError("Phase 7 model routing cannot authorize external calls")
+
 
 class ModelRouter:
     def __init__(self, registry: ModelProfileRegistry):

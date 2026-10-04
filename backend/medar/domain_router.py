@@ -23,6 +23,10 @@ class DomainRoute:
     reasons: tuple[str, ...]
     action_authorized: bool = False
 
+    def __post_init__(self) -> None:
+        if self.action_authorized:
+            raise ValueError("Phase 7 domain routes cannot authorize action")
+
 
 class DomainRouter:
     def __init__(self, registry: CapabilityRegistry, *, ambiguity_threshold: float = 0.6):

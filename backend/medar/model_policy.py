@@ -28,6 +28,10 @@ class ModelAccessDecision:
     remote_required: bool
     external_call_authorized: bool = False
 
+    def __post_init__(self) -> None:
+        if self.external_call_authorized:
+            raise ValueError("Phase 7 model policy cannot authorize external calls")
+
 
 def default_model_policy(privacy_class: PrivacyClass) -> ModelAccessPolicy:
     if privacy_class is PrivacyClass.RESTRICTED:

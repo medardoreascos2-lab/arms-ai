@@ -24,6 +24,10 @@ class OrchestrationResult:
     conflict_detected: bool
     action_performed: bool = False
 
+    def __post_init__(self) -> None:
+        if self.action_performed or any(output.action_performed for output in self.outputs):
+            raise ValueError("Phase 7 orchestration cannot perform real-world actions")
+
 
 class AgentOrchestrator:
     def __init__(self, agents: tuple[SpecializedAgent, ...]):

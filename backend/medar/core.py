@@ -31,6 +31,12 @@ class CognitiveRun:
     external_model_used: bool = False
     action_performed: bool = False
 
+    def __post_init__(self) -> None:
+        if self.external_model_used:
+            raise ValueError("Phase 7 core cannot report external model use")
+        if self.action_performed:
+            raise ValueError("Phase 7 core cannot perform real-world actions")
+
 
 class MedarCognitiveCore:
     def __init__(

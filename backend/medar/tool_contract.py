@@ -39,6 +39,8 @@ class ToolContract:
             raise ValueError("tool identity and name are required")
         if self.side_effect_level >= SideEffectLevel.SENSITIVE and not self.requires_confirmation:
             raise ValueError("sensitive tool requires confirmation")
+        if self.execution_authority:
+            raise ValueError("Phase 7 tool contracts cannot grant execution authority")
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,10 @@ class ToolResult:
     output: Mapping[str, Any]
     error_category: str | None = None
     external_side_effects: bool = False
+
+    def __post_init__(self) -> None:
+        if self.external_side_effects:
+            raise ValueError("Phase 7 tool results cannot report external side effects")
 
 
 class CognitiveTool(Protocol):

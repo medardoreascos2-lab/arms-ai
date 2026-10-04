@@ -33,6 +33,10 @@ class ActionProposal:
     requires_confirmation: bool
     execution_authorized: bool = False
 
+    def __post_init__(self) -> None:
+        if self.execution_authorized:
+            raise ValueError("action proposal cannot authorize execution")
+
 
 @dataclass(frozen=True)
 class CognitiveResponse:

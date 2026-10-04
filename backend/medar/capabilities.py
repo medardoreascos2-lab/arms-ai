@@ -34,6 +34,8 @@ class Capability:
             raise ValueError("memory permissions must be unique")
         if self.risk_class in {RiskClass.HIGH, RiskClass.CRITICAL} and not self.confirmation_required:
             raise ValueError("high-risk capability requires confirmation")
+        if self.execution_authority:
+            raise ValueError("Phase 7 capabilities cannot grant execution authority")
 
 
 class CapabilityRegistry:

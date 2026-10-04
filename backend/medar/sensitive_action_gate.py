@@ -28,6 +28,10 @@ class SensitiveActionDecision:
     blocking_reasons: tuple[str, ...]
     execution_authorized: bool = False
 
+    def __post_init__(self) -> None:
+        if self.execution_authorized:
+            raise ValueError("Phase 7 confirmation cannot authorize OS execution")
+
 
 def evaluate_sensitive_action(
     proposal: ComputerActionProposal,

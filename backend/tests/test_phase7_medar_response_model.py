@@ -38,15 +38,5 @@ def test_invalid_confidence_is_rejected(confidence):
 
 
 def test_response_cannot_embed_an_authorized_action():
-    proposal = ActionProposal("act", "perform external action", True, execution_authorized=True)
-
     with pytest.raises(ValueError, match="cannot authorize"):
-        CognitiveResponse(
-            "res",
-            "req",
-            ResponseStatus.NEEDS_CONFIRMATION,
-            "Approval is required.",
-            0.5,
-            "A sensitive action was identified.",
-            action_proposals=(proposal,),
-        )
+        ActionProposal("act", "perform external action", True, execution_authorized=True)
