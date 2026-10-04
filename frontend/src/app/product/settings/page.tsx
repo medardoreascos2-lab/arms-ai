@@ -13,6 +13,9 @@ export default function ProductSettingsPage() {
       <Card id="settings-privacy" title="Privacy" description="Memory, retention, services, export, and removal">
         <Link href="/product/settings/privacy">Open Privacy Center</Link>
       </Card>
+      <Card id="settings-multimodal" title="Multimodal" description="Voice, camera, avatar, notifications, presence, quiet hours, privacy, and retention">
+        <Link href="/product/settings/multimodal">Open multimodal settings</Link>
+      </Card>
       <Card id="settings-security" title="Security" description="Sessions, events, and permissions">
         <Link href="/product/settings/security">Open Security Center</Link>
       </Card>
