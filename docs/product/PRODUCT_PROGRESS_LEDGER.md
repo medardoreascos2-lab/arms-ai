@@ -29,6 +29,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P104B Trading Coach | Complete, local synthetic | Read-only review summary, strengths, and review items; no advice or execution authority |
 | P104C Shadow MEDAR | Complete, local synthetic | Read-only summary, confidence, and evidence; no advice, tool, memory-write, or execution authority |
 | P104D Portfolio Guardian | Complete, local synthetic | Read-only value, allocation, concentration, drawdown, and alerts; mutation controls absent |
+| P105A Notification domain | Complete | Immutable tenant/user-scoped records, canonical categories/priorities/statuses, and no delivery authority |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
