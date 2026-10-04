@@ -1,0 +1,40 @@
+{
+  "branch": "product/premium-experience",
+  "base": "a212582712292d8a0d19f45447067faa4f47f55e",
+  "head": "11f5e1d3cc3273d651cff9f0517fca7df52cf837",
+  "head_semantics": "latest completed implementation commit; progress checkpoint commits may follow it",
+  "milestones": [
+    "P100A"
+  ],
+  "commits": [
+    {
+      "milestone": "P100A",
+      "hash": "11f5e1d3cc3273d651cff9f0517fca7df52cf837",
+      "subject": "feat: add premium product navigation model"
+    }
+  ],
+  "tests": [
+    {
+      "milestone": "P100A",
+      "command": "node --test src/lib/productNavigation.test.mjs",
+      "result": "2 passed"
+    },
+    {
+      "milestone": "P100A",
+      "command": "node_modules\\\\.bin\\\\tsc.cmd --noEmit",
+      "result": "passed"
+    },
+    {
+      "milestone": "P100A",
+      "command": "node_modules\\\\.bin\\\\eslint.cmd product files",
+      "result": "passed"
+    }
+  ],
+  "frontend_status": "P100A complete; P100B pending",
+  "membership_status": "not started",
+  "billing_status": "not started",
+  "analytics_status": "not started",
+  "beta_status": "not started",
+  "blocked_items": [],
+  "next_milestone": "P100B"
+}
