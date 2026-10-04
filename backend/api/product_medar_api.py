@@ -64,7 +64,7 @@ def create_local_test_product_medar_router(
         try:
             session = session_provider.validate_session(session_id, at)
             if session is None or session.auth_source != LOCAL_TEST_ONLY:
-                return _degraded(body.request_id, ProductMedarStatus.PERMISSION_DENIED)
+                return _degraded(body.request_id, ProductMedarStatus.SESSION_INVALID)
             identity = session_provider.resolve_identity(session, at)
             roles = session_provider.resolve_roles(session, at)
             entitlements = session_provider.resolve_entitlements(session, at)
@@ -76,9 +76,9 @@ def create_local_test_product_medar_router(
                 or entitlements != session.entitlements
                 or session_provider.resolve_tenant(session, at) != session.tenant_id
             ):
-                return _degraded(body.request_id, ProductMedarStatus.PERMISSION_DENIED)
+                return _degraded(body.request_id, ProductMedarStatus.SESSION_INVALID)
         except Exception:
-            return _degraded(body.request_id, ProductMedarStatus.PERMISSION_DENIED)
+            return _degraded(body.request_id, ProductMedarStatus.SESSION_INVALID)
 
         projection = resolve_membership_entitlements(
             membership_adapter, identity, roles, at
@@ -90,12 +90,25 @@ def create_local_test_product_medar_router(
         decision = snapshot.decisions[ProductSurface.MEDAR]
         if not decision.allowed:
             if decision.code == ProductDecisionCode.SESSION_INVALID:
-                status = ProductMedarStatus.PERMISSION_DENIED
+                status = ProductMedarStatus.SESSION_INVALID
             elif decision.code == ProductDecisionCode.MEDAR_UNAVAILABLE:
                 status = ProductMedarStatus.MEDAR_UNAVAILABLE
             else:
                 status = ProductMedarStatus.ENTITLEMENT_REQUIRED
             return _degraded(body.request_id, status)
+
+        try:
+            readiness = runtime.readiness()
+            if readiness is not None:
+                if readiness not in {
+                    ProductMedarStatus.MEDAR_UNAVAILABLE,
+                    ProductMedarStatus.MODEL_UNAVAILABLE,
+                    ProductMedarStatus.MEMORY_UNAVAILABLE,
+                }:
+                    return _degraded(body.request_id, ProductMedarStatus.MEDAR_UNAVAILABLE)
+                return _degraded(body.request_id, readiness)
+        except Exception:
+            return _degraded(body.request_id, ProductMedarStatus.MEDAR_UNAVAILABLE)
 
         try:
             usage = gate.acquire(

@@ -44,6 +44,8 @@ class ProductMedarStatus(str, Enum):
     ENTITLEMENT_REQUIRED = "ENTITLEMENT_REQUIRED"
     RATE_LIMITED = "RATE_LIMITED"
     INVALID_REQUEST = "INVALID_REQUEST"
+    SESSION_INVALID = "SESSION_INVALID"
+    LOCAL_TEST_DISABLED = "LOCAL_TEST_DISABLED"
 
 
 class ProductSourceReference(BaseModel):
@@ -107,6 +109,8 @@ class ProductMedarResponse(BaseModel):
             ProductMedarStatus.ENTITLEMENT_REQUIRED,
             ProductMedarStatus.RATE_LIMITED,
             ProductMedarStatus.INVALID_REQUEST,
+            ProductMedarStatus.SESSION_INVALID,
+            ProductMedarStatus.LOCAL_TEST_DISABLED,
         }
         if self.status not in degraded and (
             not self.response_id or not self.answer or self.confidence is None

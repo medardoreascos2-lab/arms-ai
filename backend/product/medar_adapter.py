@@ -38,6 +38,7 @@ class ProductMedarInvocation:
 
 
 class ProductMedarRuntime(Protocol):
+    def readiness(self) -> ProductMedarStatus | None: ...
     def invoke(self, invocation: ProductMedarInvocation) -> CognitiveResponse: ...
 
 
@@ -48,6 +49,9 @@ class CanonicalCoreProductRuntime:
         if not isinstance(core, MedarCognitiveCore):
             raise TypeError("canonical MEDAR core required")
         self._core = core
+
+    def readiness(self) -> ProductMedarStatus | None:
+        return None
 
     def invoke(self, invocation: ProductMedarInvocation) -> CognitiveResponse:
         if (

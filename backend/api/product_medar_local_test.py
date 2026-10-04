@@ -11,6 +11,10 @@ from typing import Callable, Mapping
 
 from fastapi import FastAPI
 
+from backend.api.schemas.product_medar import (
+    ProductMedarPrompt, ProductMedarResponse, ProductMedarStatus,
+)
+
 from backend.api.product_medar_api import create_local_test_product_medar_router
 from backend.memberships import MembershipReadAdapter
 from backend.product.customer_session import LocalSyntheticSessionProvider
@@ -58,6 +62,12 @@ def create_local_test_product_medar_app(
     app = FastAPI(title="ARMS Product MEDAR LOCAL TEST ONLY")
     app.state.product_medar_local_test_enabled = config.enabled
     if not config.enabled:
+        @app.post("/product/medar/conversations", response_model=ProductMedarResponse)
+        def disabled(body: ProductMedarPrompt) -> ProductMedarResponse:
+            return ProductMedarResponse(
+                request_id=body.request_id,
+                status=ProductMedarStatus.LOCAL_TEST_DISABLED,
+            )
         return app
     if not isinstance(session_provider, LocalSyntheticSessionProvider):
         raise TypeError("local synthetic session provider required")

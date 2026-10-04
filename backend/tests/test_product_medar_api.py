@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.product_medar_api import create_local_test_product_medar_router
+from backend.api.schemas.product_medar import ProductMedarStatus
 from backend.entitlements import (
     AccountEntitlementLimits,
     DashboardAccess,
@@ -49,6 +50,9 @@ class Runtime:
         self.model_calls = 0
         self.tool_calls = 0
         self.invocation = None
+
+    def readiness(self):
+        return None
 
     def invoke(self, invocation):
         self.calls += 1
@@ -115,7 +119,7 @@ def test_missing_or_unknown_session_denied_before_membership_or_medar(session_id
     client, _, memberships, runtime = fixture()
     response = post(client, session_id=session_id)
     assert response.status_code == 200
-    assert response.json()["status"] == "PERMISSION_DENIED"
+    assert response.json()["status"] == "SESSION_INVALID"
     assert memberships.reads == 0
     assert_no_invocation(runtime)
 
@@ -124,12 +128,12 @@ def test_expired_and_revoked_sessions_have_zero_invocation():
     client, provider, memberships, runtime = fixture(
         session_changes={"expires_at": NOW}
     )
-    assert post(client).json()["status"] == "PERMISSION_DENIED"
+    assert post(client).json()["status"] == "SESSION_INVALID"
     assert memberships.reads == 0
     assert_no_invocation(runtime)
     client, provider, memberships, runtime = fixture()
     provider.revoke("synthetic-session-1")
-    assert post(client).json()["status"] == "PERMISSION_DENIED"
+    assert post(client).json()["status"] == "SESSION_INVALID"
     assert memberships.reads == 0
     assert_no_invocation(runtime)
 
@@ -265,4 +269,19 @@ def test_concurrent_limit_and_unconfigured_plan_have_zero_invocation():
 
     client, _, _, runtime = fixture(usage_gate=ProductMedarUsageGate({}))
     assert post(client).json()["status"] == "ENTITLEMENT_REQUIRED"
+    assert_no_invocation(runtime)
+
+
+@pytest.mark.parametrize("status", [
+    ProductMedarStatus.MEDAR_UNAVAILABLE,
+    ProductMedarStatus.MODEL_UNAVAILABLE,
+    ProductMedarStatus.MEMORY_UNAVAILABLE,
+])
+def test_runtime_preflight_unavailable_has_zero_invocation(status):
+    client, _, _, runtime = fixture()
+    runtime.readiness = lambda: status
+    response = post(client).json()
+    assert response["status"] == status.value
+    assert response["answer"] is None
+    assert response["confidence"] is None
     assert_no_invocation(runtime)

@@ -80,3 +80,13 @@ def test_canonical_response_preserves_evidence_and_rejects_hidden_reasoning():
         ProductMedarResponse.model_validate({**body, "chain_of_thought": "private"})
     with pytest.raises(ValidationError):
         ProductMedarResponse.model_validate({**body, "answer": None})
+
+
+def test_new_degraded_statuses_cannot_fabricate_an_answer():
+    for status in (ProductMedarStatus.SESSION_INVALID,
+                   ProductMedarStatus.LOCAL_TEST_DISABLED):
+        response = ProductMedarResponse(request_id="request-1", status=status)
+        assert response.answer is None
+        with pytest.raises(ValidationError):
+            ProductMedarResponse(request_id="request-1", status=status,
+                                 answer="Fabricated")

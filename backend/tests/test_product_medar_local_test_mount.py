@@ -30,9 +30,12 @@ def provider():
 def test_local_mount_is_disabled_by_default_and_has_no_route():
     app = create_local_test_product_medar_app()
     assert app.state.product_medar_local_test_enabled is False
-    assert "/product/medar/conversations" not in app.openapi()["paths"]
+    assert "/product/medar/conversations" in app.openapi()["paths"]
     client = TestClient(app, client=("127.0.0.1", 50000))
-    assert client.post("/product/medar/conversations", json={}).status_code == 404
+    response = client.post("/product/medar/conversations", json={
+        "request_id": "r1", "conversation_id": "c1", "message": "hello",
+    })
+    assert response.json()["status"] == "LOCAL_TEST_DISABLED"
 
 
 def test_enabled_local_mount_requires_synthetic_provider_and_explicit_mode():
@@ -55,7 +58,7 @@ def test_enabled_local_mount_requires_synthetic_provider_and_explicit_mode():
         json={"request_id": "r1", "conversation_id": "c1", "message": "hello"},
         headers={"X-ARMS-Local-Test-Session": "unknown"},
     )
-    assert response.json()["status"] == "PERMISSION_DENIED"
+    assert response.json()["status"] == "SESSION_INVALID"
 
 
 def test_invalid_flag_is_rejected_and_false_does_not_mount():
@@ -65,4 +68,4 @@ def test_invalid_flag_is_rejected_and_false_does_not_mount():
         })
     config = ProductMedarLocalTestConfig.from_environment({})
     assert config.enabled is False
-    assert "/product/medar/conversations" not in create_local_test_product_medar_app(config=config).openapi()["paths"]
+    assert create_local_test_product_medar_app(config=config).state.product_medar_local_test_enabled is False
