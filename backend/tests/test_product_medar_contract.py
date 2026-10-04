@@ -90,3 +90,10 @@ def test_new_degraded_statuses_cannot_fabricate_an_answer():
         with pytest.raises(ValidationError):
             ProductMedarResponse(request_id="request-1", status=status,
                                  answer="Fabricated")
+
+
+def test_degraded_response_cannot_offer_follow_up_suggestions():
+    with pytest.raises(ValidationError):
+        ProductMedarResponse(request_id="request-1",
+                             status=ProductMedarStatus.MEDAR_UNAVAILABLE,
+                             follow_up_suggestions=("Invented next step",))

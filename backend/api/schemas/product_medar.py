@@ -96,6 +96,7 @@ class ProductMedarResponse(BaseModel):
     memory_evidence: tuple[ProductEvidenceReference, ...] = ()
     warnings: tuple[str, ...] = ()
     follow_up_needed: bool = False
+    follow_up_suggestions: tuple[str, ...] = ()
     action_proposals: tuple[ProductActionProposal, ...] = ()
     model_provenance: ProductModelProvenance | None = None
 
@@ -117,7 +118,8 @@ class ProductMedarResponse(BaseModel):
         ):
             raise ValueError("canonical Product MEDAR responses require response identity and answer")
         if self.status in degraded and (
-            self.answer is not None or self.confidence is not None or self.action_proposals
+            self.answer is not None or self.confidence is not None
+            or self.action_proposals or self.follow_up_suggestions
         ):
             raise ValueError("degraded Product MEDAR responses cannot contain an answer or proposals")
         return self

@@ -13,7 +13,7 @@ export type NavigationEntry = Readonly<{
 /** Only routes that exist at this base are linked. Planned areas have no href. */
 export const primaryNavigation: readonly NavigationEntry[] = [
   { id: "HOME", label: "Home", description: "Your product starting point", availability: "available", href: "/product" },
-  { id: "MEDAR", label: "MEDAR", description: "Personal AI assistance", availability: "planned" },
+  { id: "MEDAR", label: "MEDAR", description: "Personal AI assistance", availability: "available", href: "/product/medar" },
   { id: "MARKETS", label: "Markets", description: "Market analysis", availability: "available", href: "/market-analysis" },
   { id: "TRADING", label: "Trading", description: "Product trading workspace", availability: "planned" },
   { id: "PORTFOLIO", label: "Portfolio", description: "Product portfolio view", availability: "planned" },
