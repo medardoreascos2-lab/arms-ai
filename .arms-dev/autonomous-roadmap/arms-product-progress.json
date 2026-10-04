@@ -1,16 +1,22 @@
 {
   "branch": "product/premium-experience",
   "base": "a212582712292d8a0d19f45447067faa4f47f55e",
-  "head": "11f5e1d3cc3273d651cff9f0517fca7df52cf837",
+  "head": "e65738cfe722485f465307cead56f96caca26e1d",
   "head_semantics": "latest completed implementation commit; progress checkpoint commits may follow it",
   "milestones": [
-    "P100A"
+    "P100A",
+    "P100B"
   ],
   "commits": [
     {
       "milestone": "P100A",
       "hash": "11f5e1d3cc3273d651cff9f0517fca7df52cf837",
       "subject": "feat: add premium product navigation model"
+    },
+    {
+      "milestone": "P100B",
+      "hash": "e65738cfe722485f465307cead56f96caca26e1d",
+      "subject": "feat: add medar premium home dashboard contract"
     }
   ],
   "tests": [
@@ -28,13 +34,23 @@
       "milestone": "P100A",
       "command": "node_modules\\\\.bin\\\\eslint.cmd product files",
       "result": "passed"
+    },
+    {
+      "milestone": "P100B",
+      "command": "node --test src/lib/productNavigation.test.mjs src/lib/homeDashboard.test.mjs",
+      "result": "4 passed"
+    },
+    {
+      "milestone": "P100B",
+      "command": "tsc --noEmit and eslint home files",
+      "result": "passed"
     }
   ],
-  "frontend_status": "P100A complete; P100B pending",
+  "frontend_status": "P100A-P100B complete; Home sources unavailable",
   "membership_status": "not started",
   "billing_status": "not started",
   "analytics_status": "not started",
   "beta_status": "not started",
   "blocked_items": [],
-  "next_milestone": "P100B"
+  "next_milestone": "P100C"
 }
