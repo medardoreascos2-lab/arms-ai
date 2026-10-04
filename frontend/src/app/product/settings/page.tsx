@@ -14,7 +14,7 @@ export default function ProductSettingsPage() {
         <Link href="/product/settings/privacy">Open Privacy Center</Link>
       </Card>
       <Card id="settings-security" title="Security" description="Sessions, events, and permissions">
-        <EmptyState title="Planned" detail="Security Center is the next milestone." />
+        <Link href="/product/settings/security">Open Security Center</Link>
       </Card>
     </div>
   </main>;
