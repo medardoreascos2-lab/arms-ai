@@ -73,6 +73,7 @@ def build_local_test_app(
         session_provider=LocalSyntheticSessionProvider((session,)),
         membership_adapter=SyntheticMembershipAdapter(membership),
         runtime=CanonicalCoreProductRuntime(MedarCognitiveCore()),
+        clock=lambda: now,
     )
 
 
