@@ -64,6 +64,8 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P115 Degraded/recovery UX | Complete | Seven explicit degraded states expose retry/refresh/details/report actions and structurally prohibit fallback data substitution |
 | P116A Read-only Product admin | Complete, projection only | Aggregate beta count, membership states, feature usage, service health, and alerts with trading/financial mutation fixed false |
 | P116B Product support view | Complete, projection only | Explicitly authorized read-only account/membership/error/session metadata; conversation, memory, financial, and health content default denied |
+| P117A Premium beta included scope | Complete | MEDAR, Daily Intelligence, read-only financial surfaces, memory controls, notifications, NQ/MNQ, and Research seam documented |
+| P117B Premium beta deferred scope | Complete | Robotics, broad lifestyle domains, video AI, LIVE trading, real payments, and production auth explicitly deferred |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
