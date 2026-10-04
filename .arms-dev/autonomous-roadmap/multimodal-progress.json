@@ -36,7 +36,8 @@
                        "D213":  "COMPLETE",
                        "D214":  "COMPLETE",
                        "D215":  "COMPLETE",
-                       "D216":  "COMPLETE"
+                       "D216":  "COMPLETE",
+                       "D217":  "COMPLETE"
                    },
     "commits":  {
                     "D200A":  "d6043d4",
@@ -72,7 +73,8 @@
                     "D213":  "e8df065",
                     "D214":  "37f8253",
                     "D215":  "f3416f2",
-                    "D216":  "CURRENT_BRANCH_HEAD"
+                    "D216":  "ae27c31",
+                    "D217":  "CURRENT_BRANCH_HEAD"
                 },
     "tests":  {
                   "D200A":  "2 passed",
@@ -108,9 +110,10 @@
                   "D213":  "1 passed",
                   "D214":  "2 passed",
                   "D215":  "2 passed",
-                  "D216":  "2 passed"
+                  "D216":  "2 passed",
+                  "D217":  "2 passed"
               },
-    "voice_status":  "SYNTHETIC_FOUNDATION_WITH_DEGRADED_STATES",
+    "voice_status":  "SYNTHETIC_MULTIROOM_ROUTING",
     "vision_status":  "LOCAL_PREVIEW_UI_PROVIDER_PENDING",
     "camera_status":  "SYNTHETIC_METADATA_ONLY_NO_STORAGE",
     "avatar_status":  "PLACEHOLDER_WITH_SYNTHETIC_LIP_SYNC_SEAM",
@@ -127,5 +130,5 @@
                                  "wearable_live_data",
                                  "emergency_dispatch"
                              ],
-    "next_milestone":  "D217"
+    "next_milestone":  "D218"
 }
