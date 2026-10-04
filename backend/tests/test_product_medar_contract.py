@@ -97,3 +97,12 @@ def test_degraded_response_cannot_offer_follow_up_suggestions():
         ProductMedarResponse(request_id="request-1",
                              status=ProductMedarStatus.MEDAR_UNAVAILABLE,
                              follow_up_suggestions=("Invented next step",))
+
+
+def test_trust_fields_are_explicit_and_degraded_responses_cannot_carry_them():
+    response = ProductMedarResponse(request_id="request-1", response_id="response-1",
+                                    status=ProductMedarStatus.SUCCESS, answer="A view", confidence=0.7)
+    assert response.why_not == response.risks == response.data_used == response.what_would_change_the_view == ()
+    with pytest.raises(ValidationError):
+        ProductMedarResponse(request_id="request-1", status=ProductMedarStatus.MEDAR_UNAVAILABLE,
+                             risks=("Invented risk",))

@@ -31,6 +31,10 @@ export type ProductMedarResponse = Readonly<{
   answer: string | null;
   confidence: number | null;
   reasoning_summary: string | null;
+  why_not: readonly string[];
+  risks: readonly string[];
+  data_used: readonly string[];
+  what_would_change_the_view: readonly string[];
   sources: readonly SourceReference[];
   tool_evidence: readonly EvidenceReference[];
   memory_evidence: readonly EvidenceReference[];
@@ -50,7 +54,8 @@ const statuses = new Set<MedarStatus>([
 export function degradedResponse(requestId: string, status: MedarStatus): ProductMedarResponse {
   return {
     response_id: null, request_id: requestId, status, answer: null,
-    confidence: null, reasoning_summary: null, sources: [],
+    confidence: null, reasoning_summary: null, why_not: [], risks: [],
+    data_used: [], what_would_change_the_view: [], sources: [],
     tool_evidence: [], memory_evidence: [], warnings: [],
     follow_up_needed: false, follow_up_suggestions: [], action_proposals: [],
   };
@@ -75,6 +80,8 @@ export function decodeMedarResponse(value: unknown, requestId: string): ProductM
   } else if (item.answer != null || item.confidence != null || (
     (Array.isArray(item.action_proposals) && item.action_proposals.length > 0)
     || (Array.isArray(item.follow_up_suggestions) && item.follow_up_suggestions.length > 0)
+    || ["why_not", "risks", "data_used", "what_would_change_the_view"].some(
+      (key) => Array.isArray(item[key]) && item[key].length > 0)
   )) {
     return degradedResponse(requestId, "MEDAR_UNAVAILABLE");
   }
@@ -85,13 +92,16 @@ export function decodeMedarResponse(value: unknown, requestId: string): ProductM
     answer: typeof item.answer === "string" ? item.answer : null,
     confidence: typeof item.confidence === "number" ? item.confidence : null,
     reasoning_summary: typeof item.reasoning_summary === "string" ? item.reasoning_summary : null,
-    sources: Array.isArray(item.sources) ? item.sources as SourceReference[] : [],
-    tool_evidence: Array.isArray(item.tool_evidence) ? item.tool_evidence as EvidenceReference[] : [],
-    memory_evidence: Array.isArray(item.memory_evidence) ? item.memory_evidence as EvidenceReference[] : [],
-    warnings: Array.isArray(item.warnings) ? item.warnings.filter((part): part is string => typeof part === "string") : [],
+    why_not: strings(item.why_not),
+    risks: strings(item.risks),
+    data_used: strings(item.data_used),
+    what_would_change_the_view: strings(item.what_would_change_the_view),
+    sources: Array.isArray(item.sources) ? item.sources.filter(isSourceReference) : [],
+    tool_evidence: Array.isArray(item.tool_evidence) ? item.tool_evidence.filter(isEvidenceReference) : [],
+    memory_evidence: Array.isArray(item.memory_evidence) ? item.memory_evidence.filter(isEvidenceReference) : [],
+    warnings: strings(item.warnings),
     follow_up_needed: item.follow_up_needed === true,
-    follow_up_suggestions: Array.isArray(item.follow_up_suggestions)
-      ? item.follow_up_suggestions.filter((part): part is string => typeof part === "string") : [],
+    follow_up_suggestions: strings(item.follow_up_suggestions),
     action_proposals: Array.isArray(item.action_proposals)
       ? item.action_proposals.filter((part): part is ActionProposal =>
           part && typeof part === "object" && part.state === "PROPOSED_ONLY"
@@ -116,3 +126,21 @@ export const degradedMessages: Record<MedarStatus, string> = {
   SESSION_INVALID: "The local test session is invalid or expired.",
   LOCAL_TEST_DISABLED: "Product MEDAR local testing is disabled.",
 };
+
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((part): part is string => typeof part === "string") : [];
+}
+
+function isSourceReference(value: unknown): value is SourceReference {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.source_id === "string" && typeof item.title === "string"
+    && typeof item.locator === "string";
+}
+
+function isEvidenceReference(value: unknown): value is EvidenceReference {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.evidence_id === "string" && typeof item.summary === "string"
+    && typeof item.digest === "string";
+}

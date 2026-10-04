@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { ConfidenceBadge, EmptyState, LoadingState, Status } from "@/components/product/ProductPrimitives";
 import { decodeMedarResponse, degradedMessages, degradedResponse, type ProductMedarResponse } from "@/lib/medarProduct";
 import styles from "./MedarConversation.module.css";
+import { MedarTrustPanel } from "./MedarTrustPanel";
 
 type Turn = Readonly<{
   id: string;
@@ -95,7 +96,7 @@ export function MedarConversation({ localTestEnabled }: { localTestEnabled: bool
         <div className={styles.composerFooter}>
           <small>No tool execution, portfolio mutation, or durable memory write.</small>
           <button type="submit" disabled={!localTestEnabled || pending || !draft.trim()}>
-            {pending ? "Waitingâ€¦" : "Send"}
+            {pending ? "Waiting..." : "Send"}
           </button>
         </div>
       </form>
@@ -117,14 +118,7 @@ function MedarAnswer({ response }: { response: ProductMedarResponse }) {
       ) : (
         <>
           <p className={styles.answerText}>{response.answer}</p>
-          {response.sources.length > 0 && (
-            <section aria-label="Sources">
-              <h3>Sources</h3>
-              <ul>{response.sources.map((source) => (
-                <li key={source.source_id}>{source.title} <span>{source.locator}</span></li>
-              ))}</ul>
-            </section>
-          )}
+          <MedarTrustPanel response={response} />
           {response.memory_evidence.length > 0 && (
             <section aria-label="Memory references">
               <h3>Memory references</h3>

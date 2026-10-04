@@ -27,3 +27,8 @@
 .composer button { min-height: var(--product-density-control); padding: 0 var(--product-space-6); border: 0; border-radius: var(--product-radius-sm); background: var(--product-accent); color: var(--product-bg); font: inherit; font-weight: 700; cursor: pointer; }
 .composer button:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 640px) { .intro { flex-direction: column; } }
+
+.trustPanel { margin-top: var(--product-space-5); border: 1px solid var(--product-border); border-radius: var(--product-radius-sm); padding: var(--product-space-4); }
+.trustPanel summary { cursor: pointer; font-weight: 700; }
+.trustPanel summary:focus-visible { outline: 2px solid var(--product-accent); outline-offset: 2px; }
+.trustGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: var(--product-space-4); }

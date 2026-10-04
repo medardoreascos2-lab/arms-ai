@@ -91,6 +91,10 @@ class ProductMedarResponse(BaseModel):
     answer: str | None = None
     confidence: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
     reasoning_summary: str | None = None
+    why_not: tuple[str, ...] = ()
+    risks: tuple[str, ...] = ()
+    data_used: tuple[str, ...] = ()
+    what_would_change_the_view: tuple[str, ...] = ()
     sources: tuple[ProductSourceReference, ...] = ()
     tool_evidence: tuple[ProductEvidenceReference, ...] = ()
     memory_evidence: tuple[ProductEvidenceReference, ...] = ()
@@ -120,6 +124,8 @@ class ProductMedarResponse(BaseModel):
         if self.status in degraded and (
             self.answer is not None or self.confidence is not None
             or self.action_proposals or self.follow_up_suggestions
+            or self.why_not or self.risks or self.data_used
+            or self.what_would_change_the_view
         ):
             raise ValueError("degraded Product MEDAR responses cannot contain an answer or proposals")
         return self
