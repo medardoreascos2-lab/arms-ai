@@ -250,7 +250,26 @@ def validate_inventory(client: OllamaBenchmarkClient) -> dict[str, object]:
     return model
 
 
-def run_adapter_integration(endpoint: str) -> dict[str, object]:
+def validate_selected_model(client: OllamaBenchmarkClient,
+                            expected_digest: str) -> dict[str, object]:
+    """Select one pinned Q4_K_M model from an explicitly multi-model inventory."""
+    models = client.request("GET", "/api/tags").get("models")
+    if not isinstance(models, list) or not all(isinstance(item, dict) for item in models):
+        raise RuntimeError("model inventory is invalid")
+    matches = [item for item in models
+               if client.model_id in (item.get("name"), item.get("model"))]
+    if len(matches) != 1:
+        raise RuntimeError("selected model identity is missing or ambiguous")
+    model = matches[0]
+    details = model.get("details") if isinstance(model.get("details"), dict) else {}
+    if details.get("quantization_level") != "Q4_K_M":
+        raise RuntimeError("quantization mismatch")
+    if model.get("digest") != expected_digest:
+        raise RuntimeError("model digest mismatch")
+    return model
+
+
+def run_adapter_integration(endpoint: str, model_id: str = MODEL_ID) -> dict[str, object]:
     from backend.medar.local_http_models import OllamaModelProvider
     from backend.medar.local_http_transport import LoopbackJsonTransport
     from backend.medar.local_model_provider import ModelReadiness
@@ -260,10 +279,10 @@ def run_adapter_integration(endpoint: str) -> dict[str, object]:
     from backend.medar.request import CognitiveDomain
     from backend.medar.runtime_model_router import RuntimeModelRouter
 
-    provider = OllamaModelProvider(MODEL_ID, base_url=endpoint, context_length=INITIAL_CONTEXT,
+    provider = OllamaModelProvider(model_id, base_url=endpoint, context_length=INITIAL_CONTEXT,
         transport=LoopbackJsonTransport(endpoint, network_enabled=True, timeout_seconds=60), network_enabled=True)
     health = provider.health()
-    profile = ModelCapabilityProfile(MODEL_ID, ModelKind.LOCAL_LLM, INITIAL_CONTEXT,
+    profile = ModelCapabilityProfile(model_id, ModelKind.LOCAL_LLM, INITIAL_CONTEXT,
         CapabilityStrength.STRONG, CapabilityStrength.STRONG, LatencyClass.MEDIUM,
         CostClass.FREE, ModelLocality.LOCAL, False, False, True, True)
     router = RuntimeModelRouter(ModelProfileRegistry((profile,)), (provider,))
@@ -271,7 +290,7 @@ def run_adapter_integration(endpoint: str) -> dict[str, object]:
         INITIAL_CONTEXT, CapabilityStrength.BASIC, required_kind=ModelKind.LOCAL_LLM,
         tool_calls_required=False, structured_output_required=True, local_only=True,
         remote_allowed=False, maximum_cost=CostClass.FREE)
-    invocation = ModelInvocation("phase8-5-local", MODEL_ID, ModelKind.LOCAL_LLM,
+    invocation = ModelInvocation("phase8-5-local", model_id, ModelKind.LOCAL_LLM,
         'Synthetic adapter conformance test. Copy exactly this JSON object and return nothing else: '
         '{"answer":"LOCAL_ONLY","safe":true}', {"answer": "string", "safe": "boolean"})
     response = router.invoke(requirement, invocation)

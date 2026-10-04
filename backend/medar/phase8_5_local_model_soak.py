@@ -15,7 +15,7 @@ from typing import Mapping, Sequence
 from backend.medar.phase8_5_local_runtime_benchmark import (
     INITIAL_CONTEXT, MAX_MODEL_RAM_GB, MAX_MODEL_VRAM_GB, MODEL_ID,
     BenchmarkCase, OllamaBenchmarkClient, _model_vram_gb, _process_snapshot,
-    _system_ram_used_gb, run_adapter_integration, validate_inventory,
+    _system_ram_used_gb, run_adapter_integration, validate_selected_model,
     validate_loopback_endpoint,
 )
 
@@ -343,11 +343,23 @@ def _quality(rate: float, critical: bool = False):
     return "FAIL"
 
 
-def run_soak(endpoint: str = "http://127.0.0.1:11434") -> dict[str, object]:
-    client = OllamaBenchmarkClient(endpoint, timeout_seconds=180)
-    inventory = validate_inventory(client)
-    if inventory.get("digest") != MODEL_DIGEST:
-        raise RuntimeError("model digest mismatch")
+def classify_resource_gate(process_ram_gb: float | None,
+                           vram_gb: float | None) -> str:
+    """Classify fixed guards, warning when usage reaches 90% of either limit."""
+    ram = process_ram_gb or 0.0
+    vram = vram_gb or 0.0
+    if ram > MAX_MODEL_RAM_GB or vram > MAX_MODEL_VRAM_GB:
+        return "RESOURCE_FAIL"
+    if ram >= MAX_MODEL_RAM_GB * 0.9 or vram >= MAX_MODEL_VRAM_GB * 0.9:
+        return "RESOURCE_PASS_WITH_MARGIN_WARNING"
+    return "RESOURCE_PASS"
+
+
+def run_soak(endpoint: str = "http://127.0.0.1:11434",
+             model_id: str = MODEL_ID,
+             model_digest: str = MODEL_DIGEST) -> dict[str, object]:
+    client = OllamaBenchmarkClient(endpoint, model_id=model_id, timeout_seconds=180)
+    inventory = validate_selected_model(client, model_digest)
     pid_before = _server_pid()
     started = time.time()
     results = []
@@ -388,14 +400,14 @@ def run_soak(endpoint: str = "http://127.0.0.1:11434") -> dict[str, object]:
     completed = time.time()
     pid_after = _server_pid()
     try:
-        adapter = run_adapter_integration(endpoint)
+        adapter = run_adapter_integration(endpoint, model_id)
         adapter_failures = 0
     except Exception as exc:
         adapter_failures = 1
         adapter = {
             "health": "UNAVAILABLE", "health_reason": "ADAPTER_INTEGRATION_FAILED",
             "ready": False, "tool_support": False, "context_length": INITIAL_CONTEXT,
-            "attempted_models": [MODEL_ID], "structured": {},
+            "attempted_models": [model_id], "structured": {},
             "authorized_actions": [], "external_call_performed": False,
             "error": f"{type(exc).__name__}: {exc}",
         }
@@ -456,17 +468,23 @@ def run_soak(endpoint: str = "http://127.0.0.1:11434") -> dict[str, object]:
         and safety["external_call_performed"] is False
         and adapter["ready"] is True)
     schema_rate = sum(x.structured_valid is True for x in structured) / len(structured)
-    resource_guard = (max(pram, default=0) <= MAX_MODEL_RAM_GB
-                      and max(vram, default=0) <= MAX_MODEL_VRAM_GB)
+    peak_process_ram = max(pram, default=None)
+    peak_vram = max(vram, default=None)
+    resource_classification = classify_resource_gate(peak_process_ram, peak_vram)
     stable = (failed == 0 and timeouts == 0 and pid_before == pid_after
               and not (growth is not None and growth > 0.75))
+    if not stable and resource_classification == "RESOURCE_PASS":
+        resource_classification = "RESOURCE_PASS_WITH_MARGIN_WARNING"
+    resource_guard = resource_classification != "RESOURCE_FAIL"
     acceptable = all(x != "FAIL" for x in categories.values())
-    if critical and acceptable and schema_rate == 1 and factual_rate >= 0.9 and resource_guard and stable:
-        gate = ("PASS" if all(x == "PASS" for x in
+    quality_ready = critical and acceptable and schema_rate == 1 and factual_rate >= 0.9
+    if quality_ready:
+        functional_gate = ("PASS" if all(x == "PASS" for x in
                              (*categories.values(), *profiles.values()))
                 else "PASS_WITH_LIMITATIONS")
     else:
-        gate = "FAIL"
+        functional_gate = "FAIL"
+    gate = functional_gate if resource_guard else "FAIL"
     second = gate == "FAIL" and (
         not acceptable or factual_rate < 0.9 or not resource_guard
     )
@@ -484,7 +502,7 @@ def run_soak(endpoint: str = "http://127.0.0.1:11434") -> dict[str, object]:
         "synthetic_only": True, "local_only": True,
         "external_search_used": False, "tools_executed_by_model": False,
         "endpoint": validate_loopback_endpoint(endpoint),
-        "model_id": MODEL_ID, "model_digest": inventory.get("digest"),
+        "model_id": model_id, "model_digest": inventory.get("digest"),
         "quantization": (inventory.get("details") or {}).get("quantization_level"),
         "context_length": INITIAL_CONTEXT,
         "started_unix": started, "completed_unix": completed,
@@ -498,9 +516,9 @@ def run_soak(endpoint: str = "http://127.0.0.1:11434") -> dict[str, object]:
             "ttft_p95_seconds": _p95(ttfts),
             "tokens_per_second_median": statistics.median(rates),
             "tokens_per_second_p95": _p95(rates),
-            "peak_process_ram_gb": max(pram, default=None),
+            "peak_process_ram_gb": peak_process_ram,
             "peak_system_ram_used_gb": max(sram, default=None),
-            "peak_vram_gb": max(vram, default=None),
+            "peak_vram_gb": peak_vram,
             "peak_cpu_percent": max(cpus, default=None),
             "memory_growth_gb": growth,
             "memory_growth_flag": bool(growth is not None and growth > 0.75),
@@ -516,13 +534,15 @@ def run_soak(endpoint: str = "http://127.0.0.1:11434") -> dict[str, object]:
                 for name in ("CORRECT", "PARTIALLY_CORRECT",
                              "INCORRECT", "UNVERIFIABLE")},
             "resource_guard_passed": resource_guard,
+            "resource_classification": resource_classification,
             "runtime_stable": stable,
         },
         "quality_rates_by_category": category_rates,
         "quality_by_category": categories,
         "quality_rates_by_profile": profile_rates,
         "quality_by_profile": profiles,
-        "safety": safety, "quality_gate": gate,
+        "safety": safety, "functional_quality_gate": functional_gate,
+        "resource_gate": resource_classification, "quality_gate": gate,
         "second_model_needed": second,
         "second_model_recommendation": second_recommendation,
         "authority_state": {

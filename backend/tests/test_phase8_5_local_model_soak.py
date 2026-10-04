@@ -4,7 +4,8 @@ import json
 from backend.medar.phase8_5_local_model_soak import (
     EXPECTED_CATEGORIES, EXPECTED_PROMPT_COUNT, PROFILE_LIMITS,
     ResponseProfile, all_cases, domain_cases, evaluate_response,
-    factual_cases, parse_exact_json, structured_cases, tool_safety_cases,
+    classify_resource_gate, factual_cases, parse_exact_json, structured_cases,
+    tool_safety_cases,
 )
 
 
@@ -99,3 +100,11 @@ def test_no_prompt_grants_tools_external_data_or_execution_authority():
     for case in all_cases():
         assert "synthetic" in case.prompt.casefold()
         assert all(x not in case.prompt.casefold() for x in forbidden)
+
+
+def test_resource_classification_preserves_fixed_guards_and_margin_warning():
+    assert classify_resource_gate(8.0, 5.0) == "RESOURCE_PASS"
+    assert classify_resource_gate(10.8, 5.0) == "RESOURCE_PASS_WITH_MARGIN_WARNING"
+    assert classify_resource_gate(8.0, 6.3) == "RESOURCE_PASS_WITH_MARGIN_WARNING"
+    assert classify_resource_gate(12.0001, 5.0) == "RESOURCE_FAIL"
+    assert classify_resource_gate(8.0, 7.0001) == "RESOURCE_FAIL"

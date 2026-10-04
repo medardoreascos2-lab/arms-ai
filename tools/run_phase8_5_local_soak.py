@@ -13,13 +13,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--endpoint", default="http://127.0.0.1:11434")
     parser.add_argument("--output", required=True)
+    parser.add_argument("--model-id", default=None)
+    parser.add_argument("--model-digest", default=None)
     args = parser.parse_args()
-    report = run_soak(args.endpoint)
+    kwargs = {}
+    if args.model_id is not None:
+        kwargs["model_id"] = args.model_id
+    if args.model_digest is not None:
+        kwargs["model_digest"] = args.model_digest
+    report = run_soak(args.endpoint, **kwargs)
     path = write_report(report, args.output)
     print(json.dumps({
         "output": str(path),
         "prompts_executed": report["prompts_executed"],
         "quality_gate": report["quality_gate"],
+        "functional_quality_gate": report["functional_quality_gate"],
+        "resource_gate": report["resource_gate"],
         "second_model_needed": report["second_model_needed"],
         "summary": report["summary"],
         "quality_by_category": report["quality_by_category"],

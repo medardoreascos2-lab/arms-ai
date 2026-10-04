@@ -14,6 +14,7 @@ from backend.medar.phase8_5_local_runtime_benchmark import (
     evaluate_case,
     security_cases,
     validate_inventory,
+    validate_selected_model,
     validate_loopback_endpoint,
     write_report,
 )
@@ -89,6 +90,18 @@ def test_inventory_requires_one_exact_q4_k_m_model():
         validate_inventory(FakeClient([model, model]))
     with pytest.raises(RuntimeError):
         validate_inventory(FakeClient([{"name": FakeClient.model_id, "details": {"quantization_level": "Q8_0"}}]))
+
+
+def test_selected_inventory_allows_only_one_exact_pinned_model_among_authorized_models():
+    selected = {"name": FakeClient.model_id, "digest": "selected-digest",
+                "details": {"quantization_level": "Q4_K_M"}}
+    other = {"name": "qwen3.5:4b-q4_K_M", "digest": "other-digest",
+             "details": {"quantization_level": "Q4_K_M"}}
+    assert validate_selected_model(FakeClient([selected, other]), "selected-digest") == selected
+    with pytest.raises(RuntimeError):
+        validate_selected_model(FakeClient([other]), "selected-digest")
+    with pytest.raises(RuntimeError):
+        validate_selected_model(FakeClient([selected]), "wrong-digest")
 
 
 def test_report_writer_records_local_synthetic_evidence(tmp_path):
