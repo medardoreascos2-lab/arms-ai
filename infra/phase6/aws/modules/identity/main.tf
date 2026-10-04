@@ -27,6 +27,16 @@ locals {
     var.tenant_claim,
     var.role_claim,
   ])
+
+  workload_policy_attachments = merge([
+    for service, policy_arns in var.workload_policy_arns : {
+      for index, policy_arn in policy_arns :
+      "${service}:${index}" => {
+        service    = service
+        policy_arn = policy_arn
+      }
+    }
+  ]...)
 }
 
 data "aws_iam_policy_document" "ecs_tasks" {
@@ -62,4 +72,11 @@ resource "aws_iam_role_policy_attachment" "secret_reader" {
 
   role       = aws_iam_role.service[each.key].name
   policy_arn = each.value
+}
+
+resource "aws_iam_role_policy_attachment" "workload" {
+  for_each = local.workload_policy_attachments
+
+  role       = aws_iam_role.service[each.value.service].name
+  policy_arn = each.value.policy_arn
 }

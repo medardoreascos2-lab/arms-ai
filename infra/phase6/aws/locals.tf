@@ -47,13 +47,25 @@ module "secrets" {
 module "identity" {
   source = "./modules/identity"
 
-  name_prefix              = local.name_prefix
-  environment              = var.environment
-  oidc_issuer              = var.oidc_issuer
-  oidc_audience            = var.oidc_audience
-  oidc_jwks_uri            = var.oidc_jwks_uri
+  name_prefix               = local.name_prefix
+  environment               = var.environment
+  oidc_issuer               = var.oidc_issuer
+  oidc_audience             = var.oidc_audience
+  oidc_jwks_uri             = var.oidc_jwks_uri
   secret_reader_policy_arns = module.secrets.reader_policy_arns
-  tags                     = local.required_tags
+  workload_policy_arns = {
+    api                = [module.registry.puller_policy_arn, module.observability.telemetry_writer_policy_arn]
+    worker             = [module.registry.puller_policy_arn, module.observability.telemetry_writer_policy_arn]
+    scheduler          = [module.registry.puller_policy_arn, module.observability.telemetry_writer_policy_arn]
+    research           = [module.registry.puller_policy_arn, module.observability.telemetry_writer_policy_arn]
+    migration          = [module.registry.puller_policy_arn, module.observability.telemetry_writer_policy_arn]
+    maintenance        = [module.registry.puller_policy_arn, module.observability.telemetry_writer_policy_arn]
+    backup             = [module.registry.puller_policy_arn, module.observability.telemetry_writer_policy_arn, module.backup.backup_writer_policy_arn]
+    restore            = [module.registry.puller_policy_arn, module.observability.telemetry_writer_policy_arn, module.backup.restore_reader_policy_arn]
+    telemetry          = [module.observability.telemetry_writer_policy_arn]
+    artifact-publisher = [module.registry.publisher_policy_arn]
+  }
+  tags = local.required_tags
 }
 
 module "observability" {

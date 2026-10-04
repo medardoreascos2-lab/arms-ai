@@ -72,6 +72,33 @@ variable "secret_reader_policy_arns" {
   }
 }
 
+variable "workload_policy_arns" {
+  description = "Exact reviewed policies attached to each isolated staging service identity."
+  type        = map(list(string))
+
+  validation {
+    condition = setequals(
+      toset(keys(var.workload_policy_arns)),
+      toset([
+        "api",
+        "worker",
+        "scheduler",
+        "research",
+        "migration",
+        "maintenance",
+        "backup",
+        "restore",
+        "telemetry",
+        "artifact-publisher",
+      ])
+    ) && alltrue([
+      for policy_arns in values(var.workload_policy_arns) :
+      length(policy_arns) > 0 && length(distinct(policy_arns)) == length(policy_arns)
+    ])
+    error_message = "Workload policies must cover every isolated service with nonempty unique policy references."
+  }
+}
+
 variable "tags" {
   type = map(string)
 }
