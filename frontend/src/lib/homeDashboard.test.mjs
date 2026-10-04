@@ -14,5 +14,5 @@ test("unconnected Home data stays unavailable and quick actions use existing rou
   assert.ok(dataSections.every((section) => section.content.state === "unavailable"));
   const actions = initialHomeSections.find((section) => section.id === "QUICK_ACTIONS")?.content;
   assert.equal(actions?.state, "navigation");
-  assert.deepEqual(actions.actions.map((action) => action.href), ["/market-analysis"]);
+  assert.deepEqual(actions.actions.map((action) => action.href), ["/product/daily-intelligence", "/market-analysis"]);
 });

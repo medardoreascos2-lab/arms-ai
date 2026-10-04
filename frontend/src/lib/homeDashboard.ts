@@ -33,6 +33,7 @@ export const initialHomeSections: readonly HomeSection[] = [
   { id: "QUICK_ACTIONS", title: "Quick actions", purpose: "Open existing market analysis", content: {
     state: "navigation",
     actions: [
+      { label: "Daily Intelligence", href: "/product/daily-intelligence" },
       { label: "Market analysis", href: "/market-analysis" },
     ],
   } },
