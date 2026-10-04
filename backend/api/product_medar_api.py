@@ -1,90 +1,31 @@
-"""Explicitly mounted, loopback-only Product MEDAR adapter for synthetic sessions."""
+"""Explicitly mounted, loopback-only Product MEDAR route for synthetic sessions."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from ipaddress import ip_address
-from typing import Callable, Protocol
+from typing import Callable
 
 from fastapi import APIRouter, Header, Request
 
 from backend.api.schemas.product_medar import (
-    ProductActionProposal,
-    ProductEvidenceReference,
     ProductMedarPrompt,
     ProductMedarResponse,
     ProductMedarStatus,
-    ProductSourceReference,
 )
-from backend.entitlements import FeatureEntitlement, UserIdentity
-from backend.medar.request import (
-    CognitiveDomain,
-    CognitiveRequest,
-    RiskClass,
-    TimeSensitivity,
-    normalize_user_input,
-)
-from backend.medar.response import CognitiveResponse
+from backend.entitlements import UserIdentity
 from backend.memberships import MembershipReadAdapter, resolve_membership_entitlements
-from backend.product.customer_session import (
-    LOCAL_TEST_ONLY,
-    LocalSyntheticSessionProvider,
+from backend.product.customer_session import LOCAL_TEST_ONLY, LocalSyntheticSessionProvider
+from backend.product.medar_adapter import (
+    ProductMedarRuntime,
+    make_invocation,
+    project_cognitive_response,
 )
-from backend.product.surface import (
-    ProductDecisionCode,
-    ProductSurface,
-    resolve_product_access,
-)
-
-
-@dataclass(frozen=True)
-class ProductMedarInvocation:
-    """The only identity scope given to a MEDAR Product runtime."""
-
-    request: CognitiveRequest
-    user_id: str
-    tenant_id: str
-    session_id: str
-    entitlements: frozenset[FeatureEntitlement]
-    auth_source: str
-    authentication_method: str
-
-
-class ProductMedarRuntime(Protocol):
-    def invoke(self, invocation: ProductMedarInvocation) -> CognitiveResponse: ...
+from backend.product.surface import ProductDecisionCode, ProductSurface, resolve_product_access
 
 
 def _degraded(request_id: str, status: ProductMedarStatus) -> ProductMedarResponse:
     return ProductMedarResponse(request_id=request_id, status=status)
-
-
-def _project_response(response: CognitiveResponse, request_id: str) -> ProductMedarResponse:
-    if not isinstance(response, CognitiveResponse) or response.request_id != request_id:
-        raise ValueError("MEDAR response does not match request")
-    return ProductMedarResponse(
-        response_id=response.response_id,
-        request_id=response.request_id,
-        status=ProductMedarStatus(response.status.value),
-        answer=response.answer,
-        confidence=response.confidence,
-        reasoning_summary=response.reasoning_summary,
-        sources=tuple(ProductSourceReference(
-            source_id=item.source_id, title=item.title, locator=item.locator
-        ) for item in response.sources),
-        tool_evidence=tuple(ProductEvidenceReference(
-            evidence_id=item.evidence_id, summary=item.summary, digest=item.digest
-        ) for item in response.tool_evidence),
-        memory_evidence=tuple(ProductEvidenceReference(
-            evidence_id=item.evidence_id, summary=item.summary, digest=item.digest
-        ) for item in response.memory_evidence),
-        warnings=response.warnings,
-        follow_up_needed=response.follow_up_needed,
-        action_proposals=tuple(ProductActionProposal(
-            action_id=item.action_id, description=item.description,
-            requires_confirmation=item.requires_confirmation,
-        ) for item in response.action_proposals),
-    )
 
 
 def create_local_test_product_medar_router(
@@ -150,32 +91,9 @@ def create_local_test_product_medar_router(
                 status = ProductMedarStatus.ENTITLEMENT_REQUIRED
             return _degraded(body.request_id, status)
 
-        cognitive_request = CognitiveRequest(
-            request_id=body.request_id,
-            conversation_id=body.conversation_id,
-            user_intent="PRODUCT_CONVERSATION",
-            raw_input=body.message,
-            normalized_input=normalize_user_input(body.message),
-            domain=CognitiveDomain.GENERAL,
-            risk_class=RiskClass.HIGH,
-            required_capabilities=(),
-            time_sensitivity=TimeSensitivity.STATIC,
-            requires_web=False,
-            requires_tools=False,
-            requires_memory=False,
-            requires_human_confirmation=True,
-        )
-        invocation = ProductMedarInvocation(
-            request=cognitive_request,
-            user_id=session.user_id,
-            tenant_id=session.tenant_id,
-            session_id=session.session_id,
-            entitlements=entitlements,
-            auth_source=session.auth_source,
-            authentication_method=session.authentication_method,
-        )
         try:
-            return _project_response(runtime.invoke(invocation), body.request_id)
+            invocation = make_invocation(body, session, entitlements)
+            return project_cognitive_response(runtime.invoke(invocation), body.request_id)
         except Exception:
             return _degraded(body.request_id, ProductMedarStatus.MEDAR_UNAVAILABLE)
 
