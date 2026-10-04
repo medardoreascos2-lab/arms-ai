@@ -1,17 +1,19 @@
 # P102A MEDAR conversation integration boundary
 
-Status: P102A1 contract committed; P102A2 blocked by the explicit production-auth-provider stop condition. No Product MEDAR route or conversation send control is exposed.
+Status: P102A1 contract and P102A2 local synthetic customer-session boundary implemented. Product MEDAR remains local test only. No production authentication provider is connected, and the Product route is not registered by the default application.
 
-## Approved boundary
+## Trusted session
 
-The Product MEDAR API is a separate authenticated adapter over canonical `backend.medar.request.CognitiveRequest` and `backend.medar.response.CognitiveResponse`. It must bind user, tenant, and session from a trusted server authentication context, check current membership and MEDAR entitlement, then invoke MEDAR only after authorization. The legacy `/ai/copilot` endpoint calls a separate conversation engine and is not a Product MEDAR fallback.
+`backend.product.customer_session` defines an immutable UTC customer session and a provider-neutral validation and identity-resolution contract. The only implementation is `LocalSyntheticSessionProvider`, which accepts synthetic identifiers, deterministic fixtures, expiring sessions, and revocation. It carries `LOCAL_TEST_ONLY` source and assurance and `SYNTHETIC_FIXTURE` authentication method. It has no passwords, cookie secrets, external network, or customer account creation.
 
-`backend.api.schemas.product_medar` now defines a bounded caller prompt and a response projection. The prompt rejects caller-supplied `user_id`, `tenant_id`, and `session_id`. The response carries status, answer, confidence, user-facing reasoning summary, sources, tool and memory evidence, warnings, follow-up state, and proposals. Proposals remain `PROPOSED_ONLY` with `execution_authorized=False`. Degraded responses cannot claim a synthetic answer, confidence, or proposal. The contract does not authenticate requests or invoke MEDAR by itself.
+The session provider is the only source for Product MEDAR user, tenant, session, roles, and entitlements. A session ID supplied in the local test header is only a lookup key. Directly constructed or modified session objects are rejected unless they are the current provider-owned instance.
 
-## Blocker at P102A2
+## Product access
 
-There is no production customer HTTP authentication provider in `backend/api` that verifies an unexpired session and supplies a trusted user, tenant, and session. `backend.phase4.transport_authorization.AuthenticatedUserTransportPrincipal` is a read-authorization contract, not an HTTP credential resolver; it has no session identifier or session expiration. `backend.medar.trusted_runtime_identity.LocalAdminIdentityAuthority` explicitly does not provide per-user authentication and cannot stand in for a customer session. The existing API dependency authenticates administrative operations, not Product users.
+`MEDAR_CONVERSATION` is the canonical entitlement. Product MEDAR is `AVAILABLE_LOCAL_TEST` only with a valid trusted local session, matching active membership, entitlement in both session and membership projection, and an injected MEDAR runtime. Other Product surfaces keep their existing decisions. No Product access decision grants admin, broker, PAPER, or LIVE authority.
 
-The canonical Product access projection also leaves `ProductSurface.MEDAR` in `SURFACE_NOT_READY`, so no current membership grants the needed MEDAR entitlement. Granting visibility based only on a tier would bypass the requested entitlement check.
+## Local test API
 
-The user brief explicitly requires stopping when a production auth provider is required. P102A2 through P102A10 and P102B onward remain pending. Resume only when a trusted customer session provider and canonical MEDAR entitlement are available or separately authorized for implementation. Until then, denied and unavailable states remain explicit and cause zero MEDAR invocation, tool execution, memory writes, or broker/PAPER/LIVE effects.
+`create_local_test_product_medar_router` constructs a loopback-only router for explicit local mounting. The default application does not mount it. The route accepts only the bounded Product prompt schema; caller user, tenant, and session fields fail validation. A denied request returns an explicit degraded status before constructing or invoking a MEDAR request. An allowed request passes provider-derived scope in `ProductMedarInvocation` and uses a conservative canonical MEDAR request with web, tool, and memory flags disabled. The legacy `/ai/copilot` route remains separate.
+
+The runtime is injected. No production provider, external auth endpoint, production MEDAR availability, or UI send control is claimed. The P102A3 onward roadmap was not present in this worktree's Product documentation, so further milestones require their specific contract before implementation.
