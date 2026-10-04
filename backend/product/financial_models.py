@@ -14,6 +14,16 @@ class FinancialProjectionStatus(str, Enum):
     READY = "READY"
     UNKNOWN = "UNKNOWN"
 
+class FinancialReadStatus(str, Enum):
+    FINANCIAL_DATA_UNAVAILABLE = "FINANCIAL_DATA_UNAVAILABLE"
+    INTEGRATION_PENDING = "INTEGRATION_PENDING"
+    ACCOUNT_SCOPE_UNAVAILABLE = "ACCOUNT_SCOPE_UNAVAILABLE"
+    PORTFOLIO_UNAVAILABLE = "PORTFOLIO_UNAVAILABLE"
+    STALE_DATA = "STALE_DATA"
+    ENTITLEMENT_REQUIRED = "ENTITLEMENT_REQUIRED"
+    SESSION_INVALID = "SESSION_INVALID"
+
+
 
 class FinancialSourceStatus(str, Enum):
     AVAILABLE = "AVAILABLE"
@@ -50,6 +60,16 @@ class ReadOnlyFinancialProjection(BaseModel):
     investment_advice: Literal[False] = False
     execution_authorized: Literal[False] = False
     portfolio_mutation_authorized: Literal[False] = False
+
+class ProductFinancialDegradedResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: FinancialReadStatus
+    data: None = None
+    broker_authorized: Literal[False] = False
+    portfolio_mutation_authorized: Literal[False] = False
+    paper_authorized: Literal[False] = False
+    live_authorized: Literal[False] = False
 
 
 class FinancialAlert(BaseModel):

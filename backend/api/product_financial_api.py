@@ -24,6 +24,11 @@ from backend.product.financial_authorization import (
     authorize_financial_read,
 )
 from backend.product.financial_provider import ProductFinancialReadProvider
+from backend.product.financial_models import (
+    FinancialReadStatus,
+    ProductFinancialDegradedResponse,
+)
+
 
 
 _ROUTE_POLICY = {
@@ -55,15 +60,16 @@ _ROUTE_POLICY = {
 }
 
 
-def _degraded(code: FinancialAccessCode) -> JSONResponse:
-    return JSONResponse({
-        "status": code.value,
-        "data": None,
-        "broker_authorized": False,
-        "portfolio_mutation_authorized": False,
-        "paper_authorized": False,
-        "live_authorized": False,
-    })
+def _degraded(status: FinancialReadStatus) -> JSONResponse:
+    body = ProductFinancialDegradedResponse(status=status)
+    return JSONResponse(body.model_dump(mode="json"))
+
+_ACCESS_STATUS = {
+    FinancialAccessCode.SESSION_INVALID: FinancialReadStatus.SESSION_INVALID,
+    FinancialAccessCode.ENTITLEMENT_REQUIRED: FinancialReadStatus.ENTITLEMENT_REQUIRED,
+    FinancialAccessCode.ACCOUNT_SCOPE_UNAVAILABLE: FinancialReadStatus.ACCOUNT_SCOPE_UNAVAILABLE,
+    FinancialAccessCode.PORTFOLIO_UNAVAILABLE: FinancialReadStatus.PORTFOLIO_UNAVAILABLE,
+}
 
 
 def create_local_test_product_financial_router(
@@ -72,12 +78,15 @@ def create_local_test_product_financial_router(
     membership_adapter: MembershipReadAdapter,
     scope_provider: CustomerFinancialScopeProvider,
     financial_provider: ProductFinancialReadProvider,
+    maximum_freshness_seconds: int = 300,
     clock: Callable[[], datetime] | None = None,
 ) -> APIRouter:
     if any(item is None for item in (
         session_provider, membership_adapter, scope_provider, financial_provider
     )):
         raise TypeError("all Product financial read dependencies are required")
+    if type(maximum_freshness_seconds) is not int or maximum_freshness_seconds < 0:
+        raise ValueError("maximum freshness must be a nonnegative integer")
     now = clock or (lambda: datetime.now(timezone.utc))
     router = APIRouter(prefix="/product/financial", tags=["product-financial-local-test"])
 
@@ -89,10 +98,11 @@ def create_local_test_product_financial_router(
         try:
             peer = ip_address(request.client.host if request.client else "")
         except ValueError:
-            return _degraded(FinancialAccessCode.SESSION_INVALID)
+            return _degraded(FinancialReadStatus.SESSION_INVALID)
         if not peer.is_loopback:
-            return _degraded(FinancialAccessCode.SESSION_INVALID)
+            return _degraded(FinancialReadStatus.SESSION_INVALID)
         surface, entitlement, method_name = _ROUTE_POLICY[route_name]
+        evaluated_at = now()
         decision = authorize_financial_read(
             session_id=session_id,
             session_provider=session_provider,
@@ -100,22 +110,24 @@ def create_local_test_product_financial_router(
             scope_provider=scope_provider,
             required_surface=surface,
             required_entitlement=entitlement,
-            evaluated_at=now(),
+            evaluated_at=evaluated_at,
         )
         if not decision.allowed:
-            return _degraded(decision.code)
+            return _degraded(_ACCESS_STATUS[decision.code])
         try:
-            method = getattr(financial_provider, method_name)
-            return method(decision.scope)
+            projection = getattr(financial_provider, method_name)(decision.scope)
+            freshness = projection.provenance.freshness_seconds
+            observed_at = projection.provenance.observed_at
+            observed_age = (
+                None if observed_at is None
+                else max(0, int((evaluated_at - observed_at).total_seconds()))
+            )
+            if (freshness is None or observed_age is None
+                    or max(freshness, observed_age) > maximum_freshness_seconds):
+                return _degraded(FinancialReadStatus.STALE_DATA)
+            return projection
         except Exception:
-            return JSONResponse({
-                "status": "FINANCIAL_DATA_UNAVAILABLE",
-                "data": None,
-                "broker_authorized": False,
-                "portfolio_mutation_authorized": False,
-                "paper_authorized": False,
-                "live_authorized": False,
-            })
+            return _degraded(FinancialReadStatus.FINANCIAL_DATA_UNAVAILABLE)
 
     @router.get("/overview")
     def overview(
