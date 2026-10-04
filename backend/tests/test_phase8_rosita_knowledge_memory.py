@@ -15,6 +15,7 @@ from backend.medar.encrypted_memory_envelope import open_memory_content
 from backend.medar.memory_access import MemoryPurpose
 from backend.medar.rosita_knowledge_memory import (
     RositaKnowledgeKind, RositaKnowledgeMemory, RositaKnowledgeWriteAuthority,
+    RositaProvenanceClass,
 )
 from backend.medar.sqlite_encrypted_memory_store import SQLiteEncryptedMemoryStore
 from backend.medar.sqlite_memory_store import MemoryScope
@@ -31,7 +32,9 @@ def _record(**changes):
     values = dict(
         knowledge_id="rosita-1", tenant_id="tenant-a", owner_id="owner-a",
         session_id="session-a", source_reference="synthetic-test:rosita-note-1",
-        kind=RositaKnowledgeKind.NOTE, title="synthetic family note",
+        kind=RositaKnowledgeKind.NOTE,
+        provenance_classification=RositaProvenanceClass.PERSONAL_EXPERIENCE,
+        title="synthetic family note",
         content="synthetic authorized knowledge",
         evidence_references=("synthetic-test:evidence-1",), observed_at=NOW,
     )
@@ -80,6 +83,13 @@ def test_rosita_supports_each_required_knowledge_kind(kind):
     assert record.content not in repr(record)
 
 
+@pytest.mark.parametrize("classification", tuple(RositaProvenanceClass))
+def test_rosita_preserves_each_exact_provenance_classification(classification):
+    record = _record(provenance_classification=classification)
+    assert record.provenance_classification is classification
+    assert json.loads(record.serialized_content())["provenance_classification"] == classification.value
+
+
 def test_approved_rosita_knowledge_persists_only_encrypted_content(tmp_path):
     authority, identity, request, provider = _setup()
     record = _record()
@@ -118,6 +128,12 @@ def test_rejected_rosita_writes_have_zero_store_calls():
             (replace(request, claimed_role="family"), record, RetentionPolicy.LONG_TERM, approval),
             (request, record, RetentionPolicy.SESSION, approval),
             (request, replace(record, content="changed"), RetentionPolicy.LONG_TERM, approval),
+            (
+                request,
+                replace(record, provenance_classification=RositaProvenanceClass.UNKNOWN),
+                RetentionPolicy.LONG_TERM,
+                approval,
+            ),
             (request, record, RetentionPolicy.LONG_TERM, None),
         ):
             with pytest.raises(PermissionError):
@@ -139,3 +155,5 @@ def test_rosita_rejects_unapproved_real_or_secret_like_content():
         _record(content="api_key: synthetic")
     with pytest.raises(PermissionError):
         _record(external_sharing_authority=True)
+    with pytest.raises(TypeError):
+        _record(provenance_classification="PERSONAL_EXPERIENCE")

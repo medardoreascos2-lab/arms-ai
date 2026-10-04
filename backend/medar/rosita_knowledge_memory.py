@@ -35,6 +35,13 @@ class RositaKnowledgeKind(str, Enum):
     MEDICAL_EVIDENCE_REFERENCE = "MEDICAL_EVIDENCE_REFERENCE"
 
 
+class RositaProvenanceClass(str, Enum):
+    PERSONAL_EXPERIENCE = "PERSONAL_EXPERIENCE"
+    TRADITIONAL_PRACTICE = "TRADITIONAL_PRACTICE"
+    CLINICAL_EVIDENCE = "CLINICAL_EVIDENCE"
+    UNKNOWN = "UNKNOWN"
+
+
 @dataclass(frozen=True)
 class RositaKnowledgeMemory:
     knowledge_id: str
@@ -43,6 +50,7 @@ class RositaKnowledgeMemory:
     session_id: str
     source_reference: str
     kind: RositaKnowledgeKind
+    provenance_classification: RositaProvenanceClass
     title: str = field(repr=False)
     content: str = field(repr=False)
     evidence_references: tuple[str, ...] = field(repr=False)
@@ -62,8 +70,10 @@ class RositaKnowledgeMemory:
             maximum = 4096 if name == "content" else 240
             if not isinstance(value, str) or not value.strip() or len(value) > maximum:
                 raise ValueError(f"{name} must be bounded non-empty text")
-        if not isinstance(self.kind, RositaKnowledgeKind):
-            raise TypeError("ROSITA knowledge kind must be explicit")
+        if not isinstance(self.kind, RositaKnowledgeKind) or not isinstance(
+            self.provenance_classification, RositaProvenanceClass
+        ):
+            raise TypeError("ROSITA knowledge kind and provenance must be explicit")
         if not isinstance(self.evidence_references, tuple) or len(self.evidence_references) > 20:
             raise ValueError("evidence references must be a bounded tuple")
         for reference in self.evidence_references:
@@ -85,6 +95,7 @@ class RositaKnowledgeMemory:
             "content": self.content,
             "evidence_references": list(self.evidence_references),
             "kind": self.kind.value,
+            "provenance_classification": self.provenance_classification.value,
             "title": self.title,
         }, sort_keys=True, separators=(",", ":"))
 
