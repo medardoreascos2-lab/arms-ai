@@ -32,6 +32,14 @@ class OnboardingStep(str, Enum):
     PRIVACY = "PRIVACY"
     DONE = "DONE"
 
+class OnboardingGoal(str, Enum):
+    TRADING = "TRADING"
+    INVESTING = "INVESTING"
+    PORTFOLIO = "PORTFOLIO"
+    BUSINESS = "BUSINESS"
+    LEARNING = "LEARNING"
+    PERSONAL_ASSISTANT = "PERSONAL_ASSISTANT"
+
 
 class ProductOnboardingState(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
@@ -42,6 +50,8 @@ class ProductOnboardingState(BaseModel):
     status: OnboardingStatus
     current_step: OnboardingStep
     completed_steps: tuple[OnboardingStep, ...] = ()
+    selected_goals: tuple[OnboardingGoal, ...] = ()
+    goals_confirmed: bool = False
     version: int = Field(ge=1)
     created_at: datetime
     updated_at: datetime
@@ -63,6 +73,14 @@ class ProductOnboardingState(BaseModel):
             raise ValueError("completed onboarding steps must be unique")
         return value
 
+    @field_validator("selected_goals")
+    @classmethod
+    def selected_goals_are_unique(
+        cls, value: tuple[OnboardingGoal, ...],
+    ) -> tuple[OnboardingGoal, ...]:
+        if len(value) != len(set(value)):
+            raise ValueError("selected onboarding goals must be unique")
+        return value
     @model_validator(mode="after")
     def state_is_consistent(self) -> ProductOnboardingState:
         if self.updated_at < self.created_at:
