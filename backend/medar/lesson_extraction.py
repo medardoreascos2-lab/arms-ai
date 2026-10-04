@@ -28,6 +28,10 @@ class LessonDraft:
 class ExtractedLesson:
     lesson_id: str
     outcome_event_id: str
+    tenant_id: str
+    owner_id: str
+    session_id: str
+    source_reference: str
     classification: OutcomeClassification
     evidence_references: tuple[str, ...]
     what_worked: str = field(repr=False)
@@ -39,6 +43,32 @@ class ExtractedLesson:
     learning_authority: bool = False
 
     def __post_init__(self) -> None:
+        for name in (
+            "lesson_id", "outcome_event_id", "tenant_id", "owner_id",
+            "session_id", "source_reference",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip() or len(value) > 240:
+                raise ValueError(f"{name} must be a bounded explicit reference")
+            if has_secret_like_content(value):
+                raise PermissionError("secret-like lesson metadata is not retained")
+        if not isinstance(self.classification, OutcomeClassification) or self.classification is OutcomeClassification.UNKNOWN:
+            raise ValueError("extracted lesson requires a classified outcome")
+        if not isinstance(self.evidence_references, tuple) or not self.evidence_references or len(self.evidence_references) > 20:
+            raise ValueError("extracted lesson requires bounded evidence references")
+        for reference in self.evidence_references:
+            if not isinstance(reference, str) or not reference.strip() or len(reference) > 240:
+                raise ValueError("lesson evidence reference must be bounded text")
+            if has_secret_like_content(reference):
+                raise PermissionError("secret-like lesson evidence is not retained")
+        for name in ("what_worked", "what_failed", "conditions", "future_recommendation"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip() or len(value) > 512:
+                raise ValueError(f"{name} must be concise bounded text")
+            if has_secret_like_content(value):
+                raise PermissionError("secret-like lesson content is not retained")
+        if not isinstance(self.extracted_at, datetime) or self.extracted_at.tzinfo is None or self.extracted_at.utcoffset() is None:
+            raise ValueError("lesson extraction time must be timezone-aware")
         if self.hidden_chain_of_thought_included or self.learning_authority:
             raise ValueError("lessons cannot contain hidden reasoning or authorize learning")
 
@@ -68,6 +98,10 @@ def extract_lesson(
     return ExtractedLesson(
         lesson_id=lesson_id,
         outcome_event_id=event.event_id,
+        tenant_id=event.tenant_id,
+        owner_id=event.owner_id,
+        session_id=event.session_id,
+        source_reference=event.source_reference,
         classification=evaluation.classification,
         evidence_references=evaluation.evidence_references,
         what_worked=normalized(draft.what_worked),

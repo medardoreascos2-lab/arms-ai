@@ -36,6 +36,10 @@ def test_lesson_extracts_only_explicit_structured_summary_with_citations():
     assert lesson.conditions == "synthetic local validation"
     assert lesson.future_recommendation == "repeat bounded checks"
     assert lesson.evidence_references == ("synthetic-test:evidence-1",)
+    assert (lesson.tenant_id, lesson.owner_id, lesson.session_id) == (
+        "tenant-a", "owner-a", "session-a",
+    )
+    assert lesson.source_reference == "synthetic-test:task-1"
     assert not lesson.hidden_chain_of_thought_included
     assert not lesson.learning_authority
     assert lesson.what_worked not in repr(lesson)
@@ -62,3 +66,16 @@ def test_lesson_draft_rejects_secret_like_or_unbounded_content():
         LessonDraft("worked", "failed", "conditions", "api_key: synthetic")
     with pytest.raises(ValueError):
         LessonDraft("x" * 513, "failed", "conditions", "recommendation")
+
+
+def test_secret_like_evidence_reference_cannot_enter_extracted_lesson():
+    evaluation = evaluate_outcome(
+        EVENT,
+        OutcomeEvidence("outcome-1", ("api_key: synthetic",), True, 1.0, False),
+        evaluated_at=NOW,
+    )
+    with pytest.raises(PermissionError):
+        extract_lesson(
+            EVENT, evaluation, LessonDraft("worked", "failed", "conditions", "recommendation"),
+            lesson_id="lesson-1", extracted_at=NOW,
+        )
