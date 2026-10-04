@@ -1,4 +1,4 @@
-﻿"""Deterministic, in-process MEDAR model for tests only.
+"""Deterministic, in-process MEDAR model for tests only.
 
 It performs no inference and must never be advertised as a real local model.
 """
@@ -91,4 +91,3 @@ class DeterministicModelProvider:
             ("provider:deterministic-test",),
             external_call_performed=False,
         )
-

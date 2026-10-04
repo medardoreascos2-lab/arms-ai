@@ -1,4 +1,4 @@
-﻿"""R100C deterministic model behavior and failure injection."""
+"""R100C deterministic model behavior and failure injection."""
 
 import json
 
@@ -51,4 +51,3 @@ def test_model_identity_and_schema_are_fail_closed():
         model.invoke(ModelInvocation("inv-1", "other-model", ModelKind.LOCAL_LLM, "hello"))
     with pytest.raises(ValueError, match="schema"):
         model.invoke(_invocation({"answer": "object"}))
-
