@@ -1,0 +1,35 @@
+{
+    "branch":  "expansion/multimodal-intelligence",
+    "base":  "c05909d7a25217c59da2682d830a9d643d08b414",
+    "head":  "CURRENT_BRANCH_HEAD",
+    "milestones":  {
+                       "D200A":  "COMPLETE",
+                       "D200B":  "COMPLETE"
+                   },
+    "commits":  {
+                    "D200A":  "d6043d4",
+                    "D200B":  "CURRENT_BRANCH_HEAD"
+                },
+    "tests":  {
+                  "D200A":  "2 passed",
+                  "D200B":  "2 passed"
+              },
+    "voice_status":  "NOT_STARTED",
+    "vision_status":  "NOT_STARTED",
+    "camera_status":  "NOT_STARTED",
+    "avatar_status":  "NOT_STARTED",
+    "notification_status":  "PRODUCT_IN_APP_ONLY",
+    "presence_status":  "NOT_STARTED",
+    "privacy_status":  "DEFAULT_OFF",
+    "blocked_integrations":  [
+                                 "production_camera",
+                                 "production_microphone",
+                                 "production_stt",
+                                 "production_tts",
+                                 "external_notifications",
+                                 "smart_home_control",
+                                 "wearable_live_data",
+                                 "emergency_dispatch"
+                             ],
+    "next_milestone":  "D200C"
+}
