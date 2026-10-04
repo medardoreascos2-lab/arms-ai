@@ -64,6 +64,16 @@ class ProductEvidenceReference(BaseModel):
     digest: str
 
 
+class ProductMemoryContextItem(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+
+    evidence_id: str = Field(min_length=1)
+    category: Literal["PREFERENCE", "GOAL", "DECISION", "PROJECT"]
+    summary: str = Field(min_length=1)
+    provenance: str = Field(min_length=1)
+    sensitivity: Literal["STANDARD", "SENSITIVE", "UNKNOWN"]
+
+
 class ProductActionProposal(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -98,6 +108,7 @@ class ProductMedarResponse(BaseModel):
     sources: tuple[ProductSourceReference, ...] = ()
     tool_evidence: tuple[ProductEvidenceReference, ...] = ()
     memory_evidence: tuple[ProductEvidenceReference, ...] = ()
+    memory_context: tuple[ProductMemoryContextItem, ...] = ()
     warnings: tuple[str, ...] = ()
     follow_up_needed: bool = False
     follow_up_suggestions: tuple[str, ...] = ()
@@ -125,7 +136,7 @@ class ProductMedarResponse(BaseModel):
             self.answer is not None or self.confidence is not None
             or self.action_proposals or self.follow_up_suggestions
             or self.why_not or self.risks or self.data_used
-            or self.what_would_change_the_view
+            or self.what_would_change_the_view or self.memory_context
         ):
             raise ValueError("degraded Product MEDAR responses cannot contain an answer or proposals")
         return self

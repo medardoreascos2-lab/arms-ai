@@ -16,6 +16,14 @@ export type SourceReference = Readonly<{
   locator: string;
 }>;
 
+export type MemoryContextItem = Readonly<{
+  evidence_id: string;
+  category: "PREFERENCE" | "GOAL" | "DECISION" | "PROJECT";
+  summary: string;
+  provenance: string;
+  sensitivity: "STANDARD" | "SENSITIVE" | "UNKNOWN";
+}>;
+
 export type ActionProposal = Readonly<{
   action_id: string;
   description: string;
@@ -38,6 +46,7 @@ export type ProductMedarResponse = Readonly<{
   sources: readonly SourceReference[];
   tool_evidence: readonly EvidenceReference[];
   memory_evidence: readonly EvidenceReference[];
+  memory_context: readonly MemoryContextItem[];
   warnings: readonly string[];
   follow_up_needed: boolean;
   follow_up_suggestions: readonly string[];
@@ -56,7 +65,7 @@ export function degradedResponse(requestId: string, status: MedarStatus): Produc
     response_id: null, request_id: requestId, status, answer: null,
     confidence: null, reasoning_summary: null, why_not: [], risks: [],
     data_used: [], what_would_change_the_view: [], sources: [],
-    tool_evidence: [], memory_evidence: [], warnings: [],
+    tool_evidence: [], memory_evidence: [], memory_context: [], warnings: [],
     follow_up_needed: false, follow_up_suggestions: [], action_proposals: [],
   };
 }
@@ -80,6 +89,7 @@ export function decodeMedarResponse(value: unknown, requestId: string): ProductM
   } else if (item.answer != null || item.confidence != null || (
     (Array.isArray(item.action_proposals) && item.action_proposals.length > 0)
     || (Array.isArray(item.follow_up_suggestions) && item.follow_up_suggestions.length > 0)
+    || (Array.isArray(item.memory_context) && item.memory_context.length > 0)
     || ["why_not", "risks", "data_used", "what_would_change_the_view"].some(
       (key) => Array.isArray(item[key]) && item[key].length > 0)
   )) {
@@ -99,6 +109,7 @@ export function decodeMedarResponse(value: unknown, requestId: string): ProductM
     sources: Array.isArray(item.sources) ? item.sources.filter(isSourceReference) : [],
     tool_evidence: Array.isArray(item.tool_evidence) ? item.tool_evidence.filter(isEvidenceReference) : [],
     memory_evidence: Array.isArray(item.memory_evidence) ? item.memory_evidence.filter(isEvidenceReference) : [],
+    memory_context: Array.isArray(item.memory_context) ? item.memory_context.filter(isMemoryContextItem) : [],
     warnings: strings(item.warnings),
     follow_up_needed: item.follow_up_needed === true,
     follow_up_suggestions: strings(item.follow_up_suggestions),
@@ -143,4 +154,14 @@ function isEvidenceReference(value: unknown): value is EvidenceReference {
   const item = value as Record<string, unknown>;
   return typeof item.evidence_id === "string" && typeof item.summary === "string"
     && typeof item.digest === "string";
+}
+
+function isMemoryContextItem(value: unknown): value is MemoryContextItem {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.evidence_id === "string" && item.evidence_id.length > 0
+    && ["PREFERENCE", "GOAL", "DECISION", "PROJECT"].includes(item.category as string)
+    && typeof item.summary === "string" && item.summary.length > 0
+    && typeof item.provenance === "string" && item.provenance.length > 0
+    && ["STANDARD", "SENSITIVE", "UNKNOWN"].includes(item.sensitivity as string);
 }

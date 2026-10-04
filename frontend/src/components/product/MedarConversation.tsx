@@ -5,6 +5,7 @@ import { ConfidenceBadge, EmptyState, LoadingState, Status } from "@/components/
 import { decodeMedarResponse, degradedMessages, degradedResponse, type ProductMedarResponse } from "@/lib/medarProduct";
 import styles from "./MedarConversation.module.css";
 import { MedarTrustPanel } from "./MedarTrustPanel";
+import { MedarMemoryContext } from "./MedarMemoryContext";
 
 type Turn = Readonly<{
   id: string;
@@ -119,14 +120,7 @@ function MedarAnswer({ response }: { response: ProductMedarResponse }) {
         <>
           <p className={styles.answerText}>{response.answer}</p>
           <MedarTrustPanel response={response} />
-          {response.memory_evidence.length > 0 && (
-            <section aria-label="Memory references">
-              <h3>Memory references</h3>
-              <ul>{response.memory_evidence.map((item) => (
-                <li key={item.evidence_id}>{item.summary}</li>
-              ))}</ul>
-            </section>
-          )}
+          <MedarMemoryContext response={response} />
           {response.warnings.length > 0 && (
             <section aria-label="Warnings">
               <h3>Warnings</h3>

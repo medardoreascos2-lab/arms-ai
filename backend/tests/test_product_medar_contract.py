@@ -106,3 +106,18 @@ def test_trust_fields_are_explicit_and_degraded_responses_cannot_carry_them():
     with pytest.raises(ValidationError):
         ProductMedarResponse(request_id="request-1", status=ProductMedarStatus.MEDAR_UNAVAILABLE,
                              risks=("Invented risk",))
+
+
+def test_memory_context_requires_provenance_and_cannot_appear_on_degraded_response():
+    body = dict(request_id="request-1", response_id="response-1",
+                status=ProductMedarStatus.SUCCESS, answer="A view", confidence=0.7,
+                memory_context=({"evidence_id": "m1", "category": "PREFERENCE",
+                                 "summary": "Concise answers", "provenance": "User statement",
+                                 "sensitivity": "STANDARD"},))
+    assert ProductMedarResponse.model_validate(body).memory_context[0].provenance == "User statement"
+    with pytest.raises(ValidationError):
+        ProductMedarResponse.model_validate({**body, "memory_context": ({"evidence_id": "m1",
+            "category": "PREFERENCE", "summary": "Concise answers"},)})
+    with pytest.raises(ValidationError):
+        ProductMedarResponse(request_id="request-1", status=ProductMedarStatus.MEMORY_UNAVAILABLE,
+                             memory_context=body["memory_context"])
