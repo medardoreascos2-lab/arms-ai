@@ -64,6 +64,13 @@ class CodingAgent(BoundedAnalysisAgent):
 
 
 class FinancialResearchAgent(BoundedAnalysisAgent):
+    def analyze_financial(self, task_id, bundle):
+        from backend.financial.medar_integration import MEDARFinancialBundle, synthesize_financial_inputs
+
+        if not isinstance(bundle, MEDARFinancialBundle):
+            raise TypeError("structured financial bundle is required")
+        return synthesize_financial_inputs(self.contract.agent_id, task_id, bundle)
+
     contract = AgentContract(
         "financial-research",
         CognitiveDomain.FINANCIAL,

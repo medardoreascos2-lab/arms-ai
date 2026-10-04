@@ -1,4 +1,4 @@
-"""Advisory financial routing into current or future ARMS modules."""
+"""Advisory financial routing into current ARMS analysis modules."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -13,6 +13,8 @@ class FinancialProduct(str, Enum):
     CRYPTO = "CRYPTO"
     PORTFOLIO = "PORTFOLIO"
     ARBITRAGE = "ARBITRAGE"
+    TRADING_COACH = "TRADING_COACH"
+    SHADOW_MEDAR = "SHADOW_MEDAR"
 
 
 @dataclass(frozen=True)
@@ -40,10 +42,12 @@ def route_financial_task(product: FinancialProduct, symbol: str | None = None) -
         instrument = get_instrument(normalized)
         return FinancialRoute(product, "backend.phase6", normalized, instrument)
     targets = {
-        FinancialProduct.STOCK: "future.stocks",
-        FinancialProduct.ETF: "future.etfs",
-        FinancialProduct.CRYPTO: "future.crypto",
-        FinancialProduct.PORTFOLIO: "future.portfolio",
-        FinancialProduct.ARBITRAGE: "future.crypto_arbitrage",
+        FinancialProduct.STOCK: "backend.financial.scorecard",
+        FinancialProduct.ETF: "backend.financial.etf",
+        FinancialProduct.CRYPTO: "backend.financial.crypto_scanner",
+        FinancialProduct.PORTFOLIO: "backend.financial.portfolio_guardian",
+        FinancialProduct.ARBITRAGE: "backend.financial.arbitrage_ranking",
+        FinancialProduct.TRADING_COACH: "backend.financial.trading_coach",
+        FinancialProduct.SHADOW_MEDAR: "backend.financial.shadow_comparison",
     }
     return FinancialRoute(product, targets[product], normalized, None)
