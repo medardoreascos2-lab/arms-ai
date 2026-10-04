@@ -9,7 +9,7 @@ from backend.medar.memory_evidence_references import CitedMemoryContext
 
 _INJECTION_PATTERNS = (
     ("INSTRUCTION_OVERRIDE", re.compile(r"\bignore\s+(?:all\s+)?(?:previous|prior|system|developer)\s+(?:instructions?|messages?)\b", re.I)),
-    ("SYSTEM_PROMPT_IMPERSONATION", re.compile(r"(?:<\|\s*system\s*\|>|\[\s*system\s*\]|\bsystem\s+prompt\b|\bdeveloper\s+message\b)", re.I)),
+    ("SYSTEM_PROMPT_IMPERSONATION", re.compile(r"(?:^system\b|<\|\s*system\s*\|>|\[\s*system\s*\]|\bsystem\s+prompt\b|\bdeveloper\s+message\b)", re.I)),
     ("TOOL_OR_COMMAND_INJECTION", re.compile(r"\b(?:call|invoke|run|execute)\s+(?:a\s+)?(?:tool|command|shell|order|trade)\b", re.I)),
     ("AUTHORITY_ESCALATION_INJECTION", re.compile(r"\b(?:enable|grant|assume|bypass)\s+(?:broker|paper|live|execution|admin)\s+(?:authority|trading|mode|access)?\b", re.I)),
 )
@@ -38,8 +38,9 @@ def assess_memory_prompt_safety(context: CitedMemoryContext) -> MemoryPromptSafe
     for item in context.items:
         if has_secret_like_content(item.content):
             findings.add("SECRET_LIKE_MEMORY")
+        normalized = re.sub(r"[^a-z0-9]+", " ", item.content.casefold()).strip()
         for code, pattern in _INJECTION_PATTERNS:
-            if pattern.search(item.content):
+            if pattern.search(normalized):
                 findings.add(code)
     ordered = tuple(sorted(findings))
     return MemoryPromptSafetyDecision(not ordered, ordered, len(context.items), not ordered)

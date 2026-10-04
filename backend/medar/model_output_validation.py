@@ -19,14 +19,19 @@ _FORBIDDEN_KEYS = frozenset({
 })
 
 
+_FORBIDDEN_COMPACT_KEYS = frozenset(key.replace("_", "") for key in _FORBIDDEN_KEYS)
+
+
 def _normalized_key(key: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", key.casefold()).strip("_")
+    separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", key)
+    return re.sub(r"[^a-z0-9]+", "_", separated.casefold()).strip("_")
 
 
 def _check_authority_fields(value: object) -> None:
     if isinstance(value, dict):
         for key, nested in value.items():
-            if not isinstance(key, str) or _normalized_key(key) in _FORBIDDEN_KEYS:
+            normalized = _normalized_key(key) if isinstance(key, str) else ""
+            if not isinstance(key, str) or normalized in _FORBIDDEN_KEYS or normalized.replace("_", "") in _FORBIDDEN_COMPACT_KEYS:
                 raise ValueError("model output contains unsupported authority or action field")
             _check_authority_fields(nested)
     elif isinstance(value, list):
