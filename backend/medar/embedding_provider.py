@@ -41,12 +41,15 @@ class EmbeddingDescriptor:
 class EmbeddingRequest:
     model_id: str
     text: str
+    sensitivity: DurableSensitivity = DurableSensitivity.INTERNAL
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_id, str) or not self.model_id.strip():
             raise ValueError("model_id is required")
         if not isinstance(self.text, str) or not self.text.strip() or len(self.text) > 8192:
             raise ValueError("embedding text must be non-empty and at most 8192 characters")
+        if not isinstance(self.sensitivity, DurableSensitivity):
+            raise TypeError("embedding sensitivity must be typed")
 
 
 @dataclass(frozen=True)
