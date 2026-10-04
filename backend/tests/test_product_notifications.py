@@ -81,7 +81,7 @@ def test_notification_rejects_non_utc_timestamps(field):
         notification(**{field: datetime(2026, 10, 4, 12)})
 
 
-def test_notification_rejects_invalid_expiry_duplicate_channels_and_dismissed_ack():
+def test_notification_rejects_invalid_expiry_and_duplicate_channels():
     with pytest.raises(ValidationError):
         notification(expires_at=NOW)
     with pytest.raises(ValidationError):
