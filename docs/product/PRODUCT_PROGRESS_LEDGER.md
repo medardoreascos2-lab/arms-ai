@@ -48,6 +48,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P109B Billing provider contract | Complete | Provider-neutral interface reserves future STRIPE/OTHER adapters while connection, webhook, and charge capabilities remain false |
 | P109C Synthetic billing lifecycle | Complete, local synthetic | Deterministic trial/subscribe/upgrade/downgrade/cancel/expire simulation with idempotency and no charge |
 | P109D Billing webhook contract | Complete, interface only | Signed event envelope, idempotency, per-stream ordering, and replay protection with no external endpoint |
+| P110A Content-free analytics events | Complete | Seven allowed event types use fixed categorical dimensions and reject conversation, memory, financial, health, and message content |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
