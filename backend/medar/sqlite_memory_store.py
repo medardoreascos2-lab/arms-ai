@@ -47,6 +47,7 @@ class MemoryStore(Protocol):
     def search(self, scope: MemoryScope, query: str, domains: tuple[DurableMemoryDomain, ...], limit: int = 10) -> tuple[DurableMemoryRecord, ...]: ...
     def list_active(self, scope: MemoryScope, domain: DurableMemoryDomain, sensitivity: DurableSensitivity, max_records: int = 10_000) -> tuple[DurableMemoryRecord, ...]: ...
     def history(self, scope: MemoryScope, memory_id: str) -> tuple[DurableMemoryRecord, ...]: ...
+    def supersede_with(self, scope: MemoryScope, memory_id: str, replacement: DurableMemoryRecord) -> tuple[DurableMemoryRecord, DurableMemoryRecord]: ...
     def supersede(self, scope: MemoryScope, memory_id: str) -> DurableMemoryRecord: ...
     def expire(self, scope: MemoryScope, memory_id: str) -> DurableMemoryRecord: ...
     def retract(self, scope: MemoryScope, memory_id: str) -> DurableMemoryRecord: ...
@@ -296,6 +297,50 @@ class SQLiteMemoryStore:
             self._connection.rollback()
             raise
 
+    def supersede_with(
+        self,
+        scope: MemoryScope,
+        memory_id: str,
+        replacement: DurableMemoryRecord,
+    ) -> tuple[DurableMemoryRecord, DurableMemoryRecord]:
+        self._ensure_writable()
+        if not isinstance(replacement, DurableMemoryRecord):
+            raise TypeError("replacement memory record is required")
+        self._ensure_scope(scope, replacement)
+        if replacement.memory_id == memory_id:
+            raise ValueError("replacement must use a new memory ID")
+        if replacement.status is not MemoryLifecycle.ACTIVE or replacement.version != 1:
+            raise ValueError("replacement must be an initial active record")
+        if replacement.domain is DurableMemoryDomain.WORKING or replacement.retention_policy is RetentionPolicy.SESSION:
+            raise PermissionError("session memory cannot be durably stored")
+        if replacement.sensitivity not in (DurableSensitivity.PUBLIC, DurableSensitivity.INTERNAL):
+            raise PermissionError("production memory encryption unavailable for sensitive records")
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            current = self.get(scope, memory_id)
+            if current is None or current.status is not MemoryLifecycle.ACTIVE:
+                raise ValueError("only active scoped memory can be superseded")
+            if self.get(scope, replacement.memory_id) is not None:
+                raise ValueError("replacement memory_id already exists")
+            if (
+                current.domain is not replacement.domain
+                or current.memory_type is not replacement.memory_type
+                or current.sensitivity is not replacement.sensitivity
+            ):
+                raise PermissionError("replacement memory classification mismatch")
+            if replacement.created_at < current.created_at:
+                raise ValueError("replacement cannot predate current memory")
+            superseded = replace(
+                current, version=current.version + 1,
+                status=MemoryLifecycle.SUPERSEDED,
+            )
+            self._insert(superseded)
+            self._insert(replacement)
+            self._connection.commit()
+            return superseded, replacement
+        except Exception:
+            self._connection.rollback()
+            raise
     def supersede(self, scope: MemoryScope, memory_id: str) -> DurableMemoryRecord:
         return self._transition(scope, memory_id, MemoryLifecycle.SUPERSEDED)
 
