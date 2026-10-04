@@ -19,7 +19,7 @@ export const primaryNavigation: readonly NavigationEntry[] = [
   { id: "PORTFOLIO", label: "Portfolio", description: "Read-only portfolio health and risk", availability: "available", href: "/product/portfolio" },
   { id: "COACH", label: "Coach", description: "Read-only trading review and improvement", availability: "available", href: "/product/coach" },
   { id: "RESEARCH", label: "Research", description: "Evidence and sources", availability: "planned" },
-  { id: "ALERTS", label: "Alerts", description: "Attention and notifications", availability: "planned" },
+  { id: "ALERTS", label: "Alerts", description: "Trusted notification inbox", availability: "available", href: "/product/notifications" },
   { id: "MEMORY", label: "Memory", description: "Review remembered context", availability: "planned" },
   { id: "SETTINGS", label: "Settings", description: "Account and privacy controls", availability: "planned" },
 ];

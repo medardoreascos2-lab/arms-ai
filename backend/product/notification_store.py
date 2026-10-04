@@ -60,7 +60,7 @@ class LocalSqliteNotificationStore:
             raise ValueError("local notification store requires test/development environment")
         if not database_path:
             raise ValueError("database_path is required")
-        self._connection = sqlite3.connect(database_path)
+        self._connection = sqlite3.connect(database_path, check_same_thread=False)
         self._connection.execute(
             """
             CREATE TABLE IF NOT EXISTS product_notifications (

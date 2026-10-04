@@ -91,6 +91,10 @@ class ProductNotification(BaseModel):
     def temporal_and_status_rules(self) -> ProductNotification:
         if self.expires_at is not None and self.expires_at <= self.created_at:
             raise ValueError("notification expiry must follow creation")
-        if self.requires_acknowledgement and self.status == NotificationStatus.DISMISSED:
+        if (
+            self.requires_acknowledgement
+            and self.status == NotificationStatus.DISMISSED
+            and "acknowledged_at" not in self.metadata
+        ):
             raise ValueError("required acknowledgement cannot start dismissed")
         return self
