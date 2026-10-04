@@ -39,9 +39,9 @@ export function PushToTalk() {
         <button type="button" onClick={cancel} disabled={!active}>Cancel</button>
       </div>
       <dl className={styles.results} aria-label="Voice transcript and response alternatives">
-        <div><dt>Transcript</dt><dd aria-live="polite" aria-atomic="true">{transcript}</dd></div>
-        <div><dt>Text response</dt><dd>No voice request is sent by this interface foundation.</dd></div>
-        <div><dt>Audio playback</dt><dd><button type="button" disabled aria-label="Play synthesized MEDAR response">Play unavailable</button></dd></div>
+        <div><dt>Transcription</dt><dd aria-live="polite" aria-atomic="true">{transcript}</dd></div>
+        <div><dt>MEDAR response (text)</dt><dd>No voice request is sent by this interface foundation.</dd></div>
+        <div><dt>Playback</dt><dd><button type="button" disabled aria-label="Play synthesized MEDAR response">Play unavailable</button></dd></div>
       </dl>
       <p id="voice-accessibility-note" className={styles.privacy}>Every spoken result must also provide text. No background microphone, upload, audio storage, or biometric voice profile.</p>
     </section>

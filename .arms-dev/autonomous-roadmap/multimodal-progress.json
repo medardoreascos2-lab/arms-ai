@@ -59,7 +59,8 @@
                        "D236":  "COMPLETE",
                        "D237":  "COMPLETE",
                        "D238":  "COMPLETE",
-                       "D239":  "COMPLETE"
+                       "D239":  "COMPLETE",
+                       "D240":  "COMPLETE"
                    },
     "commits":  {
                     "D200A":  "d6043d4",
@@ -118,7 +119,8 @@
                     "D236":  "94135ef",
                     "D237":  "e253ff3",
                     "D238":  "310b9ea",
-                    "D239":  "CURRENT_BRANCH_HEAD"
+                    "D239":  "d9f3b40",
+                    "D240":  "CURRENT_BRANCH_HEAD"
                 },
     "tests":  {
                   "D200A":  "2 passed",
@@ -177,7 +179,8 @@
                   "D236":  "5 passed; zero frame processing after stop or revoke",
                   "D237":  "7 passed; avatar returned to idle with presentation-only authority",
                   "D238":  "10 passed; two-user isolation across six required channels",
-                  "D239":  "8 passed; emergency simulations produced zero external action"
+                  "D239":  "8 passed; emergency simulations produced zero external action",
+                  "D240":  "123 multimodal backend, 207 Product backend, 144 frontend passed; TypeScript ESLint Next build diff-check passed"
               },
     "voice_status":  "SYNTHETIC_MULTIROOM_ROUTING",
     "vision_status":  "LOCAL_PREVIEW_UI_PROVIDER_PENDING",
@@ -196,5 +199,10 @@
                                  "wearable_live_data",
                                  "emergency_dispatch"
                              ],
-    "next_milestone":  "D240"
+    "next_milestone":  "D241",
+    "inherited_warnings":  [
+                               "Starlette TestClient/httpx deprecation warning",
+                               "Node MODULE_TYPELESS_PACKAGE_JSON warnings",
+                               "npm audit reports 1 moderate, 11 high, 1 critical inherited dependency findings"
+                           ]
 }

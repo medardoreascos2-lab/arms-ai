@@ -18,7 +18,7 @@ test("voice, image, and avatar surfaces expose live text alternatives", () => {
     assert.match(source, /aria-describedby=/);
   }
   assert.match(push, /Transcript/);
-  assert.match(push, /Text response/);
+  assert.match(push, /MEDAR response/);
   assert.match(image, /Text result/);
   assert.match(avatar, /Visual state/);
 });
