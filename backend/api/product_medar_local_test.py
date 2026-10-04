@@ -15,6 +15,7 @@ from backend.api.product_medar_api import create_local_test_product_medar_router
 from backend.memberships import MembershipReadAdapter
 from backend.product.customer_session import LocalSyntheticSessionProvider
 from backend.product.medar_adapter import ProductMedarRuntime
+from backend.product.medar_usage import ProductMedarUsageGate
 
 
 PRODUCT_MEDAR_LOCAL_TEST_ENABLED = "PRODUCT_MEDAR_LOCAL_TEST_ENABLED"
@@ -48,6 +49,7 @@ def create_local_test_product_medar_app(
     session_provider: LocalSyntheticSessionProvider | None = None,
     membership_adapter: MembershipReadAdapter | None = None,
     runtime: ProductMedarRuntime | None = None,
+    usage_gate: ProductMedarUsageGate | None = None,
     clock: Callable[[], datetime] | None = None,
 ) -> FastAPI:
     """Standalone local app. Disabled state contains no Product MEDAR route."""
@@ -65,6 +67,7 @@ def create_local_test_product_medar_app(
         session_provider=session_provider,
         membership_adapter=membership_adapter,
         runtime=runtime,
+        usage_gate=usage_gate,
         clock=clock,
     ))
     return app

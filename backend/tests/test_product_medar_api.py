@@ -20,7 +20,8 @@ from backend.memberships import (
     resolve_membership_entitlements,
 )
 from backend.product.customer_session import LocalSyntheticSessionProvider, synthetic_customer_session
-from backend.product.surface import ProductDecisionCode, ProductSurface, resolve_product_access
+from backend.product.surface import ProductDecisionCode, ProductSurface, ProductTier, resolve_product_access
+from backend.product.medar_usage import ProductMedarLimits, ProductMedarUsageGate
 
 
 NOW = datetime(2026, 10, 4, 12, tzinfo=timezone.utc)
@@ -62,7 +63,7 @@ class Runtime:
         )
 
 
-def fixture(*, session_changes=None, membership_changes=None, features=None, runtime=True):
+def fixture(*, session_changes=None, membership_changes=None, features=None, runtime=True, usage_gate=None):
     source = synthetic_customer_session(
         issued_at=NOW - timedelta(minutes=1),
         expires_at=NOW + timedelta(minutes=15),
@@ -94,7 +95,7 @@ def fixture(*, session_changes=None, membership_changes=None, features=None, run
     app = FastAPI()
     app.include_router(create_local_test_product_medar_router(
         session_provider=provider, membership_adapter=memberships,
-        runtime=medar if runtime else None, clock=lambda: NOW,
+        runtime=medar if runtime else None, usage_gate=usage_gate, clock=lambda: NOW,
     ))
     client = TestClient(app, client=("127.0.0.1", 50000))
     return client, provider, memberships, medar
@@ -218,5 +219,50 @@ def test_grace_membership_and_unavailable_membership_adapter_fail_closed():
 
     client, _, memberships, runtime = fixture()
     memberships.get_membership = lambda tenant_id, user_id: None
+    assert post(client).json()["status"] == "ENTITLEMENT_REQUIRED"
+    assert_no_invocation(runtime)
+
+
+def test_usage_input_rate_and_output_limits_fail_closed():
+    input_gate = ProductMedarUsageGate({
+        ProductTier.PREMIUM: ProductMedarLimits(2, 3600, 1, 4, 16384)
+    })
+    client, _, _, runtime = fixture(usage_gate=input_gate)
+    assert post(client).json()["status"] == "INVALID_REQUEST"
+    assert_no_invocation(runtime)
+
+    rate_gate = ProductMedarUsageGate({
+        ProductTier.PREMIUM: ProductMedarLimits(1, 3600, 1, 8192, 16384)
+    })
+    client, _, _, runtime = fixture(usage_gate=rate_gate)
+    assert post(client).json()["status"] == "SUCCESS"
+    assert post(client).json()["status"] == "RATE_LIMITED"
+    assert runtime.calls == 1
+
+    output_gate = ProductMedarUsageGate({
+        ProductTier.PREMIUM: ProductMedarLimits(2, 3600, 1, 8192, 10)
+    })
+    client, _, _, runtime = fixture(usage_gate=output_gate)
+    response = post(client).json()
+    assert response["status"] == "MEDAR_UNAVAILABLE"
+    assert response["answer"] is None
+    assert runtime.calls == 1
+
+
+def test_concurrent_limit_and_unconfigured_plan_have_zero_invocation():
+    gate = ProductMedarUsageGate({
+        ProductTier.PREMIUM: ProductMedarLimits(2, 3600, 1, 8192, 16384)
+    })
+    assert gate.acquire(
+        session_id="synthetic-session-1", tier=ProductTier.PREMIUM,
+        entitlements=frozenset({FeatureEntitlement.MEDAR_CONVERSATION}),
+        input_chars=3, at=NOW,
+    ).allowed
+    client, _, _, runtime = fixture(usage_gate=gate)
+    assert post(client).json()["status"] == "RATE_LIMITED"
+    assert_no_invocation(runtime)
+    gate.release("synthetic-session-1")
+
+    client, _, _, runtime = fixture(usage_gate=ProductMedarUsageGate({}))
     assert post(client).json()["status"] == "ENTITLEMENT_REQUIRED"
     assert_no_invocation(runtime)

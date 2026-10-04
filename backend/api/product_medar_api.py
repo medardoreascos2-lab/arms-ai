@@ -22,6 +22,9 @@ from backend.product.medar_adapter import (
     project_cognitive_response,
 )
 from backend.product.surface import ProductDecisionCode, ProductSurface, resolve_product_access
+from backend.product.medar_usage import (
+    ProductMedarUsageGate, UsageDecisionCode, local_test_usage_gate,
+)
 
 
 def _degraded(request_id: str, status: ProductMedarStatus) -> ProductMedarResponse:
@@ -33,6 +36,7 @@ def create_local_test_product_medar_router(
     session_provider: LocalSyntheticSessionProvider,
     membership_adapter: MembershipReadAdapter,
     runtime: ProductMedarRuntime | None = None,
+    usage_gate: ProductMedarUsageGate | None = None,
     clock: Callable[[], datetime] | None = None,
 ) -> APIRouter:
     """Local test only. The application does not register this router by default."""
@@ -41,6 +45,7 @@ def create_local_test_product_medar_router(
     if membership_adapter is None:
         raise TypeError("membership adapter is required")
     now = clock or (lambda: datetime.now(timezone.utc))
+    gate = usage_gate or local_test_usage_gate()
     router = APIRouter(prefix="/product/medar", tags=["product-medar-local-test"])
 
     @router.post("/conversations", response_model=ProductMedarResponse)
@@ -78,10 +83,11 @@ def create_local_test_product_medar_router(
         projection = resolve_membership_entitlements(
             membership_adapter, identity, roles, at
         )
-        decision = resolve_product_access(
+        snapshot = resolve_product_access(
             projection, customer_session=session, session_provider=session_provider,
             evaluated_at=at, medar_runtime_available=runtime is not None,
-        ).decisions[ProductSurface.MEDAR]
+        )
+        decision = snapshot.decisions[ProductSurface.MEDAR]
         if not decision.allowed:
             if decision.code == ProductDecisionCode.SESSION_INVALID:
                 status = ProductMedarStatus.PERMISSION_DENIED
@@ -92,9 +98,31 @@ def create_local_test_product_medar_router(
             return _degraded(body.request_id, status)
 
         try:
-            invocation = make_invocation(body, session, entitlements)
-            return project_cognitive_response(runtime.invoke(invocation), body.request_id)
+            usage = gate.acquire(
+                session_id=session.session_id, tier=snapshot.tier,
+                entitlements=entitlements, input_chars=len(body.message), at=at,
+            )
         except Exception:
             return _degraded(body.request_id, ProductMedarStatus.MEDAR_UNAVAILABLE)
+        if not usage.allowed:
+            status = (
+                ProductMedarStatus.ENTITLEMENT_REQUIRED
+                if usage.code in {UsageDecisionCode.PLAN_NOT_CONFIGURED,
+                                  UsageDecisionCode.ENTITLEMENT_REQUIRED}
+                else ProductMedarStatus.INVALID_REQUEST
+                if usage.code == UsageDecisionCode.INPUT_TOO_LARGE
+                else ProductMedarStatus.RATE_LIMITED
+            )
+            return _degraded(body.request_id, status)
+        try:
+            invocation = make_invocation(body, session, entitlements)
+            projected = project_cognitive_response(runtime.invoke(invocation), body.request_id)
+            if len(projected.model_dump_json()) > usage.limits.max_output_chars:
+                return _degraded(body.request_id, ProductMedarStatus.MEDAR_UNAVAILABLE)
+            return projected
+        except Exception:
+            return _degraded(body.request_id, ProductMedarStatus.MEDAR_UNAVAILABLE)
+        finally:
+            gate.release(session.session_id)
 
     return router
