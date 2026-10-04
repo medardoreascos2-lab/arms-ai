@@ -41,6 +41,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P107A Profile preferences | Complete, local SQLite | Scoped display, language, timezone, theme, accessibility, response, and notification preferences |
 | P107B Privacy Center | Complete, provider seams | Memory, retention, export, removal-review, connected-service, and activity projections; no direct deletion |
 | P107C Security Center | Complete, read-only | Session/event/permission projections and future MFA/passkey seams; no auth or credential provisioning |
+| P108A Membership catalog | Complete | FREE/PRO/PREMIUM/ELITE catalog with configurable non-final prices and no purchase/payment authority |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
