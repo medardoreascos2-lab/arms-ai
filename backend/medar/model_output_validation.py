@@ -1,6 +1,7 @@
 """Fail-closed validation for untrusted local model output."""
 
 import json
+import re
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping
@@ -9,15 +10,23 @@ from backend.medar.model_provider import ModelInvocation, ModelResult
 
 
 _FORBIDDEN_KEYS = frozenset({
-    "tool_calls", "function_call", "execute", "broker_authority",
-    "paper_authority", "live_authority", "permissions", "system_override",
+    "action", "actions", "authorized_actions", "broker_authority", "code_modification_authority",
+    "computer_control", "credential_access", "deployment_authority", "exchange_authority", "execute",
+    "execution_authority", "external_call", "function_call", "live_authority", "memory_mutation_authority",
+    "model_update_authority", "order", "orders", "paper_authority", "permissions", "portfolio_mutation_authority",
+    "production_autonomy", "routing_authority", "secret_access", "shell_command", "system_override", "tool_calls",
+    "trading_authority",
 })
+
+
+def _normalized_key(key: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", key.casefold()).strip("_")
 
 
 def _check_authority_fields(value: object) -> None:
     if isinstance(value, dict):
         for key, nested in value.items():
-            if not isinstance(key, str) or key.lower() in _FORBIDDEN_KEYS:
+            if not isinstance(key, str) or _normalized_key(key) in _FORBIDDEN_KEYS:
                 raise ValueError("model output contains unsupported authority or action field")
             _check_authority_fields(nested)
     elif isinstance(value, list):
