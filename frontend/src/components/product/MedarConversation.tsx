@@ -9,6 +9,7 @@ import { MedarTrustPanel } from "./MedarTrustPanel";
 import { MedarMemoryContext } from "./MedarMemoryContext";
 import { AiLimitationsNotice } from "./ProductTrustNotices";
 import { PushToTalk } from "./PushToTalk";
+import { ImageInteraction } from "./ImageInteraction";
 
 export function MedarConversation({ localTestEnabled }: { localTestEnabled: boolean }) {
   const [conversationId] = useState(() => crypto.randomUUID());
@@ -67,6 +68,7 @@ export function MedarConversation({ localTestEnabled }: { localTestEnabled: bool
       </div>
 
       <PushToTalk />
+      <ImageInteraction />
 
       <form className={styles.composer} onSubmit={send}>
         <label htmlFor="medar-message">Message MEDAR</label>

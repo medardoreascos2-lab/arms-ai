@@ -1,0 +1,3 @@
+import assert from "node:assert/strict";import fs from "node:fs";import test from "node:test";const source=fs.readFileSync(new URL("../components/product/ImageInteraction.tsx",import.meta.url),"utf8");
+test("image UI supports explicit consent preview remove and truthful pending result",()=>{for(const value of ["image/jpeg,image/png,image/webp","createObjectURL","revokeObjectURL","I consent","Analyze","Remove","INTEGRATION_PENDING","No vision provider is configured"])assert.match(source,new RegExp(value));});
+test("image foundation does not upload or invoke a provider",()=>{assert.doesNotMatch(source,/fetch\(|XMLHttpRequest|FormData|WebSocket/);});
