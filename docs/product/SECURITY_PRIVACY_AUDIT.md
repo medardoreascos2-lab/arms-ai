@@ -22,3 +22,6 @@ Limitations:
 ## P119B Entitlement bypass
 
 Attempted direct route access, frontend plan and entitlement headers, and request-body plan, tenant, user, session, and entitlement spoofing against the Product MEDAR boundary. The backend denied every attempt before cognitive invocation. Existing financial authorization regressions separately prove that forged account/portfolio references, mismatched tenants/users/sessions, inactive memberships, and missing entitlements cause zero data-provider calls.
+## P119C Privacy regression
+
+Cross-user memory preferences remain separately scoped, and untrusted MEDAR requests cannot submit memory content. Synthetic financial providers reject foreign tenant/user/session scopes before returning portfolio details. Product analytics rejects private conversation, memory, financial-position, and message fields. Browser notification payloads omit tenant and user identifiers.
