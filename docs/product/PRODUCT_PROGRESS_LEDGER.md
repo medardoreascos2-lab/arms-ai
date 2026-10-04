@@ -50,6 +50,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P109D Billing webhook contract | Complete, interface only | Signed event envelope, idempotency, per-stream ordering, and replay protection with no external endpoint |
 | P110A Content-free analytics events | Complete | Seven allowed event types use fixed categorical dimensions and reject conversation, memory, financial, health, and message content |
 | P110B Product analytics metrics | Complete | Deterministic DAU/WAU/MAU, D1/D7/D30 retention, adoption, time-to-value, conversion, and churn aggregates |
+| P110C Product value metrics | Complete | Content-free repeated-use rates for MEDAR, Daily Intelligence, Trading Coach, Portfolio Guardian, and Research |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
