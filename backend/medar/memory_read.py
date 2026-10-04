@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
+from backend.medar.memory_provenance import MemoryProvenance
 from backend.medar.memory_types import MemoryDomain, MemorySensitivity
 
 
@@ -42,17 +43,24 @@ class MemoryReadResult:
     domain: MemoryDomain
     sensitivity: MemorySensitivity
     content: str
-    source_provenance: str
+    source_provenance: MemoryProvenance
     confidence: float
     recorded_at: datetime
 
     def __post_init__(self) -> None:
-        for name in ("memory_id", "tenant_id", "user_id", "content", "source_provenance"):
+        for name in ("memory_id", "tenant_id", "user_id", "content"):
             _require_text(name, getattr(self, name))
         if not isinstance(self.domain, MemoryDomain):
             raise TypeError("domain must be MemoryDomain")
         if not isinstance(self.sensitivity, MemorySensitivity):
             raise TypeError("sensitivity must be MemorySensitivity")
+        if not isinstance(self.source_provenance, MemoryProvenance):
+            raise TypeError("source_provenance must be MemoryProvenance")
+        if (
+            self.source_provenance.tenant_id != self.tenant_id
+            or self.source_provenance.user_id != self.user_id
+        ):
+            raise ValueError("memory scope must match provenance scope")
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError("confidence must be between zero and one")
         if self.recorded_at.tzinfo is None or self.recorded_at.utcoffset() is None:

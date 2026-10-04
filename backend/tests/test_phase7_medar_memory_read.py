@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from backend.medar.memory_read import MemoryQuery, MemoryReadResult
+from backend.medar.memory_provenance import MemoryOrigin, MemoryProvenance
 from backend.medar.memory_types import MemoryDomain, MemorySensitivity
 
 
@@ -16,10 +17,15 @@ def _query():
 
 
 def _result(**overrides):
+    provenance = MemoryProvenance(
+        "conversation:req-1", MemoryOrigin.OBSERVED, datetime.now(timezone.utc),
+        overrides.get("tenant_id", "tenant-1"), overrides.get("user_id", "user-1"),
+        "conversation-1", 0.9,
+    )
     values = dict(
         memory_id="memory-1", tenant_id="tenant-1", user_id="user-1",
         domain=MemoryDomain.PERSONAL, sensitivity=MemorySensitivity.INTERNAL,
-        content="Prefers concise reports", source_provenance="conversation:req-1",
+        content="Prefers concise reports", source_provenance=provenance,
         confidence=0.9, recorded_at=datetime.now(timezone.utc),
     )
     values.update(overrides)
