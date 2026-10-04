@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.product_medar_api import create_local_test_product_medar_router
+from backend.api.product_medar_local_test import create_local_test_product_medar_app
 from backend.api.schemas.product_medar import ProductMedarStatus
 from backend.entitlements import (
     AccountEntitlementLimits,
@@ -285,3 +286,66 @@ def test_runtime_preflight_unavailable_has_zero_invocation(status):
     assert response["answer"] is None
     assert response["confidence"] is None
     assert_no_invocation(runtime)
+
+
+@pytest.mark.parametrize("scenario, expected", [
+    ("valid", "SUCCESS"),
+    ("expired", "SESSION_INVALID"),
+    ("revoked", "SESSION_INVALID"),
+    ("wrong_tenant", "ENTITLEMENT_REQUIRED"),
+    ("spoofed_identity", "UNPROCESSABLE"),
+    ("missing_entitlement", "ENTITLEMENT_REQUIRED"),
+    ("inactive_membership", "ENTITLEMENT_REQUIRED"),
+    ("local_disabled", "LOCAL_TEST_DISABLED"),
+    ("medar_unavailable", "MEDAR_UNAVAILABLE"),
+    ("model_unavailable", "MODEL_UNAVAILABLE"),
+    ("rate_limited", "RATE_LIMITED"),
+])
+def test_security_matrix_has_zero_downstream_invocation_for_denied_requests(scenario, expected):
+    changes = {"expires_at": NOW} if scenario == "expired" else None
+    membership_changes = (
+        {"tenant_id": "synthetic-other-tenant"} if scenario == "wrong_tenant"
+        else {"status": MembershipStatus.SUSPENDED} if scenario == "inactive_membership"
+        else None
+    )
+    features = ({FeatureEntitlement.DASHBOARD}
+                if scenario == "missing_entitlement" else None)
+    usage_gate = None
+    if scenario == "rate_limited":
+        usage_gate = ProductMedarUsageGate({
+            ProductTier.PREMIUM: ProductMedarLimits(2, 3600, 1, 8192, 16384)
+        })
+        assert usage_gate.acquire(
+            session_id="synthetic-session-1", tier=ProductTier.PREMIUM,
+            entitlements=frozenset({FeatureEntitlement.MEDAR_CONVERSATION}),
+            input_chars=3, at=NOW,
+        ).allowed
+    client, provider, memberships, runtime = fixture(
+        session_changes=changes, membership_changes=membership_changes,
+        features=features, runtime=scenario != "medar_unavailable", usage_gate=usage_gate,
+    )
+    if scenario == "revoked":
+        provider.revoke("synthetic-session-1")
+    if scenario == "model_unavailable":
+        runtime.readiness = lambda: ProductMedarStatus.MODEL_UNAVAILABLE
+    if scenario == "local_disabled":
+        app = create_local_test_product_medar_app(runtime=runtime)
+        client = TestClient(app, client=("127.0.0.1", 50000))
+    body = {**BODY, "user_id": "synthetic-attacker"} if scenario == "spoofed_identity" else BODY
+    response = post(client, body=body)
+    if scenario == "spoofed_identity":
+        assert response.status_code == 422
+    else:
+        assert response.status_code == 200
+        assert response.json()["status"] == expected
+    if scenario == "valid":
+        assert runtime.calls == 1
+        assert (runtime.model_calls, runtime.memory_reads, runtime.tool_calls) == (0, 0, 0)
+        assert runtime.invocation.user_id == "synthetic-user-1"
+    else:
+        assert_no_invocation(runtime)
+        if response.status_code == 200:
+            assert response.json()["answer"] is None
+            assert response.json()["action_proposals"] == []
+    if usage_gate is not None:
+        usage_gate.release("synthetic-session-1")
