@@ -1,0 +1,62 @@
+{
+  "schema": "arms.phase6.resource-isolation/v1",
+  "environment": "staging",
+  "policy": {
+    "priority_order": ["api", "operational-worker", "scheduler", "maintenance", "research"],
+    "operational_reserve": {
+      "api_minimum_replicas": 2,
+      "worker_minimum_replicas": 2,
+      "scheduler_minimum_replicas": 2,
+      "cpu_units": 2560,
+      "memory_mib": 5120,
+      "database_connections": 60,
+      "outbox_in_flight": 16
+    },
+    "research_budget": {
+      "desired_replicas": 0,
+      "maximum_replicas": 2,
+      "cpu_units_per_replica": 1024,
+      "memory_mib_per_replica": 2048,
+      "maximum_cpu_units": 2048,
+      "maximum_memory_mib": 4096,
+      "database_connections": 10,
+      "global_concurrency": 2,
+      "per_tenant_concurrency": 1,
+      "per_instrument_concurrency": 1,
+      "maximum_queue_depth": 50,
+      "maximum_payload_mib": 16,
+      "maximum_runtime_seconds": 3600
+    },
+    "queue_isolation": {
+      "research_queue": "research",
+      "operational_queue": "operational-outbox",
+      "cross_queue_consumption_allowed": false,
+      "instrument_scope_required": true,
+      "tenant_scope_required": true,
+      "explicit_aggregation_label_required": true
+    },
+    "storage_isolation": {
+      "database_role": "research",
+      "object_prefix": "research/",
+      "backup_prefix_access": false,
+      "operational_outbox_write": false,
+      "operational_audit_mutation": false
+    },
+    "backpressure": {
+      "queue_full_action": "REJECT_WITHOUT_SIDE_EFFECTS",
+      "operational_pressure_action": "SCALE_RESEARCH_TO_ZERO",
+      "database_pool_pressure_action": "PAUSE_RESEARCH_DEQUEUE",
+      "telemetry_unavailable_action": "PAUSE_NEW_RESEARCH",
+      "retry_after_seconds": 60,
+      "shed_order": ["queued-research", "running-research"]
+    },
+    "safety": {
+      "synthetic_data_only": true,
+      "broker_authority": false,
+      "paper_authority": false,
+      "live_authority": false,
+      "production_authority": false,
+      "financial_execution_authority": false
+    }
+  }
+}
