@@ -2,52 +2,28 @@
 
 import { useState, type FormEvent } from "react";
 import { ConfidenceBadge, EmptyState, LoadingState, Status } from "@/components/product/ProductPrimitives";
-import { decodeMedarResponse, degradedMessages, degradedResponse, type ProductMedarResponse } from "@/lib/medarProduct";
+import { degradedMessages, type ProductMedarResponse } from "@/lib/medarProduct";
+import { canSend, completeTurn, pendingTurn, requestMedarResponse, type ConversationTurn } from "@/lib/medarConversation";
 import styles from "./MedarConversation.module.css";
 import { MedarTrustPanel } from "./MedarTrustPanel";
 import { MedarMemoryContext } from "./MedarMemoryContext";
 
-type Turn = Readonly<{
-  id: string;
-  prompt: string;
-  response: ProductMedarResponse | null;
-}>;
-
 export function MedarConversation({ localTestEnabled }: { localTestEnabled: boolean }) {
   const [conversationId] = useState(() => crypto.randomUUID());
   const [draft, setDraft] = useState("");
-  const [turns, setTurns] = useState<readonly Turn[]>([]);
+  const [turns, setTurns] = useState<readonly ConversationTurn[]>([]);
   const [pending, setPending] = useState(false);
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const message = draft.trim();
-    if (!localTestEnabled || pending || !message) return;
+    if (!canSend(localTestEnabled, pending, message)) return;
     const requestId = crypto.randomUUID();
     setDraft("");
-    setTurns((current) => [...current, { id: requestId, prompt: message, response: null }]);
+    setTurns((current) => [...current, pendingTurn(requestId, message)]);
     setPending(true);
-    let response: ProductMedarResponse;
-    try {
-      const result = await fetch("/api/product/medar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          request_id: requestId,
-          conversation_id: conversationId,
-          message,
-        }),
-        cache: "no-store",
-      });
-      response = result.ok
-        ? decodeMedarResponse(await result.json(), requestId)
-        : degradedResponse(requestId, "MEDAR_UNAVAILABLE");
-    } catch {
-      response = degradedResponse(requestId, "MEDAR_UNAVAILABLE");
-    }
-    setTurns((current) => current.map((turn) =>
-      turn.id === requestId ? { ...turn, response } : turn
-    ));
+    const response = await requestMedarResponse(requestId, conversationId, message);
+    setTurns((current) => completeTurn(current, requestId, response));
     setPending(false);
   }
 
@@ -96,7 +72,7 @@ export function MedarConversation({ localTestEnabled }: { localTestEnabled: bool
           disabled={!localTestEnabled || pending} />
         <div className={styles.composerFooter}>
           <small>No tool execution, portfolio mutation, or durable memory write.</small>
-          <button type="submit" disabled={!localTestEnabled || pending || !draft.trim()}>
+          <button type="submit" disabled={!canSend(localTestEnabled, pending, draft)}>
             {pending ? "Waiting..." : "Send"}
           </button>
         </div>
