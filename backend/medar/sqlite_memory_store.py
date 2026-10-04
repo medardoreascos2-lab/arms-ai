@@ -45,6 +45,7 @@ class MemoryStore(Protocol):
     def write(self, scope: MemoryScope, record: DurableMemoryRecord) -> None: ...
     def get(self, scope: MemoryScope, memory_id: str) -> DurableMemoryRecord | None: ...
     def search(self, scope: MemoryScope, query: str, domains: tuple[DurableMemoryDomain, ...], limit: int = 10) -> tuple[DurableMemoryRecord, ...]: ...
+    def list_active(self, scope: MemoryScope, domain: DurableMemoryDomain, sensitivity: DurableSensitivity, max_records: int = 10_000) -> tuple[DurableMemoryRecord, ...]: ...
     def history(self, scope: MemoryScope, memory_id: str) -> tuple[DurableMemoryRecord, ...]: ...
     def supersede(self, scope: MemoryScope, memory_id: str) -> DurableMemoryRecord: ...
     def expire(self, scope: MemoryScope, memory_id: str) -> DurableMemoryRecord: ...
@@ -256,6 +257,25 @@ class SQLiteMemoryStore:
             sql,
             (scope.tenant_id, scope.owner_id, *(domain.value for domain in domains), self._now().isoformat(), f"%{escaped}%", limit),
         ).fetchall()
+        records = tuple(self._decode_row(row) for row in rows)
+        for record in records:
+            self._ensure_scope(scope, record)
+        return records
+
+    def list_active(self, scope: MemoryScope, domain: DurableMemoryDomain, sensitivity: DurableSensitivity, max_records: int = 10_000) -> tuple[DurableMemoryRecord, ...]:
+        if not isinstance(domain, DurableMemoryDomain) or not isinstance(sensitivity, DurableSensitivity):
+            raise TypeError("list_active requires typed domain and sensitivity")
+        if isinstance(max_records, bool) or not isinstance(max_records, int) or not 1 <= max_records <= 100_000:
+            raise ValueError("max_records must be from 1 to 100000")
+        rows = self._connection.execute(
+            "SELECT m.* FROM memory_versions m WHERE m.tenant_id = ? AND m.owner_id = ? "
+            "AND m.domain = ? AND m.sensitivity = ? AND m.status = 'ACTIVE' "
+            "AND m.version = (SELECT MAX(v.version) FROM memory_versions v WHERE v.tenant_id = m.tenant_id AND v.owner_id = m.owner_id AND v.memory_id = m.memory_id) "
+            "AND (m.expires_at IS NULL OR m.expires_at > ?) ORDER BY m.memory_id LIMIT ?",
+            (scope.tenant_id, scope.owner_id, domain.value, sensitivity.value, self._now().isoformat(), max_records + 1),
+        ).fetchall()
+        if len(rows) > max_records:
+            raise ValueError("scoped memory exceeds lexical retrieval budget")
         records = tuple(self._decode_row(row) for row in rows)
         for record in records:
             self._ensure_scope(scope, record)

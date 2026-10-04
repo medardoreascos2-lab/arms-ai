@@ -125,6 +125,20 @@ class AuthorizedMemoryStore:
                 raise PermissionError("store returned inactive memory to normal retrieval")
         return records
 
+    def list_active(self, context: MemoryAccessContext, max_records: int = 10_000) -> tuple[DurableMemoryRecord, ...]:
+        authorize_memory_access(context, "read")
+        records = self._store.list_active(
+            MemoryScope(context.tenant_id, context.owner_id),
+            context.domain, context.sensitivity, max_records,
+        )
+        for record in records:
+            self._verify_record(context, record)
+            if record.status is not MemoryLifecycle.ACTIVE or (
+                record.expires_at is not None and record.expires_at <= datetime.now(timezone.utc)
+            ):
+                raise PermissionError("store returned inactive memory to lexical retrieval")
+        return records
+
     def write(self, context: MemoryAccessContext, record: DurableMemoryRecord) -> None:
         authorize_memory_access(context, "write")
         self._verify_record(context, record)
