@@ -1,12 +1,13 @@
 {
   "branch": "product/premium-experience",
   "base": "a212582712292d8a0d19f45447067faa4f47f55e",
-  "head": "6d91a5211777110018ebbf4ccfebdf0fbf3bf8d3",
+  "head": "14d6110fb0147f071b0e5b4d37b1b7343a0bc235",
   "head_semantics": "latest completed implementation commit; progress checkpoint commits may follow it",
   "milestones": [
     "P100A",
     "P100B",
-    "P100C"
+    "P100C",
+    "P101A"
   ],
   "commits": [
     {
@@ -23,6 +24,11 @@
       "milestone": "P100C",
       "hash": "6d91a5211777110018ebbf4ccfebdf0fbf3bf8d3",
       "subject": "feat: add premium product role surfaces"
+    },
+    {
+      "milestone": "P101A",
+      "hash": "14d6110fb0147f071b0e5b4d37b1b7343a0bc235",
+      "subject": "feat: add premium design tokens"
     }
   ],
   "tests": [
@@ -65,9 +71,19 @@
       "milestone": "P100C",
       "command": "tsc --noEmit and eslint product files",
       "result": "passed"
+    },
+    {
+      "milestone": "P101A",
+      "command": "npm.cmd run build",
+      "result": "passed; /product prerendered"
+    },
+    {
+      "milestone": "P101A",
+      "command": "tsc --noEmit and eslint product layout",
+      "result": "passed"
     }
   ],
-  "frontend_status": "P100A-P100C contracts complete; product access API not wired",
+  "frontend_status": "P100A-P101A complete; product Home is a truthful preview",
   "membership_status": "read-only product surface projection; no billing or execution authority",
   "billing_status": "not started",
   "analytics_status": "not started",
@@ -75,5 +91,5 @@
   "blocked_items": [
     "Product identity/read adapter and canonical access API are not wired; frontend paid surfaces remain planned."
   ],
-  "next_milestone": "P101A"
+  "next_milestone": "P101B"
 }
