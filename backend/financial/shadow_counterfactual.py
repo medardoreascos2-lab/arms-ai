@@ -46,6 +46,12 @@ class CounterfactualResult:
     labels: tuple[str, str, str] = ("HYPOTHETICAL", "COUNTERFACTUAL", "NOT_EXECUTED")
     execution_authority: bool = False
 
+    def __post_init__(self) -> None:
+        if self.execution_authority or self.labels != ("HYPOTHETICAL", "COUNTERFACTUAL", "NOT_EXECUTED"):
+            raise ValueError("counterfactual cannot claim execution")
+        if self.status is not CounterfactualStatus.RESOLVED and self.exit_price is not None:
+            raise ValueError("unresolved counterfactual cannot claim an exit fill")
+
 
 def compute_counterfactual(
     decision: ShadowDecision,
