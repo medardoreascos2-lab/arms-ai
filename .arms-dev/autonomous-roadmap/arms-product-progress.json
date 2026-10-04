@@ -118,6 +118,21 @@
       "milestone": "P101C",
       "command": "npm.cmd run build; eslint product primitives; tsc --noEmit",
       "result": "passed"
+    },
+    {
+      "milestone": "final_checkpoint",
+      "command": "npm.cmd run build; node --test productNavigation, homeDashboard, productPresentation",
+      "result": "build passed; 6 frontend tests passed"
+    },
+    {
+      "milestone": "final_checkpoint",
+      "command": "python -m pytest backend/tests/test_product_surface.py backend/tests/test_membership_policy_foundation.py -q",
+      "result": "22 passed; 1 inherited Starlette deprecation warning"
+    },
+    {
+      "milestone": "final_checkpoint",
+      "command": "git diff --check base..HEAD",
+      "result": "passed"
     }
   ],
   "frontend_status": "P100A-P101C complete; P102A blocked; browser visual QA pending",
