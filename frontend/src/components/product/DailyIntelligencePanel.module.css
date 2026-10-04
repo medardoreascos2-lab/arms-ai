@@ -1,0 +1,8 @@
+.panel { display: grid; gap: var(--product-space-4); margin-top: var(--product-space-6); }
+.grid { display: grid; gap: var(--product-space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
+.statusRow { display: flex; flex-wrap: wrap; gap: var(--product-space-3); }
+.facts { display: grid; gap: var(--product-space-2); margin: var(--product-space-4) 0 0; }
+.facts div { display: flex; justify-content: space-between; gap: var(--product-space-4); }
+.facts dt { color: var(--product-text-muted); }
+.facts dd { margin: 0; font-weight: 650; }
+.panel ul { margin: var(--product-space-4) 0 0; padding-left: var(--product-space-5); }

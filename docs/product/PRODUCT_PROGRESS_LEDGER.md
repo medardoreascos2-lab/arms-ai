@@ -26,6 +26,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P104-PRE8 degraded financial states | Complete | Explicit disabled, unavailable, scope, portfolio, stale, entitlement, and session states |
 | P104-PRE9 zero mutation proof | Complete | Contract, HTTP verbs, fixed-false authority, and forbidden dependency imports tested |
 | P104-PRE10 Financial Track seam | Complete | Pending adapter and documented public-contract path; no Financial implementation import |
+| P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 
 The local Product MEDAR route remains unavailable in the default ARMS API. The
 standalone preview binds to loopback and uses synthetic sessions and the canonical
