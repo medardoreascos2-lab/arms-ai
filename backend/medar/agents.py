@@ -110,6 +110,11 @@ class RositaKnowledgeAgent(BoundedAnalysisAgent):
         ModelAccessPolicy.LOCAL_ONLY,
     )
 
+    def respond_health(self, items, summary, operations):
+        from backend.medar.rosita_boundary import build_rosita_health_response
+
+        return build_rosita_health_response(items, summary, operations)
+
 
 def initial_agents() -> tuple[BoundedAnalysisAgent, ...]:
     return (
