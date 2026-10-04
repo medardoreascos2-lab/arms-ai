@@ -1,0 +1,3 @@
+.grid { display: grid; gap: var(--product-space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
+.value { display: flex; justify-content: space-between; gap: var(--product-space-4); }
+.value span { color: var(--product-text-muted); }

@@ -1,0 +1,5 @@
+.shell { display: grid; gap: var(--product-space-5); margin-top: var(--product-space-6); }
+.statusRow { display: flex; flex-wrap: wrap; gap: var(--product-space-3); }
+.shell section { border: 1px solid var(--product-border); border-radius: var(--product-radius-lg); padding: var(--product-space-5); background: var(--product-surface); }
+.shell h2 { margin-top: 0; }
+.shell ul { margin-bottom: 0; padding-left: var(--product-space-5); }
