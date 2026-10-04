@@ -60,6 +60,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P113 Accessibility audit | Complete with documented limits | Skip navigation, visible focus, contrast checks, reduced motion, semantic labels/headings, and linked form guidance |
 | P114A Financial disclosures | Complete | Shared ANALYSIS/PAPER/HYPOTHETICAL/LIVE_UNAVAILABLE disclosures appear on financial Product projections |
 | P114B Data provenance UX | Complete | Shared badges show source, freshness, observation time, and explicit UNKNOWN/INTEGRATION_PENDING state |
+| P114C AI limitations UX | Complete | MEDAR responses show confidence, uncertainty, model limitations, memory provenance, and a human-review recommendation |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 

@@ -9,3 +9,7 @@
 .disclosures div { display: grid; gap: var(--product-space-1); }
 .disclosures dt { color: var(--product-status-watch); font-size: var(--product-text-xs); font-weight: 800; letter-spacing: 0.08em; }
 .disclosures dd { margin: 0; color: var(--product-text-muted); font-size: var(--product-text-sm); }
+.aiGrid { display: grid; gap: var(--product-space-3); margin-top: var(--product-space-3); }
+.aiGrid > div { display: grid; gap: var(--product-space-1); }
+.aiGrid strong { font-size: var(--product-text-xs); text-transform: uppercase; letter-spacing: 0.06em; }
+.aiGrid p { margin: 0; color: var(--product-text-muted); font-size: var(--product-text-sm); }

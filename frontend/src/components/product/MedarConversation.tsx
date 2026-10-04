@@ -7,6 +7,7 @@ import { canSend, completeTurn, pendingTurn, requestMedarResponse, type Conversa
 import styles from "./MedarConversation.module.css";
 import { MedarTrustPanel } from "./MedarTrustPanel";
 import { MedarMemoryContext } from "./MedarMemoryContext";
+import { AiLimitationsNotice } from "./ProductTrustNotices";
 
 export function MedarConversation({ localTestEnabled }: { localTestEnabled: boolean }) {
   const [conversationId] = useState(() => crypto.randomUUID());
@@ -90,6 +91,15 @@ function MedarAnswer({ response }: { response: ProductMedarResponse }) {
         <Status priority={degraded ? "unknown" : "information"} label={response.status.replaceAll("_", " ")} />
         {!degraded && <ConfidenceBadge value={response.confidence} />}
       </div>
+      <AiLimitationsNotice
+        confidence={response.confidence}
+        uncertainty={degraded ? degradedMessages[response.status] : response.why_not[0] || null}
+        modelLimitation="MEDAR can summarize only the evidence returned to this Product session and may be incomplete."
+        memoryProvenance={response.memory_context.length > 0
+          ? `${response.memory_context.length} explicit memory context item(s) with provenance.`
+          : null}
+        humanReviewRecommended
+      />
       {degraded ? (
         <p role="alert">{degradedMessages[response.status]}</p>
       ) : (
