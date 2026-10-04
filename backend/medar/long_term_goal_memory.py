@@ -2,7 +2,7 @@
 
 import hashlib
 import re
-from dataclasses import dataclass, replace
+from dataclasses import field, dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -29,7 +29,7 @@ _GOAL_PATTERN = re.compile(r"(?i)^(?:goal:|my goal is)\s*(.+)$")
 class GoalProgressEvidence:
     source_reference: str
     observed_at: datetime
-    summary: str
+    summary: str = field(repr=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.source_reference, str) or not self.source_reference.strip():
@@ -48,7 +48,7 @@ class SessionGoal:
     tenant_id: str
     owner_id: str
     session_id: str
-    description: str
+    description: str = field(repr=False)
     source_reference: str
     state: GoalState
     version: int

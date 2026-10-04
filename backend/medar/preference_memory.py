@@ -1,7 +1,7 @@
 """Explicit, session-only MEDAR preference proposals; no trait inference."""
 
 import re
-from dataclasses import dataclass
+from dataclasses import field, dataclass
 from enum import Enum
 
 from backend.medar.durable_memory_record import DurableMemoryDomain, DurableSensitivity
@@ -32,7 +32,7 @@ class PreferenceMemoryProposal:
     owner_id: str
     source_reference: str
     category: PreferenceCategory
-    value: str
+    value: str = field(repr=False)
     sensitivity: DurableSensitivity = DurableSensitivity.PERSONAL
     session_only: bool = True
     persistence_authorized: bool = False

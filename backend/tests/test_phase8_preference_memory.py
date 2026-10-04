@@ -29,6 +29,7 @@ def test_explicit_preference_categories_are_proposal_only(label, category):
     assert proposal.category is category
     assert proposal.value == "synthetic choice"
     assert proposal.source_reference == "conversation-1/turn-3"
+    assert proposal.value not in repr(proposal)
     assert proposal.session_only and not proposal.persistence_authorized
     assert not proposal.trading_authority
 

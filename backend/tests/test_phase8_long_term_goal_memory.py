@@ -22,8 +22,10 @@ def test_goal_lifecycle_requires_evidence_and_preserves_source():
     goal = tracker.add_explicit("Goal: finish synthetic schema migration", "conversation-1/turn-1")
     assert goal.state is GoalState.ACTIVE
     assert goal.source_reference == "conversation-1/turn-1"
+    assert goal.description not in repr(goal)
     paused = tracker.advance(goal.goal_id, GoalState.PAUSED, _evidence(), **SCOPE)
     assert paused.version == 2 and paused.progress_evidence == (_evidence(),)
+    assert paused.progress_evidence[0].summary not in repr(paused.progress_evidence[0])
     active = tracker.advance(goal.goal_id, GoalState.ACTIVE, _evidence("resumed after review"), **SCOPE)
     completed = tracker.advance(goal.goal_id, GoalState.COMPLETED, _evidence("verified result"), **SCOPE)
     assert active.version == 3 and completed.version == 4
