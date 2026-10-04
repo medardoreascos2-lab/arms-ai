@@ -9,6 +9,7 @@ import {
 import type { FinancialSurface } from "@/lib/financialLocalConfig";
 import styles from "./FinancialProjectionShell.module.css";
 import { FinancialDisclosureStrip } from "./ProductTrustNotices";
+import { DegradedRecoveryPanel } from "./DegradedRecoveryPanel";
 
 export function FinancialProjectionShell({ enabled, surface, children }: {
   enabled: boolean;
@@ -28,9 +29,9 @@ export function FinancialProjectionShell({ enabled, surface, children }: {
   if (!enabled) return <EmptyState title="Integration pending"
     detail="Local synthetic financial testing is disabled." />;
   if (response === null) return <LoadingState label={"Loading " + surface + " projection"} />;
-  if (!isFinancialProjection(response)) return <EmptyState
-    title={response.status.replaceAll("_", " ")}
-    detail="The trusted read-only projection is unavailable." />;
+  if (!isFinancialProjection(response)) return <DegradedRecoveryPanel
+    status="FINANCIAL_DATA_UNAVAILABLE"
+    detail={`The trusted read-only projection is unavailable (${response.status.replaceAll("_", " ")}).`} />;
 
   return <div className={styles.shell}>
     <FinancialDisclosureStrip />

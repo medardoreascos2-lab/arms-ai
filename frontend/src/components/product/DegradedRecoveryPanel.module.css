@@ -1,0 +1,7 @@
+.panel { display: grid; gap: var(--product-space-3); padding: var(--product-space-4); border: 1px solid var(--product-status-critical); border-radius: var(--product-radius-md); background: var(--product-surface); }
+.panel h2, .panel p { margin: 0; }
+.truth { color: var(--product-status-watch); font-size: var(--product-text-sm); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--product-space-2); align-items: flex-start; }
+.actions button, .actions summary { min-height: var(--product-density-control); padding: var(--product-space-2) var(--product-space-3); border: 1px solid var(--product-border); border-radius: var(--product-radius-sm); color: var(--product-text); background: var(--product-surface-raised); font: inherit; cursor: pointer; }
+.actions button:disabled { cursor: not-allowed; opacity: 0.55; }
+.actions details p { padding: var(--product-space-2); color: var(--product-text-muted); }
