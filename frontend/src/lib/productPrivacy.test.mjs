@@ -5,6 +5,8 @@ import { privacyCenterItems } from "./productPrivacy.ts";
 test("Privacy Center exposes every required seam without claiming data", () => {
   assert.deepEqual(privacyCenterItems.map((item) => item.id), [
     "MEMORY", "RETENTION", "EXPORT", "REMOVAL", "SERVICES", "ACTIVITY",
+    "MICROPHONE", "CAMERA", "VOICE", "IMAGE_RETENTION", "CAMERA_RETENTION",
+    "PRESENCE", "WEARABLES", "HOME_INTEGRATIONS", "AVATAR_ACTIVITY",
   ]);
   assert.ok(privacyCenterItems.every((item) =>
     item.status === "UNKNOWN" || item.status === "INTEGRATION_PENDING"));
