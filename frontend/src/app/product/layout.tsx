@@ -6,7 +6,7 @@ export default function ProductLayout({ children }: Readonly<{ children: React.R
     <div className={styles.shell}>
       <div className={styles.container}>
         <ProductNavigation />
-        {children}
+        <div className={styles.content}>{children}</div>
       </div>
     </div>
   );

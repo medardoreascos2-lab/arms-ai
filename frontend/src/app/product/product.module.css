@@ -43,21 +43,35 @@
   --product-status-unknown: #c5cbd5;
 
   min-height: 100vh;
-  padding: var(--product-space-6) var(--product-space-4);
+  padding: var(--product-space-4);
   color: var(--product-text);
   background: var(--product-bg);
   color-scheme: dark;
   font-family: var(--product-font-sans);
   line-height: var(--product-line-body);
+  overflow-wrap: anywhere;
 }
 
 .container {
-  max-width: 72rem;
+  display: grid;
+  width: 100%;
+  max-width: 90rem;
+  gap: var(--product-space-5);
   margin-inline: auto;
 }
 
-@media (min-width: 640px) {
-  .shell { padding-inline: var(--product-space-6); }
+.content { min-width: 0; }
+
+@media (min-width: 40rem) {
+  .shell { padding: var(--product-space-6); }
+  .container { gap: var(--product-space-6); }
+}
+
+@media (min-width: 64rem) {
+  .container {
+    grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
+    align-items: start;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
