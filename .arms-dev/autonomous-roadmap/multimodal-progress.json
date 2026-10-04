@@ -53,7 +53,8 @@
                        "D230":  "COMPLETE",
                        "D231":  "COMPLETE",
                        "D232":  "COMPLETE",
-                       "D233":  "COMPLETE"
+                       "D233":  "COMPLETE",
+                       "D234":  "COMPLETE"
                    },
     "commits":  {
                     "D200A":  "d6043d4",
@@ -106,7 +107,8 @@
                     "D230":  "a44d6fc",
                     "D231":  "294942d",
                     "D232":  "8b8aa4e",
-                    "D233":  "CURRENT_BRANCH_HEAD"
+                    "D233":  "1fbe63b",
+                    "D234":  "CURRENT_BRANCH_HEAD"
                 },
     "tests":  {
                   "D200A":  "2 passed",
@@ -159,7 +161,8 @@
                   "D230":  "6 passed; resource limits and counters fail closed",
                   "D231":  "11 passed; denied inputs invoked zero operations",
                   "D232":  "15 security and injection tests passed; zero operation calls",
-                  "D233":  "5 passed; telemetry schema contains no raw content fields"
+                  "D233":  "5 passed; telemetry schema contains no raw content fields",
+                  "D234":  "3 passed; denied voice invoked zero STT MEDAR TTS calls"
               },
     "voice_status":  "SYNTHETIC_MULTIROOM_ROUTING",
     "vision_status":  "LOCAL_PREVIEW_UI_PROVIDER_PENDING",
@@ -178,5 +181,5 @@
                                  "wearable_live_data",
                                  "emergency_dispatch"
                              ],
-    "next_milestone":  "D234"
+    "next_milestone":  "D235"
 }
