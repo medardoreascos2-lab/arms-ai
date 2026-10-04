@@ -40,6 +40,12 @@ class OnboardingGoal(str, Enum):
     LEARNING = "LEARNING"
     PERSONAL_ASSISTANT = "PERSONAL_ASSISTANT"
 
+class OnboardingMemoryConsent(str, Enum):
+    SESSION_ONLY = "SESSION_ONLY"
+    ALLOW_LOW_SENSITIVITY = "ALLOW_LOW_SENSITIVITY"
+    REVIEW_BEFORE_SAVE = "REVIEW_BEFORE_SAVE"
+    DO_NOT_SAVE = "DO_NOT_SAVE"
+
 
 class ProductOnboardingState(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
@@ -52,6 +58,8 @@ class ProductOnboardingState(BaseModel):
     completed_steps: tuple[OnboardingStep, ...] = ()
     selected_goals: tuple[OnboardingGoal, ...] = ()
     goals_confirmed: bool = False
+    memory_consent: OnboardingMemoryConsent | None = None
+    memory_consent_confirmed: bool = False
     version: int = Field(ge=1)
     created_at: datetime
     updated_at: datetime
@@ -83,6 +91,8 @@ class ProductOnboardingState(BaseModel):
         return value
     @model_validator(mode="after")
     def state_is_consistent(self) -> ProductOnboardingState:
+        if self.memory_consent_confirmed != (self.memory_consent is not None):
+            raise ValueError("memory consent confirmation must match an explicit choice")
         if self.updated_at < self.created_at:
             raise ValueError("updated_at cannot precede created_at")
         if self.status == OnboardingStatus.NOT_STARTED and self.completed_steps:
