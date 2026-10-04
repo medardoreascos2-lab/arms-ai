@@ -1,0 +1,68 @@
+.shell {
+  --product-space-1: 0.25rem;
+  --product-space-2: 0.5rem;
+  --product-space-3: 0.75rem;
+  --product-space-4: 1rem;
+  --product-space-5: 1.25rem;
+  --product-space-6: 1.5rem;
+  --product-space-8: 2rem;
+  --product-space-10: 2.5rem;
+
+  --product-font-sans: var(--font-geist-sans), Arial, sans-serif;
+  --product-font-mono: var(--font-geist-mono), monospace;
+  --product-text-xs: 0.75rem;
+  --product-text-sm: 0.875rem;
+  --product-text-base: 1rem;
+  --product-text-lg: 1.125rem;
+  --product-text-3xl: 1.875rem;
+  --product-line-body: 1.5;
+
+  --product-radius-sm: 0.5rem;
+  --product-radius-md: 0.75rem;
+  --product-radius-lg: 1rem;
+  --product-radius-pill: 999px;
+  --product-shadow-card: 0 16px 40px rgb(2 8 23 / 0.24);
+  --product-shadow-focus: 0 0 0 3px rgb(103 232 249 / 0.5);
+  --product-motion-fast: 120ms;
+  --product-motion-normal: 200ms;
+  --product-density-control: 2.75rem;
+  --product-density-card: var(--product-space-5);
+
+  --product-bg: #0a1424;
+  --product-surface: #122138;
+  --product-surface-raised: #192d47;
+  --product-border: #35465c;
+  --product-text: #f3f7fb;
+  --product-text-muted: #b4c3d4;
+  --product-accent: #8cd9df;
+  --product-status-info: #a9c9ed;
+  --product-status-watch: #f4cf86;
+  --product-status-important: #f0a982;
+  --product-status-critical: #f6a1a1;
+  --product-status-success: #9cddbc;
+  --product-status-unknown: #c5cbd5;
+
+  min-height: 100vh;
+  padding: var(--product-space-6) var(--product-space-4);
+  color: var(--product-text);
+  background: var(--product-bg);
+  color-scheme: dark;
+  font-family: var(--product-font-sans);
+  line-height: var(--product-line-body);
+}
+
+.container {
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 640px) {
+  .shell { padding-inline: var(--product-space-6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell {
+    --product-motion-fast: 0ms;
+    --product-motion-normal: 0ms;
+  }
+}
