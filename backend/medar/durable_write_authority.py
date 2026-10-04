@@ -11,7 +11,10 @@ from secrets import token_hex
 from backend.medar.bound_memory_access import BoundMemoryRequest
 from backend.medar.controlled_memory_promotion import PromotionDisposition, prepare_memory_promotion
 from backend.medar.durable_memory_record import DurableSensitivity, RetentionPolicy, content_digest
+from backend.medar.durable_memory_encryption import EphemeralTestMemoryEncryption
+from backend.medar.memory_encryption_readiness import EncryptionReadiness, assess_encryption_readiness
 from backend.medar.memory_importance import ImportanceEvidence
+from backend.medar.memory_access import MemoryAccessContext, MemoryAgentPermission, authorize_memory_access
 from backend.medar.session_working_memory import WorkingMemorySnapshot
 from backend.medar.trusted_runtime_identity import (
     LocalAdminIdentityAuthority, RuntimeMemoryPermission, TrustedRuntimeIdentity,
@@ -33,10 +36,13 @@ class DurableWriteDecision:
     status: DurableWriteStatus
     reason_code: str
     persistence_performed: bool = False
+    local_test_only: bool = False
 
     def __post_init__(self) -> None:
         if self.persistence_performed:
             raise ValueError("write decision cannot persist memory")
+        if self.status is DurableWriteStatus.AUTHORIZED and not self.local_test_only:
+            raise ValueError("production durable-write authorization is unavailable")
 
 
 @dataclass(frozen=True)
@@ -54,10 +60,24 @@ class CandidateApproval:
 class DurableMemoryWriteAuthority:
     """Trusted local review registry; no durable-write operation is exposed."""
 
-    def __init__(self, identity_authority: LocalAdminIdentityAuthority):
+    def __init__(
+        self,
+        identity_authority: LocalAdminIdentityAuthority,
+        *,
+        test_provider: EphemeralTestMemoryEncryption | None = None,
+        local_test_enabled: bool = False,
+    ):
         if not isinstance(identity_authority, LocalAdminIdentityAuthority):
             raise TypeError("trusted runtime identity authority is required")
+        if not isinstance(local_test_enabled, bool):
+            raise TypeError("local_test_enabled must be boolean")
+        if test_provider is not None and type(test_provider) is not EphemeralTestMemoryEncryption:
+            raise TypeError("only exact ephemeral test provider is supported")
+        if test_provider is not None and not local_test_enabled:
+            raise PermissionError("test encryption requires explicit local-test enablement")
         self._identity_authority = identity_authority
+        self._test_provider = test_provider
+        self._local_test_enabled = local_test_enabled
         self._approvals: dict[str, CandidateApproval] = {}
 
     def _matches_scope(
@@ -129,6 +149,16 @@ class DurableMemoryWriteAuthority:
         candidate = proposal.candidate
         if candidate.domain is not request.domain or candidate.sensitivity is not request.sensitivity:
             return DurableWriteDecision(DurableWriteStatus.BLOCKED_IDENTITY, "CANDIDATE_SCOPE_MISMATCH")
+        if candidate.sensitivity not in (DurableSensitivity.PUBLIC, DurableSensitivity.INTERNAL):
+            return DurableWriteDecision(DurableWriteStatus.BLOCKED_SENSITIVITY, "SENSITIVE_WRITE_NOT_VALIDATED")
+        context = MemoryAccessContext(
+            identity.owner_id, identity.tenant_id, identity.owner_id, identity.tenant_id,
+            request.domain, request.sensitivity, identity.purpose, MemoryAgentPermission.WRITE,
+        )
+        try:
+            authorize_memory_access(context, "read")
+        except PermissionError:
+            return DurableWriteDecision(DurableWriteStatus.BLOCKED_IDENTITY, "PURPOSE_DOMAIN_DENIED")
         if proposal.disposition is PromotionDisposition.BLOCKED:
             return DurableWriteDecision(DurableWriteStatus.BLOCKED_POLICY, "SAVE_POLICY_BLOCKED")
         if proposal.disposition is PromotionDisposition.REVIEW_REQUIRED:
@@ -144,8 +174,22 @@ class DurableMemoryWriteAuthority:
             or approval.tenant_id != snapshot.tenant_id
         ):
             return DurableWriteDecision(DurableWriteStatus.REVIEW_REQUIRED, "CANDIDATE_APPROVAL_REQUIRED")
-        if candidate.sensitivity not in (DurableSensitivity.PUBLIC, DurableSensitivity.INTERNAL):
-            return DurableWriteDecision(DurableWriteStatus.BLOCKED_SENSITIVITY, "SENSITIVE_WRITE_NOT_VALIDATED")
-        if not isinstance(retention_policy, RetentionPolicy) or retention_policy is RetentionPolicy.SESSION:
+        if type(retention_policy) is not RetentionPolicy or retention_policy not in (
+            RetentionPolicy.SHORT_TERM, RetentionPolicy.LONG_TERM,
+            RetentionPolicy.ARCHIVE, RetentionPolicy.MANUAL_REVIEW,
+        ):
             return DurableWriteDecision(DurableWriteStatus.BLOCKED_RETENTION, "DURABLE_RETENTION_REQUIRED")
+        readiness = assess_encryption_readiness(self._test_provider)
+        if (
+            self._local_test_enabled
+            and readiness.status is EncryptionReadiness.LOCAL_TEST_ONLY
+            and candidate.source_reference.startswith("synthetic-test:")
+        ):
+            return DurableWriteDecision(DurableWriteStatus.AUTHORIZED, "SYNTHETIC_LOCAL_TEST_ONLY", local_test_only=True)
         return DurableWriteDecision(DurableWriteStatus.BLOCKED_ENCRYPTION, "APPROVED_ENCRYPTION_NOT_VALIDATED")
+
+    def seal_synthetic(self, record):
+        from backend.medar.encrypted_memory_envelope import seal_memory_content
+        if not self._local_test_enabled or self._test_provider is None:
+            raise PermissionError("synthetic encryption provider unavailable")
+        return seal_memory_content(record, self._test_provider)
