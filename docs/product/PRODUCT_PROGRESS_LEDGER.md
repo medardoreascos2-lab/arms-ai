@@ -53,6 +53,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P110C Product value metrics | Complete | Content-free repeated-use rates for MEDAR, Daily Intelligence, Trading Coach, Portfolio Guardian, and Research |
 | P111A Closed-beta access model | Complete, local projection | Scoped INVITED/ACTIVE/PAUSED/REVOKED/EXPIRED records with optimistic version protection |
 | P111B Closed-beta capacity policy | Complete | Configurable admission policy defaults to a 10–30 active-user target and closes at capacity |
+| P111C Closed-beta feedback | Complete, local projection | Six feedback types capture scoped categorical metadata while private comments/content remain structurally disabled |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
