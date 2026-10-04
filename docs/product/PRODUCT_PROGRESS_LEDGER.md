@@ -68,6 +68,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P117B Premium beta deferred scope | Complete | Robotics, broad lifestyle domains, video AI, LIVE trading, real payments, and production auth explicitly deferred |
 | P118A Synthetic new-user rehearsal | Complete | Trusted local session, explicit goals/memory consent, resumable onboarding, home/MEDAR/daily/trading/coach/portfolio routes, and scoped notifications rehearsed |
 | P118B Synthetic premium-user rehearsal | Complete | Trial/upgrade/downgrade/cancel/expire/resubscribe drives entitlements and quotas while provider and charge authority stay false |
+| P118C Degraded-flow rehearsal | Complete | Model, memory, financial, payment-provider, and network failures return null data, no authority, and truthful recovery actions |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
