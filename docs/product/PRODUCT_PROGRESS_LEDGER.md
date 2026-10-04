@@ -20,6 +20,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P104-PRE2 financial read provider | Complete | Provider-neutral protocol exposes nine GET-style observation methods only |
 | P104-PRE3 financial projections | Complete | Product-only trading, portfolio, coach, shadow, alert, and daily models require provenance and freshness |
 | P104-PRE4 synthetic financial provider | Complete | Deterministic NQ, MNQ, portfolio, coach, shadow, alert, and daily local fixtures |
+| P104-PRE5 financial authorization | Complete | Session, active membership, entitlement, tenant/user, account, portfolio, and scope gates precede reads |
 
 The local Product MEDAR route remains unavailable in the default ARMS API. The
 standalone preview binds to loopback and uses synthetic sessions and the canonical
