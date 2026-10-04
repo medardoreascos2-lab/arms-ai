@@ -21,7 +21,7 @@ export const primaryNavigation: readonly NavigationEntry[] = [
   { id: "RESEARCH", label: "Research", description: "Evidence and sources", availability: "planned" },
   { id: "ALERTS", label: "Alerts", description: "Trusted notification inbox", availability: "available", href: "/product/notifications" },
   { id: "MEMORY", label: "Memory", description: "Review remembered context", availability: "planned" },
-  { id: "SETTINGS", label: "Settings", description: "Account and privacy controls", availability: "planned" },
+  { id: "SETTINGS", label: "Settings", description: "Profile, privacy, and security controls", availability: "available", href: "/product/settings" },
 ];
 
 /** Roadmap taxonomy only; these are intentionally excluded from product navigation. */
