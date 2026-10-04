@@ -88,3 +88,36 @@ test("Shadow MEDAR client uses only the same-origin GET surface", async () => {
   });
   assert.deepEqual(calls.map(([url]) => url), ["/api/product/financial/shadow"]);
 });
+
+const portfolio = {
+  status: "READY",
+  provenance: { source_id: "portfolio-1", source_label: "Synthetic portfolio fixture",
+    classification: "SYNTHETIC", observed_at: "2026-10-04T12:00:00Z",
+    freshness_seconds: 0, source_status: "SYNTHETIC" },
+  warnings: ["SYNTHETIC LOCAL_TEST_ONLY NOT_REAL_ACCOUNT_DATA"],
+  investment_advice: false, execution_authorized: false,
+  portfolio_mutation_authorized: false, source_status: "SYNTHETIC",
+  currency: "USD", total_value: "17000.00", cash: "17000.00",
+  allocation: [{ label: "Synthetic cash", percentage: "100" }],
+  concentration: "SYNTHETIC_CASH_ONLY", risk: "NO_REAL_EXPOSURE", drawdown: "0",
+  alerts: [{ alert_id: "a1", title: "Synthetic risk review",
+    detail: "No real exposure exists.", severity: "WATCH" }],
+};
+
+test("Portfolio projection preserves allocation and forbids mutation authority", () => {
+  const value = decodeFinancialResponse(portfolio);
+  assert.equal(isFinancialProjection(value), true);
+  assert.equal(value.total_value, "17000.00");
+  assert.deepEqual(value.allocation, [{ label: "Synthetic cash", percentage: "100" }]);
+  assert.equal(value.portfolio_mutation_authorized, false);
+  assert.equal(value.execution_authorized, false);
+});
+
+test("Portfolio client uses only the same-origin GET surface", async () => {
+  const calls = [];
+  await requestProductFinancial("portfolio", async (url, init) => {
+    calls.push([url, init]); return { ok: true, json: async () => portfolio };
+  });
+  assert.deepEqual(calls.map(([url]) => url), ["/api/product/financial/portfolio"]);
+  assert.equal(calls[0][1].method, "GET");
+});

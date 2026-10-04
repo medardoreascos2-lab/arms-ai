@@ -1,0 +1,5 @@
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.value, .list li { display: flex; justify-content: space-between; gap: 1rem; }
+.value span, .list span, .alerts span { color: var(--muted); }
+.list, .alerts { display: grid; gap: 0.65rem; margin: 0; padding: 0; list-style: none; }
+.alerts li { display: grid; gap: 0.25rem; }

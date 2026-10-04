@@ -22,6 +22,7 @@ export type ProductFinancialProjection = Readonly<{
   evidence?: readonly string[];
   market_state?: string; risk_state?: string; session_state?: string; data_freshness?: string;
   total_value?: string | number | null; cash?: string | number | null;
+  currency?: string; allocation?: readonly Readonly<{ label: string; percentage: string | number | null }>[];
   concentration?: string; risk?: string; drawdown?: string | number | null;
   summary?: string | null; confidence?: number | null;
   alerts?: readonly Readonly<{ alert_id: string; title: string; detail: string; severity: string }>[];
