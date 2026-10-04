@@ -23,7 +23,8 @@
                        "D206B":  "COMPLETE",
                        "D206C":  "COMPLETE",
                        "D207A":  "COMPLETE",
-                       "D207B":  "COMPLETE"
+                       "D207B":  "COMPLETE",
+                       "D208A":  "COMPLETE"
                    },
     "commits":  {
                     "D200A":  "d6043d4",
@@ -46,7 +47,8 @@
                     "D206B":  "5d192d9",
                     "D206C":  "f05cc70",
                     "D207A":  "de879d4",
-                    "D207B":  "CURRENT_BRANCH_HEAD"
+                    "D207B":  "64f1a7b",
+                    "D208A":  "CURRENT_BRANCH_HEAD"
                 },
     "tests":  {
                   "D200A":  "2 passed",
@@ -69,11 +71,12 @@
                   "D206B":  "1 passed",
                   "D206C":  "2 passed",
                   "D207A":  "2 frontend passed; typecheck lint passed",
-                  "D207B":  "2 passed"
+                  "D207B":  "2 passed",
+                  "D208A":  "2 passed"
               },
     "voice_status":  "SYNTHETIC_FOUNDATION_WITH_DEGRADED_STATES",
     "vision_status":  "LOCAL_PREVIEW_UI_PROVIDER_PENDING",
-    "camera_status":  "NOT_STARTED",
+    "camera_status":  "SESSION_DOMAIN_DEFAULT_OFF",
     "avatar_status":  "NOT_STARTED",
     "notification_status":  "PRODUCT_IN_APP_ONLY",
     "presence_status":  "NOT_STARTED",
@@ -88,5 +91,5 @@
                                  "wearable_live_data",
                                  "emergency_dispatch"
                              ],
-    "next_milestone":  "D208A"
+    "next_milestone":  "D208B"
 }
