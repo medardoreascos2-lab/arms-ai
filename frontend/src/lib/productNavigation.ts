@@ -17,7 +17,7 @@ export const primaryNavigation: readonly NavigationEntry[] = [
   { id: "MARKETS", label: "Markets", description: "Market analysis", availability: "available", href: "/market-analysis" },
   { id: "TRADING", label: "Trading", description: "Read-only Product trading workspace", availability: "available", href: "/product/trading" },
   { id: "PORTFOLIO", label: "Portfolio", description: "Product portfolio view", availability: "planned" },
-  { id: "COACH", label: "Coach", description: "Trading review and improvement", availability: "planned" },
+  { id: "COACH", label: "Coach", description: "Read-only trading review and improvement", availability: "available", href: "/product/coach" },
   { id: "RESEARCH", label: "Research", description: "Evidence and sources", availability: "planned" },
   { id: "ALERTS", label: "Alerts", description: "Attention and notifications", availability: "planned" },
   { id: "MEMORY", label: "Memory", description: "Review remembered context", availability: "planned" },
