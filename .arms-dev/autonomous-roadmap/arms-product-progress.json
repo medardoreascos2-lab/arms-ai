@@ -41,6 +41,11 @@
       "milestone": "P101C",
       "hash": "f81ca64958c93e2cd9921ddc6c0527ea139d9fe8",
       "subject": "feat: add premium product ui primitives"
+    },
+    {
+      "milestone": "P102A_boundary",
+      "hash": "e7ce4b58de3745b60770f75e2edfb5dd0997968c",
+      "subject": "docs: define medar conversation integration boundary"
     }
   ],
   "tests": [
@@ -115,14 +120,16 @@
       "result": "passed"
     }
   ],
-  "frontend_status": "P100A-P101C complete; product Home preview uses shared UI primitives",
+  "frontend_status": "P100A-P101C complete; P102A blocked; browser visual QA pending",
   "membership_status": "read-only product surface projection; no billing or execution authority",
   "billing_status": "not started",
   "analytics_status": "not started",
   "beta_status": "not started",
   "blocked_items": [
     "Product identity/read adapter and canonical access API are not wired; frontend paid surfaces remain planned.",
-    "Browser visual QA unavailable: computer-use browser helper exited twice before opening localhost."
+    "Browser visual QA unavailable: computer-use browser helper exited twice before opening localhost.",
+    "P102A blocked: no authenticated MEDAR conversation API at base; legacy /ai/copilot is a different engine. Product API adapter requires an architecture decision."
   ],
-  "next_milestone": "P102A"
+  "next_milestone": "P102A",
+  "run_state": "SAFELY_BLOCKED_AT_P102A"
 }
