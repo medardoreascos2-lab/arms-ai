@@ -72,6 +72,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P119A Frontend/Product security audit | Complete with documented limits | Unsafe-rendering, URL/scope, debug, secret, and telemetry review; browser notification scope identifiers removed and rejected |
 | P119B Entitlement bypass audit | Complete | Direct URL, frontend header, plan, tenant, user, session, and entitlement spoof attempts are backend-denied before provider invocation |
 | P119C Privacy regression | Complete | Cross-user memory controls, cross-tenant financial scopes, private analytics fields, and browser notification identifiers remain isolated or denied |
+| P120A Full Product regression | Complete | 212 Product backend tests and 119 frontend tests passed; focused billing, membership, analytics, privacy, entitlement, responsive, accessibility, security, recovery, and end-to-end checks passed; TypeScript, lint, production build, and diff checks completed |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
