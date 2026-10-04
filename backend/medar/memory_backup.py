@@ -3,7 +3,9 @@
 import base64
 import hashlib
 import json
+import os
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,7 +47,7 @@ def _open_read_only(path: Path) -> sqlite3.Connection:
 def _scoped_snapshot(path: Path, scope: MemoryScope, *, vector: bool) -> bytes:
     table = "vectors" if vector else "memory_versions"
     migration = "vector_migrations" if vector else "schema_migrations"
-    with _open_read_only(path) as source:
+    with closing(_open_read_only(path)) as source:
         version = source.execute("PRAGMA user_version").fetchone()[0]
         if version != 1:
             raise ValueError("unsupported memory backup schema version")
@@ -254,4 +256,78 @@ def open_memory_backup(payload: bytes) -> MemoryBackupBundle:
     return MemoryBackupBundle(
         backup_id, created_at, scope, memory_bytes, vector_bytes,
         schema, provenance, index_metadata, expected_hashes,
+    )
+
+
+@dataclass(frozen=True)
+class MemoryRestoreResult:
+    backup_id: str
+    destination: Path
+    memory_database: Path
+    vector_index: Path
+    metadata: Path
+    scope: MemoryScope
+    execution_authorized: bool = False
+    production_restore_authorized: bool = False
+
+    def __post_init__(self) -> None:
+        if self.execution_authorized or self.production_restore_authorized:
+            raise ValueError("memory restore grants no execution or production authority")
+
+
+def _write_exclusive(path: Path, payload: bytes) -> None:
+    with path.open("xb") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def restore_memory_backup(payload: bytes, destination: Path) -> MemoryRestoreResult:
+    """Restore a validated backup into a new directory and publish it atomically."""
+    if not isinstance(destination, Path):
+        raise TypeError("restore destination must be pathlib.Path")
+    bundle = open_memory_backup(payload)
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError("restore destination must not already exist")
+    parent = destination.parent.resolve(strict=True)
+    final = parent / destination.name
+    staging = parent / f".{destination.name}.{bundle.backup_id}.restore"
+    if staging.exists() or staging.is_symlink():
+        raise FileExistsError("restore staging path already exists")
+    staging.mkdir()
+    memory_path = staging / "memory.db"
+    vector_path = staging / "vectors.db"
+    metadata_path = staging / "backup-metadata.json"
+    try:
+        _write_exclusive(memory_path, bundle.memory_database)
+        _write_exclusive(vector_path, bundle.vector_index)
+        metadata = _canonical({
+            "backup_id": bundle.backup_id,
+            "created_at": bundle.created_at.astimezone(timezone.utc).isoformat(),
+            "scope": {"tenant_id": bundle.scope.tenant_id, "owner_id": bundle.scope.owner_id},
+            "schema": bundle.schema,
+            "provenance": bundle.provenance,
+            "index_metadata": bundle.index_metadata,
+            "hashes": bundle.hashes,
+            "execution_authorized": False,
+            "production_restore_authorized": False,
+        })
+        _write_exclusive(metadata_path, metadata)
+        with closing(_open_read_only(memory_path)) as memory:
+            if memory.execute("SELECT COUNT(*) FROM memory_versions WHERE tenant_id != ? OR owner_id != ?", (bundle.scope.tenant_id, bundle.scope.owner_id)).fetchone()[0]:
+                raise PermissionError("restored memory scope validation failed")
+        with closing(_open_read_only(vector_path)) as vector:
+            if vector.execute("SELECT COUNT(*) FROM vectors WHERE tenant_id != ? OR owner_id != ?", (bundle.scope.tenant_id, bundle.scope.owner_id)).fetchone()[0]:
+                raise PermissionError("restored vector scope validation failed")
+        os.replace(staging, final)
+    except Exception:
+        for path in (metadata_path, vector_path, memory_path):
+            if path.exists() and path.parent == staging:
+                path.unlink()
+        if staging.exists() and staging.parent == parent:
+            staging.rmdir()
+        raise
+    return MemoryRestoreResult(
+        bundle.backup_id, final, final / "memory.db", final / "vectors.db",
+        final / "backup-metadata.json", bundle.scope,
     )
