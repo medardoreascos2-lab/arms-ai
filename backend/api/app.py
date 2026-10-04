@@ -656,6 +656,9 @@ from backend.api.admin_authorization_dependency_v2 import (
 )
 from backend.config_settings import ArmsSettings
 from backend.api.sim_native_dashboard_api_v3 import create_sim_native_dashboard_router_v3
+from backend.api.financial_intelligence_api_v1 import (
+    FinancialReadModel, create_financial_intelligence_router_v1,
+)
 from backend.execution.execution_decision_engine import (
     ExecutionDecisionEngine,
 )
@@ -3203,6 +3206,8 @@ def create_app(
             ),
         )
     )
+
+    app.include_router(create_financial_intelligence_router_v1(FinancialReadModel.unavailable()))
 
     @app.get("/health")
     def health() -> dict[str, str]:
