@@ -1,4 +1,4 @@
-﻿"""F105A: observed records never imply new fills or order authority."""
+"""F105A: observed records never imply new fills or order authority."""
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -34,5 +34,5 @@ def test_record_preserves_instrument_and_observed_origin_without_execution():
 def test_result_cannot_exist_without_observed_exit():
     with pytest.raises(ValueError, match="result requires"):
         trade(exit_price=None)
-    with pytest.raises(ValueError, match="exit_at"):
+    with pytest.raises(ValueError, match="exit timestamp"):
         trade(exit_at=None)
