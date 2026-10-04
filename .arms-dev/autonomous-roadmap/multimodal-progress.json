@@ -5,17 +5,20 @@
     "milestones":  {
                        "D200A":  "COMPLETE",
                        "D200B":  "COMPLETE",
-                       "D200C":  "COMPLETE"
+                       "D200C":  "COMPLETE",
+                       "D201A":  "COMPLETE"
                    },
     "commits":  {
                     "D200A":  "d6043d4",
                     "D200B":  "f47bc8a",
-                    "D200C":  "CURRENT_BRANCH_HEAD"
+                    "D200C":  "e1c2079",
+                    "D201A":  "CURRENT_BRANCH_HEAD"
                 },
     "tests":  {
                   "D200A":  "2 passed",
                   "D200B":  "2 passed",
-                  "D200C":  "2 passed"
+                  "D200C":  "2 passed",
+                  "D201A":  "2 passed"
               },
     "voice_status":  "NOT_STARTED",
     "vision_status":  "NOT_STARTED",
@@ -23,7 +26,7 @@
     "avatar_status":  "NOT_STARTED",
     "notification_status":  "PRODUCT_IN_APP_ONLY",
     "presence_status":  "NOT_STARTED",
-    "privacy_status":  "DEFAULT_OFF",
+    "privacy_status":  "SESSION_CONSENT_FOUNDATION",
     "blocked_integrations":  [
                                  "production_camera",
                                  "production_microphone",
@@ -34,5 +37,5 @@
                                  "wearable_live_data",
                                  "emergency_dispatch"
                              ],
-    "next_milestone":  "D201A"
+    "next_milestone":  "D201B"
 }
