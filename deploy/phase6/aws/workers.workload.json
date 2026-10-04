@@ -1,0 +1,140 @@
+{
+  "schema": "arms.phase6.aws.workload-set/v1",
+  "environment": "staging",
+  "provider": "aws",
+  "shared": {
+    "image_uri": "{{REGISTRY_URL}}@{{IMAGE_DIGEST}}",
+    "digest_required": true,
+    "signature_required": true,
+    "scan_gate_required": true,
+    "network": {
+      "subnet_boundary": "private_workload",
+      "security_group_boundary": "worker",
+      "assign_public_ip": false,
+      "egress_to": ["private_postgresql", "private_aws_endpoints"]
+    },
+    "authority": {
+      "broker": false,
+      "paper": false,
+      "live": false,
+      "production": false,
+      "financial_execution": false
+    }
+  },
+  "workloads": [
+    {
+      "name": "outbox-worker",
+      "kind": "ecs-fargate-service",
+      "replicas": {"desired": 2, "minimum": 2, "maximum": 4},
+      "resources": {"cpu_units": 512, "memory_mib": 1024},
+      "identity": {
+        "task_role_arn": "{{WORKER_TASK_ROLE_ARN}}",
+        "execution_role_arn": "{{WORKER_EXECUTION_ROLE_ARN}}",
+        "shared_role_allowed": false
+      },
+      "queue": {
+        "name": "operational-outbox",
+        "maximum_in_flight_per_replica": 8,
+        "maximum_attempts": 5,
+        "dead_letter_required": true,
+        "tenant_scope_required": true
+      },
+      "configuration": {
+        "ARMS_ENVIRONMENT": "staging",
+        "ARMS_WORKER_KIND": "outbox",
+        "ARMS_LOG_GROUP": "{{WORKER_LOG_GROUP}}",
+        "ARMS_EXECUTION_AUTHORIZED": "false",
+        "ARMS_BROKER_ENABLED": "false",
+        "ARMS_PAPER_ENABLED": "false",
+        "ARMS_LIVE_ENABLED": "false",
+        "ARMS_PRODUCTION_MUTATION_AUTHORIZED": "false"
+      },
+      "secret_references": [
+        {"name": "ARMS_DATABASE_CREDENTIAL", "value_from": "{{APPLICATION_DATABASE_SECRET_ARN}}"},
+        {"name": "ARMS_ALERT_DELIVERY_REFERENCE", "value_from": "{{ALERT_DELIVERY_SECRET_ARN}}"}
+      ],
+      "supervision": {
+        "heartbeat_seconds": 15,
+        "lease_seconds": 45,
+        "fencing_token_required": true,
+        "graceful_stop_seconds": 30
+      }
+    },
+    {
+      "name": "research-worker",
+      "kind": "ecs-fargate-service",
+      "replicas": {"desired": 0, "minimum": 0, "maximum": 2},
+      "resources": {"cpu_units": 1024, "memory_mib": 2048},
+      "identity": {
+        "task_role_arn": "{{RESEARCH_TASK_ROLE_ARN}}",
+        "execution_role_arn": "{{RESEARCH_EXECUTION_ROLE_ARN}}",
+        "shared_role_allowed": false
+      },
+      "queue": {
+        "name": "research",
+        "maximum_in_flight_per_replica": 1,
+        "maximum_attempts": 2,
+        "dead_letter_required": true,
+        "tenant_scope_required": true,
+        "instrument_scope_required": true
+      },
+      "configuration": {
+        "ARMS_ENVIRONMENT": "staging",
+        "ARMS_WORKER_KIND": "research",
+        "ARMS_SYNTHETIC_DATA_ONLY": "true",
+        "ARMS_OPERATIONAL_QUEUE_ACCESS": "false",
+        "ARMS_LOG_GROUP": "{{RESEARCH_LOG_GROUP}}",
+        "ARMS_EXECUTION_AUTHORIZED": "false",
+        "ARMS_BROKER_ENABLED": "false",
+        "ARMS_PAPER_ENABLED": "false",
+        "ARMS_LIVE_ENABLED": "false",
+        "ARMS_PRODUCTION_MUTATION_AUTHORIZED": "false"
+      },
+      "secret_references": [
+        {"name": "ARMS_RESEARCH_DATABASE_CREDENTIAL", "value_from": "{{RESEARCH_DATABASE_SECRET_ARN}}"}
+      ],
+      "supervision": {
+        "heartbeat_seconds": 30,
+        "lease_seconds": 90,
+        "fencing_token_required": true,
+        "graceful_stop_seconds": 60
+      }
+    },
+    {
+      "name": "maintenance-worker",
+      "kind": "ecs-fargate-scheduled-task",
+      "replicas": {"desired": 0, "minimum": 0, "maximum": 1},
+      "resources": {"cpu_units": 256, "memory_mib": 512},
+      "identity": {
+        "task_role_arn": "{{MAINTENANCE_TASK_ROLE_ARN}}",
+        "execution_role_arn": "{{MAINTENANCE_EXECUTION_ROLE_ARN}}",
+        "shared_role_allowed": false
+      },
+      "queue": {
+        "name": "maintenance",
+        "maximum_in_flight_per_replica": 1,
+        "maximum_attempts": 1,
+        "dead_letter_required": true,
+        "tenant_scope_required": false
+      },
+      "configuration": {
+        "ARMS_ENVIRONMENT": "staging",
+        "ARMS_WORKER_KIND": "maintenance",
+        "ARMS_DATABASE_WRITE_ALLOWED": "false",
+        "ARMS_EXTERNAL_SIDE_EFFECTS_ALLOWED": "false",
+        "ARMS_LOG_GROUP": "{{WORKER_LOG_GROUP}}",
+        "ARMS_EXECUTION_AUTHORIZED": "false",
+        "ARMS_BROKER_ENABLED": "false",
+        "ARMS_PAPER_ENABLED": "false",
+        "ARMS_LIVE_ENABLED": "false",
+        "ARMS_PRODUCTION_MUTATION_AUTHORIZED": "false"
+      },
+      "secret_references": [],
+      "supervision": {
+        "heartbeat_seconds": 30,
+        "maximum_runtime_seconds": 900,
+        "graceful_stop_seconds": 30
+      }
+    }
+  ]
+}

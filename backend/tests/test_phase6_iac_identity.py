@@ -42,7 +42,7 @@ def test_service_identities_are_separate_and_assumable_only_by_ecs_tasks():
     text = _text()
 
     for identity in (
-        "api", "worker", "scheduler", "research", "migration", "backup",
+        "api", "worker", "scheduler", "research", "migration", "maintenance", "backup",
         "restore", "telemetry", "artifact-publisher",
     ):
         assert f'"{identity}"' in text

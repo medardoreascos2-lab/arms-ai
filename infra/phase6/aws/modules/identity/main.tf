@@ -5,6 +5,7 @@ locals {
     "scheduler",
     "research",
     "migration",
+    "maintenance",
     "backup",
     "restore",
     "telemetry",
