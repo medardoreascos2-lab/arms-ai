@@ -1,14 +1,15 @@
 {
   "branch": "product/premium-experience",
   "base": "a212582712292d8a0d19f45447067faa4f47f55e",
-  "head": "25e49bd3b8d1638153cd96e9c75a7e79f5771e68",
+  "head": "f81ca64958c93e2cd9921ddc6c0527ea139d9fe8",
   "head_semantics": "latest completed implementation commit; progress checkpoint commits may follow it",
   "milestones": [
     "P100A",
     "P100B",
     "P100C",
     "P101A",
-    "P101B"
+    "P101B",
+    "P101C"
   ],
   "commits": [
     {
@@ -35,6 +36,11 @@
       "milestone": "P101B",
       "hash": "25e49bd3b8d1638153cd96e9c75a7e79f5771e68",
       "subject": "feat: add medar premium visual language"
+    },
+    {
+      "milestone": "P101C",
+      "hash": "f81ca64958c93e2cd9921ddc6c0527ea139d9fe8",
+      "subject": "feat: add premium product ui primitives"
     }
   ],
   "tests": [
@@ -97,9 +103,19 @@
       "milestone": "P101B",
       "command": "eslint product components; node --test product contracts",
       "result": "passed; 4 tests"
+    },
+    {
+      "milestone": "P101C",
+      "command": "node --test productPresentation, productNavigation, homeDashboard",
+      "result": "6 passed"
+    },
+    {
+      "milestone": "P101C",
+      "command": "npm.cmd run build; eslint product primitives; tsc --noEmit",
+      "result": "passed"
     }
   ],
-  "frontend_status": "P100A-P101B complete; browser visual QA pending",
+  "frontend_status": "P100A-P101C complete; product Home preview uses shared UI primitives",
   "membership_status": "read-only product surface projection; no billing or execution authority",
   "billing_status": "not started",
   "analytics_status": "not started",
@@ -108,5 +124,5 @@
     "Product identity/read adapter and canonical access API are not wired; frontend paid surfaces remain planned.",
     "Browser visual QA unavailable: computer-use browser helper exited twice before opening localhost."
   ],
-  "next_milestone": "P101C"
+  "next_milestone": "P102A"
 }
