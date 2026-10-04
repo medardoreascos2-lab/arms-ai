@@ -1,11 +1,12 @@
 {
   "branch": "product/premium-experience",
   "base": "a212582712292d8a0d19f45447067faa4f47f55e",
-  "head": "e65738cfe722485f465307cead56f96caca26e1d",
+  "head": "6d91a5211777110018ebbf4ccfebdf0fbf3bf8d3",
   "head_semantics": "latest completed implementation commit; progress checkpoint commits may follow it",
   "milestones": [
     "P100A",
-    "P100B"
+    "P100B",
+    "P100C"
   ],
   "commits": [
     {
@@ -17,6 +18,11 @@
       "milestone": "P100B",
       "hash": "e65738cfe722485f465307cead56f96caca26e1d",
       "subject": "feat: add medar premium home dashboard contract"
+    },
+    {
+      "milestone": "P100C",
+      "hash": "6d91a5211777110018ebbf4ccfebdf0fbf3bf8d3",
+      "subject": "feat: add premium product role surfaces"
     }
   ],
   "tests": [
@@ -44,13 +50,30 @@
       "milestone": "P100B",
       "command": "tsc --noEmit and eslint home files",
       "result": "passed"
+    },
+    {
+      "milestone": "P100C",
+      "command": "python -m pytest backend/tests/test_product_surface.py backend/tests/test_membership_policy_foundation.py -q",
+      "result": "22 passed"
+    },
+    {
+      "milestone": "P100C",
+      "command": "node --test src/lib/productNavigation.test.mjs src/lib/homeDashboard.test.mjs",
+      "result": "4 passed"
+    },
+    {
+      "milestone": "P100C",
+      "command": "tsc --noEmit and eslint product files",
+      "result": "passed"
     }
   ],
-  "frontend_status": "P100A-P100B complete; Home sources unavailable",
-  "membership_status": "not started",
+  "frontend_status": "P100A-P100C contracts complete; product access API not wired",
+  "membership_status": "read-only product surface projection; no billing or execution authority",
   "billing_status": "not started",
   "analytics_status": "not started",
   "beta_status": "not started",
-  "blocked_items": [],
-  "next_milestone": "P100C"
+  "blocked_items": [
+    "Product identity/read adapter and canonical access API are not wired; frontend paid surfaces remain planned."
+  ],
+  "next_milestone": "P101A"
 }
