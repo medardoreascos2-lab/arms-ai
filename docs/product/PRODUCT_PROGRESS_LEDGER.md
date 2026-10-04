@@ -31,6 +31,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P104D Portfolio Guardian | Complete, local synthetic | Read-only value, allocation, concentration, drawdown, and alerts; mutation controls absent |
 | P105A Notification domain | Complete | Immutable tenant/user-scoped records, canonical categories/priorities/statuses, and no delivery authority |
 | P105B Notification store | Complete, local SQLite | Provider-neutral scoped store, idempotent append, safe state transitions, no delete or delivery operation |
+| P105C Notification preferences | Complete, local SQLite | Scoped category thresholds, quiet hours, critical override, six allowed channels, and no external sending |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
