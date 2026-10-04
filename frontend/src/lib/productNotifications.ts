@@ -8,8 +8,6 @@ export type NotificationAction = "read" | "acknowledge" | "snooze" | "dismiss";
 
 export type ProductNotification = Readonly<{
   notification_id: string;
-  user_id: string;
-  tenant_id: string;
   category: NotificationCategory;
   priority: NotificationPriority;
   title: string;
@@ -87,7 +85,7 @@ function validNotification(value: unknown): value is ProductNotification {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
   return typeof item.notification_id === "string"
-    && typeof item.user_id === "string" && typeof item.tenant_id === "string"
+    && !("user_id" in item) && !("tenant_id" in item)
     && categories.has(item.category as string)
     && priorities.has(item.priority as string)
     && statuses.has(item.status as string)

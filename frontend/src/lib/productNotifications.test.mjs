@@ -13,8 +13,6 @@ import {
 
 const notification = {
   notification_id: "synthetic-notification-1",
-  user_id: "synthetic-user-1",
-  tenant_id: "synthetic-tenant-1",
   category: "SECURITY",
   priority: "CRITICAL",
   title: "Synthetic security review",
@@ -98,4 +96,15 @@ test("local notification config is nonproduction and loopback only", () => {
   assert.equal(localNotificationEndpoint(
     "http://127.0.0.1:8000/", "notifications/id/send",
   ), null);
+});
+
+test("notification decoder rejects browser payloads containing scope identifiers", () => {
+  assert.equal(decodeNotificationInbox({
+    ...ready,
+    notifications: [{ ...notification, tenant_id: "leaked-tenant" }],
+  }).status, "NOTIFICATION_DATA_UNAVAILABLE");
+  assert.equal(decodeNotificationInbox({
+    ...ready,
+    notifications: [{ ...notification, user_id: "leaked-user" }],
+  }).status, "NOTIFICATION_DATA_UNAVAILABLE");
 });

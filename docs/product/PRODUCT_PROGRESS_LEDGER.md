@@ -69,6 +69,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P118A Synthetic new-user rehearsal | Complete | Trusted local session, explicit goals/memory consent, resumable onboarding, home/MEDAR/daily/trading/coach/portfolio routes, and scoped notifications rehearsed |
 | P118B Synthetic premium-user rehearsal | Complete | Trial/upgrade/downgrade/cancel/expire/resubscribe drives entitlements and quotas while provider and charge authority stay false |
 | P118C Degraded-flow rehearsal | Complete | Model, memory, financial, payment-provider, and network failures return null data, no authority, and truthful recovery actions |
+| P119A Frontend/Product security audit | Complete with documented limits | Unsafe-rendering, URL/scope, debug, secret, and telemetry review; browser notification scope identifiers removed and rejected |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 

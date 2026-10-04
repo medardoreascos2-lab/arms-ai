@@ -13,6 +13,10 @@ from backend.product.customer_session import CustomerSessionProvider
 from backend.product.notification_store import NotificationScope, ProductNotificationStore
 
 
+def _public_notification(item):
+    return item.model_dump(mode="json", exclude={"tenant_id", "user_id"})
+
+
 def _unavailable(status: str) -> JSONResponse:
     return JSONResponse({
         "status": status,
@@ -71,7 +75,7 @@ def create_local_test_product_notification_router(
         return {
             "status": "READY",
             "notifications": [
-                item.model_dump(mode="json") for item in items
+                _public_notification(item) for item in items
             ],
             "source_status": "LOCAL_TEST_ONLY",
             "external_delivery_authorized": False,
@@ -112,7 +116,7 @@ def create_local_test_product_notification_router(
             return _unavailable("NOTIFICATION_DATA_UNAVAILABLE")
         return {
             "status": "READY",
-            "notification": item.model_dump(mode="json"),
+            "notification": _public_notification(item),
             "source_status": "LOCAL_TEST_ONLY",
             "external_delivery_authorized": False,
             "financial_authority": False,

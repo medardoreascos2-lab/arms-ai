@@ -80,6 +80,8 @@ def test_inbox_get_is_scoped_read_only_and_reports_no_authority(tmp_path):
     assert [item["notification_id"] for item in body["notifications"]] == [
         "synthetic-notification-1",
     ]
+    assert "tenant_id" not in body["notifications"][0]
+    assert "user_id" not in body["notifications"][0]
     assert body["external_delivery_authorized"] is False
     assert body["financial_authority"] is False
     assert body["execution_authorized"] is False
