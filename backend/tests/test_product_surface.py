@@ -65,6 +65,8 @@ def test_all_product_tiers_use_canonical_read_only_dashboard_entitlement():
             decision = snapshot.decisions[surface]
             if surface in {ProductSurface.HOME, ProductSurface.MARKETS}:
                 assert decision.code == ProductDecisionCode.ALLOWED
+            elif surface == ProductSurface.MEDAR:
+                assert decision.code == ProductDecisionCode.SESSION_INVALID
             else:
                 assert decision.code == ProductDecisionCode.SURFACE_NOT_READY
         assert snapshot.canonical_admin_authorized is False
@@ -81,5 +83,6 @@ def test_unknown_inactive_and_unentitled_memberships_fail_closed():
 def test_admin_tier_requires_server_role_and_does_not_grant_admin_authority():
     snapshot = resolve_product_access(projection("ADMIN"))
     assert all(decision.code == ProductDecisionCode.ADMIN_ROLE_MISSING
-               for decision in snapshot.decisions.values())
+               for surface, decision in snapshot.decisions.items() if surface != ProductSurface.MEDAR)
+    assert snapshot.decisions[ProductSurface.MEDAR].code == ProductDecisionCode.ENTITLEMENT_REQUIRED
     assert snapshot.canonical_admin_authorized is False
