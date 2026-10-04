@@ -38,6 +38,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P106B Onboarding goals | Complete | Six optional explicit goals, confirmed-empty support, and no sensitive inference |
 | P106C Memory consent | Complete | Four explicit choices, unselected state preserved, and confirmation cannot be inferred or forced |
 | P106D Onboarding UI | Complete, local preview | Seven-step resumable flow, optional goals, explicit memory choice, and no forced consent |
+| P107A Profile preferences | Complete, local SQLite | Scoped display, language, timezone, theme, accessibility, response, and notification preferences |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
