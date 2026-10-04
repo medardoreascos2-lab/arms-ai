@@ -16,6 +16,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P102A11 UI test matrix | Complete | Send/loading state, response evidence, five degraded states, and network failure tested |
 | P102A12 final boundary document | Complete | End-to-end local test architecture and no legacy fallback documented |
 | P103A Daily Intelligence preview | UI shell complete; data integration pending | Read-only route and Home link with verified-source unavailable states |
+| P104-PRE1 customer financial scope | Complete | Immutable trusted-session scope; account and portfolio mutation authority fixed false |
 
 The local Product MEDAR route remains unavailable in the default ARMS API. The
 standalone preview binds to loopback and uses synthetic sessions and the canonical
