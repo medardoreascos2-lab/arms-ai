@@ -43,6 +43,7 @@ class FeatureEntitlement(str, Enum):
     SIGNALS = "SIGNALS"
     NOTIFICATIONS = "NOTIFICATIONS"
     TELEGRAM_TEST = "TELEGRAM_TEST"
+    MEDAR_CONVERSATION = "MEDAR_CONVERSATION"
 
 
 class DashboardAccess(str, Enum):
