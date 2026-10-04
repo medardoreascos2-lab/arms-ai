@@ -63,6 +63,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P114C AI limitations UX | Complete | MEDAR responses show confidence, uncertainty, model limitations, memory provenance, and a human-review recommendation |
 | P115 Degraded/recovery UX | Complete | Seven explicit degraded states expose retry/refresh/details/report actions and structurally prohibit fallback data substitution |
 | P116A Read-only Product admin | Complete, projection only | Aggregate beta count, membership states, feature usage, service health, and alerts with trading/financial mutation fixed false |
+| P116B Product support view | Complete, projection only | Explicitly authorized read-only account/membership/error/session metadata; conversation, memory, financial, and health content default denied |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
