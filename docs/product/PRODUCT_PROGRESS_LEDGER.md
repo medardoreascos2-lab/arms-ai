@@ -19,6 +19,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P104-PRE1 customer financial scope | Complete | Immutable trusted-session scope; account and portfolio mutation authority fixed false |
 | P104-PRE2 financial read provider | Complete | Provider-neutral protocol exposes nine GET-style observation methods only |
 | P104-PRE3 financial projections | Complete | Product-only trading, portfolio, coach, shadow, alert, and daily models require provenance and freshness |
+| P104-PRE4 synthetic financial provider | Complete | Deterministic NQ, MNQ, portfolio, coach, shadow, alert, and daily local fixtures |
 
 The local Product MEDAR route remains unavailable in the default ARMS API. The
 standalone preview binds to loopback and uses synthetic sessions and the canonical
