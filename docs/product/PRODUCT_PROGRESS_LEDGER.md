@@ -34,6 +34,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P105C Notification preferences | Complete, local SQLite | Scoped category thresholds, quiet hours, critical override, six allowed channels, and no external sending |
 | P105D Notification Center | Complete, local synthetic | Trusted-session inbox, filters, provenance, degraded states, and explicit status transitions; no external delivery |
 | P105E Notification safety matrix | Complete | Wrong tenant/user denied, critical state preserved, no external transport dependency, and all financial authority fixed false |
+| P106A Onboarding state | Complete, local SQLite | Durable scoped status/step record, resumable persistence, and optimistic version protection |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
