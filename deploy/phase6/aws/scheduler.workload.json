@@ -1,0 +1,88 @@
+{
+  "schema": "arms.phase6.aws.workload/v1",
+  "environment": "staging",
+  "provider": "aws",
+  "workload": {
+    "name": "scheduler",
+    "kind": "ecs-fargate-service",
+    "replicas": {
+      "desired": 2,
+      "minimum": 2,
+      "maximum": 2
+    },
+    "image": {
+      "uri": "{{REGISTRY_URL}}@{{IMAGE_DIGEST}}",
+      "digest_required": true,
+      "signature_required": true,
+      "scan_gate_required": true
+    },
+    "resources": {
+      "cpu_units": 256,
+      "memory_mib": 512,
+      "read_only_root_filesystem": true,
+      "run_as_non_root": true,
+      "linux_capabilities_drop": ["ALL"]
+    },
+    "network": {
+      "subnet_boundary": "private_workload",
+      "security_group_boundary": "worker",
+      "assign_public_ip": false,
+      "egress_to": ["private_postgresql", "private_aws_endpoints"]
+    },
+    "identity": {
+      "task_role_arn": "{{SCHEDULER_TASK_ROLE_ARN}}",
+      "execution_role_arn": "{{SCHEDULER_EXECUTION_ROLE_ARN}}",
+      "shared_role_allowed": false
+    },
+    "leader_election": {
+      "store": "postgresql",
+      "lease_table": "scheduler_leases",
+      "lease_scope": "environment-and-job-name",
+      "lease_seconds": 45,
+      "heartbeat_seconds": 15,
+      "acquire_timeout_seconds": 5,
+      "database_clock_required": true,
+      "monotonic_fencing_token_required": true,
+      "compare_and_swap_required": true,
+      "maximum_owners_per_job": 1,
+      "stale_owner_may_not_commit": true
+    },
+    "dispatch": {
+      "mode": "durable-outbox-only",
+      "direct_effects_allowed": false,
+      "idempotency_key": "environment:job_name:scheduled_at",
+      "duplicate_dispatch_allowed": false,
+      "jobs": [
+        {"name": "operational-health-snapshot", "queue": "maintenance", "enabled": true},
+        {"name": "backup-evidence-request", "queue": "operational-outbox", "enabled": true},
+        {"name": "research-expiration", "queue": "research", "enabled": false}
+      ]
+    },
+    "configuration": {
+      "ARMS_ENVIRONMENT": "staging",
+      "ARMS_SCHEDULER_MODE": "leader-election",
+      "ARMS_LOG_GROUP": "{{SCHEDULER_LOG_GROUP}}",
+      "ARMS_EXECUTION_AUTHORIZED": "false",
+      "ARMS_BROKER_ENABLED": "false",
+      "ARMS_PAPER_ENABLED": "false",
+      "ARMS_LIVE_ENABLED": "false",
+      "ARMS_PRODUCTION_MUTATION_AUTHORIZED": "false"
+    },
+    "secret_references": [
+      {"name": "ARMS_DATABASE_CREDENTIAL", "value_from": "{{APPLICATION_DATABASE_SECRET_ARN}}"}
+    ],
+    "health": {
+      "heartbeat_metric": "TelemetryHeartbeat",
+      "lease_loss_state": "READY_NON_OWNER",
+      "database_unavailable_state": "BLOCKED",
+      "secret_unavailable_state": "BLOCKED"
+    }
+  },
+  "authority": {
+    "broker": false,
+    "paper": false,
+    "live": false,
+    "production": false,
+    "financial_execution": false
+  }
+}
