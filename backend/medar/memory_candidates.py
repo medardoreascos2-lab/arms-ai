@@ -27,6 +27,10 @@ class CandidateImportance(str, Enum):
 _SECRET_PATTERN = re.compile(
     r"(?i)(?:password|api[_-]?key|access[_-]?token|auth(?:orization)?|private[_-]?key|secret)\s*[:=]|bearer\s+\S+|\b\d{9,}\b"
 )
+def has_secret_like_content(text: str) -> bool:
+    return bool(_SECRET_PATTERN.search(text))
+
+
 _USER_MARKERS = (
     (re.compile(r"(?i)^remember that\s+(.+)$"), "EXPLICIT_REMEMBER_REQUEST"),
     (re.compile(r"(?i)^i prefer\s+(.+)$"), "EXPLICIT_USER_PREFERENCE"),
@@ -124,7 +128,7 @@ class MemoryCandidateExtractor:
         normalized = " ".join(source.text.split())
         if len(normalized) > 1024:
             return CandidateExtraction((), ("SOURCE_TOO_LONG",))
-        if _SECRET_PATTERN.search(normalized):
+        if has_secret_like_content(normalized):
             return CandidateExtraction((), ("SECRET_LIKE_CONTENT",))
         markers = _USER_MARKERS if source.source_type is CandidateSourceType.USER_STATEMENT else _OUTCOME_MARKERS
         for pattern, reason in markers:
