@@ -43,6 +43,7 @@ Branch: `product/premium-experience`. Local commits only. No push.
 | P107C Security Center | Complete, read-only | Session/event/permission projections and future MFA/passkey seams; no auth or credential provisioning |
 | P108A Membership catalog | Complete | FREE/PRO/PREMIUM/ELITE catalog with configurable non-final prices and no purchase/payment authority |
 | P108B Membership entitlements | Complete | Backend-authoritative current feature mapping; future VOICE/VIDEO canonical but disabled from all plans |
+| P108C Membership usage limits | Complete | Configurable MEDAR/research/portfolio/notification/memory limits; future voice/video quotas unavailable |
 | P103 Daily Intelligence data contract | Complete, local synthetic | Same-origin GET proxy renders trusted daily projection or explicit unavailable state |
 | P104A Trading workspace | Complete, local synthetic | Read-only market, session, freshness, and risk views; execution controls absent |
 
