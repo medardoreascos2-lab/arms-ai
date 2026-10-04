@@ -3,3 +3,6 @@ uvicorn==0.51.0
 httpx==0.28.1
 pytest==9.1.1
 yfinance==1.5.1
+cryptography==50.0.2
+cffi==2.1.1
+pycparser==3.0

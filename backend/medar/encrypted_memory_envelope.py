@@ -11,7 +11,8 @@ import json
 from dataclasses import dataclass, field
 
 from backend.medar.durable_memory_encryption import (
-    DurableMemoryEncryptionProvider, EncryptedMemoryPayload, EphemeralTestMemoryEncryption,
+    AESGCMEphemeralMemoryEncryption, DurableMemoryEncryptionProvider,
+    EncryptedMemoryPayload, EphemeralTestMemoryEncryption,
 )
 from backend.medar.durable_memory_record import (
     DurableMemoryDomain, DurableMemoryRecord, DurableSensitivity,
@@ -138,19 +139,30 @@ class EncryptedMemoryEnvelope:
 def seal_memory_content(record: DurableMemoryRecord, provider: DurableMemoryEncryptionProvider) -> EncryptedMemoryEnvelope:
     if not isinstance(record, DurableMemoryRecord) or record.status is not MemoryLifecycle.ACTIVE:
         raise ValueError("active durable memory record is required")
-    if record.sensitivity in (DurableSensitivity.PERSONAL, DurableSensitivity.SENSITIVE, DurableSensitivity.HIGHLY_SENSITIVE):
-        raise PermissionError("sensitive durable encryption has no approved production provider")
-    if type(provider) is not EphemeralTestMemoryEncryption or provider.production_ready or not provider.local_test_only:
-        raise PermissionError("only the explicit local-test provider is available")
+    sensitive = record.sensitivity in (
+        DurableSensitivity.PERSONAL, DurableSensitivity.SENSITIVE,
+        DurableSensitivity.HIGHLY_SENSITIVE,
+    )
+    if type(provider) is AESGCMEphemeralMemoryEncryption:
+        if provider.production_ready or not provider.local_test_only or not provider.sensitive_local_development_ready:
+            raise PermissionError("AES-GCM development provider classification is invalid")
+    elif type(provider) is EphemeralTestMemoryEncryption:
+        if sensitive:
+            raise PermissionError("legacy test cipher cannot seal sensitive memory")
+        if provider.production_ready or not provider.local_test_only:
+            raise PermissionError("legacy test provider classification is invalid")
+    else:
+        raise PermissionError("approved memory encryption provider is required")
     if record.source_type != "synthetic_test":
-        raise PermissionError("local-test envelope requires synthetic record")
+        raise PermissionError("local encrypted envelope requires a synthetic record")
     metadata = _metadata_bytes(record.memory_id, record.owner_id, record.tenant_id, record.domain, record.sensitivity, record.version)
     payload = provider.encrypt(record.content.encode("utf-8"), associated_data=metadata)
     if not payload.authenticated or not payload.local_test_only:
-        raise PermissionError("local-test provider returned unapproved payload")
+        raise PermissionError("local provider returned unapproved payload")
     return EncryptedMemoryEnvelope(
         record.memory_id, record.owner_id, record.tenant_id, record.domain,
-        record.sensitivity, record.version, payload, record.content_hash,
+        record.sensitivity, record.version, payload,
+        None if sensitive else record.content_hash,
     )
 
 
@@ -171,10 +183,15 @@ def open_memory_content(
         or envelope.sensitivity is not sensitivity or envelope.version != version
     ):
         raise PermissionError("encrypted memory scope mismatch")
-    if envelope.sensitivity in (DurableSensitivity.PERSONAL, DurableSensitivity.SENSITIVE, DurableSensitivity.HIGHLY_SENSITIVE):
-        raise PermissionError("sensitive durable decryption is unavailable")
-    if type(provider) is not EphemeralTestMemoryEncryption or provider.production_ready:
-        raise PermissionError("only the explicit local-test provider is available")
+    sensitive = envelope.sensitivity in (
+        DurableSensitivity.PERSONAL, DurableSensitivity.SENSITIVE,
+        DurableSensitivity.HIGHLY_SENSITIVE,
+    )
+    if sensitive:
+        if type(provider) is not AESGCMEphemeralMemoryEncryption or provider.production_ready or not provider.sensitive_local_development_ready:
+            raise PermissionError("sensitive local decryption requires the AES-GCM development provider")
+    elif type(provider) not in (EphemeralTestMemoryEncryption, AESGCMEphemeralMemoryEncryption) or provider.production_ready:
+        raise PermissionError("approved local encryption provider is required")
     plaintext = provider.decrypt(envelope.payload, associated_data=envelope.associated_data())
     try:
         content = plaintext.decode("utf-8")

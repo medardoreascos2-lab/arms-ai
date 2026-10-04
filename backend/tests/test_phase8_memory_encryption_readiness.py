@@ -2,7 +2,10 @@
 
 import pytest
 
-from backend.medar.durable_memory_encryption import DisabledDurableMemoryEncryption, EphemeralTestMemoryEncryption
+from backend.medar.durable_memory_encryption import (
+    AESGCMEphemeralMemoryEncryption, DisabledDurableMemoryEncryption,
+    EphemeralTestMemoryEncryption,
+)
 from backend.medar.memory_encryption_readiness import EncryptionReadiness, assess_encryption_readiness
 
 
@@ -12,6 +15,15 @@ def test_disabled_and_ephemeral_provider_cannot_claim_production_readiness():
         readiness = assess_encryption_readiness(provider)
         assert readiness.status is EncryptionReadiness.LOCAL_TEST_ONLY
         assert readiness.local_synthetic_tests_allowed
+        assert not readiness.production_sensitive_writes_allowed
+
+
+def test_aesgcm_provider_is_ready_only_for_sensitive_local_development():
+    with AESGCMEphemeralMemoryEncryption(local_development_enabled=True) as provider:
+        readiness = assess_encryption_readiness(provider)
+        assert readiness.status is EncryptionReadiness.LOCAL_DEVELOPMENT_READY
+        assert readiness.local_synthetic_tests_allowed
+        assert readiness.sensitive_local_development_writes_allowed
         assert not readiness.production_sensitive_writes_allowed
 
 
