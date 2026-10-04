@@ -1,7 +1,9 @@
 export type HomeSectionId =
   | "DAILY_INTELLIGENCE" | "MARKET_STATUS" | "PORTFOLIO_HEALTH"
   | "TRADING_COACH" | "ALERTS" | "TASKS"
-  | "RECENT_MEDAR_ACTIVITY" | "MEMORY_HIGHLIGHTS" | "QUICK_ACTIONS";
+  | "RECENT_MEDAR_ACTIVITY" | "MEMORY_HIGHLIGHTS"
+  | "VOICE" | "CAMERA" | "AVATAR" | "PRESENCE" | "NOTIFICATIONS"
+  | "QUICK_ACTIONS";
 
 export type HomeSectionContent =
   | Readonly<{ state: "unavailable"; reason: string }>
@@ -30,12 +32,34 @@ export const initialHomeSections: readonly HomeSection[] = [
   { id: "TASKS", title: "Tasks", purpose: "What to review next", content: unavailable },
   { id: "RECENT_MEDAR_ACTIVITY", title: "Recent MEDAR activity", purpose: "Recent assistant work", content: unavailable },
   { id: "MEMORY_HIGHLIGHTS", title: "Memory highlights", purpose: "Relevant remembered context", content: unavailable },
+  { id: "VOICE", title: "Voice", purpose: "Push to talk and spoken responses", content: {
+    state: "unavailable",
+    reason: "Production speech recognition and speech output providers are not connected.",
+  } },
+  { id: "CAMERA", title: "Camera", purpose: "Explicit visual context sessions", content: {
+    state: "unavailable",
+    reason: "Camera access is off by default and no production vision provider is connected.",
+  } },
+  { id: "AVATAR", title: "Avatar", purpose: "Visual MEDAR presence", content: {
+    state: "unavailable",
+    reason: "Only the local placeholder avatar is available; production animation is not connected.",
+  } },
+  { id: "PRESENCE", title: "Presence", purpose: "Coarse session and device presence", content: {
+    state: "unavailable",
+    reason: "Distributed presence is modeled locally without a production device provider.",
+  } },
+  { id: "NOTIFICATIONS", title: "Notifications", purpose: "Consent-aware multimodal updates", content: {
+    state: "unavailable",
+    reason: "External notification delivery is not connected.",
+  } },
   { id: "QUICK_ACTIONS", title: "Quick actions", purpose: "Open existing market analysis", content: {
     state: "navigation",
     actions: [
       { label: "Onboarding", href: "/product/onboarding" },
       { label: "Daily Intelligence", href: "/product/daily-intelligence" },
       { label: "Shadow MEDAR", href: "/product/shadow-medar" },
+      { label: "Avatar preview", href: "/product/avatar" },
+      { label: "Multimodal settings", href: "/product/settings/multimodal" },
       { label: "Market analysis", href: "/market-analysis" },
     ],
   } },
