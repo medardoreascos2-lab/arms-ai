@@ -42,7 +42,8 @@
                        "D219":  "COMPLETE",
                        "D220":  "COMPLETE",
                        "D221":  "COMPLETE",
-                       "D222":  "COMPLETE"
+                       "D222":  "COMPLETE",
+                       "D223":  "COMPLETE"
                    },
     "commits":  {
                     "D200A":  "d6043d4",
@@ -84,7 +85,8 @@
                     "D219":  "6142aa4",
                     "D220":  "2d6f5ea",
                     "D221":  "cdf7ed0",
-                    "D222":  "CURRENT_BRANCH_HEAD"
+                    "D222":  "1cb300c",
+                    "D223":  "CURRENT_BRANCH_HEAD"
                 },
     "tests":  {
                   "D200A":  "2 passed",
@@ -126,7 +128,8 @@
                   "D219":  "2 passed",
                   "D220":  "2 passed",
                   "D221":  "2 passed",
-                  "D222":  "2 passed"
+                  "D222":  "2 passed",
+                  "D223":  "1 passed"
               },
     "voice_status":  "SYNTHETIC_MULTIROOM_ROUTING",
     "vision_status":  "LOCAL_PREVIEW_UI_PROVIDER_PENDING",
@@ -145,5 +148,5 @@
                                  "wearable_live_data",
                                  "emergency_dispatch"
                              ],
-    "next_milestone":  "D223"
+    "next_milestone":  "D224"
 }
