@@ -272,7 +272,8 @@ def run_adapter_integration(endpoint: str) -> dict[str, object]:
         tool_calls_required=False, structured_output_required=True, local_only=True,
         remote_allowed=False, maximum_cost=CostClass.FREE)
     invocation = ModelInvocation("phase8-5-local", MODEL_ID, ModelKind.LOCAL_LLM,
-        'Return JSON only: {"answer":"LOCAL_ONLY","safe":true}', {"answer": "string", "safe": "boolean"})
+        'Synthetic adapter conformance test. Copy exactly this JSON object and return nothing else: '
+        '{"answer":"LOCAL_ONLY","safe":true}', {"answer": "string", "safe": "boolean"})
     response = router.invoke(requirement, invocation)
     return {"health": health.readiness.value, "health_reason": health.reason,
         "ready": health.readiness is ModelReadiness.READY,

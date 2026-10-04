@@ -36,6 +36,8 @@ def test_ollama_health_requires_model_listing_and_successful_generation():
     result = provider.invoke(_invocation({"answer": "string"}))
     assert result.output == "OK" and result.external_call_performed is False
     assert fake.calls[-1][2]["format"] == "json"
+    assert fake.calls[-1][2]["think"] is False
+    assert fake.calls[-1][2]["options"] == {"num_ctx": 4096, "num_predict": 1024, "temperature": 0, "seed": 42}
     assert fake.calls[-1][2]["stream"] is False
 
 

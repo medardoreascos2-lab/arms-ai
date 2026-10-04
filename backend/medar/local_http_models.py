@@ -128,7 +128,8 @@ class OllamaModelProvider(_LocalHttpModel):
             "model": self.descriptor.model_id,
             "prompt": invocation.prompt,
             "stream": False,
-            "options": {"num_predict": 1024},
+            "think": False,
+            "options": {"num_ctx": self.descriptor.capabilities.context_length, "num_predict": 1024, "temperature": 0, "seed": 42},
         }
         if invocation.structured_output_schema is not None:
             payload["format"] = "json"
