@@ -60,3 +60,31 @@ test("Coach client uses the authorized same-origin GET surface", async () => {
   assert.deepEqual(calls, [["/api/product/financial/coach",
     { method: "GET", cache: "no-store", credentials: "same-origin" }]]);
 });
+
+const shadow = {
+  status: "READY",
+  provenance: { source_id: "shadow-1", source_label: "Synthetic shadow fixture",
+    classification: "SYNTHETIC", observed_at: "2026-10-04T12:00:00Z",
+    freshness_seconds: 0, source_status: "SYNTHETIC" },
+  warnings: ["SYNTHETIC LOCAL_TEST_ONLY NOT_REAL_ACCOUNT_DATA"],
+  investment_advice: false, execution_authorized: false,
+  portfolio_mutation_authorized: false, source_status: "SYNTHETIC",
+  summary: "Synthetic shadow analysis.", confidence: 0.5,
+  evidence: ["Synthetic NQ range fixture"],
+};
+
+test("Shadow MEDAR projection preserves confidence, evidence, and false authority", () => {
+  const value = decodeFinancialResponse(shadow);
+  assert.equal(isFinancialProjection(value), true);
+  assert.equal(value.confidence, 0.5);
+  assert.deepEqual(value.evidence, ["Synthetic NQ range fixture"]);
+  assert.equal(value.execution_authorized, false);
+});
+
+test("Shadow MEDAR client uses only the same-origin GET surface", async () => {
+  const calls = [];
+  await requestProductFinancial("shadow", async (url, init) => {
+    calls.push([url, init]); return { ok: true, json: async () => shadow };
+  });
+  assert.deepEqual(calls.map(([url]) => url), ["/api/product/financial/shadow"]);
+});

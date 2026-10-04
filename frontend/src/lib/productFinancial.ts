@@ -19,6 +19,7 @@ export type ProductFinancialProjection = Readonly<{
   source_status: "AVAILABLE" | "SYNTHETIC" | "UNKNOWN";
   headline?: string | null; instrument?: "NQ" | "MNQ" | "UNKNOWN";
   strengths?: readonly string[]; review_items?: readonly string[];
+  evidence?: readonly string[];
   market_state?: string; risk_state?: string; session_state?: string; data_freshness?: string;
   total_value?: string | number | null; cash?: string | number | null;
   concentration?: string; risk?: string; drawdown?: string | number | null;

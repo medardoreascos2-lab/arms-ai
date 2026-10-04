@@ -34,6 +34,7 @@ export const initialHomeSections: readonly HomeSection[] = [
     state: "navigation",
     actions: [
       { label: "Daily Intelligence", href: "/product/daily-intelligence" },
+      { label: "Shadow MEDAR", href: "/product/shadow-medar" },
       { label: "Market analysis", href: "/market-analysis" },
     ],
   } },

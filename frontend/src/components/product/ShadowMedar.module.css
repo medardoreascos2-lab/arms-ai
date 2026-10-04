@@ -1,0 +1,4 @@
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.summary { color: var(--foreground); line-height: 1.65; }
+.evidence { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+.badges { display: flex; flex-wrap: wrap; gap: 0.5rem; }
