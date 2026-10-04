@@ -121,3 +121,14 @@ def test_memory_context_requires_provenance_and_cannot_appear_on_degraded_respon
     with pytest.raises(ValidationError):
         ProductMedarResponse(request_id="request-1", status=ProductMedarStatus.MEMORY_UNAVAILABLE,
                              memory_context=body["memory_context"])
+
+
+def test_degraded_response_rejects_reasoning_and_evidence():
+    for field, value in (
+        ("reasoning_summary", "Unsupported explanation"),
+        ("sources", ({"source_id": "s1", "title": "Report", "locator": "report:1"},)),
+        ("memory_evidence", ({"evidence_id": "m1", "summary": "Preference", "digest": "abc"},)),
+    ):
+        with pytest.raises(ValidationError):
+            ProductMedarResponse(request_id="request-1",
+                                 status=ProductMedarStatus.MEDAR_UNAVAILABLE, **{field: value})

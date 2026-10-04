@@ -36,3 +36,14 @@ test("response decoder preserves supported evidence and rejects fabricated degra
   assert.equal(fabricated.answer, null);
   assert.equal(degradedResponse("r1", "SESSION_INVALID").answer, null);
 });
+
+
+test("degraded response decoder discards reasoning and evidence claims", () => {
+  const response = decodeMedarResponse({
+    request_id: "r1", status: "MODEL_UNAVAILABLE",
+    reasoning_summary: "Invented",
+    sources: [{ source_id: "s1", title: "Invented", locator: "x" }],
+  }, "r1");
+  assert.equal(response.reasoning_summary, null);
+  assert.deepEqual(response.sources, []);
+});

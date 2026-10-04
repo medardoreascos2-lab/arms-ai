@@ -89,7 +89,9 @@ export function decodeMedarResponse(value: unknown, requestId: string): ProductM
   } else if (item.answer != null || item.confidence != null || (
     (Array.isArray(item.action_proposals) && item.action_proposals.length > 0)
     || (Array.isArray(item.follow_up_suggestions) && item.follow_up_suggestions.length > 0)
-    || (Array.isArray(item.memory_context) && item.memory_context.length > 0)
+    || item.reasoning_summary != null
+    || ["sources", "tool_evidence", "memory_evidence", "memory_context"].some(
+      (key) => Array.isArray(item[key]) && item[key].length > 0)
     || ["why_not", "risks", "data_used", "what_would_change_the_view"].some(
       (key) => Array.isArray(item[key]) && item[key].length > 0)
   )) {

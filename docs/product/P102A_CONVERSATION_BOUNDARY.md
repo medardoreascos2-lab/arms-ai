@@ -1,19 +1,27 @@
-# P102A MEDAR conversation integration boundary
+# P102A Product MEDAR conversation boundary
 
-Status: P102A1 contract and P102A2 local synthetic customer-session boundary implemented. Product MEDAR remains local test only. No production authentication provider is connected, and the Product route is not registered by the default application.
+Status: P102A1-P102A12 complete for a local synthetic test. Production customer authentication and a production MEDAR model provider are not connected. The default ARMS API does not mount the Product MEDAR route.
 
-## Trusted session
+## Request path
 
-`backend.product.customer_session` defines an immutable UTC customer session and a provider-neutral validation and identity-resolution contract. The only implementation is `LocalSyntheticSessionProvider`, which accepts synthetic identifiers, deterministic fixtures, expiring sessions, and revocation. It carries `LOCAL_TEST_ONLY` source and assurance and `SYNTHETIC_FIXTURE` authentication method. It has no passwords, cookie secrets, external network, or customer account creation.
+1. The Product UI at `/product/medar` sends a bounded message to the same-origin `/api/product/medar` proxy. The browser does not supply user identity, tenant, entitlement, or session authority.
+2. The Next proxy is available only when `PRODUCT_MEDAR_LOCAL_TEST_ENABLED=true` in a nonproduction environment. It accepts only the Product prompt fields, rejects caller identity fields, and forwards only to a configured loopback Product MEDAR URL. The synthetic session ID is server-side configuration.
+3. The separate Product MEDAR API mounts only with explicit LOCAL or TEST configuration and a `LocalSyntheticSessionProvider`. It checks the loopback peer, trusted customer session, tenant and role consistency, matching active membership, MEDAR entitlement, runtime readiness, and per-plan usage before constructing an invocation.
+4. The Product MEDAR adapter creates a conservative canonical request with tools, web, and memory disabled. The local runtime calls the existing `MedarCognitiveCore` and rejects action execution, external model use, memory results, and tool or memory evidence.
+5. The adapter projects the canonical `CognitiveResponse` into the Product response. The UI renders its answer, confidence, evidence, warnings, and explicit degraded status. Trust sections and memory context appear only when supported by response data.
 
-The session provider is the only source for Product MEDAR user, tenant, session, roles, and entitlements. A session ID supplied in the local test header is only a lookup key. Directly constructed or modified session objects are rejected unless they are the current provider-owned instance.
+In short: Product UI -> same-origin Product proxy -> Product MEDAR API -> trusted customer session -> Product MEDAR adapter -> canonical MEDAR runtime -> canonical MEDAR response.
 
-## Product access
+## Authority and failure behavior
 
-`MEDAR_CONVERSATION` is the canonical entitlement. Product MEDAR is `AVAILABLE_LOCAL_TEST` only with a valid trusted local session, matching active membership, entitlement in both session and membership projection, and an injected MEDAR runtime. Other Product surfaces keep their existing decisions. No Product access decision grants admin, broker, PAPER, or LIVE authority.
+`LOCAL_TEST_ONLY` sessions use synthetic identifiers, deterministic fixtures, expiry, and revocation. The local header is a lookup key, not an identity assertion. Caller-supplied user, tenant, and session fields fail prompt validation. The active membership and session must independently include `MEDAR_CONVERSATION`.
 
-## Local test API
+A denied request returns a degraded response before MEDAR invocation. Expired or revoked sessions, wrong tenant, spoofed identity, missing entitlement, inactive membership, disabled local test, unavailable MEDAR or model, and exceeded usage limits are tested for zero downstream invocation. Degraded responses cannot carry an answer, confidence, action proposal, follow-up suggestion, trust claim, or memory context.
 
-`create_local_test_product_medar_router` constructs a loopback-only router for explicit local mounting. The default application does not mount it. The route accepts only the bounded Product prompt schema; caller user, tenant, and session fields fail validation. A denied request returns an explicit degraded status before constructing or invoking a MEDAR request. An allowed request passes provider-derived scope in `ProductMedarInvocation` and uses a conservative canonical MEDAR request with web, tool, and memory flags disabled. The legacy `/ai/copilot` route remains separate.
+The current UI conversation exists only in browser component state. It has no durable memory write. The memory panel marks preferences, goals, decisions, and project context unavailable when the response lacks verified evidence-linked metadata. The trust panel omits absent explanation sections. Action proposals, when supplied by a response, remain `PROPOSED_ONLY`; the UI cannot execute them.
 
-The runtime is injected. No production provider, external auth endpoint, production MEDAR availability, or UI send control is claimed. The P102A3 onward roadmap was not present in this worktree's Product documentation, so further milestones require their specific contract before implementation.
+The legacy `/ai/copilot` endpoint is separate. There is no fallback from the Product MEDAR route to `/ai/copilot` or any other route. Product conversation and read-only views cannot create broker orders, PAPER or LIVE positions, protections, or portfolio/account mutations.
+
+## Local verification and limits
+
+The local preview uses `tools/run_product_medar_local_test.py` with the synthetic provider and deterministic canonical core on loopback. The frontend requires explicit local-test environment settings. No production auth provider, payment processor, broker authority, PAPER authority, or LIVE authority is connected. The deterministic core preview is not evidence of a production model integration. Browser DOM automation and real customer-session recovery remain separate future validation work.

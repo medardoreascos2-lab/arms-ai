@@ -137,6 +137,8 @@ class ProductMedarResponse(BaseModel):
             or self.action_proposals or self.follow_up_suggestions
             or self.why_not or self.risks or self.data_used
             or self.what_would_change_the_view or self.memory_context
+            or self.reasoning_summary is not None or self.sources
+            or self.tool_evidence or self.memory_evidence
         ):
             raise ValueError("degraded Product MEDAR responses cannot contain an answer or proposals")
         return self
