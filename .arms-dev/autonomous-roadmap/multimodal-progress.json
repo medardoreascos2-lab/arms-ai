@@ -4,15 +4,18 @@
     "head":  "CURRENT_BRANCH_HEAD",
     "milestones":  {
                        "D200A":  "COMPLETE",
-                       "D200B":  "COMPLETE"
+                       "D200B":  "COMPLETE",
+                       "D200C":  "COMPLETE"
                    },
     "commits":  {
                     "D200A":  "d6043d4",
-                    "D200B":  "CURRENT_BRANCH_HEAD"
+                    "D200B":  "f47bc8a",
+                    "D200C":  "CURRENT_BRANCH_HEAD"
                 },
     "tests":  {
                   "D200A":  "2 passed",
-                  "D200B":  "2 passed"
+                  "D200B":  "2 passed",
+                  "D200C":  "2 passed"
               },
     "voice_status":  "NOT_STARTED",
     "vision_status":  "NOT_STARTED",
@@ -31,5 +34,5 @@
                                  "wearable_live_data",
                                  "emergency_dispatch"
                              ],
-    "next_milestone":  "D200C"
+    "next_milestone":  "D201A"
 }
