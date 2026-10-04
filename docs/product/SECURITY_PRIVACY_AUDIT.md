@@ -19,3 +19,6 @@ Limitations:
 - This is source and automated-contract review, not a penetration test or third-party dependency audit.
 - Legacy dashboard code outside Product Track C retains its existing configuration and credential paths and was not changed here.
 - Browser security headers and deployment CSP depend on the eventual hosting environment and require integration validation.
+## P119B Entitlement bypass
+
+Attempted direct route access, frontend plan and entitlement headers, and request-body plan, tenant, user, session, and entitlement spoofing against the Product MEDAR boundary. The backend denied every attempt before cognitive invocation. Existing financial authorization regressions separately prove that forged account/portfolio references, mismatched tenants/users/sessions, inactive memberships, and missing entitlements cause zero data-provider calls.
