@@ -14,3 +14,5 @@
 .results dd { margin: var(--product-space-2) 0 0; }
 .privacy { margin: 0; font-size: var(--product-text-sm); }
 @media (max-width: 640px) { .header { flex-direction: column; } }
+
+@media (prefers-reduced-motion: reduce) { .panel * { scroll-behavior: auto; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; } }
