@@ -30,12 +30,10 @@ export const initialHomeSections: readonly HomeSection[] = [
   { id: "TASKS", title: "Tasks", purpose: "What to review next", content: unavailable },
   { id: "RECENT_MEDAR_ACTIVITY", title: "Recent MEDAR activity", purpose: "Recent assistant work", content: unavailable },
   { id: "MEMORY_HIGHLIGHTS", title: "Memory highlights", purpose: "Relevant remembered context", content: unavailable },
-  { id: "QUICK_ACTIONS", title: "Quick actions", purpose: "Open existing analysis tools", content: {
+  { id: "QUICK_ACTIONS", title: "Quick actions", purpose: "Open existing market analysis", content: {
     state: "navigation",
     actions: [
       { label: "Market analysis", href: "/market-analysis" },
-      { label: "Trading dashboard", href: "/dashboard-v2" },
-      { label: "Portfolio tools", href: "/" },
     ],
   } },
 ];

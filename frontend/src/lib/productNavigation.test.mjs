@@ -10,7 +10,7 @@ test("product navigation contains every primary area once", () => {
 
 test("only implemented routes are linked and future areas stay out of navigation", () => {
   const linked = linkedNavigation();
-  assert.deepEqual(linked.map((entry) => entry.href), ["/product", "/market-analysis", "/dashboard-v2", "/"]);
+  assert.deepEqual(linked.map((entry) => entry.href), ["/product", "/market-analysis"]);
   assert.ok(primaryNavigation.every((entry) => entry.availability === "available" ? Boolean(entry.href) : entry.href === undefined));
   assert.ok(futureProductAreas.every((area) => !linked.some((entry) => entry.id === area.id)));
 });
