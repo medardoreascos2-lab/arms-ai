@@ -134,6 +134,13 @@ No guard or configuration changed in Phase 8.5D.
 An initial cold 9B diagnostic was excluded from final evidence because its
 preload allocation ramp was mixed into the scored stability window.
 
+The final 9B v2 raw report was emitted immediately before the harness separated
+functional quality from runtime resource stability. Its legacy derived
+`functional_quality_gate` field is therefore `FAIL` because `runtime_stable` is
+false. The Phase 8.5D comparison generator recomputes the quality gate from the
+unchanged per-case category, profile, schema, factual, safety, and adapter
+evidence, all of which pass. Resource stability remains separately classified as
+`RESOURCE_PASS_WITH_MARGIN_WARNING`.
 ## Tests
 
 - Focused Phase 8.5 benchmark and comparison tests: 25 passed.
