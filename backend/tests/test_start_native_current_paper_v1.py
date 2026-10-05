@@ -84,6 +84,7 @@ def _offline_wiring(
     service = SimpleNamespace(shutdown=lambda: events.append("service_shutdown"),l1_reader=object())
     shared = []
     bound = _Socket(events)
+    monkeypatch.setattr(launcher, '_restrict_directory', lambda path: None)
     monkeypatch.setenv(args.admin_token_env, "test-only-secret")
     for name in PRIVATE_FRONTEND_MARKERS:
         monkeypatch.setenv(name, "SHOULD_NOT_LEAK")

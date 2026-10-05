@@ -6,16 +6,22 @@ preactivation lifecycle seam. It never enables PAPER automatically.
 """
 
 import argparse
+from copy import deepcopy
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
+from math import isfinite
 import os
 from pathlib import Path
 from secrets import compare_digest
 import socket
 from threading import Thread
 import time
+import urllib.request
 
+from backend.backtesting.controller_paper_enable_command_v1 import (
+    ControllerPaperEnableCommandV1,
+)
 from backend.backtesting.certified_current_paper_authority_factory_v1 import (
     _unique,
     create_certified_current_paper_service_v1,
@@ -23,12 +29,119 @@ from backend.backtesting.certified_current_paper_authority_factory_v1 import (
 from backend.backtesting.native_current_paper_lifecycle_v1 import (
     NativeCurrentPaperLifecycleV1,
 )
+from backend.services.sim_native_authority_v3 import _restrict_directory
+
+
+def _authenticated_paper_command(*, port, token, command):
+    '''Call only the existing loopback authenticated PAPER control endpoint.'''
+    if command not in ('enable', 'disable'):
+        raise ValueError('CONTROLLER_PAPER_COMMAND_NOT_ALLOWED')
+    request = urllib.request.Request(
+        f'http://127.0.0.1:{port}/api/v2/paper/{command}',
+        data=b'', method='POST', headers={'X-ARMS-ADMIN-TOKEN': token})
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(request, timeout=3) as response:
+        raw = response.read(4 * 1024 * 1024 + 1)
+        if response.status != 200 or len(raw) > 4 * 1024 * 1024:
+            raise RuntimeError('CURRENT_PAPER_CONTROL_FAILED')
+    value = json.loads(raw.decode('utf-8'))
+    if type(value) is not dict:
+        raise RuntimeError('CURRENT_PAPER_CONTROL_RESPONSE_INVALID')
+    return value
+
+
+def _controller_paper_readiness(*, lifecycle, service, expected_session,
+                                native_spec_path, reviewed_spec_sha256):
+    '''Fresh, fail-closed readiness used only immediately before PAPER enable.'''
+    statuses = {key: 'BLOCKED' for key in (
+        'NATIVE_SPEC', 'NEWS', 'CATCHUP', 'LIVE_STREAM', 'L1', 'ANALYSIS',
+        'SESSION_LINEAGE')}
+    try:
+        current_spec = Path(native_spec_path).read_bytes()
+        if (type(reviewed_spec_sha256) is str
+                and len(reviewed_spec_sha256) == 64
+                and compare_digest(sha256(current_spec).hexdigest(),
+                                   reviewed_spec_sha256)):
+            statuses['NATIVE_SPEC'] = 'PASS'
+    except OSError:
+        pass
+    try:
+        snapshot = lifecycle.check()
+        runtime = lifecycle.analysis_runtime
+        adapter = runtime.adapter
+        coordinator = snapshot.get('coordinator') or {}
+        bridge = coordinator.get('bridge') or {}
+        if (runtime.phase == 'AWAITING_OPERATOR_ACTIVATION'
+                and runtime.reason is None and adapter.reason is None):
+            statuses['ANALYSIS'] = 'PASS'
+        if (runtime.bootstrap_replacement_count == 1
+                and runtime.bootstrap is adapter.bootstrap):
+            statuses['CATCHUP'] = 'PASS_CERTIFIED'
+        if (snapshot.get('worker_alive') is True
+                and snapshot.get('status') == 'LIVE'
+                and coordinator.get('status') == 'LIVE'
+                and coordinator.get('source_adapter_status') == 'LIVE_TAIL'
+                and bridge.get('status') == 'LIVE'):
+            statuses['LIVE_STREAM'] = 'PASS'
+        if (expected_session is not None and adapter.session == expected_session
+                and bridge.get('source_session') == expected_session):
+            statuses['SESSION_LINEAGE'] = 'PASS'
+    except (ValueError, RuntimeError, TypeError, AttributeError):
+        pass
+
+    authority = service.entry_authority
+    if authority is not None:
+        try:
+            now = service.gate.clock()
+            news = authority.news.inspect(symbol='NQ', timestamp=now)
+            if news.get('status') == 'CERTIFIED_CLEAR' and news.get('blocked') is False:
+                statuses['NEWS'] = 'PASS'
+        except (ValueError, RuntimeError, TypeError, AttributeError, OSError):
+            pass
+        try:
+            view, quote = authority.l1.inspect()
+            bid = None if quote is None else quote.get('bid')
+            ask = None if quote is None else quote.get('ask')
+            if (view.get('status') == 'FRESH' and quote is not None
+                    and view.get('provider') == 'Provider31'
+                    and view.get('contract') == 'NQ DEC26'
+                    and view.get('instrument') == 'NQ'
+                    and quote.get('symbol') == 'NQ'
+                    and type(bid) in (int, float) and not isinstance(bid, bool)
+                    and type(ask) in (int, float) and not isinstance(ask, bool)
+                    and isfinite(bid) and isfinite(ask) and 0 < bid <= ask
+                    and type(view.get('quote_age_seconds')) in (int, float)
+                    and 0 <= view['quote_age_seconds']
+                    <= authority.settings.maximum_quote_age_seconds
+                    and ask - bid <= authority.settings.maximum_spread_points):
+                statuses['L1'] = 'PASS'
+        except (ValueError, RuntimeError, TypeError, AttributeError, OSError):
+            pass
+
+    paper = service.get_snapshot()
+    reasons = paper.get('readiness_reasons')
+    if type(reasons) is not list:
+        reasons = ['READINESS_INVALID']
+    if paper.get('paper_execution_enabled') is not False:
+        reasons = list(dict.fromkeys(reasons + ['PAPER_ALREADY_ENABLED']))
+    config_hash = paper.get('config_hash')
+    policy = paper.get('effective_policy')
+    safety_identity = ((config_hash, deepcopy(policy))
+                       if type(config_hash) is str and type(policy) is dict
+                       else None)
+    return {
+        'statuses': statuses,
+        'readiness_blockers': list(reasons),
+        '_safety_identity': safety_identity,
+    }
 
 
 class _PaperApiLifecycleV1:
     """Close worker/coordinator, then PAPER API, before analysis runtime."""
 
-    def __init__(self, *, analysis_runtime, service, server, bound_socket, clock):
+    def __init__(self, *, analysis_runtime, service, server, bound_socket, clock,
+                 command_directory, command_run_id, paper_port, admin_token,
+                 native_spec_path, reviewed_spec_sha256):
         self.lifecycle = NativeCurrentPaperLifecycleV1(
             analysis_runtime=analysis_runtime,
             service=service,
@@ -39,6 +152,23 @@ class _PaperApiLifecycleV1:
         self.bound_socket = bound_socket
         self.thread = None
         self.closed = False
+        expected_session = analysis_runtime.adapter.preactivation_session
+        self.command_channel = ControllerPaperEnableCommandV1(
+            run_id=command_run_id,
+            directory=command_directory,
+            clock=clock,
+            readiness_provider=lambda: _controller_paper_readiness(
+                lifecycle=self.lifecycle, service=service,
+                expected_session=expected_session,
+                native_spec_path=native_spec_path,
+                reviewed_spec_sha256=reviewed_spec_sha256),
+            enable_call=lambda: _authenticated_paper_command(
+                port=paper_port, token=admin_token, command='enable'),
+            disable_call=lambda: _authenticated_paper_command(
+                port=paper_port, token=admin_token, command='disable'),
+            fail_closed_call=service.shutdown,
+            restrict_directory=_restrict_directory,
+        )
 
     def start(self):
         self.lifecycle.start()
@@ -52,6 +182,9 @@ class _PaperApiLifecycleV1:
         deadline = time.monotonic() + 10.0
         while time.monotonic() < deadline:
             if self.server.started and self.thread.is_alive():
+                self.command_channel.start()
+                print('PAPER_ENABLE_COMMAND_CHANNEL='
+                      + str(self.command_channel.directory), flush=True)
                 return
             if not self.thread.is_alive():
                 break
@@ -60,6 +193,7 @@ class _PaperApiLifecycleV1:
 
     def check(self):
         self.lifecycle.check()
+        self.command_channel.check()
         if self.thread is None or not self.thread.is_alive() or not self.server.started:
             raise RuntimeError("PAPER_API_LOST")
 
@@ -69,7 +203,10 @@ class _PaperApiLifecycleV1:
         self.closed = True
         worker_error = None
         try:
-            self.lifecycle.close()
+            try:
+                self.command_channel.close()
+            finally:
+                self.lifecycle.close()
         except BaseException as error:
             worker_error = error
         finally:
@@ -174,6 +311,12 @@ def run_current_paper(args):
                 server=server,
                 bound_socket=bound,
                 clock=clock,
+                command_directory=namespace / 'controller-command-v1',
+                command_run_id=namespace.name,
+                paper_port=args.paper_port,
+                admin_token=token,
+                native_spec_path=args.native_spec,
+                reviewed_spec_sha256=args.native_spec_sha256,
             )
             return owner
 
