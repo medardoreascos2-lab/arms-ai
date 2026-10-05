@@ -93,6 +93,34 @@ def write_capture(
         seal
     )
 
+    states = (
+        "WAITING_FOR_LIVE_HELLO",
+        "LIVE_HELLO_ACCEPTED",
+        "ALIGNMENT_BAR_CAPTURED",
+        "WAITING_FOR_SECOND_BAR_ADVANCE",
+        "CAPTURE_STARTED",
+        "CAPTURE_BODY_WRITTEN",
+        "CAPTURE_SEAL_WRITTEN",
+        "CAPTURE_COMPLETE",
+    )
+    lifecycle = b"".join(
+        json.dumps(
+            {
+                "schema": "arms.nt.chart-catchup.lifecycle.v1",
+                "sequence": sequence,
+                "event_time": f"2026-09-21T22:02:{sequence:02d}.0000000Z",
+                "state": state,
+                "reason": None,
+                "observation_only": True,
+                "runtime_admission": False,
+                "execution_authority": False,
+            },
+            separators=(",", ":"),
+        ).encode("utf-8") + b"\n"
+        for sequence, state in enumerate(states)
+    )
+    (capture / "catchup-lifecycle.jsonl").write_bytes(lifecycle)
+
 
 def test_prepare_request_dynamic_mode_uses_latest_closed_sentinel(
     tmp_path,

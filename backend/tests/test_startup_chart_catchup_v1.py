@@ -6,6 +6,7 @@ from datetime import (
     timezone,
 )
 from hashlib import sha256
+import json
 from pathlib import Path
 from uuid import uuid4
 
@@ -87,6 +88,8 @@ def prepared(tmp_path):
 def write_capture(
     capture,
     labels=None,
+    *,
+    lifecycle=True,
 ):
     body, seal = bridge_evidence(
         successful_labels()
@@ -119,7 +122,59 @@ def write_capture(
         seal
     )
 
+    if lifecycle:
+        write_lifecycle(
+            capture,
+            EXPLICIT_LIFECYCLE,
+        )
+
     return body_path, seal_path
+
+
+EXPLICIT_LIFECYCLE = (
+    "WAITING_FOR_LIVE_HELLO",
+    "CAPTURE_STARTED",
+    "CAPTURE_BODY_WRITTEN",
+    "CAPTURE_SEAL_WRITTEN",
+    "CAPTURE_COMPLETE",
+)
+
+
+SUCCESSFUL_LIFECYCLE = (
+    "WAITING_FOR_LIVE_HELLO",
+    "LIVE_HELLO_ACCEPTED",
+    "ALIGNMENT_BAR_CAPTURED",
+    "WAITING_FOR_SECOND_BAR_ADVANCE",
+    "CAPTURE_STARTED",
+    "CAPTURE_BODY_WRITTEN",
+    "CAPTURE_SEAL_WRITTEN",
+    "CAPTURE_COMPLETE",
+)
+
+
+def lifecycle_bytes(states=SUCCESSFUL_LIFECYCLE):
+    return b"".join(
+        json.dumps(
+            {
+                "schema": "arms.nt.chart-catchup.lifecycle.v1",
+                "sequence": sequence,
+                "event_time": f"2026-09-21T22:02:{sequence:02d}.0000000Z",
+                "state": state,
+                "reason": None,
+                "observation_only": True,
+                "runtime_admission": False,
+                "execution_authority": False,
+            },
+            separators=(",", ":"),
+        ).encode("utf-8") + b"\n"
+        for sequence, state in enumerate(states)
+    )
+
+
+def write_lifecycle(capture, states=SUCCESSFUL_LIFECYCLE):
+    (capture / "catchup-lifecycle.jsonl").write_bytes(
+        lifecycle_bytes(states)
+    )
 
 
 def test_request_derives_reviewed_session_boundaries(
@@ -558,12 +613,50 @@ def test_capture_status_accepts_only_productive_writer_lifecycle(
         seal
     )
 
+    write_lifecycle(capture)
+
     assert (
         capture_status(
             capture
         )
         == "READY"
     )
+
+
+def test_body_and_seal_without_lifecycle_are_rejected(tmp_path):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    write_capture(capture, lifecycle=False)
+
+    with pytest.raises(
+        ValueError,
+        match="STARTUP_CATCHUP_LIFECYCLE_INCOMPLETE",
+    ):
+        capture_status(capture)
+
+
+@pytest.mark.parametrize(
+    "diagnostic",
+    (
+        b"",
+        lifecycle_bytes()[:20],
+        lifecycle_bytes(SUCCESSFUL_LIFECYCLE[:-1]),
+    ),
+)
+def test_body_and_seal_without_complete_lifecycle_record_are_rejected(
+    tmp_path,
+    diagnostic,
+):
+    capture = tmp_path / "capture"
+    capture.mkdir()
+    write_capture(capture, lifecycle=False)
+    (capture / "catchup-lifecycle.jsonl").write_bytes(diagnostic)
+
+    with pytest.raises(
+        ValueError,
+        match="STARTUP_CATCHUP_LIFECYCLE_INCOMPLETE",
+    ):
+        capture_status(capture)
 
 
 @pytest.mark.parametrize(
@@ -690,6 +783,8 @@ def test_await_capture_checks_guard_and_returns_only_ready(
     seal_path.write_bytes(
         seal
     )
+
+    write_lifecycle(capture)
 
     calls = []
 

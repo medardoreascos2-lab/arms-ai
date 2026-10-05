@@ -192,6 +192,19 @@ def test_overlapping_active_replacement_fails_closed(tmp_path):
     _assert_blocked(adapter)
 
 
+def test_timing_seal_cannot_replace_predecessor_without_termination(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    predecessor = _write_session(inbox, hello_second=0)
+    assert adapter.validate_preactivation_buffer("TEST_LINEAGE") == predecessor
+    _write_timing_seal(inbox, predecessor, canonical_records=1)
+    _write_session(inbox, hello_second=2)
+
+    adapter.poll()
+
+    _assert_blocked(adapter)
+    assert adapter.preactivation_lineage_sessions == (predecessor,)
+
+
 def test_replacement_after_activation_allowance_fails_closed(tmp_path):
     adapter, inbox, _ = new_adapter(tmp_path)
     predecessor = _write_session(inbox, hello_second=0)

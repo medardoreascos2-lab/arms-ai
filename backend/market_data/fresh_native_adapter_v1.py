@@ -295,7 +295,7 @@ class FreshNativeAdapterV1:
         raw = local_path(canonical).read_bytes()
         require(0 < len(raw) <= MAX_FILE and raw.endswith(b'\n'), reason)
         lines = raw.splitlines()
-        require(bool(lines), reason)
+        require(len(lines) >= 2, reason)
         rows = [parse(line) for line in lines]
         for sequence, row in enumerate(rows):
             require(

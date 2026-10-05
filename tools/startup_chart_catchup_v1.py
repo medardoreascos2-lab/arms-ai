@@ -390,10 +390,7 @@ def _lifecycle_status(path):
     if not raw:
         return None
     if not raw.endswith(b"\n"):
-        complete = raw.rfind(b"\n")
-        if complete < 0:
-            return None
-        raw = raw[:complete + 1]
+        return None
     rows = [
         parse(line)
         for line in raw.splitlines()
@@ -588,12 +585,10 @@ def capture_status(
             "STARTUP_CATCHUP_FINAL_SEAL_STATE",
         )
 
-        if (
-            lifecycle is not None
-            and lifecycle
-            != "CAPTURE_COMPLETE"
-        ):
-            return "SEALING"
+        require(
+            lifecycle == "CAPTURE_COMPLETE",
+            "STARTUP_CATCHUP_LIFECYCLE_INCOMPLETE",
+        )
 
         return "READY"
 
