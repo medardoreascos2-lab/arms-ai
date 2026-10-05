@@ -803,7 +803,11 @@ def run(args, lifecycle_factory=None):
                     is not None
                     and runtime.adapter.preactivation_session
                     == quarantined_session
-                    and quarantined_session
+                    and getattr(
+                        runtime.adapter,
+                        'preactivation_lineage_root',
+                        quarantined_session,
+                    )
                     == live_session,
                     'STARTUP_CATCHUP_WAITING_LOST',
                 )

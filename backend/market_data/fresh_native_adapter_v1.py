@@ -16,13 +16,28 @@ from backend.market_data.analysis_time_profile_v1 import MarketAnalysisTimeProfi
 from backend.market_data.certified_bootstrap_v1 import CertifiedBootstrap
 from backend.market_data.exporter_identity_v1 import verify_exporter_source
 from tools.native_timing_witness_v1 import IDENTITY, check_pair, ticks, qpc_pair
-from tools.production_timing_v1 import PAIR_FIELDS, parse
+from tools.production_timing_v1 import PAIR_FIELDS, SEAL_FIELDS, parse
 
 MAX_FILE = 32 * 1024 * 1024
 MAX_L1_FILE = 256 * 1024 * 1024
 CHUNK = 65536
 MAX_LINE = 16384
 MAX_QUEUE = 1024
+
+PREACTIVATION_HELLO_PAYLOAD = {
+    'provider': 'Provider31',
+    'contract': 'NQ DEC26',
+    'expiry': '2026-12-01',
+    'instrument': 'NQ',
+    'tick_size': .25,
+    'point_value': 20,
+    'timeframe': '1m',
+    'trading_hours_template': 'CME US Index Futures ETH',
+    'source_timezone': 'UTC',
+    'bar_label': 'CLOSE',
+    'realtime': True,
+    'read_only': True,
+}
 
 
 class WindowsQpc:
@@ -197,6 +212,9 @@ class FreshNativeAdapterV1:
             self.directory.iterdir()
         )
         self.preactivation_session = None
+        self.preactivation_lineage_root = None
+        self.preactivation_lineage_sessions = ()
+        self.preactivation_transition_pending = False
         self.preactivation_identities = {}
         self.timing_identity = None
         self.bootstrap = bootstrap
@@ -207,270 +225,286 @@ class FreshNativeAdapterV1:
         info = local_path(self.directory).stat()
         return info.st_dev, info.st_ino
 
+    @staticmethod
+    def _preactivation_session_from_name(name, suffix, reason):
+        require(name.endswith(suffix), reason)
+        value = name[:-len(suffix)]
+        try:
+            valid = str(UUID(value)) == value
+        except (ValueError, TypeError, AttributeError):
+            valid = False
+        require(valid, reason)
+        return value
+
+    def _preactivation_identity_key(self, path):
+        return str(local_path(path).relative_to(self.directory)).replace('\\', '/')
+
+    def _pin_preactivation_path(self, path, present, reason, *, directory=False):
+        value = local_path(path)
+        info = value.stat()
+        require(info.st_ino, reason)
+        if directory:
+            require(value.is_dir(), reason)
+        else:
+            require(value.is_file() and info.st_size <= MAX_FILE, reason)
+        key = self._preactivation_identity_key(value)
+        identity = (info.st_dev, info.st_ino)
+        prior = self.preactivation_identities.get(key)
+        require(prior is None or prior == identity, reason)
+        if prior is None:
+            self.preactivation_identities[key] = identity
+        present.add(key)
+
+    @staticmethod
+    def _validate_preactivation_hello(row, session, reason):
+        require(
+            set(row) == set('schema session sequence event_time kind payload'.split())
+            and row['schema'] == 'arms.nt.market.v1'
+            and row['session'] == session
+            and type(row['sequence']) is int
+            and row['sequence'] == 0
+            and row['kind'] == 'HELLO'
+            and row['payload'] == PREACTIVATION_HELLO_PAYLOAD,
+            reason,
+        )
+        ticks(row['event_time'])
+        return row
+
+    def _read_preactivation_hello(self, path, session, reason):
+        value = local_path(path)
+        require(value.stat().st_size <= MAX_FILE, reason)
+        with value.open('rb') as handle:
+            raw = handle.readline(MAX_LINE + 1)
+        require(len(raw) <= MAX_LINE, reason)
+        if not raw.endswith(b'\n'):
+            return None
+        return self._validate_preactivation_hello(
+            parse(raw[:-1] if not raw.endswith(b'\r\n') else raw[:-2]),
+            session,
+            reason,
+        )
+
+    def _validate_closed_predecessor(
+        self,
+        session,
+        canonical,
+        timing,
+        seals,
+        reason,
+    ):
+        raw = local_path(canonical).read_bytes()
+        require(0 < len(raw) <= MAX_FILE and raw.endswith(b'\n'), reason)
+        lines = raw.splitlines()
+        require(bool(lines), reason)
+        rows = [parse(line) for line in lines]
+        for sequence, row in enumerate(rows):
+            require(
+                set(row) == set('schema session sequence event_time kind payload'.split())
+                and row['schema'] == 'arms.nt.market.v1'
+                and row['session'] == session
+                and type(row['sequence']) is int
+                and row['sequence'] == sequence,
+                reason,
+            )
+            ticks(row['event_time'])
+            if sequence == 0:
+                self._validate_preactivation_hello(row, session, reason)
+            elif sequence == len(rows) - 1:
+                require(
+                    row['kind'] == 'DISCONNECTED'
+                    and row['payload'] == {
+                        'connected': False,
+                        'reason': 'TERMINATED',
+                        'error_code': 'NONE',
+                    },
+                    reason,
+                )
+            else:
+                require(row['kind'] in ('HEARTBEAT', 'CLOSED', 'FORMING'), reason)
+
+        require(session in timing and session in seals, reason)
+        sidecar_raw = local_path(timing[session]).read_bytes()
+        require(len(sidecar_raw) <= MAX_FILE, reason)
+        if sidecar_raw:
+            require(sidecar_raw.endswith(b'\n'), reason)
+            timing_records = len(sidecar_raw.splitlines())
+        else:
+            timing_records = 0
+
+        seal_raw = local_path(seals[session]).read_bytes()
+        require(0 < len(seal_raw) <= 4096, reason)
+        seal = parse(seal_raw)
+        require(
+            set(seal) == SEAL_FIELDS
+            and seal['schema'] == 'arms.nt.production-timing.seal.v1'
+            and seal['session'] == session
+            and all(type(seal[key]) is int for key in (
+                'records', 'bytes', 'canonical_records',
+            ))
+            and seal['records'] == timing_records
+            and seal['bytes'] == len(sidecar_raw)
+            and seal['sha256'] == sha256(sidecar_raw).hexdigest()
+            and seal['canonical_records'] == len(rows)
+            and seal['canonical_writer_closed'] is True
+            and seal['timing_writer_closed'] is True
+            and seal['complete'] is True,
+            reason,
+        )
+        return rows[-1]
+
     def validate_preactivation_buffer(
         self,
         reason="INPUT_BEFORE_ACTIVATION_ALLOWANCE",
     ):
-        """Validate and pin one runtime-local session without consuming it."""
+        """Validate one logical preactivation lineage without consuming it."""
         with self.lock:
-            require(
-                type(reason) is str
-                and bool(reason),
-                "PREACTIVATION_BUFFER_REASON",
-            )
+            require(type(reason) is str and bool(reason), "PREACTIVATION_BUFFER_REASON")
+            require(self._directory_identity() == self.root_identity, reason)
 
-            require(
-                self._directory_identity()
-                == self.root_identity,
-                reason,
-            )
-
-            entries = tuple(
-                self.directory.iterdir()
-            )
-
-            # If anything exists pre-activation, this adapter
-            # must have observed the directory empty at construction.
+            entries = tuple(self.directory.iterdir())
             if entries:
-                require(
-                    self.preactivation_root_empty,
-                    reason,
-                )
+                require(self.preactivation_root_empty, reason)
 
-            sessions = set()
-            canonical = []
-            connections = []
-            timing = []
+            canonical = {}
+            connections = {}
+            timing = {}
+            seals = {}
             present = set()
 
-            def session_from_name(
-                name,
-                suffix,
-            ):
-                require(
-                    name.endswith(suffix),
-                    reason,
-                )
-
-                value = name[
-                    : -len(suffix)
-                ]
-
-                try:
-                    valid = (
-                        str(UUID(value))
-                        == value
-                    )
-                except (
-                    ValueError,
-                    TypeError,
-                    AttributeError,
-                ):
-                    valid = False
-
-                require(
-                    valid,
-                    reason,
-                )
-
-                sessions.add(
-                    value
-                )
-
-                return value
-
-            def pin(
-                key,
-                path,
-                *,
-                directory=False,
-            ):
-                value = local_path(
-                    path
-                )
-
-                info = value.stat()
-
-                require(
-                    info.st_ino,
-                    reason,
-                )
-
-                if directory:
-                    require(
-                        value.is_dir(),
-                        reason,
-                    )
-                else:
-                    require(
-                        value.is_file()
-                        and info.st_size
-                        <= MAX_FILE,
-                        reason,
-                    )
-
-                identity = (
-                    info.st_dev,
-                    info.st_ino,
-                )
-
-                prior = (
-                    self.preactivation_identities
-                    .get(key)
-                )
-
-                require(
-                    prior is None
-                    or prior == identity,
-                    reason,
-                )
-
-                if prior is None:
-                    self.preactivation_identities[
-                        key
-                    ] = identity
-
-                present.add(
-                    key
-                )
-
             for raw_entry in entries:
-                if (
-                    raw_entry.name
-                    == "timing"
-                ):
-                    folder = local_path(
-                        raw_entry
-                    )
-
-                    pin(
-                        "timing_directory",
+                if raw_entry.name == 'timing':
+                    folder = local_path(raw_entry)
+                    self._pin_preactivation_path(
                         folder,
+                        present,
+                        reason,
                         directory=True,
                     )
-
-                    for raw_sidecar in (
-                        folder.iterdir()
-                    ):
-                        sidecar = local_path(
-                            raw_sidecar
-                        )
-
-                        require(
-                            sidecar.is_file(),
-                            reason,
-                        )
-
-                        session_from_name(
-                            sidecar.name,
-                            ".production-timing.jsonl",
-                        )
-
-                        timing.append(
-                            sidecar
-                        )
-
-                        pin(
-                            "timing",
-                            sidecar,
-                        )
-
+                    for raw_sidecar in folder.iterdir():
+                        sidecar = local_path(raw_sidecar)
+                        require(sidecar.is_file(), reason)
+                        if sidecar.name.endswith('.production-timing.jsonl.done.json'):
+                            session = self._preactivation_session_from_name(
+                                sidecar.name,
+                                '.production-timing.jsonl.done.json',
+                                reason,
+                            )
+                            require(session not in seals, reason)
+                            seals[session] = sidecar
+                        elif sidecar.name.endswith('.production-timing.jsonl'):
+                            session = self._preactivation_session_from_name(
+                                sidecar.name,
+                                '.production-timing.jsonl',
+                                reason,
+                            )
+                            require(session not in timing, reason)
+                            timing[session] = sidecar
+                        else:
+                            raise ValueError(reason)
+                        self._pin_preactivation_path(sidecar, present, reason)
                     continue
 
-                entry = local_path(
-                    raw_entry
-                )
-
-                require(
-                    entry.is_file(),
-                    reason,
-                )
-
-                if entry.name.endswith(
-                    ".connection.jsonl"
-                ):
-                    session_from_name(
+                entry = local_path(raw_entry)
+                require(entry.is_file(), reason)
+                if entry.name.endswith('.connection.jsonl'):
+                    session = self._preactivation_session_from_name(
                         entry.name,
-                        ".connection.jsonl",
+                        '.connection.jsonl',
+                        reason,
                     )
-
-                    connections.append(
-                        entry
-                    )
-
-                    pin(
-                        "connection",
-                        entry,
-                    )
-
-                elif entry.name.endswith(
-                    ".jsonl"
-                ):
-                    session_from_name(
+                    require(session not in connections, reason)
+                    connections[session] = entry
+                elif entry.name.endswith('.jsonl'):
+                    session = self._preactivation_session_from_name(
                         entry.name,
-                        ".jsonl",
+                        '.jsonl',
+                        reason,
                     )
-
-                    canonical.append(
-                        entry
-                    )
-
-                    pin(
-                        "canonical",
-                        entry,
-                    )
-
+                    require(session not in canonical, reason)
+                    canonical[session] = entry
                 else:
-                    raise ValueError(
-                        reason
-                    )
+                    raise ValueError(reason)
+                self._pin_preactivation_path(entry, present, reason)
 
+            for key in self.preactivation_identities:
+                require(key in present, reason)
+
+            sessions = set(canonical)
             require(
-                len(canonical) <= 1
-                and len(connections) <= 1
-                and len(timing) <= 1
-                and len(sessions) <= 1,
+                set(connections).issubset(sessions)
+                and set(timing).issubset(sessions)
+                and set(seals).issubset(sessions)
+                and len(sessions) <= 2,
                 reason,
             )
 
-            # Once a file/directory has been pinned during the
-            # preactivation window, disappearance is mutation.
-            for key in (
-                self.preactivation_identities
-            ):
-                require(
-                    key in present,
-                    reason,
-                )
-
             if not sessions:
-                require(
-                    self.preactivation_session
-                    is None,
-                    reason,
-                )
-
+                require(self.preactivation_lineage_root is None, reason)
                 return None
 
-            session = next(
-                iter(sessions)
-            )
-
-            if (
-                self.preactivation_session
-                is None
-            ):
-                self.preactivation_session = (
-                    session
-                )
+            if self.preactivation_lineage_root is None:
+                require(len(sessions) == 1, reason)
+                root = next(iter(sessions))
+                hello = self._read_preactivation_hello(canonical[root], root, reason)
+                if hello is None:
+                    return None
+                self.preactivation_lineage_root = root
+                self.preactivation_lineage_sessions = (root,)
+                self.preactivation_session = root
             else:
+                root = self.preactivation_lineage_root
+                require(root in sessions, reason)
+
+            if len(sessions) == 1:
                 require(
-                    session
-                    == self.preactivation_session,
+                    sessions == {root}
+                    and self.preactivation_lineage_sessions == (root,),
                     reason,
                 )
+                self.preactivation_transition_pending = False
+                return root
 
-            return session
+            replacement = next(iter(sessions - {root}))
+            terminal = self._validate_closed_predecessor(
+                root,
+                canonical[root],
+                timing,
+                seals,
+                reason,
+            )
+            hello = self._read_preactivation_hello(
+                canonical[replacement],
+                replacement,
+                reason,
+            )
+
+            if hello is None:
+                require(
+                    self.preactivation_lineage_sessions == (root,)
+                    and self.activation_start is None
+                    and self.bootstrap_replacement_count == 0,
+                    reason,
+                )
+                self.preactivation_transition_pending = True
+                return root
+
+            require(ticks(terminal['event_time']) < ticks(hello['event_time']), reason)
+
+            lineage = (root, replacement)
+            if self.preactivation_lineage_sessions == (root,):
+                require(
+                    self.activation_start is None
+                    and self.bootstrap_replacement_count == 0,
+                    reason,
+                )
+                self.preactivation_lineage_sessions = lineage
+                self.preactivation_session = replacement
+            else:
+                require(self.preactivation_lineage_sessions == lineage, reason)
+                require(self.preactivation_session == replacement, reason)
+
+            self.preactivation_transition_pending = False
+            return replacement
 
     def _preactivation_startup_cursor(
         self,
@@ -500,7 +534,11 @@ class FreshNativeAdapterV1:
 
         prior = (
             self.preactivation_identities
-            .get(key)
+            .get(
+                self._preactivation_identity_key(
+                    value
+                )
+            )
         )
 
         # If the file existed before activation, its exact file
@@ -538,6 +576,11 @@ class FreshNativeAdapterV1:
                 'BOOTSTRAP_REPLACEMENT_STATE',
             )
             self.validate_preactivation_buffer(
+                'BOOTSTRAP_REPLACEMENT_NOT_FRESH',
+            )
+
+            require(
+                not self.preactivation_transition_pending,
                 'BOOTSTRAP_REPLACEMENT_NOT_FRESH',
             )
 
@@ -604,6 +647,11 @@ class FreshNativeAdapterV1:
             )
 
             require(
+                not self.preactivation_transition_pending,
+                'LIVE_HANDOFF_ARM_INPUT_NOT_FRESH',
+            )
+
+            require(
                 self._directory_identity()
                 == self.root_identity,
                 'LIVE_HANDOFF_ARM_INPUT_NOT_FRESH',
@@ -617,6 +665,10 @@ class FreshNativeAdapterV1:
             require(self.health_gated and self.activation_start is None and self.status == 'WAITING'
                     and self.session is None, 'ACTIVATION_REENTRY_OR_INVALID_STATE')
             self.validate_preactivation_buffer(
+                'ACTIVATION_INPUT_NOT_FRESH',
+            )
+            require(
+                not self.preactivation_transition_pending,
                 'ACTIVATION_INPUT_NOT_FRESH',
             )
             require(
@@ -669,13 +721,44 @@ class FreshNativeAdapterV1:
                 'INPUT_BEFORE_ACTIVATION_ALLOWANCE',
             )
             return
-        candidates = sorted(p for p in self.directory.glob('*.jsonl') if not p.name.endswith('.connection.jsonl'))
-        require(len(candidates) <= 1, 'SESSION_ROTATION')
-        if not candidates:
-            require(self.market is None, 'MARKET_FILE_REMOVED')
-            require(now-self.activation_start <= self.startup_ticks, 'ACTIVATION_TIMEOUT')
-            return
-        path = candidates[0]
+
+        lineage_session = None
+        if (
+            self.health_gated
+            and self.preactivation_root_empty
+            and self.preactivation_lineage_root is not None
+        ):
+            lineage_session = self.validate_preactivation_buffer(
+                'SESSION_ROTATION',
+            )
+            require(
+                lineage_session is not None
+                and lineage_session == self.preactivation_session
+                and not self.preactivation_transition_pending,
+                'SESSION_ROTATION',
+            )
+
+        candidates = sorted(
+            p for p in self.directory.glob('*.jsonl')
+            if not p.name.endswith('.connection.jsonl')
+        )
+
+        if lineage_session is not None:
+            require(
+                {path.stem for path in candidates}
+                == set(self.preactivation_lineage_sessions),
+                'SESSION_ROTATION',
+            )
+            path = self.directory / (lineage_session + '.jsonl')
+            require(path in candidates, 'SESSION_ROTATION')
+        else:
+            require(len(candidates) <= 1, 'SESSION_ROTATION')
+            if not candidates:
+                require(self.market is None, 'MARKET_FILE_REMOVED')
+                require(now-self.activation_start <= self.startup_ticks, 'ACTIVATION_TIMEOUT')
+                return
+            path = candidates[0]
+
         session = path.stem
         require(str(UUID(session)) == session, 'SESSION_FILENAME')
         require(self.session is None or session == self.session, 'SESSION_ROTATION')
@@ -700,7 +783,18 @@ class FreshNativeAdapterV1:
             require(self.timing_identity is None or self.timing_identity == identity, 'TIMING_DIRECTORY_REPLACED')
             self.timing_identity = identity
             files = list(folder.glob('*.production-timing.jsonl'))
-            require(all(p.name == session+'.production-timing.jsonl' for p in files), 'SIDECAR_SESSION_ROTATION')
+            if lineage_session is not None:
+                require(
+                    {self._preactivation_session_from_name(
+                        p.name,
+                        '.production-timing.jsonl',
+                        'SIDECAR_SESSION_ROTATION',
+                    ) for p in files}
+                    .issubset(set(self.preactivation_lineage_sessions)),
+                    'SIDECAR_SESSION_ROTATION',
+                )
+            else:
+                require(all(p.name == session+'.production-timing.jsonl' for p in files), 'SIDECAR_SESSION_ROTATION')
             sidecar = folder/(session+'.production-timing.jsonl')
             if sidecar.exists() and self.timing is None:
                 self.timing = _Tail(

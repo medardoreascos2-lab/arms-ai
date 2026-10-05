@@ -42,6 +42,7 @@ from tools.certify_chart_catchup_v1 import (
 )
 from tools.production_timing_v1 import (
     parse,
+    ticks,
 )
 
 
@@ -52,6 +53,30 @@ REQUEST_SCHEMA = (
 MINUTE = timedelta(
     minutes=1
 )
+
+LIFECYCLE_NAME = "catchup-lifecycle.jsonl"
+LIFECYCLE_STATES = {
+    "WAITING_FOR_LIVE_HELLO",
+    "LIVE_HELLO_ACCEPTED",
+    "ALIGNMENT_BAR_CAPTURED",
+    "WAITING_FOR_SECOND_BAR_ADVANCE",
+    "CAPTURE_STARTED",
+    "CAPTURE_VALIDATION_FAILED",
+    "CAPTURE_BODY_WRITTEN",
+    "CAPTURE_SEAL_WRITTEN",
+    "CAPTURE_COMPLETE",
+    "CAPTURE_FAILED",
+}
+LIFECYCLE_FIELDS = {
+    "schema",
+    "sequence",
+    "event_time",
+    "state",
+    "reason",
+    "observation_only",
+    "runtime_admission",
+    "execution_authority",
+}
 
 
 def _utc(value):
@@ -356,6 +381,111 @@ def prepare_request(
     return request
 
 
+def _lifecycle_status(path):
+    raw = local_path(path).read_bytes()
+    require(
+        len(raw) <= 64 * 1024,
+        "STARTUP_CATCHUP_LIFECYCLE_TRUNCATED",
+    )
+    if not raw:
+        return None
+    if not raw.endswith(b"\n"):
+        complete = raw.rfind(b"\n")
+        if complete < 0:
+            return None
+        raw = raw[:complete + 1]
+    rows = [
+        parse(line)
+        for line in raw.splitlines()
+    ]
+    require(
+        0 < len(rows) <= 32,
+        "STARTUP_CATCHUP_LIFECYCLE_RECORDS",
+    )
+    transitions = {
+        "WAITING_FOR_LIVE_HELLO": {
+            "LIVE_HELLO_ACCEPTED",
+            "CAPTURE_STARTED",
+            "CAPTURE_VALIDATION_FAILED",
+        },
+        "LIVE_HELLO_ACCEPTED": {
+            "ALIGNMENT_BAR_CAPTURED",
+            "CAPTURE_VALIDATION_FAILED",
+        },
+        "ALIGNMENT_BAR_CAPTURED": {
+            "WAITING_FOR_SECOND_BAR_ADVANCE",
+            "CAPTURE_VALIDATION_FAILED",
+        },
+        "WAITING_FOR_SECOND_BAR_ADVANCE": {
+            "CAPTURE_STARTED",
+            "CAPTURE_VALIDATION_FAILED",
+        },
+        "CAPTURE_STARTED": {
+            "CAPTURE_BODY_WRITTEN",
+            "CAPTURE_VALIDATION_FAILED",
+        },
+        "CAPTURE_BODY_WRITTEN": {
+            "CAPTURE_SEAL_WRITTEN",
+            "CAPTURE_VALIDATION_FAILED",
+        },
+        "CAPTURE_SEAL_WRITTEN": {
+            "CAPTURE_COMPLETE",
+            "CAPTURE_VALIDATION_FAILED",
+        },
+        "CAPTURE_VALIDATION_FAILED": {
+            "CAPTURE_FAILED",
+        },
+    }
+
+    previous = None
+    for sequence, row in enumerate(rows):
+        require(
+            set(row) == LIFECYCLE_FIELDS
+            and row.get("schema")
+            == "arms.nt.chart-catchup.lifecycle.v1"
+            and type(row.get("sequence")) is int
+            and row["sequence"] == sequence
+            and row.get("state") in LIFECYCLE_STATES
+            and row.get("observation_only") is True
+            and row.get("runtime_admission") is False
+            and row.get("execution_authority") is False,
+            "STARTUP_CATCHUP_LIFECYCLE_SCHEMA",
+        )
+        ticks(row["event_time"])
+        failed = row["state"] in {
+            "CAPTURE_VALIDATION_FAILED",
+            "CAPTURE_FAILED",
+        }
+        require(
+            (failed and type(row.get("reason")) is str and bool(row["reason"]))
+            or (not failed and row.get("reason") is None),
+            "STARTUP_CATCHUP_LIFECYCLE_REASON",
+        )
+        if previous is None:
+            require(
+                row["state"]
+                == "WAITING_FOR_LIVE_HELLO",
+                "STARTUP_CATCHUP_LIFECYCLE_INITIAL_STATE",
+            )
+        else:
+            require(
+                row["state"]
+                in transitions.get(
+                    previous,
+                    set(),
+                ),
+                "STARTUP_CATCHUP_LIFECYCLE_TRANSITION",
+            )
+        previous = row["state"]
+
+    if previous == "CAPTURE_FAILED":
+        raise ValueError(
+            "STARTUP_CATCHUP_CAPTURE_FAILED"
+        )
+
+    return previous
+
+
 def capture_status(
     capture_directory,
 ):
@@ -407,10 +537,30 @@ def capture_status(
         )
     ]
 
+    diagnostics = [
+        path
+        for path in entries
+        if path.name == LIFECYCLE_NAME
+    ]
+
+    require(
+        len(diagnostics) <= 1,
+        "STARTUP_CATCHUP_LIFECYCLE_COUNT",
+    )
+
+    lifecycle = (
+        None
+        if not diagnostics
+        else _lifecycle_status(
+            diagnostics[0]
+        )
+    )
+
     allowed = set(
         bodies
         + seals
         + temporaries
+        + diagnostics
     )
 
     require(
@@ -437,6 +587,13 @@ def capture_status(
             ),
             "STARTUP_CATCHUP_FINAL_SEAL_STATE",
         )
+
+        if (
+            lifecycle is not None
+            and lifecycle
+            != "CAPTURE_COMPLETE"
+        ):
+            return "SEALING"
 
         return "READY"
 
@@ -618,12 +775,20 @@ def _capture_files(
         "STARTUP_CATCHUP_SEAL_NAME",
     )
 
+    diagnostics = {
+        path
+        for path in entries
+        if path.name == LIFECYCLE_NAME
+    }
+
     require(
         set(entries)
         == {
             body,
             seal,
-        },
+        }
+        | diagnostics
+        and len(diagnostics) <= 1,
         "STARTUP_CATCHUP_EXTRA_EVIDENCE",
     )
 

@@ -15,11 +15,21 @@ namespace NinjaTrader.NinjaScript.Indicators
 {
     public class ArmsChartCatchupBridgeV1 : Indicator
     {
+        private const int MaxLiveFileBytes = 32 * 1024 * 1024;
+        private const string LifecycleFileName = "catchup-lifecycle.jsonl";
+
         private readonly object sync = new object();
 
         private bool attempted;
         private bool terminal;
+        private bool liveHelloAccepted;
         private int liveAlignmentBar = -1;
+        private string liveLineageRootSession;
+        private string liveLineageLeafSession;
+        private FileStream lifecycleStream;
+        private StreamWriter lifecycleWriter;
+        private int lifecycleSequence;
+        private string lifecycleState;
 
         [NinjaScriptProperty]
         [Display(
@@ -96,15 +106,6 @@ namespace NinjaTrader.NinjaScript.Indicators
                 && CaptureEnabled
             )
             {
-                if (
-                    String.Equals(
-                        ThroughCloseUtc,
-                        "LATEST_CLOSED",
-                        StringComparison.Ordinal
-                    )
-                )
-                    return;
-
                 lock (sync)
                 {
                     if (
@@ -113,39 +114,53 @@ namespace NinjaTrader.NinjaScript.Indicators
                     )
                         return;
 
-                    attempted = true;
-
                     try
                     {
-                        Capture();
+                        OpenLifecycle();
 
-                        terminal = true;
+                        RecordLifecycle(
+                            "WAITING_FOR_LIVE_HELLO",
+                            null
+                        );
 
-                        try
-                        {
-                            Print(
-                                "ARMS_CHART_CATCHUP_BRIDGE_COMPLETE"
-                            );
-                        }
-                        catch
-                        {
-                        }
+                        if (
+                            String.Equals(
+                                ThroughCloseUtc,
+                                "LATEST_CLOSED",
+                                StringComparison.Ordinal
+                            )
+                        )
+                            return;
+
+                        attempted = true;
+                        ExecuteCapture();
                     }
                     catch (Exception error)
                     {
-                        terminal = true;
-
-                        try
-                        {
-                            Print(
-                                "ARMS_CHART_CATCHUP_BRIDGE_FAILED_"
-                                + ErrorCode(error)
-                            );
-                        }
-                        catch
-                        {
-                        }
+                        FailCapture(
+                            ErrorCode(error),
+                            false
+                        );
                     }
+                }
+            }
+            else if (State == State.Terminated)
+            {
+                lock (sync)
+                {
+                    if (
+                        CaptureEnabled
+                        && !terminal
+                        && lifecycleWriter != null
+                    )
+                    {
+                        FailCapture(
+                            "INDICATOR_TERMINATED",
+                            false
+                        );
+                    }
+
+                    CloseLifecycle();
                 }
             }
         }
@@ -174,6 +189,219 @@ namespace NinjaTrader.NinjaScript.Indicators
                 return "INVALID_ARGUMENT";
 
             return "OTHER";
+        }
+
+        private void OpenLifecycle()
+        {
+            if (lifecycleWriter != null)
+                return;
+
+            string output =
+                LocalDirectory(
+                    OutputDirectory,
+                    true
+                );
+
+            string path =
+                Path.Combine(
+                    output,
+                    LifecycleFileName
+                );
+
+            lifecycleStream =
+                new FileStream(
+                    path,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.Read,
+                    4096,
+                    FileOptions.WriteThrough
+                );
+
+            lifecycleWriter =
+                new StreamWriter(
+                    lifecycleStream,
+                    new UTF8Encoding(false)
+                );
+
+            lifecycleWriter.NewLine = "\n";
+            lifecycleWriter.AutoFlush = true;
+        }
+
+        private void RecordLifecycle(
+            string state,
+            string reason
+        )
+        {
+            Need(
+                lifecycleWriter != null
+                && !String.IsNullOrWhiteSpace(
+                    state
+                )
+            );
+
+            string row =
+                new JavaScriptSerializer()
+                    .Serialize(
+                        new
+                        {
+                            schema =
+                                "arms.nt.chart-catchup.lifecycle.v1",
+
+                            sequence =
+                                lifecycleSequence++,
+
+                            event_time =
+                                DateTime.UtcNow.ToString(
+                                    "o",
+                                    CultureInfo.InvariantCulture
+                                ),
+
+                            state = state,
+                            reason = reason,
+
+                            observation_only =
+                                true,
+
+                            runtime_admission =
+                                false,
+
+                            execution_authority =
+                                false
+                        }
+                    );
+
+            lifecycleWriter.WriteLine(
+                row
+            );
+
+            lifecycleWriter.Flush();
+            lifecycleStream.Flush(true);
+            lifecycleState = state;
+        }
+
+        private void CloseLifecycle()
+        {
+            try
+            {
+                if (lifecycleWriter != null)
+                    lifecycleWriter.Dispose();
+            }
+            catch
+            {
+            }
+
+            lifecycleWriter = null;
+            lifecycleStream = null;
+        }
+
+        private void ExecuteCapture()
+        {
+            try
+            {
+                RecordLifecycle(
+                    "CAPTURE_STARTED",
+                    null
+                );
+
+                Capture();
+
+                RecordLifecycle(
+                    "CAPTURE_COMPLETE",
+                    null
+                );
+
+                terminal = true;
+
+                try
+                {
+                    Print(
+                        "ARMS_CHART_CATCHUP_BRIDGE_COMPLETE"
+                    );
+                }
+                catch
+                {
+                }
+            }
+            catch (Exception error)
+            {
+                FailCapture(
+                    ErrorCode(error),
+                    false
+                );
+            }
+        }
+
+        private void FailCapture(
+            string reason,
+            bool alignment
+        )
+        {
+            if (terminal)
+                return;
+
+            attempted = true;
+
+            try
+            {
+                if (
+                    lifecycleWriter != null
+                    && lifecycleState
+                        != "CAPTURE_VALIDATION_FAILED"
+                    && lifecycleState
+                        != "CAPTURE_FAILED"
+                )
+                {
+                    RecordLifecycle(
+                        "CAPTURE_VALIDATION_FAILED",
+                        reason
+                    );
+                }
+
+                if (
+                    lifecycleWriter != null
+                    && lifecycleState
+                        != "CAPTURE_FAILED"
+                )
+                {
+                    RecordLifecycle(
+                        "CAPTURE_FAILED",
+                        reason
+                    );
+                }
+            }
+            catch (Exception diagnosticError)
+            {
+                try
+                {
+                    Print(
+                        "ARMS_CHART_CATCHUP_DIAGNOSTIC_WRITE_FAILED_"
+                        + ErrorCode(
+                            diagnosticError
+                        )
+                    );
+                }
+                catch
+                {
+                }
+            }
+
+            terminal = true;
+
+            try
+            {
+                Print(
+                    (
+                        alignment
+                            ? "ARMS_CHART_CATCHUP_BRIDGE_FAILED_ALIGNMENT_"
+                            : "ARMS_CHART_CATCHUP_BRIDGE_FAILED_"
+                    )
+                    + reason
+                );
+            }
+            catch
+            {
+            }
         }
 
         private static string ProviderName(
@@ -386,7 +614,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         }
 
         private static string LocalDirectory(
-            string value
+            string value,
+            bool requireEmpty
         )
         {
             Need(
@@ -427,12 +656,27 @@ namespace NinjaTrader.NinjaScript.Indicators
                 );
             }
 
-            Need(
+            string[] entries =
                 Directory.GetFileSystemEntries(
                     full
-                ).Length
-                == 0
-            );
+                );
+
+            if (requireEmpty)
+            {
+                Need(
+                    entries.Length == 0
+                );
+            }
+            else
+            {
+                Need(
+                    entries.Length == 1
+                    && Path.GetFileName(
+                        entries[0]
+                    )
+                    == LifecycleFileName
+                );
+            }
 
             return full;
         }
@@ -540,57 +784,276 @@ namespace NinjaTrader.NinjaScript.Indicators
             return full;
         }
 
-        private bool LiveHelloReady()
+        private sealed class LiveSessionEvidence
         {
-            string directory =
-                LiveDirectory(
-                    LiveOutputDirectory
-                );
+            public string Session;
+            public DateTime HelloTime;
+            public DateTime TerminalTime;
+            public bool Terminated;
+            public int Records;
+        }
 
-            string[] files =
-                Directory.GetFiles(
-                    directory,
-                    "*.jsonl",
-                    SearchOption.TopDirectoryOnly
-                );
+        private static Dictionary<string, object> JsonObject(
+            object value
+        )
+        {
+            var result =
+                value
+                as Dictionary<string, object>;
 
-            string market =
-                null;
+            Need(
+                result != null
+            );
 
-            foreach (
-                string candidate
-                in files
+            return result;
+        }
+
+        private static long JsonInteger(
+            Dictionary<string, object> value,
+            string key
+        )
+        {
+            Need(
+                value.ContainsKey(key)
+            );
+
+            object raw =
+                value[key];
+
+            Need(
+                raw is int
+                || raw is long
+            );
+
+            return Convert.ToInt64(
+                raw,
+                CultureInfo.InvariantCulture
+            );
+        }
+
+        private static DateTime EventTime(
+            object value
+        )
+        {
+            Need(
+                value is string
+            );
+
+            DateTime result;
+
+            Need(
+                DateTime.TryParseExact(
+                    (string)value,
+                    "yyyy-MM-ddTHH:mm:ss.fffffff'Z'",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal
+                        | DateTimeStyles.AdjustToUniversal,
+                    out result
+                )
+                && result.Kind
+                    == DateTimeKind.Utc
+            );
+
+            return result;
+        }
+
+        private static List<string> CompleteLines(
+            string path
+        )
+        {
+            byte[] bytes;
+
+            using (
+                var file =
+                    new FileStream(
+                        path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite
+                    )
             )
             {
-                string name =
-                    Path.GetFileName(
-                        candidate
-                    );
-
-                if (
-                    name.EndsWith(
-                        ".connection.jsonl",
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                )
-                    continue;
-
                 Need(
-                    market == null
+                    file.Length >= 0
+                    && file.Length
+                        <= MaxLiveFileBytes
                 );
 
-                market =
-                    candidate;
+                bytes =
+                    new byte[
+                        (int)file.Length
+                    ];
+
+                int offset = 0;
+
+                while (
+                    offset < bytes.Length
+                )
+                {
+                    int count =
+                        file.Read(
+                            bytes,
+                            offset,
+                            bytes.Length - offset
+                        );
+
+                    Need(
+                        count > 0
+                    );
+
+                    offset += count;
+                }
             }
 
-            if (
-                market == null
-            )
-                return false;
+            int lastNewline =
+                Array.LastIndexOf(
+                    bytes,
+                    (byte)'\n'
+                );
 
+            if (lastNewline < 0)
+                return new List<string>();
+
+            string text =
+                new UTF8Encoding(
+                    false,
+                    true
+                ).GetString(
+                    bytes,
+                    0,
+                    lastNewline + 1
+                );
+
+            Need(
+                text.IndexOf('\0') < 0
+            );
+
+            string[] parts =
+                text.Split('\n');
+
+            var result =
+                new List<string>();
+
+            for (
+                int i = 0;
+                i < parts.Length - 1;
+                i++
+            )
+            {
+                string line =
+                    parts[i];
+
+                if (
+                    line.EndsWith(
+                        "\r",
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    line =
+                        line.Substring(
+                            0,
+                            line.Length - 1
+                        );
+                }
+
+                Need(
+                    line.Length > 0
+                    && line.IndexOf('\r')
+                        < 0
+                );
+
+                result.Add(
+                    line
+                );
+            }
+
+            return result;
+        }
+
+        private void ValidateHello(
+            Dictionary<string, object> row,
+            string session
+        )
+        {
+            Need(
+                row.Count == 6
+                && row.ContainsKey("schema")
+                && row.ContainsKey("session")
+                && row.ContainsKey("sequence")
+                && row.ContainsKey("event_time")
+                && row.ContainsKey("kind")
+                && row.ContainsKey("payload")
+                && (string)row["schema"]
+                    == "arms.nt.market.v1"
+                && (string)row["session"]
+                    == session
+                && JsonInteger(
+                    row,
+                    "sequence"
+                )
+                    == 0
+                && (string)row["kind"]
+                    == "HELLO"
+            );
+
+            EventTime(
+                row["event_time"]
+            );
+
+            var payload =
+                JsonObject(
+                    row["payload"]
+                );
+
+            Need(
+                payload.Count == 12
+                && (string)payload["provider"]
+                    == ExpectedProvider
+                && (string)payload["contract"]
+                    == "NQ DEC26"
+                && (string)payload["expiry"]
+                    == "2026-12-01"
+                && (string)payload["instrument"]
+                    == "NQ"
+                && Convert.ToDouble(
+                    payload["tick_size"],
+                    CultureInfo.InvariantCulture
+                )
+                    == .25
+                && Convert.ToDouble(
+                    payload["point_value"],
+                    CultureInfo.InvariantCulture
+                )
+                    == 20
+                && (string)payload["timeframe"]
+                    == "1m"
+                && (string)payload[
+                    "trading_hours_template"
+                ]
+                    == "CME US Index Futures ETH"
+                && (string)payload[
+                    "source_timezone"
+                ]
+                    == "UTC"
+                && (string)payload["bar_label"]
+                    == "CLOSE"
+                && payload["realtime"]
+                    is bool
+                && (bool)payload["realtime"]
+                && payload["read_only"]
+                    is bool
+                && (bool)payload["read_only"]
+            );
+        }
+
+        private LiveSessionEvidence ReadLiveEvidence(
+            string path
+        )
+        {
             string session =
                 Path.GetFileNameWithoutExtension(
-                    market
+                    path
                 );
 
             Guid parsed;
@@ -603,57 +1066,460 @@ namespace NinjaTrader.NinjaScript.Indicators
                 )
             );
 
-            string first;
+            List<string> lines =
+                CompleteLines(
+                    path
+                );
+
+            if (lines.Count == 0)
+                return null;
+
+            var serializer =
+                new JavaScriptSerializer();
+
+            var rows =
+                new List<
+                    Dictionary<string, object>
+                >();
+
+            for (
+                int i = 0;
+                i < lines.Count;
+                i++
+            )
+            {
+                var row =
+                    JsonObject(
+                        serializer
+                            .DeserializeObject(
+                                lines[i]
+                            )
+                    );
+
+                Need(
+                    row.Count == 6
+                    && (string)row["schema"]
+                        == "arms.nt.market.v1"
+                    && (string)row["session"]
+                        == session
+                    && JsonInteger(
+                        row,
+                        "sequence"
+                    )
+                        == i
+                );
+
+                EventTime(
+                    row["event_time"]
+                );
+
+                rows.Add(
+                    row
+                );
+            }
+
+            ValidateHello(
+                rows[0],
+                session
+            );
+
+            var result =
+                new LiveSessionEvidence();
+
+            result.Session =
+                session;
+
+            result.HelloTime =
+                EventTime(
+                    rows[0]["event_time"]
+                );
+
+            result.Records =
+                rows.Count;
+
+            var last =
+                rows[
+                    rows.Count - 1
+                ];
+
+            if (
+                (string)last["kind"]
+                == "DISCONNECTED"
+            )
+            {
+                var payload =
+                    JsonObject(
+                        last["payload"]
+                    );
+
+                Need(
+                    rows.Count >= 2
+                    && payload.Count == 3
+                    && payload["connected"]
+                        is bool
+                    && !(bool)payload["connected"]
+                    && (string)payload["reason"]
+                        == "TERMINATED"
+                    && (string)payload["error_code"]
+                        == "NONE"
+                );
+
+                result.Terminated =
+                    true;
+
+                result.TerminalTime =
+                    EventTime(
+                        last["event_time"]
+                    );
+            }
+            else
+            {
+                string lastKind =
+                    (string)last["kind"];
+
+                Need(
+                    (
+                        rows.Count == 1
+                        && lastKind == "HELLO"
+                    )
+                    || lastKind == "HEARTBEAT"
+                    || lastKind == "CLOSED"
+                    || lastKind == "FORMING"
+                );
+            }
+
+            for (
+                int i = 1;
+                i < rows.Count - 1;
+                i++
+            )
+            {
+                string kind =
+                    (string)rows[i]["kind"];
+
+                Need(
+                    kind == "HEARTBEAT"
+                    || kind == "CLOSED"
+                    || kind == "FORMING"
+                );
+            }
+
+            return result;
+        }
+
+        private void ValidateTimingSeal(
+            string directory,
+            LiveSessionEvidence predecessor
+        )
+        {
+            string timingPath =
+                Path.Combine(
+                    directory,
+                    "timing",
+                    predecessor.Session
+                    + ".production-timing.jsonl"
+                );
+
+            string sealPath =
+                timingPath
+                + ".done.json";
+
+            Need(
+                File.Exists(
+                    timingPath
+                )
+                && File.Exists(
+                    sealPath
+                )
+            );
+
+            byte[] timing;
 
             using (
                 var file =
                     new FileStream(
-                        market,
+                        timingPath,
                         FileMode.Open,
                         FileAccess.Read,
                         FileShare.ReadWrite
                     )
             )
+            {
+                Need(
+                    file.Length >= 0
+                    && file.Length
+                        <= MaxLiveFileBytes
+                );
+
+                timing =
+                    new byte[
+                        (int)file.Length
+                    ];
+
+                int offset = 0;
+
+                while (
+                    offset < timing.Length
+                )
+                {
+                    int count =
+                        file.Read(
+                            timing,
+                            offset,
+                            timing.Length - offset
+                        );
+
+                    Need(
+                        count > 0
+                    );
+
+                    offset += count;
+                }
+            }
+
+            int timingRecords = 0;
+
+            for (
+                int i = 0;
+                i < timing.Length;
+                i++
+            )
+            {
+                if (timing[i] == (byte)'\n')
+                    timingRecords++;
+            }
+
+            Need(
+                timing.Length == 0
+                || timing[
+                    timing.Length - 1
+                ]
+                    == (byte)'\n'
+            );
+
+            string sealText;
+
             using (
-                var reader =
-                    new StreamReader(
-                        file,
-                        new UTF8Encoding(false),
-                        true,
-                        4096
+                var file =
+                    new FileStream(
+                        sealPath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite
                     )
             )
             {
-                first =
-                    reader.ReadLine();
+                Need(
+                    file.Length > 0
+                    && file.Length <= 4096
+                );
+
+                using (
+                    var reader =
+                        new StreamReader(
+                            file,
+                            new UTF8Encoding(
+                                false,
+                                true
+                            )
+                        )
+                )
+                {
+                    sealText =
+                        reader.ReadToEnd();
+                }
             }
 
-            if (
-                String.IsNullOrWhiteSpace(
-                    first
+            var seal =
+                JsonObject(
+                    new JavaScriptSerializer()
+                        .DeserializeObject(
+                            sealText
+                        )
+                );
+
+            Need(
+                seal.Count == 9
+                && (string)seal["schema"]
+                    == "arms.nt.production-timing.seal.v1"
+                && (string)seal["session"]
+                    == predecessor.Session
+                && JsonInteger(
+                    seal,
+                    "records"
                 )
+                    == timingRecords
+                && JsonInteger(
+                    seal,
+                    "bytes"
+                )
+                    == timing.Length
+                && (string)seal["sha256"]
+                    == Hash(timing)
+                && JsonInteger(
+                    seal,
+                    "canonical_records"
+                )
+                    == predecessor.Records
+                && seal["canonical_writer_closed"]
+                    is bool
+                && (bool)seal[
+                    "canonical_writer_closed"
+                ]
+                && seal["timing_writer_closed"]
+                    is bool
+                && (bool)seal[
+                    "timing_writer_closed"
+                ]
+                && seal["complete"]
+                    is bool
+                && (bool)seal["complete"]
+            );
+        }
+
+        private bool LiveHelloReady()
+        {
+            string directory =
+                LiveDirectory(
+                    LiveOutputDirectory
+                );
+
+            string[] files =
+                Directory.GetFiles(
+                    directory,
+                    "*.jsonl",
+                    SearchOption.TopDirectoryOnly
+                )
+                .Where(
+                    candidate =>
+                        !Path.GetFileName(
+                            candidate
+                        ).EndsWith(
+                            ".connection.jsonl",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                )
+                .OrderBy(
+                    candidate =>
+                        candidate,
+                    StringComparer.Ordinal
+                )
+                .ToArray();
+
+            Need(
+                files.Length <= 2
+            );
+
+            if (
+                files.Length == 0
             )
                 return false;
 
-            string prefix =
-                "{\"schema\":\"arms.nt.market.v1\""
-                + ",\"session\":\""
-                + session
-                + "\""
-                + ",\"sequence\":0,";
+            if (
+                liveLineageRootSession
+                == null
+            )
+            {
+                Need(
+                    files.Length == 1
+                );
+
+                LiveSessionEvidence first =
+                    ReadLiveEvidence(
+                        files[0]
+                    );
+
+                if (first == null)
+                    return false;
+
+                Need(
+                    !first.Terminated
+                );
+
+                liveLineageRootSession =
+                    first.Session;
+
+                liveLineageLeafSession =
+                    first.Session;
+
+                return true;
+            }
+
+            string rootPath =
+                files.FirstOrDefault(
+                    candidate =>
+                        Path.GetFileNameWithoutExtension(
+                            candidate
+                        )
+                        == liveLineageRootSession
+                );
 
             Need(
-                first.StartsWith(
-                    prefix,
-                    StringComparison.Ordinal
+                rootPath != null
+            );
+
+            if (
+                files.Length == 1
+            )
+            {
+                LiveSessionEvidence root =
+                    ReadLiveEvidence(
+                        rootPath
+                    );
+
+                Need(
+                    root != null
+                    && !root.Terminated
+                    && liveLineageLeafSession
+                        == liveLineageRootSession
+                );
+
+                return true;
+            }
+
+            string replacementPath =
+                files.Single(
+                    candidate =>
+                        candidate != rootPath
+                );
+
+            LiveSessionEvidence predecessor =
+                ReadLiveEvidence(
+                    rootPath
+                );
+
+            Need(
+                predecessor != null
+                && predecessor.Terminated
+            );
+
+            ValidateTimingSeal(
+                directory,
+                predecessor
+            );
+
+            LiveSessionEvidence replacement =
+                ReadLiveEvidence(
+                    replacementPath
+                );
+
+            if (replacement == null)
+                return false;
+
+            Need(
+                !replacement.Terminated
+                && predecessor.TerminalTime
+                    < replacement.HelloTime
+                && (
+                    liveLineageLeafSession
+                        == liveLineageRootSession
+                    || liveLineageLeafSession
+                        == replacement.Session
                 )
             );
 
-            Need(
-                first.Contains(
-                    "\"kind\":\"HELLO\""
-                )
-            );
+            liveLineageLeafSession =
+                replacement.Session;
 
             return true;
         }
@@ -695,11 +1561,34 @@ namespace NinjaTrader.NinjaScript.Indicators
                         return;
 
                     if (
+                        !liveHelloAccepted
+                    )
+                    {
+                        RecordLifecycle(
+                            "LIVE_HELLO_ACCEPTED",
+                            null
+                        );
+
+                        liveHelloAccepted =
+                            true;
+                    }
+
+                    if (
                         liveAlignmentBar < 0
                     )
                     {
                         liveAlignmentBar =
                             CurrentBar;
+
+                        RecordLifecycle(
+                            "ALIGNMENT_BAR_CAPTURED",
+                            null
+                        );
+
+                        RecordLifecycle(
+                            "WAITING_FOR_SECOND_BAR_ADVANCE",
+                            null
+                        );
 
                         return;
                     }
@@ -719,65 +1608,17 @@ namespace NinjaTrader.NinjaScript.Indicators
                     Exception error
                 )
                 {
-                    terminal = true;
-
-                    try
-                    {
-                        Print(
-                            "ARMS_CHART_CATCHUP_BRIDGE_FAILED_ALIGNMENT_"
-                            + error.GetType().Name
-                        );
-                    }
-                    catch
-                    {
-                    }
+                    FailCapture(
+                        ErrorCode(error),
+                        true
+                    );
 
                     return;
                 }
+
+                attempted = true;
+                ExecuteCapture();
             }
-
-lock (sync)
-                {
-                    if (
-                        attempted
-                        || terminal
-                    )
-                        return;
-
-                    attempted = true;
-
-                    try
-                    {
-                        Capture();
-
-                        terminal = true;
-
-                        try
-                        {
-                            Print(
-                                "ARMS_CHART_CATCHUP_BRIDGE_COMPLETE"
-                            );
-                        }
-                        catch
-                        {
-                        }
-                    }
-                    catch (Exception error)
-                    {
-                        terminal = true;
-
-                        try
-                        {
-                            Print(
-                                "ARMS_CHART_CATCHUP_BRIDGE_FAILED_"
-                                + ErrorCode(error)
-                            );
-                        }
-                        catch
-                        {
-                        }
-                    }
-                }
         }
 
         private void Capture()
@@ -786,7 +1627,8 @@ lock (sync)
 
             string output =
                 LocalDirectory(
-                    OutputDirectory
+                    OutputDirectory,
+                    false
                 );
 
             DateTime from =
@@ -1216,6 +2058,11 @@ lock (sync)
                 file.Flush(true);
             }
 
+            RecordLifecycle(
+                "CAPTURE_BODY_WRITTEN",
+                null
+            );
+
             var seal =
                 new
                 {
@@ -1284,6 +2131,11 @@ lock (sync)
             File.Move(
                 temporary,
                 final
+            );
+
+            RecordLifecycle(
+                "CAPTURE_SEAL_WRITTEN",
+                null
             );
         }
     }
