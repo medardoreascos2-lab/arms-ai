@@ -1,6 +1,8 @@
 """Synthetic native frames only; no production streams or native execution."""
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
+from io import BytesIO
 import json
 from pathlib import Path
 from uuid import uuid4
@@ -10,12 +12,22 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.services import sim_native_l1_authority_v1 as m
-from backend.market_data.fresh_native_adapter_v1 import MAX_FILE, _Tail
+from backend.market_data.fresh_native_adapter_v1 import MAX_FILE, _Tail, _exact_prefix_digest
 from backend.services.runtime_admission_v2 import RuntimeAdmissionV2
 from backend.services.sim_native_commissioning_policy_v1 import load
 from backend.tests.test_sim_native_financial_runtime_service_v3 import environment
 
 NOW = datetime(2026,9,27,23,tzinfo=timezone.utc)
+
+
+class _ShortRead(BytesIO):
+    def read(self, size=-1):
+        return super().read(min(size, 7) if size >= 0 else 7)
+
+
+def test_prefix_digest_accepts_valid_short_reads():
+    raw = b'prefix-integrity' * 4096
+    assert _exact_prefix_digest(_ShortRead(raw), len(raw)) == sha256(raw).digest()
 
 
 class Stream:
@@ -48,11 +60,132 @@ class Stream:
     def get(self): return self.admission.quote_authority.get_quote(symbol='NQ')
 
 
+class SegmentedStream(Stream):
+    def __init__(self, directory, monkeypatch):
+        directory.mkdir(exist_ok=True)
+        self.directory, self.now, self.tick = directory, NOW, 0
+        self.session, self.seq = str(uuid4()), 0
+        self.segment_index = 1
+        self.path = self._path(self.segment_index)
+        self.path.touch()
+        self.manifest_path = directory/(self.session+'.l1.manifest.json')
+        monkeypatch.setattr(m, 'private_path', lambda p: Path(p))
+        self.admission = RuntimeAdmissionV2(settings=load().api_settings)
+        self.reader = m.SimNativeL1AuthorityV1(admission=self.admission, context=lambda:None,
+            clock=lambda:self.now, elapsed=lambda:self.tick, directory=directory)
+        self._write_manifest()
+
+    def _path(self,index):
+        return self.directory/(self.session+'.segment.'+str(index).zfill(6)+'.l1.jsonl')
+
+    def _items(self, *, terminated=False, reason=None):
+        result=[]
+        for index in range(1,self.segment_index+1):
+            path=self._path(index)
+            rows=[json.loads(line) for line in path.read_text().splitlines()]
+            sealed=terminated or index<self.segment_index
+            result.append(dict(index=index,file=path.name,
+                first_sequence=rows[0]['sequence'] if rows else self.seq,
+                last_sequence=rows[-1]['sequence'] if sealed and rows else None,
+                bytes=path.stat().st_size if sealed else None,
+                sha256=sha256(path.read_bytes()).hexdigest() if sealed else None,
+                sealed=sealed))
+        return result
+
+    def _write_manifest(self, *, terminated=False, reason=None):
+        value=dict(schema='arms.nt.l1.manifest.v1',session=self.session,
+            provider='Provider31',instrument='NQ',contract='NQ DEC26',
+            segment_capacity_bytes=m.L1_STREAM_MAX_BYTES,
+            state='TERMINATED' if terminated else 'ACTIVE',
+            terminal_reason=reason if terminated else None,
+            segments=self._items(terminated=terminated,reason=reason))
+        self.manifest_path.write_text(json.dumps(value,separators=(',',':'))+'\n')
+
+    def rotate(self):
+        self.segment_index+=1
+        self.path=self._path(self.segment_index)
+        self.path.touch()
+        self._write_manifest()
+
+    def terminate(self,reason):
+        self.append(self.frame('TERMINAL',dict(connected=False,reason=reason)))
+        self._write_manifest(terminated=True,reason=reason)
+
+
 @pytest.fixture
 def stream(tmp_path,monkeypatch):
     s=Stream(tmp_path/'l1',monkeypatch)
     yield s
     s.reader.close()
+
+
+def test_segmented_reader_continuity_hashes_and_exact_terminal(tmp_path,monkeypatch):
+    s=SegmentedStream(tmp_path/'segmented',monkeypatch)
+    try:
+        s.hello();s.quote();s.reader.poll()
+        assert s.get()['ask']==25000.25
+        s.rotate();s.advance(1);s.heartbeat();s.quote(ask=25000.50);s.reader.poll()
+        assert s.get()['ask']==25000.50
+        s.rotate();s.advance(1);s.heartbeat();s.quote(ask=25000.75);s.reader.poll()
+        assert s.get()['ask']==25000.75
+        assert s.reader.sequence==5
+        s.terminate('FILE_IO_ERROR');s.reader.poll()
+        snapshot=s.reader.get_snapshot()
+        assert snapshot['status']=='REVOKED'
+        assert snapshot['reason']=='L1_STREAM_TERMINATED:FILE_IO_ERROR'
+        assert s.get() is None
+        assert s.reader.sequence==6
+        assert len(s.reader.sealed_segments)==3
+    finally:
+        s.reader.close()
+
+
+def test_segmented_terminal_frame_revokes_before_final_manifest_swap(
+    tmp_path,monkeypatch,
+):
+    s=SegmentedStream(tmp_path/'terminal-race',monkeypatch)
+    try:
+        s.hello();s.quote();s.reader.poll()
+        s.append(s.frame('TERMINAL',dict(connected=False,reason='FILE_IO_ERROR')))
+        s.reader.poll()
+        assert s.reader.status=='REVOKED'
+        assert s.reader.reason=='L1_STREAM_TERMINATED:FILE_IO_ERROR'
+        assert s.get() is None
+    finally:
+        s.reader.close()
+
+
+@pytest.mark.parametrize('damage',[
+    'missing','duplicate','skip','sealed_mutation','session','provider','sequence_gap',
+])
+def test_segmented_reader_rejects_ambiguous_or_mutated_stream(
+    tmp_path,monkeypatch,damage,
+):
+    s=SegmentedStream(tmp_path/('segmented-'+damage),monkeypatch)
+    try:
+        s.hello();s.quote();s.reader.poll();s.rotate();s.advance(1);s.heartbeat()
+        value=json.loads(s.manifest_path.read_text())
+        if damage=='missing':
+            s._path(1).unlink()
+        elif damage=='duplicate':
+            value['segments'].append(deepcopy(value['segments'][-1]))
+        elif damage=='skip':
+            value['segments'][-1]['index']=3
+        elif damage=='sealed_mutation':
+            s._path(1).write_bytes(s._path(1).read_bytes().replace(b'25000.25',b'25000.50'))
+        elif damage=='session':
+            value['session']=str(uuid4())
+        elif damage=='provider':
+            value['provider']='Simulator'
+        elif damage=='sequence_gap':
+            s.seq+=1;s.heartbeat()
+        if damage in ('duplicate','skip','session','provider'):
+            s.manifest_path.write_text(json.dumps(value,separators=(',',':'))+'\n')
+        s.reader.poll()
+        assert s.reader.status=='REVOKED'
+        assert s.get() is None
+    finally:
+        s.reader.close()
 
 
 def test_valid_quote_uses_existing_storage_spread_and_news_still_blocks(stream):

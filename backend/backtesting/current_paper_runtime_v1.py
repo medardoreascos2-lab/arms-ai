@@ -5,6 +5,7 @@ its finite-input boundary changes; strategy, costs, exits and risk do not.
 """
 from copy import deepcopy
 from contextlib import closing
+from datetime import datetime, timezone
 from hashlib import sha256
 import json
 from math import isfinite
@@ -118,11 +119,17 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
         self._trace_entry_evaluations = []
         self._trace_entry_inspected = False
         self._trace_readiness_reasons = None
+        self._authority_audit_ready = False
+        self._authority_transition_count = 0
+        self._last_authority_transition = None
+        self._reauthorization_required = False
+        self._authority_state_name = 'DISABLED'
+        self._run_id = Path(kwargs['state_path']).parent.name
         super().__init__(**kwargs)
 
         if self._paper is not None:
             try:
-                self._db.execute("""
+                self._db.executescript("""
                     CREATE TABLE decision_trace (
                         sequence INTEGER PRIMARY KEY,
                         event_id INTEGER NOT NULL UNIQUE,
@@ -135,10 +142,25 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
                         submission_present INTEGER NOT NULL CHECK(submission_present IN (0,1)),
                         payload TEXT NOT NULL,
                         payload_sha256 TEXT NOT NULL
-                    )
+                    );
+                    CREATE TABLE authority_transition (
+                        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        run_id TEXT NOT NULL,
+                        previous_state TEXT NOT NULL,
+                        new_state TEXT NOT NULL,
+                        reason TEXT NOT NULL,
+                        initiating_path TEXT NOT NULL,
+                        request_id TEXT,
+                        request_nonce TEXT,
+                        readiness_snapshot TEXT NOT NULL,
+                        payload TEXT NOT NULL,
+                        payload_sha256 TEXT NOT NULL
+                    );
                 """)
                 self._db.commit()
                 self._trace_table_ready = True
+                self._authority_audit_ready = True
             except BaseException:
                 self._fault = "RECOVERY_REQUIRED"
                 self._enabled = False
@@ -478,6 +500,120 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
             progression_readiness_reasons=(deepcopy(self._trace_readiness_reasons)
                 if self._trace_readiness_reasons is not None else "NOT_EVALUATED"))
 
+    @staticmethod
+    def _disabled_authority_state(reason):
+        if reason.startswith('L1_STREAM_TERMINATED:'):
+            return 'DISABLED_L1_TERMINATED'
+        if reason in ('STALE_DATA','MARKET_DATA_STALE','HEALTH_STALE'):
+            return 'DISABLED_STALE_DATA'
+        if reason in ('OPERATOR_REQUEST','RUNTIME_SHUTDOWN'):
+            return 'DISABLED_OPERATOR_REQUEST'
+        return 'DISABLED_RUNTIME_FAILURE'
+
+    def _authority_readiness(self, supplied=None):
+        value = supplied if isinstance(supplied, dict) else self._snapshot
+        return {key: deepcopy(value.get(key)) for key in (
+            'paper_ready','readiness_reasons','dashboard_status',
+            'execution_state','live_execution_allowed') if key in value}
+
+    def _authority_transition(self, *, previous_state, new_state, reason,
+                              initiating_path, request_id, request_nonce,
+                              readiness_snapshot):
+        if not self._authority_audit_ready:
+            raise RuntimeError('AUTHORITY_AUDIT_UNAVAILABLE')
+        for value, label, limit in (
+            (reason, 'AUTHORITY_REASON', 256),
+            (initiating_path, 'AUTHORITY_INITIATING_PATH', 128),
+        ):
+            if type(value) is not str or not value or len(value) > limit:
+                raise ValueError(label + '_INVALID')
+        if request_id is not None and (
+                type(request_id) is not str or not request_id
+                or len(request_id) > 128):
+            raise ValueError('AUTHORITY_REQUEST_ID_INVALID')
+        if request_nonce is not None and (
+                type(request_nonce) is not str or not request_nonce
+                or len(request_nonce) > 128):
+            raise ValueError('AUTHORITY_REQUEST_NONCE_INVALID')
+        try:
+            at = self.gate.clock()
+            if at.tzinfo is None:
+                raise ValueError
+            at = at.astimezone(timezone.utc)
+        except (ValueError, TypeError, OverflowError):
+            # A broken market clock must not prevent durable fail-closed
+            # authority revocation. Wall UTC is audit-only, never trade input.
+            at = datetime.now(timezone.utc)
+        sequence = self._authority_transition_count + 1
+        readiness = self._authority_readiness(readiness_snapshot)
+        record = dict(sequence=sequence,timestamp=at.isoformat(),
+            run_id=self._run_id,previous_state=previous_state,new_state=new_state,
+            reason=reason,initiating_path=initiating_path,request_id=request_id,
+            request_nonce=request_nonce,
+            readiness_snapshot=readiness)
+        payload = _encode(record)
+        self._db.execute(
+            'INSERT INTO authority_transition VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+            (sequence,record['timestamp'],self._run_id,previous_state,new_state,
+             reason,initiating_path,request_id,request_nonce,_encode(readiness),payload,
+             sha256(payload.encode()).hexdigest()))
+        self._authority_transition_count = sequence
+        self._last_authority_transition = record
+
+    def control(self, command, *, reason=None, initiating_path=None,
+                request_id=None, request_nonce=None, readiness_snapshot=None):
+        with self._lock:
+            if self._paper is None or self._stopped or self._fault:
+                raise RuntimeError('RECOVERY_REQUIRED or stopped runtime')
+            if command == 'enable':
+                if self._reauthorization_required:
+                    raise RuntimeError('FRESH_AUTHORIZATION_SESSION_REQUIRED')
+                target, reason = 'ENABLED', reason or 'OPERATOR_AUTHORIZATION'
+                initiating_path = initiating_path or 'CURRENT_PAPER_CONTROL'
+            elif command == 'disable':
+                reason = reason or 'OPERATOR_REQUEST'
+                initiating_path = initiating_path or 'CURRENT_PAPER_CONTROL'
+                target = self._disabled_authority_state(reason)
+            elif command == 'emergency_block':
+                target, reason = 'EMERGENCY_BLOCKED', reason or 'EMERGENCY_BLOCK'
+                initiating_path = initiating_path or 'CURRENT_PAPER_CONTROL'
+            else:
+                raise ValueError('unknown PAPER control')
+            previous = self._authority_state_name
+            if previous == target:
+                return self.get_snapshot()
+            old = (self._enabled,self._emergency,self._reauthorization_required,
+                self._authority_state_name,self._authority_transition_count,
+                deepcopy(self._last_authority_transition))
+            try:
+                if command == 'enable':
+                    self._enabled = True
+                elif command == 'disable':
+                    self._enabled = False
+                    if target != 'DISABLED_OPERATOR_REQUEST':
+                        self._reauthorization_required = True
+                else:
+                    self._emergency = True
+                    self._enabled = False
+                    self._reauthorization_required = True
+                self._authority_state_name = target
+                self._authority_transition(previous_state=previous,new_state=target,
+                    reason=reason,initiating_path=initiating_path,
+                    request_id=request_id,request_nonce=request_nonce,
+                    readiness_snapshot=readiness_snapshot)
+                self._publish()
+                self._save()
+            except Exception:
+                self._db.rollback()
+                (self._enabled,self._emergency,self._reauthorization_required,
+                 self._authority_state_name,self._authority_transition_count,
+                 self._last_authority_transition) = old
+                self._fault = 'RECOVERY_REQUIRED'
+                self._enabled = False
+                self._publish()
+                raise
+            return self.get_snapshot()
+
     def _save(self):
         if not self._trace_table_ready:
             return super()._save()
@@ -572,6 +708,24 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
                 return dict(status="COMMITTED_EVIDENCE", records=records, total=total,
                     operational_state_restored=False)
 
+    def get_authority_audit(self, *, limit=100):
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError('AUTHORITY_AUDIT_READ_LIMIT')
+        with self._lock:
+            if not self._authority_audit_ready or self._db is None:
+                return dict(status='UNAVAILABLE',records=[],total=0)
+            rows = self._db.execute(
+                'SELECT payload,payload_sha256 FROM authority_transition '
+                'ORDER BY sequence DESC LIMIT ?', (limit,)).fetchall()
+            records = []
+            for payload, digest in rows:
+                if sha256(payload.encode()).hexdigest() != digest:
+                    return dict(status='UNREADABLE_RECONCILIATION_REQUIRED',
+                        records=[],total=self._authority_transition_count)
+                records.append(json.loads(payload))
+            return dict(status='COMMITTED_EVIDENCE',records=records,
+                total=self._authority_transition_count)
+
     def _publish(self):
         super()._publish()
         # A malformed diagnostic score must not make checkpoint JSON fail.
@@ -606,6 +760,11 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
                 self.strategy_bootstrap_bar_count
             ),
             strategy_bootstrap_execution_authority=False,
+            paper_authority_state=self._authority_state_name,
+            paper_authority_transition_count=self._authority_transition_count,
+            latest_paper_authority_transition=deepcopy(
+                self._last_authority_transition),
+            fresh_authorization_session_required=self._reauthorization_required,
         )
 
     def step(self):
@@ -686,7 +845,8 @@ class CurrentPaperServiceV1:
                 raise RuntimeError("STOPPED")
             self.gate.connection(connected)
             if not connected:
-                self.invalidate_health()
+                self.invalidate_health(reason='PROVIDER_DISCONNECTED',
+                    initiating_path='CURRENT_PAPER_CONNECTION')
             return self.get_snapshot()
 
     def health_eligible(self):
@@ -713,22 +873,27 @@ class CurrentPaperServiceV1:
                 and not self.gate.fault
                 and not self._stopped)
             if not live:
-                self.invalidate_health()
+                self.invalidate_health(reason='RUNTIME_HEALTH_LOSS',
+                    initiating_path='CURRENT_PAPER_HEALTH')
                 return False
             self._health_at = self.gate.clock()
             self._health_live = True
             if not self.health_eligible():
-                self.invalidate_health()
+                self.invalidate_health(reason='HEALTH_STALE',
+                    initiating_path='CURRENT_PAPER_HEALTH')
                 return False
             return True
 
-    def invalidate_health(self):
+    def invalidate_health(self, *, reason='RUNTIME_HEALTH_LOSS',
+                          initiating_path='CURRENT_PAPER_HEALTH'):
         with self._lock:
             self._health_live = False
             self._health_at = None
             if self._runtime is not None and self._runtime._enabled:
                 try:
-                    self._runtime.control("disable")
+                    self._runtime.control('disable',reason=reason,
+                        initiating_path=initiating_path,
+                        readiness_snapshot=self._runtime.get_snapshot())
                 except (ValueError, RuntimeError, OSError):
                     self._runtime._enabled = False
                     self._runtime._fault = "RECOVERY_REQUIRED"
@@ -830,7 +995,8 @@ class CurrentPaperServiceV1:
                     operational_state_restored=False)
             return self._runtime.get_decision_trace(limit=limit)
 
-    def control(self, command):
+    def control(self, command, *, request_id=None, request_nonce=None,
+                initiating_path='PAPER_API'):
         with self._lock:
             if self._runtime is None or self._stopped:
                 raise RuntimeError("AWAITING_MARKET_DATA or STOPPED")
@@ -843,12 +1009,18 @@ class CurrentPaperServiceV1:
             if command == "enable" and (self.entry_authority is None or
                     not self.health_eligible() or self.gate.reasons()):
                 raise RuntimeError("CURRENT_PAPER_HEALTH_OR_AUTHORITY_UNAVAILABLE")
-            self._runtime.control(command)
+            self._runtime.control(command,
+                reason=('OPERATOR_AUTHORIZATION' if command == 'enable'
+                    else 'OPERATOR_REQUEST'),
+                initiating_path=initiating_path,request_id=request_id,
+                request_nonce=request_nonce,
+                readiness_snapshot=self.get_snapshot())
             return self.get_snapshot()
 
-    def shutdown(self):
+    def shutdown(self, *, reason='RUNTIME_SHUTDOWN',
+                 initiating_path='CURRENT_PAPER_SHUTDOWN'):
         with self._lock:
-            self.invalidate_health()
+            self.invalidate_health(reason=reason,initiating_path=initiating_path)
             self._stopped = True
             if self._runtime is not None:
                 self._runtime.shutdown()

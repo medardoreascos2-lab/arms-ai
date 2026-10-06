@@ -242,6 +242,17 @@ class NativeCurrentPaperCoordinatorV1:
             try:
                 if self.l1_reader is not None:
                     self.l1_reader.poll()
+                    l1_snapshot = self.l1_reader.get_snapshot()
+                    if l1_snapshot.get('status') == 'REVOKED':
+                        l1_reason = l1_snapshot.get('reason')
+                        if (type(l1_reason) is not str
+                                or not l1_reason.startswith('L1_STREAM_TERMINATED:')):
+                            l1_reason = 'L1_STREAM_REVOKED:' + (
+                                l1_reason if type(l1_reason) is str
+                                else 'UNKNOWN')
+                        self.service.invalidate_health(reason=l1_reason,
+                            initiating_path='CURRENT_PAPER_L1_READER')
+                        return self._fail(l1_reason)
                 bridge_snapshot = (
                     self.bridge.poll()
                 )
@@ -319,6 +330,12 @@ class NativeCurrentPaperCoordinatorV1:
                     ),
                 "bridge":
                     bridge_snapshot,
+                "l1":
+                    (
+                        None
+                        if self.l1_reader is None
+                        else self.l1_reader.get_snapshot()
+                    ),
                 "paper":
                     paper,
                 "paper_auto_enable":

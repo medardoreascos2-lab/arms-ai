@@ -86,6 +86,7 @@ def _offline_wiring(
     bound = _Socket(events)
     monkeypatch.setattr(launcher, '_restrict_directory', lambda path: None)
     monkeypatch.setenv(args.admin_token_env, "test-only-secret")
+    monkeypatch.setenv('ARMS_WINDOWS_JOB_SUPERVISED_V1', args.paper_run_namespace.name)
     for name in PRIVATE_FRONTEND_MARKERS:
         monkeypatch.setenv(name, "SHOULD_NOT_LEAK")
     monkeypatch.setattr(launcher, "_reserve_paper_port", lambda port: bound)
@@ -285,6 +286,17 @@ def test_unreviewed_spec_cannot_open_its_evidence_paths(tmp_path, monkeypatch):
     monkeypatch.setenv(args.admin_token_env, "test-only-secret")
     with pytest.raises(ValueError, match="REVIEWED_NATIVE_SPEC_SHA256_REQUIRED"):
         launcher.run_current_paper(args)
+
+
+def test_current_paper_rejects_unsupervised_runtime_before_construction(
+    tmp_path, monkeypatch,
+):
+    args = _args(tmp_path)
+    monkeypatch.setenv(args.admin_token_env, 'test-only-secret')
+    monkeypatch.delenv('ARMS_WINDOWS_JOB_SUPERVISED_V1', raising=False)
+    with pytest.raises(ValueError, match='WINDOWS_JOB_SUPERVISION_REQUIRED'):
+        launcher.run_current_paper(args)
+    assert not args.paper_run_namespace.exists()
 
 
 def test_read_routes_cannot_enable_paper_and_post_requires_admin(

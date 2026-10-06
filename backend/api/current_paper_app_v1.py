@@ -1,7 +1,7 @@
 """Explicitly injected current PAPER service; no broker or feed auto-discovery."""
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.admin_authorization_dependency_v2 import require_admin_authorization_v2
@@ -21,7 +21,8 @@ def create_current_paper_app_v1(*, service, admin_token=None, dashboard_origin="
 
     app = FastAPI(title="ARMS AI current SIMULATED / PAPER", lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=[dashboard_origin], allow_methods=["GET", "POST"],
-                       allow_headers=["X-ARMS-ADMIN-TOKEN", "Content-Type"])
+                       allow_headers=["X-ARMS-ADMIN-TOKEN", "X-ARMS-REQUEST-ID",
+                                      "X-ARMS-REQUEST-NONCE", "Content-Type"])
     if admin_token:
         app.state.admin_authorization_v2 = AdminAuthorizationV2(token=admin_token)
 
@@ -43,12 +44,17 @@ def create_current_paper_app_v1(*, service, admin_token=None, dashboard_origin="
         return native_sim_status()
 
     @app.post("/api/v2/paper/{command}", dependencies=[Depends(require_admin_authorization_v2)])
-    def command(command: str):
+    def command(command: str,
+                request_id: str = Header(default=None,alias='X-ARMS-REQUEST-ID'),
+                request_nonce: str = Header(default=None,alias='X-ARMS-REQUEST-NONCE')):
         try:
             if command == "shutdown":
-                service.shutdown()
+                service.shutdown(reason='OPERATOR_REQUEST',
+                    initiating_path='PAPER_API',)
                 return service.get_snapshot()
-            return service.control(command)
+            return service.control(command,request_id=request_id,
+                request_nonce=request_nonce,
+                initiating_path='PAPER_API')
         except (ValueError, RuntimeError) as exc:
             raise HTTPException(409, str(exc)) from None
 

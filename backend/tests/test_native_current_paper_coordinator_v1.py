@@ -194,6 +194,19 @@ def _make_live(
     return adapter
 
 
+class _L1:
+    def __init__(self):
+        self.terminated = False
+        self.closed = False
+    def poll(self):
+        return None
+    def get_snapshot(self):
+        return {'status':'REVOKED','reason':'L1_STREAM_TERMINATED:FILE_IO_ERROR'} if (
+            self.terminated) else {'status':'FRESH','reason':None}
+    def close(self):
+        self.closed = True
+
+
 def test_preactivation_arm_success_and_analysis_remains_disabled(
     tmp_path,
     monkeypatch,
@@ -517,6 +530,42 @@ def test_coordinator_delivers_live_closed_without_auto_enable(
     )
 
     assert runtime_paper.completed == []
+
+
+def test_l1_terminal_immediately_disables_and_journals_exact_reason(
+    tmp_path,monkeypatch,api_settings,
+):
+    runtime, _, _ = _analysis_runtime(tmp_path,monkeypatch)
+    service, wall = _paper(tmp_path,api_settings)
+    l1 = _L1()
+    coordinator = NativeCurrentPaperCoordinatorV1(
+        analysis_runtime=runtime,service=service,
+        wall_clock=lambda:wall[0],l1_reader=l1)
+    runtime.finish_health(backend_pid=runtime.pid,frontend_pid=99,
+        dashboard_status=200,allow_activation=True)
+    adapter=_make_live(runtime,monkeypatch)
+    adapter.live_handoff_records.append(_record())
+    snapshot=coordinator.poll()
+    assert service.publish_health(coordinator=snapshot,worker_alive=True)
+    service._runtime.control('enable',request_id='request-id',
+        request_nonce='nonce',initiating_path='OFFLINE_TEST',
+        readiness_snapshot=service.get_snapshot())
+    paper_runtime=service._runtime._paper.runtime
+    assert service._runtime._enabled is True
+    l1.terminated=True
+    with pytest.raises(RuntimeError,match='L1_STREAM_TERMINATED:FILE_IO_ERROR'):
+        coordinator.poll()
+    paper=service.get_snapshot()
+    assert paper['paper_execution_enabled'] is False
+    assert paper['paper_authority_state']=='DISABLED_L1_TERMINATED'
+    assert paper['fresh_authorization_session_required'] is True
+    assert paper['latest_paper_authority_transition']['reason']==(
+        'L1_STREAM_TERMINATED:FILE_IO_ERROR')
+    assert paper['latest_paper_authority_transition']['initiating_path']==(
+        'CURRENT_PAPER_L1_READER')
+    assert paper['paper_authority_transition_count']==2
+    assert paper_runtime.lifecycle.broker_connector_v2.get_fills()==[]
+    assert paper_runtime.completed==[]
 
 
 def test_analysis_failure_fails_closed_without_analysis_poll(

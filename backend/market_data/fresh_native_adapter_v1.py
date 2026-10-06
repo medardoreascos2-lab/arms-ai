@@ -40,6 +40,19 @@ PREACTIVATION_HELLO_PAYLOAD = {
 }
 
 
+def _exact_prefix_digest(handle, size):
+    """Hash exactly *size* bytes even when an unbuffered read is short."""
+    require(type(size) is int and size >= 0, 'PREFIX_SIZE')
+    digest = sha256()
+    remaining = size
+    while remaining:
+        block = handle.read(min(CHUNK, remaining))
+        require(bool(block), 'PREFIX_SHORT_READ')
+        digest.update(block)
+        remaining -= len(block)
+    return digest.digest()
+
+
 class WindowsQpc:
     """New process-local epoch every start; no persisted recovery or wall authority."""
     def __init__(self):
@@ -134,8 +147,7 @@ class _Tail:
         require(self.offset <= info.st_size <= self.max_file, 'FILE_TRUNCATED_OR_LIMIT')
         # Verify the consumed prefix too: same-inode overwrite must not go unnoticed.
         self.handle.seek(0)
-        prefix = self.handle.read(self.offset)
-        require(len(prefix) == self.offset and sha256(prefix).digest() == self.digest.digest(), 'PREFIX_CHANGED')
+        require(_exact_prefix_digest(self.handle, self.offset) == self.digest.digest(), 'PREFIX_CHANGED')
         data = self.handle.read(min(CHUNK, info.st_size-self.offset))
         start = self.offset-len(self.partial)
         self.offset += len(data)

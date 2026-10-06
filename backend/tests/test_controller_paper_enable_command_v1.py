@@ -30,6 +30,7 @@ class Harness:
         self.enables = 0
         self.disables = 0
         self.shutdowns = 0
+        self.identities = []
         self.policy = {'risk_percent': 0.5, 'maximum_contracts': 15}
 
     def readiness(self):
@@ -37,14 +38,16 @@ class Harness:
             'readiness_blockers': list(self.blockers),
             '_safety_identity': ('config-id', deepcopy(self.policy))}
 
-    def enable(self):
+    def enable(self, **identity):
+        self.identities.append(('enable',identity))
         self.enables += 1
         return {'paper_execution_enabled': True, 'paper_ready': True,
             'readiness_reasons': [], 'execution_kind': 'SIMULATED / PAPER',
             'live_execution_allowed': False, 'external_order_authority': False,
             'config_hash': 'config-id', 'effective_policy': deepcopy(self.policy)}
 
-    def disable(self):
+    def disable(self, **identity):
+        self.identities.append(('disable',identity))
         self.disables += 1
         return {'paper_execution_enabled': False}
 
@@ -83,8 +86,11 @@ def assert_rejected(command, harness, value, reason):
 
 def test_valid_enable_is_one_shot_and_has_only_local_paper_authority(tmp_path):
     command, harness = channel(tmp_path)
-    result = command.handle(request())
+    value=request()
+    result = command.handle(value)
     assert result['accepted'] is True and harness.enables == 1
+    assert harness.identities == [('enable',{
+        'request_id':value['request_id'],'nonce':value['nonce']})]
     assert set(result) == {'accepted', 'rejected', 'reason',
                            'readiness_snapshot', 'post_enable_state'}
     post = result['post_enable_state']
@@ -156,8 +162,8 @@ def test_runtime_shutdown_and_live_command_are_inert(tmp_path):
 def test_invalid_post_state_is_disabled_and_never_reports_accepted(tmp_path):
     command, harness = channel(tmp_path)
     original = harness.enable
-    def unsafe():
-        value = original()
+    def unsafe(**identity):
+        value = original(**identity)
         value['live_execution_allowed'] = True
         return value
     command.enable_call = unsafe
@@ -170,13 +176,13 @@ def test_invalid_post_state_is_disabled_and_never_reports_accepted(tmp_path):
 
 def test_ambiguous_enable_failure_disables_or_shuts_down(tmp_path):
     command, harness = channel(tmp_path)
-    command.enable_call = lambda: (_ for _ in ()).throw(TimeoutError())
+    command.enable_call = lambda **_: (_ for _ in ()).throw(TimeoutError())
     result = command.handle(request())
     assert result['reason'] == 'AUTHENTICATED_PAPER_ENABLE_FAILED'
     assert harness.disables == 1 and harness.shutdowns == 0
     command, harness = channel(tmp_path)
-    command.enable_call = lambda: (_ for _ in ()).throw(TimeoutError())
-    command.disable_call = lambda: (_ for _ in ()).throw(TimeoutError())
+    command.enable_call = lambda **_: (_ for _ in ()).throw(TimeoutError())
+    command.disable_call = lambda **_: (_ for _ in ()).throw(TimeoutError())
     result = command.handle(request())
     assert result['reason'] == 'AUTHENTICATED_PAPER_ENABLE_FAILED'
     assert harness.shutdowns == 1
@@ -248,10 +254,13 @@ def test_controller_calls_only_existing_authenticated_paper_endpoint(monkeypatch
             assert request.full_url == 'http://127.0.0.1:18016/api/v2/paper/enable'
             assert request.method == 'POST' and request.data == b'' and timeout == 3
             assert request.get_header('X-arms-admin-token') == 'process-only-secret'
+            assert request.get_header('X-arms-request-id') == 'request-id'
+            assert request.get_header('X-arms-request-nonce') == 'request-nonce'
             return Response()
     monkeypatch.setattr('urllib.request.build_opener', lambda *args: Opener())
     result = _authenticated_paper_command(port=18016,
-        token='process-only-secret', command='enable')
+        token='process-only-secret', command='enable',
+        request_id='request-id',request_nonce='request-nonce')
     assert result == {'paper_execution_enabled': True}
     with pytest.raises(ValueError, match='NOT_ALLOWED'):
         _authenticated_paper_command(port=18016,

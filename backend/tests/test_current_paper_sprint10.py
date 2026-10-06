@@ -231,7 +231,8 @@ def test_authenticated_enable_is_health_bound_and_disconnect_requires_reenable(a
     s,clock=service(tmp_path)
     app=create_current_paper_app_v1(service=s,admin_token="test-only-token",
         dashboard_origin="http://127.0.0.1:3000")
-    headers={"X-ARMS-ADMIN-TOKEN":"test-only-token"}
+    headers={"X-ARMS-ADMIN-TOKEN":"test-only-token",
+        "X-ARMS-REQUEST-ID":"request-1","X-ARMS-REQUEST-NONCE":"nonce-1"}
     with TestClient(app) as client:
         assert client.post("/api/v2/paper/enable").status_code == 401
         assert client.post("/api/v2/paper/enable",headers={"X-ARMS-ADMIN-TOKEN":"wrong"}).status_code == 401
@@ -244,8 +245,22 @@ def test_authenticated_enable_is_health_bound_and_disconnect_requires_reenable(a
         s.connection(True)
         deliver(s,clock,event(1,sequence=1,event_id="1"))
         assert s._runtime._enabled is False
-        assert client.post("/api/v2/paper/enable",headers=headers).status_code == 200
-        assert s._runtime._enabled is True
+        response=client.post("/api/v2/paper/enable",headers=headers)
+        assert response.status_code == 409
+        assert response.json()['detail']=='FRESH_AUTHORIZATION_SESSION_REQUIRED'
+        assert s._runtime._enabled is False
+        audit=s._runtime.get_authority_audit()
+        assert audit['status']=='COMMITTED_EVIDENCE' and audit['total']==2
+        disabled,enabled=audit['records']
+        assert disabled['previous_state']=='ENABLED'
+        assert disabled['new_state']=='DISABLED_RUNTIME_FAILURE'
+        assert disabled['reason']=='PROVIDER_DISCONNECTED'
+        assert disabled['initiating_path']=='CURRENT_PAPER_CONNECTION'
+        assert enabled['previous_state']=='DISABLED'
+        assert enabled['new_state']=='ENABLED'
+        assert enabled['request_id']=='request-1'
+        assert enabled['request_nonce']=='nonce-1'
+        assert enabled['readiness_snapshot']['live_execution_allowed'] is False
 
 
 def test_forming_raw_duplicate_and_complete_htf_equivalence():

@@ -32,13 +32,20 @@ from backend.backtesting.native_current_paper_lifecycle_v1 import (
 from backend.services.sim_native_authority_v3 import _restrict_directory
 
 
-def _authenticated_paper_command(*, port, token, command):
+def _authenticated_paper_command(*, port, token, command,
+                                 request_id=None, request_nonce=None):
     '''Call only the existing loopback authenticated PAPER control endpoint.'''
     if command not in ('enable', 'disable'):
         raise ValueError('CONTROLLER_PAPER_COMMAND_NOT_ALLOWED')
+    headers = {'X-ARMS-ADMIN-TOKEN': token}
+    if request_id is not None or request_nonce is not None:
+        if type(request_id) is not str or type(request_nonce) is not str:
+            raise ValueError('CONTROLLER_REQUEST_IDENTITY_REQUIRED')
+        headers.update({'X-ARMS-REQUEST-ID': request_id,
+                        'X-ARMS-REQUEST-NONCE': request_nonce})
     request = urllib.request.Request(
         f'http://127.0.0.1:{port}/api/v2/paper/{command}',
-        data=b'', method='POST', headers={'X-ARMS-ADMIN-TOKEN': token})
+        data=b'', method='POST', headers=headers)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     with opener.open(request, timeout=3) as response:
         raw = response.read(4 * 1024 * 1024 + 1)
@@ -162,10 +169,14 @@ class _PaperApiLifecycleV1:
                 expected_session=expected_session,
                 native_spec_path=native_spec_path,
                 reviewed_spec_sha256=reviewed_spec_sha256),
-            enable_call=lambda: _authenticated_paper_command(
-                port=paper_port, token=admin_token, command='enable'),
-            disable_call=lambda: _authenticated_paper_command(
-                port=paper_port, token=admin_token, command='disable'),
+            enable_call=lambda **identity: _authenticated_paper_command(
+                port=paper_port, token=admin_token, command='enable',
+                request_id=identity.get('request_id'),
+                request_nonce=identity.get('nonce')),
+            disable_call=lambda **identity: _authenticated_paper_command(
+                port=paper_port, token=admin_token, command='disable',
+                request_id=identity.get('request_id'),
+                request_nonce=identity.get('nonce')),
             fail_closed_call=service.shutdown,
             restrict_directory=_restrict_directory,
         )
@@ -265,6 +276,8 @@ def run_current_paper(args):
         or not compare_digest(sha256(spec_bytes).hexdigest(), args.native_spec_sha256)
     ):
         raise ValueError("REVIEWED_NATIVE_SPEC_SHA256_REQUIRED")
+    if os.environ.get('ARMS_WINDOWS_JOB_SUPERVISED_V1') != namespace.name:
+        raise ValueError('WINDOWS_JOB_SUPERVISION_REQUIRED')
     # Paths are explicit fields of the hash-pinned reviewed specification.
     spec = json.loads(spec_bytes, object_pairs_hook=_unique)
     template_bytes = Path(spec["calendar_evidence_file"]).read_bytes()

@@ -117,9 +117,9 @@ class ControllerPaperEnableCommandV1:
         return self._response(accepted=False, reason=reason,
             request_id=request_id, readiness=readiness, post=post)
 
-    def _revoke_enable(self):
+    def _revoke_enable(self, *, request_id=None, nonce=None):
         try:
-            disabled = self.disable_call()
+            disabled = self.disable_call(request_id=request_id, nonce=nonce)
             if (type(disabled) is not dict
                     or disabled.get('paper_execution_enabled') is not False):
                 raise RuntimeError('PAPER_DISABLE_NOT_CONFIRMED')
@@ -219,9 +219,9 @@ class ControllerPaperEnableCommandV1:
             safety_identity = readiness.get('_safety_identity')
             self.enable_consumed = True
             try:
-                enabled = self.enable_call()
+                enabled = self.enable_call(request_id=request_id, nonce=nonce)
             except Exception:
-                self._revoke_enable()
+                self._revoke_enable(request_id=request_id, nonce=nonce)
                 return self._reject('AUTHENTICATED_PAPER_ENABLE_FAILED',
                     request_id=request_id, readiness=public)
             safety_unchanged = (
@@ -243,7 +243,7 @@ class ControllerPaperEnableCommandV1:
                 and enabled.get('live_execution_allowed') is False
                 and enabled.get('external_order_authority', False) is False)
             if not valid_post:
-                self._revoke_enable()
+                self._revoke_enable(request_id=request_id, nonce=nonce)
                 return self._reject('POST_ENABLE_STATE_INVALID',
                     request_id=request_id, readiness=public, post=post)
             return self._response(accepted=True, reason='PAPER_ENABLED',

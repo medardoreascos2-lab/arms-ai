@@ -1,9 +1,11 @@
 // Native BID/ASK observations only. No account objects or order interfaces.
 // Separate indicator/directory preserves the hash-pinned candle exporter.
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
 using System.Windows.Threading;
@@ -17,12 +19,15 @@ namespace NinjaTrader.NinjaScript.Indicators
     {
         private const long L1_STREAM_MAX_BYTES = 256L * 1024 * 1024;
         private const int TERMINAL_RESERVE_BYTES = 4096;
+        private const string ManifestSchema = "arms.nt.l1.manifest.v1";
         private readonly object sync = new object();
+        private readonly List<Dictionary<string, object>> sealedSegments = new List<Dictionary<string, object>>();
         private StreamWriter output;
         private DispatcherTimer timer;
         private Connection source;
-        private string session;
-        private long sequence, bytes;
+        private string session, manifestPath, segmentPath;
+        private long sequence, bytes, segmentFirstSequence;
+        private int segmentIndex;
         private bool started, stopped;
         private double? bid, ask;
         private DateTime bidTime, askTime, lastTime;
@@ -58,9 +63,9 @@ namespace NinjaTrader.NinjaScript.Indicators
                             || !Path.IsPathRooted(OutputDirectory) || Path.GetPathRoot(OutputDirectory).StartsWith(@"\\")
                             || !Directory.Exists(OutputDirectory)) throw new InvalidOperationException();
                         session = Guid.NewGuid().ToString();
-                        output = new StreamWriter(new FileStream(Path.Combine(OutputDirectory, session + ".l1.jsonl"),
-                            FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false));
-                        output.AutoFlush = true; output.NewLine = "\n";
+                        manifestPath = Path.Combine(OutputDirectory, session + ".l1.manifest.json");
+                        OpenSegment(1);
+                        WriteManifest("ACTIVE", null);
                         Emit("HELLO", new { provider = ExpectedProvider, contract = "NQ DEC26", instrument = "NQ",
                             expiry = "2026-12-01", tick_size = .25, point_value = 20, application_timezone = "UTC",
                             trading_hours_template = "CME US Index Futures ETH", realtime = true, read_only = true, level = 1 }, DateTime.UtcNow);
@@ -75,9 +80,11 @@ namespace NinjaTrader.NinjaScript.Indicators
                             }
                         }));
                     }
-                    catch { Stop("STARTUP_FAILED"); }
+                    catch (StreamCapacityException) { Stop("STREAM_CAPACITY_REACHED"); }
+                    catch (IOException) { Stop("FILE_IO_ERROR"); }
+                    catch { Stop("CALLBACK_EXCEPTION"); }
                 }
-                else if (started) Stop("TERMINATED_OR_STATE_CHANGED");
+                else if (started) Stop("SESSION_TERMINATED");
             }
         }
 
@@ -135,7 +142,9 @@ namespace NinjaTrader.NinjaScript.Indicators
                     Emit("QUOTE", new { bid = bid.Value, ask = ask.Value,
                         bid_time = bidTime.ToString("o"), ask_time = askTime.ToString("o") }, now);
                 }
-                catch { Stop("CALLBACK_FAILED"); }
+                catch (StreamCapacityException) { Stop("STREAM_CAPACITY_REACHED"); }
+                catch (IOException) { Stop("FILE_IO_ERROR"); }
+                catch { Stop("CALLBACK_EXCEPTION"); }
             }
         }
 
@@ -146,7 +155,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (!started || stopped) return;
                 try
                 {
-                    if (update == null) { Stop("CONNECTION_FAILED"); return; }
+                    if (update == null) { Stop("CALLBACK_EXCEPTION"); return; }
                     // NinjaTrader can publish status callbacks for unrelated connections
                     // and can replay the current source state after subscription. Neither
                     // is continuity loss. The pinned source identity plus CURRENT status
@@ -162,9 +171,10 @@ namespace NinjaTrader.NinjaScript.Indicators
                         || source.PriceStatus != ConnectionStatus.Connected
                         || source.Status != ConnectionStatus.Connected
                         || !SafeSource())
-                        Stop("CONNECTION_CONTINUITY_LOST");
+                        Stop("PROVIDER_DISCONNECTED");
                 }
-                catch { Stop("CONNECTION_FAILED"); }
+                catch (IOException) { Stop("FILE_IO_ERROR"); }
+                catch { Stop("CALLBACK_EXCEPTION"); }
             }
         }
 
@@ -175,8 +185,90 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (stopped || output == null) return;
                 try { if (!SafeSource()) { Stop("SOURCE_CHANGED"); return; }
                     Emit("HEARTBEAT", new { connected = true }, DateTime.UtcNow); }
-                catch { Stop("HEARTBEAT_FAILED"); }
+                catch (StreamCapacityException) { Stop("STREAM_CAPACITY_REACHED"); }
+                catch (IOException) { Stop("FILE_IO_ERROR"); }
+                catch { Stop("CALLBACK_EXCEPTION"); }
             }
+        }
+
+        private sealed class StreamCapacityException : IOException { }
+
+        private string SegmentName(int index)
+        {
+            return session + ".segment." + index.ToString("D6") + ".l1.jsonl";
+        }
+
+        private void OpenSegment(int index)
+        {
+            segmentIndex = index;
+            segmentFirstSequence = sequence;
+            bytes = 0;
+            segmentPath = Path.Combine(OutputDirectory, SegmentName(index));
+            output = new StreamWriter(new FileStream(segmentPath, FileMode.CreateNew, FileAccess.Write,
+                FileShare.Read), new UTF8Encoding(false));
+            output.AutoFlush = true;
+            output.NewLine = "\n";
+        }
+
+        private string FileSha256(string path)
+        {
+            using (var algorithm = SHA256.Create())
+            using (var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                return String.Concat(algorithm.ComputeHash(input).Select(b => b.ToString("x2")));
+        }
+
+        private void SealSegment()
+        {
+            if (output == null) return;
+            output.Flush();
+            output.Dispose();
+            output = null;
+            sealedSegments.Add(new Dictionary<string, object> {
+                { "index", segmentIndex }, { "file", Path.GetFileName(segmentPath) },
+                { "first_sequence", segmentFirstSequence }, { "last_sequence", sequence - 1 },
+                { "bytes", bytes }, { "sha256", FileSha256(segmentPath) }, { "sealed", true }
+            });
+        }
+
+        private void WriteManifest(string state, string terminalReason)
+        {
+            var segments = new List<Dictionary<string, object>>(sealedSegments);
+            if (output != null)
+                segments.Add(new Dictionary<string, object> {
+                    { "index", segmentIndex }, { "file", Path.GetFileName(segmentPath) },
+                    { "first_sequence", segmentFirstSequence }, { "last_sequence", null },
+                    { "bytes", null }, { "sha256", null }, { "sealed", false }
+                });
+            var value = new Dictionary<string, object> {
+                { "schema", ManifestSchema }, { "session", session }, { "provider", ExpectedProvider },
+                { "instrument", "NQ" }, { "contract", "NQ DEC26" },
+                { "segment_capacity_bytes", L1_STREAM_MAX_BYTES }, { "state", state },
+                { "terminal_reason", terminalReason }, { "segments", segments }
+            };
+            string temporary = manifestPath + ".tmp." + Guid.NewGuid().ToString("N");
+            byte[] data = new UTF8Encoding(false).GetBytes(new JavaScriptSerializer().Serialize(value) + "\n");
+            try
+            {
+                using (var target = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write,
+                    FileShare.None, 4096, FileOptions.WriteThrough))
+                {
+                    target.Write(data, 0, data.Length);
+                    target.Flush(true);
+                }
+                if (File.Exists(manifestPath)) File.Replace(temporary, manifestPath, null);
+                else File.Move(temporary, manifestPath);
+            }
+            finally
+            {
+                if (File.Exists(temporary)) File.Delete(temporary);
+            }
+        }
+
+        private void RotateSegment()
+        {
+            SealSegment();
+            OpenSegment(segmentIndex + 1);
+            WriteManifest("ACTIVE", null);
         }
 
         private void Emit(string kind, object payload, DateTime now)
@@ -185,8 +277,13 @@ namespace NinjaTrader.NinjaScript.Indicators
             string line = new JavaScriptSerializer().Serialize(new { schema = "arms.nt.l1.v1", session = session,
                 sequence = sequence, event_time = now.ToString("o"), kind = kind, payload = payload });
             int count = Encoding.UTF8.GetByteCount(line + "\n");
-            if (bytes + count > L1_STREAM_MAX_BYTES - (kind == "TERMINAL" ? 0 : TERMINAL_RESERVE_BYTES))
-                throw new IOException();
+            long limit = L1_STREAM_MAX_BYTES - (kind == "TERMINAL" ? 0 : TERMINAL_RESERVE_BYTES);
+            if (count > limit) throw new StreamCapacityException();
+            if (bytes + count > limit)
+            {
+                if (kind == "TERMINAL") throw new StreamCapacityException();
+                RotateSegment();
+            }
             output.WriteLine(line); sequence++; bytes += count; lastTime = now;
         }
 
@@ -198,7 +295,8 @@ namespace NinjaTrader.NinjaScript.Indicators
             if (output != null)
             {
                 try { Emit("TERMINAL", new { connected = false, reason = reason }, DateTime.UtcNow); } catch { }
-                try { output.Dispose(); } catch { } output = null;
+                try { SealSegment(); WriteManifest("TERMINATED", reason); } catch { }
+                if (output != null) { try { output.Dispose(); } catch { } output = null; }
             }
             try { Print("ARMS_L1_STOP reason=" + reason); } catch { }
         }
