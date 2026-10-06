@@ -295,7 +295,7 @@ def test_heartbeat_timeout_and_worker_stall_revoke_before_another_poll(stream):
     s.reader.poll();assert s.reader.status=='REVOKED'
 
 
-@pytest.mark.parametrize('damage',['replace','truncate','overwrite','remove','directory','new_session','partial','gap','rollback','conflict'])
+@pytest.mark.parametrize('damage',['replace','truncate','overwrite','remove','directory','new_session','gap','rollback','conflict'])
 def test_file_and_sequence_integrity_revoke_existing_quote(stream,damage):
     s=stream;s.hello();s.quote();s.reader.poll();assert s.get()
     prior=s.path.read_bytes()
@@ -310,16 +310,14 @@ def test_file_and_sequence_integrity_revoke_existing_quote(stream,damage):
     elif damage=='remove':s.path.unlink()
     elif damage=='directory':s.directory.rename(s.directory.with_name('moved'));s.directory.mkdir()
     elif damage=='new_session':(s.directory/(str(uuid4())+'.l1.jsonl')).write_bytes(prior)
-    elif damage=='partial':s.append(b'{"unfinished":')
     elif damage=='gap':s.seq+=1;s.heartbeat()
     elif damage=='rollback':s.append(prior.splitlines(keepends=True)[0])
     elif damage=='conflict':s.append(prior.splitlines(keepends=True)[1].replace(b'25000.25',b'25000.50'))
-    if damage in ('partial','gap','rollback','conflict'):
+    if damage in ('gap','rollback','conflict'):
         assert s.get() is not None  # Unobserved suffix belongs to the next poll.
     else:
         assert s.get() is None
     s.reader.poll()
-    if damage=='partial':s.advance(6);s.reader.poll()
     assert s.reader.status=='REVOKED' and s.get() is None
 
 
@@ -401,14 +399,12 @@ def test_clock_regression_during_read_revokes_before_publication(stream, monkeyp
     assert s.reader.quotes._quotes=={}
 
 
-@pytest.mark.parametrize('partial,delay', [(False,16),(True,6)])
-def test_read_duration_counts_toward_heartbeat_and_partial_timeout(stream,monkeypatch,partial,delay):
+def test_read_duration_counts_toward_heartbeat_timeout(stream,monkeypatch):
     s=stream;s.hello();s.quote()
-    if partial:s.append(b'{')
     original_read=m._Tail.read
     def delayed_read(tail,start_tick):
         rows=original_read(tail,start_tick)
-        s.advance(delay)
+        s.advance(16)
         return rows
     monkeypatch.setattr(m._Tail,'read',delayed_read)
     s.reader.poll()
@@ -460,10 +456,167 @@ def test_preexisting_backlog_blocks_publication_until_snapshot_consumed(stream,m
     s.reader.poll()
     assert not s.reader.tail.partial and s.reader.tail.offset<boundary
     assert s.reader.quotes._quotes==published and s.get() is None
-    assert s.reader.get_snapshot()['status']!='FRESH'
+    assert s.reader.get_snapshot()['status']=='CATCHING_UP'
+    assert s.reader.status!='REVOKED'
     s.reader.poll()
     assert s.reader.tail.offset==boundary
     assert s.reader.get_snapshot()['status']=='FRESH' and s.get()['ask']==25000.75
+
+
+def test_segmented_preexisting_backlog_over_64k_catches_up_without_revocation(
+    tmp_path,monkeypatch,
+):
+    from backend.market_data import fresh_native_adapter_v1 as tail_module
+    s=SegmentedStream(tmp_path/'segmented-backlog',monkeypatch)
+    try:
+        s.hello()
+        while s.path.stat().st_size <= tail_module.CHUNK * 2:
+            s.quote(ask=25000.75)
+        boundary=s.path.stat().st_size
+        s.reader.poll()
+        first=s.reader.get_snapshot()
+        assert s.reader.tail.offset==tail_module.CHUNK < boundary
+        assert first['status']=='CATCHING_UP'
+        assert first['status']!='REVOKED'
+        assert first['ready'] is False and first['authority'] is False
+        assert s.get() is None
+        while s.reader.tail.offset < boundary:
+            s.reader.poll()
+            if s.reader.tail.offset < boundary:
+                assert s.reader.get_snapshot()['status']=='CATCHING_UP'
+                assert s.get() is None
+        snapshot=s.reader.get_snapshot()
+        assert snapshot['status']=='FRESH'
+        assert snapshot['ready'] is True and snapshot['authority'] is True
+        assert s.get()['ask']==25000.75
+    finally:
+        s.reader.close()
+
+
+def test_partial_jsonl_record_is_preserved_and_completed_on_later_poll(
+    tmp_path,monkeypatch,
+):
+    from backend.market_data import fresh_native_adapter_v1 as tail_module
+    s=SegmentedStream(tmp_path/'segmented-partial',monkeypatch)
+    try:
+        s.hello();s.quote()
+        at=s.now.isoformat().replace('+00:00','Z')
+        raw=s.frame('QUOTE',dict(bid=25000,ask=25000.75,bid_time=at,ask_time=at))
+        split=len(raw)//2
+        prefix=s.path.stat().st_size
+        s.append(raw[:split])
+        monkeypatch.setattr(tail_module,'CHUNK',prefix+split)
+        s.reader.poll()
+        assert s.reader.status=='CATCHING_UP'
+        assert s.reader.tail.partial==raw[:split]
+        assert s.reader.get_snapshot()['authority'] is False
+        assert s.get() is None
+        s.append(raw[split:])
+        s.reader.poll()
+        assert s.reader.tail.partial==b''
+        assert s.reader.get_snapshot()['status']=='FRESH'
+        assert s.get()['ask']==25000.75
+    finally:
+        s.reader.close()
+
+
+def test_append_only_growth_while_catching_up_remains_valid(tmp_path,monkeypatch):
+    from backend.market_data import fresh_native_adapter_v1 as tail_module
+    s=SegmentedStream(tmp_path/'segmented-growth',monkeypatch)
+    try:
+        s.hello()
+        while s.path.stat().st_size <= tail_module.CHUNK * 2:
+            s.quote()
+        s.reader.poll()
+        assert s.reader.status=='CATCHING_UP'
+        prior_boundary=s.reader.observed_size
+        while s.path.stat().st_size <= prior_boundary+tail_module.CHUNK:
+            s.quote(ask=25000.50)
+        grown_boundary=s.path.stat().st_size
+        s.reader.poll()
+        assert s.reader.observed_size==grown_boundary
+        assert s.reader.status=='CATCHING_UP'
+        assert s.reader.get_snapshot()['status']=='CATCHING_UP'
+        while s.reader.tail.offset < grown_boundary:
+            s.reader.poll()
+        assert s.reader.get_snapshot()['status']=='FRESH'
+        assert s.get()['ask']==25000.50
+    finally:
+        s.reader.close()
+
+
+def test_sequence_gap_during_segmented_catchup_revokes(tmp_path,monkeypatch):
+    from backend.market_data import fresh_native_adapter_v1 as tail_module
+    s=SegmentedStream(tmp_path/'segmented-gap',monkeypatch)
+    try:
+        s.hello()
+        while s.path.stat().st_size <= tail_module.CHUNK * 2:
+            s.quote()
+        s.seq+=1
+        s.quote()
+        s.reader.poll()
+        assert s.reader.status=='CATCHING_UP'
+        while s.reader.status=='CATCHING_UP':
+            s.reader.poll()
+        snapshot=s.reader.get_snapshot()
+        assert snapshot['status']=='REVOKED'
+        assert snapshot['first_failed_check']=='SEQUENCE_GAP_OR_ROLLBACK'
+        assert snapshot['validation_error']=='ValueError:SEQUENCE_GAP_OR_ROLLBACK'
+        assert s.get() is None
+    finally:
+        s.reader.close()
+
+
+@pytest.mark.parametrize('damage',['provider','session','manifest'])
+def test_identity_or_manifest_mutation_during_segmented_catchup_revokes(
+    tmp_path,monkeypatch,damage,
+):
+    from backend.market_data import fresh_native_adapter_v1 as tail_module
+    s=SegmentedStream(tmp_path/('segmented-catchup-'+damage),monkeypatch)
+    try:
+        s.hello()
+        while s.path.stat().st_size <= tail_module.CHUNK * 2:
+            s.quote()
+        s.reader.poll()
+        assert s.reader.status=='CATCHING_UP'
+        if damage=='session':
+            s.append(s.frame('HEARTBEAT',dict(connected=True),session=str(uuid4())))
+        else:
+            value=json.loads(s.manifest_path.read_text())
+            if damage=='provider':
+                value['provider']='Simulator'
+            else:
+                value['segments'][0]['first_sequence']=1
+            s.manifest_path.write_text(json.dumps(value,separators=(',',':'))+'\n')
+        while s.reader.status=='CATCHING_UP':
+            s.reader.poll()
+        snapshot=s.reader.get_snapshot()
+        assert snapshot['status']=='REVOKED'
+        assert snapshot['first_failed_check'] is not None
+        assert snapshot['validation_error'].startswith('ValueError:')
+        assert s.get() is None
+    finally:
+        s.reader.close()
+
+
+def test_stale_quote_after_segmented_catchup_remains_fail_closed(
+    tmp_path,monkeypatch,
+):
+    from backend.market_data import fresh_native_adapter_v1 as tail_module
+    s=SegmentedStream(tmp_path/'segmented-stale',monkeypatch)
+    try:
+        s.hello()
+        while s.path.stat().st_size <= tail_module.CHUNK * 2:
+            s.quote()
+        s.advance(31);s.heartbeat()
+        while s.reader.tail is None or s.reader.tail.offset < s.path.stat().st_size:
+            s.reader.poll()
+        snapshot=s.reader.get_snapshot()
+        assert snapshot['status']=='STALE'
+        assert snapshot['ready'] is False and snapshot['authority'] is False
+        assert s.get() is None
+    finally:
+        s.reader.close()
 
 
 def test_invalid_appended_suffix_revokes_on_next_poll(stream):

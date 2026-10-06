@@ -197,12 +197,18 @@ def _make_live(
 class _L1:
     def __init__(self):
         self.terminated = False
+        self.status = 'FRESH'
         self.closed = False
     def poll(self):
         return None
     def get_snapshot(self):
-        return {'status':'REVOKED','reason':'L1_STREAM_TERMINATED:FILE_IO_ERROR'} if (
-            self.terminated) else {'status':'FRESH','reason':None}
+        if self.terminated:
+            return {'status':'REVOKED','reason':'L1_STREAM_TERMINATED:FILE_IO_ERROR'}
+        if self.status=='REVOKED':
+            return {'status':'REVOKED','reason':'STREAM_OR_CONTEXT_INVALID',
+                'first_failed_check':'SEQUENCE_GAP_OR_ROLLBACK'}
+        return {'status':self.status,'reason':None,
+            'ready':self.status=='FRESH','authority':self.status=='FRESH'}
     def close(self):
         self.closed = True
 
@@ -566,6 +572,62 @@ def test_l1_terminal_immediately_disables_and_journals_exact_reason(
     assert paper['paper_authority_transition_count']==2
     assert paper_runtime.lifecycle.broker_connector_v2.get_fills()==[]
     assert paper_runtime.completed==[]
+
+
+def test_l1_revocation_preserves_first_failed_check_in_coordinator_reason(
+    tmp_path,monkeypatch,api_settings,
+):
+    runtime, _, _ = _analysis_runtime(tmp_path,monkeypatch)
+    service, wall = _paper(tmp_path,api_settings)
+    l1 = _L1();l1.status='REVOKED'
+    coordinator = NativeCurrentPaperCoordinatorV1(
+        analysis_runtime=runtime,service=service,
+        wall_clock=lambda:wall[0],l1_reader=l1)
+    expected=('L1_STREAM_REVOKED:STREAM_OR_CONTEXT_INVALID:'
+        'SEQUENCE_GAP_OR_ROLLBACK')
+    with pytest.raises(RuntimeError,match=expected):
+        coordinator.poll()
+    assert coordinator.reason==expected
+    assert service._runtime is None
+
+
+def test_l1_catching_up_waits_without_execution_authority_or_revocation(
+    tmp_path,monkeypatch,api_settings,
+):
+    runtime, _, _ = _analysis_runtime(tmp_path,monkeypatch)
+    service, wall = _paper(tmp_path,api_settings)
+    l1 = _L1()
+    coordinator = NativeCurrentPaperCoordinatorV1(
+        analysis_runtime=runtime,service=service,
+        wall_clock=lambda:wall[0],l1_reader=l1)
+    runtime.finish_health(backend_pid=runtime.pid,frontend_pid=99,
+        dashboard_status=200,allow_activation=True)
+    adapter=_make_live(runtime,monkeypatch)
+    adapter.live_handoff_records.append(_record())
+    first=coordinator.poll()
+    assert first['status']=='LIVE'
+    assert service.publish_health(coordinator=first,worker_alive=True)
+    service._runtime.control('enable',request_id='request-id',
+        request_nonce='nonce',initiating_path='OFFLINE_TEST',
+        readiness_snapshot=service.get_snapshot())
+    paper_runtime=service._runtime._paper.runtime
+    before=(paper_runtime.lifecycle.broker_connector_v2.get_orders(),
+        paper_runtime.lifecycle.broker_connector_v2.get_fills(),
+        list(paper_runtime.completed))
+    l1.status='CATCHING_UP'
+    waiting=coordinator.poll()
+    paper=service.get_snapshot()
+    assert waiting['status']=='WAITING_FOR_L1_CATCHUP'
+    assert waiting['reason'] is None
+    assert waiting['l1']['ready'] is False
+    assert waiting['l1']['authority'] is False
+    assert coordinator.status!='REVOKED'
+    assert paper['paper_execution_enabled'] is False
+    assert paper['fresh_authorization_session_required'] is True
+    assert paper['latest_paper_authority_transition']['reason']=='L1_CATCHING_UP'
+    assert (paper_runtime.lifecycle.broker_connector_v2.get_orders(),
+        paper_runtime.lifecycle.broker_connector_v2.get_fills(),
+        list(paper_runtime.completed))==before
 
 
 def test_analysis_failure_fails_closed_without_analysis_poll(

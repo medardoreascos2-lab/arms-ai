@@ -243,6 +243,12 @@ class NativeCurrentPaperCoordinatorV1:
                 if self.l1_reader is not None:
                     self.l1_reader.poll()
                     l1_snapshot = self.l1_reader.get_snapshot()
+                    if l1_snapshot.get('status') == 'CATCHING_UP':
+                        self.status = 'WAITING_FOR_L1_CATCHUP'
+                        self.service.invalidate_health(reason='L1_CATCHING_UP',
+                            initiating_path='CURRENT_PAPER_L1_READER')
+                        self.poll_count += 1
+                        return self.get_snapshot()
                     if l1_snapshot.get('status') == 'REVOKED':
                         l1_reason = l1_snapshot.get('reason')
                         if (type(l1_reason) is not str
@@ -250,6 +256,9 @@ class NativeCurrentPaperCoordinatorV1:
                             l1_reason = 'L1_STREAM_REVOKED:' + (
                                 l1_reason if type(l1_reason) is str
                                 else 'UNKNOWN')
+                            first_failed = l1_snapshot.get('first_failed_check')
+                            if type(first_failed) is str and first_failed:
+                                l1_reason += ':' + first_failed
                         self.service.invalidate_health(reason=l1_reason,
                             initiating_path='CURRENT_PAPER_L1_READER')
                         return self._fail(l1_reason)

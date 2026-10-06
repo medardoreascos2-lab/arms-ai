@@ -65,6 +65,8 @@ class SimNativeL1AuthorityV1:
         self.last_poll_elapsed = self.started_elapsed
         self.last_poll_wall = self.started
         self.status, self.reason = 'WAITING_FOR_STREAM', None
+        self.internal_reason = None
+        self.first_failed_check = None
         self.validation_error = None
         self.tail = self.session = self.directory_identity = None
         self.manifest_path = self.manifest_sha256 = self.manifest = None
@@ -241,9 +243,8 @@ class SimNativeL1AuthorityV1:
             for raw, _, _ in rows:
                 require(self.terminal_reason is None, 'FRAME_AFTER_TERMINAL')
                 self._frame(raw, now)
-            require(self.tail.partial_since is None
-                or tick-self.tail.partial_since <= 5, 'PARTIAL_TIMEOUT')
             if self.tail.partial or self.tail.offset < self.observed_size:
+                self.status = 'CATCHING_UP'
                 self.manifest_path = manifest_path
                 self.manifest_sha256 = sha256(manifest_raw).hexdigest()
                 self.manifest = manifest
@@ -322,9 +323,13 @@ class SimNativeL1AuthorityV1:
                 # Never publish a valid prefix of an incomplete or unchecked batch.
                 self.last_poll_elapsed = tick
                 self.last_poll_wall = now
-                require(self.tail.partial_since is None or tick-self.tail.partial_since <= 5, 'PARTIAL_TIMEOUT')
                 if self.tail.partial or self.tail.offset < self.observed_size:
+                    self.status = 'CATCHING_UP'
                     return
+                if self.status == 'CATCHING_UP':
+                    self.status = ('FRESH' if self.quote is not None else
+                        'AWAITING_TWO_SIDED_QUOTE' if self.sequence >= 0 else
+                        'WAITING_FOR_HELLO')
                 if self.terminal_reason is not None:
                     self.revoke('L1_STREAM_TERMINATED:' + self.terminal_reason)
                     return
@@ -337,6 +342,9 @@ class SimNativeL1AuthorityV1:
                     self.quote_elapsed = tick
                     RuntimeQuoteAuthorityV2.publish_quote(self.quotes, **self.quote)
             except (OSError, ValueError, TypeError, KeyError, AttributeError, OverflowError, RuntimeError) as error:
+                self.internal_reason = str(error) or type(error).__name__
+                if self.first_failed_check is None:
+                    self.first_failed_check = self.internal_reason
                 self.validation_error = type(error).__name__ + ':' + str(error)
                 self.revoke('STREAM_OR_CONTEXT_INVALID')
 
@@ -358,9 +366,14 @@ class SimNativeL1AuthorityV1:
             require(self.tail is not None, 'ACTIVE_SEGMENT_MISSING')
             path = local_path(self.tail.path)
             info = path.stat()
-            require((info.st_dev,info.st_ino) == self.tail.identity
-                and info.st_size >= self.tail.offset >= self.observed_size
-                and not self.tail.partial, 'UNVALIDATED_STREAM')
+            if self.status == 'CATCHING_UP':
+                require((info.st_dev,info.st_ino) == self.tail.identity
+                    and info.st_size >= max(self.observed_size,self.tail.offset),
+                    'CATCHUP_PREFIX_INVALID')
+            else:
+                require((info.st_dev,info.st_ino) == self.tail.identity
+                    and info.st_size >= self.tail.offset >= self.observed_size
+                    and not self.tail.partial, 'UNVALIDATED_STREAM')
             with _Tail._open_read(path) as handle:
                 require(_exact_prefix_digest(handle, self.tail.offset)
                     == self.tail.digest.digest(), 'PREFIX_CHANGED')
@@ -369,9 +382,14 @@ class SimNativeL1AuthorityV1:
         require(len(files) == 1 and files[0] == self.tail.path, 'SESSION_CHANGED')
         path = local_path(self.tail.path)
         info = path.stat()
-        require((info.st_dev,info.st_ino) == self.tail.identity
-                and info.st_size >= self.tail.offset >= self.observed_size
-                and not self.tail.partial, 'UNVALIDATED_STREAM')
+        if self.status == 'CATCHING_UP':
+            require((info.st_dev,info.st_ino) == self.tail.identity
+                and info.st_size >= max(self.observed_size,self.tail.offset),
+                'CATCHUP_PREFIX_INVALID')
+        else:
+            require((info.st_dev,info.st_ino) == self.tail.identity
+                    and info.st_size >= self.tail.offset >= self.observed_size
+                    and not self.tail.partial, 'UNVALIDATED_STREAM')
         with _Tail._open_read(path) as handle:
             require(_exact_prefix_digest(handle, self.tail.offset)
                 == self.tail.digest.digest(), 'PREFIX_CHANGED')
@@ -381,7 +399,10 @@ class SimNativeL1AuthorityV1:
         with self.lock:
             view = dict(status=self.status, reason=self.reason, provider=IDENTITY['provider'], instrument='NQ',
                 contract=IDENTITY['contract'], session=self.session, sequence=self.sequence,
+                internal_reason=self.internal_reason,
+                first_failed_check=self.first_failed_check,
                 validation_error=self.validation_error,
+                ready=False, authority=False,
                 bid=None, ask=None, spread_points=None, quote_age_seconds=None,
                 maximum_quote_age_seconds=MAX_AGE, observed_at=None)
             if self.status == 'REVOKED' or self.tail is None:
@@ -389,6 +410,8 @@ class SimNativeL1AuthorityV1:
             try:
                 self.context()
                 self._unchanged()
+                if self.status == 'CATCHING_UP':
+                    return view, None
                 now, tick = self.clock(), self.elapsed()
                 require(now >= self.last_poll_wall and 0 <= tick-self.last_poll_elapsed <= HEARTBEAT and self.heartbeat is not None
                         and 0 <= (now-self.heartbeat).total_seconds() <= HEARTBEAT, 'LIVENESS')
@@ -399,9 +422,13 @@ class SimNativeL1AuthorityV1:
                 view.update(status='FRESH' if age <= MAX_AGE else 'STALE', quote_age_seconds=age,
                     bid=self.quote['bid'], ask=self.quote['ask'], observed_at=self.quote['timestamp'].isoformat(),
                     spread_points=self.admission.spread_authority.resolve_spread_points(**{k:self.quote[k] for k in ('symbol','bid','ask')}))
+                view.update(ready=age <= MAX_AGE, authority=age <= MAX_AGE)
                 return view, self.quote if age <= MAX_AGE else None
-            except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError):
-                view.update(status='REVOKED',reason='STREAM_OR_CONTEXT_INVALID')
+            except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as error:
+                internal = str(error) or type(error).__name__
+                view.update(status='REVOKED',reason='STREAM_OR_CONTEXT_INVALID',
+                    internal_reason=internal,first_failed_check=internal,
+                    validation_error=type(error).__name__+':'+str(error))
                 return view, None
 
     def get_snapshot(self):
