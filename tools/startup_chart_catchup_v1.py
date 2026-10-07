@@ -53,6 +53,7 @@ REQUEST_SCHEMA = (
 MINUTE = timedelta(
     minutes=1
 )
+MAX_CATCHUP_DURATION = timedelta(days=2)
 
 LIFECYCLE_NAME = "catchup-lifecycle.jsonl"
 LIFECYCLE_STATES = {
@@ -280,8 +281,12 @@ def prepare_request(
 
     require(
         through_close - from_close
-        <= timedelta(days=2),
+        <= MAX_CATCHUP_DURATION,
         "STARTUP_CATCHUP_RANGE_LIMIT",
+    )
+
+    duration_seconds = int(
+        (through_close - from_close).total_seconds()
     )
 
     live_output_directory = (
@@ -350,6 +355,12 @@ def prepare_request(
             ),
         "absolute_time_authority":
             "NONE",
+        "range_contract":
+            "EXACT_CONTIGUOUS_NO_TRUNCATION",
+        "range_duration_seconds":
+            duration_seconds,
+        "range_maximum_seconds":
+            int(MAX_CATCHUP_DURATION.total_seconds()),
         "observation_only":
             True,
         "runtime_admission":

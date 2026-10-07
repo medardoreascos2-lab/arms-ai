@@ -3,6 +3,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import (
     datetime,
+    timedelta,
     timezone,
 )
 from hashlib import sha256
@@ -30,9 +31,77 @@ from tools.startup_chart_catchup_v1 import (
     capture_status,
     certify_capture,
     latest_expected_close,
+    MAX_CATCHUP_DURATION,
     next_expected_close,
     prepare_request,
 )
+
+
+def _request_at_duration(tmp_path, monkeypatch, duration):
+    _, data = native()
+    run = tmp_path / ("range-" + str(int(duration.total_seconds())))
+    run.mkdir()
+    start = datetime(2026, 10, 1, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        "tools.startup_chart_catchup_v1.next_expected_close",
+        lambda _bootstrap: start)
+    monkeypatch.setattr(
+        "tools.startup_chart_catchup_v1.latest_expected_close",
+        lambda _bootstrap, _now: start + duration)
+    return prepare_request(run, data, now_utc=start + duration)
+
+
+@pytest.mark.parametrize("duration", (
+    timedelta(minutes=1), MAX_CATCHUP_DURATION,
+))
+def test_bounded_range_at_or_below_limit_passes(
+        tmp_path, monkeypatch, duration):
+    request = _request_at_duration(tmp_path, monkeypatch, duration)
+    assert request["range_contract"] == "EXACT_CONTIGUOUS_NO_TRUNCATION"
+    assert request["range_duration_seconds"] == int(duration.total_seconds())
+    assert request["range_maximum_seconds"] == 2 * 24 * 60 * 60
+
+
+def test_range_above_limit_blocks_without_clipping(tmp_path, monkeypatch):
+    with pytest.raises(ValueError, match="STARTUP_CATCHUP_RANGE_LIMIT"):
+        _request_at_duration(
+            tmp_path, monkeypatch, MAX_CATCHUP_DURATION + timedelta(minutes=1))
+
+
+def test_future_base_timestamp_blocks(tmp_path, monkeypatch):
+    _, data = native()
+    run = tmp_path / "future-base"
+    run.mkdir()
+    now = datetime(2026, 10, 1, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        "tools.startup_chart_catchup_v1.next_expected_close",
+        lambda _bootstrap: now + timedelta(minutes=1))
+    monkeypatch.setattr(
+        "tools.startup_chart_catchup_v1.latest_expected_close",
+        lambda _bootstrap, _now: now)
+    with pytest.raises(ValueError, match="STARTUP_CATCHUP_BASE_NOT_BEHIND"):
+        prepare_request(run, data, now_utc=now)
+
+
+def test_invalid_naive_timestamp_blocks(tmp_path):
+    _, data = native()
+    run = tmp_path / "naive-now"
+    run.mkdir()
+    with pytest.raises(ValueError, match="STARTUP_CATCHUP_UTC_REQUIRED"):
+        prepare_request(run, data, now_utc=datetime(2026, 10, 1))
+
+
+def test_fresh_current_request_has_no_historical_bootstrap(tmp_path):
+    _, data = native()
+    run = tmp_path / "no-historical-bootstrap"
+    run.mkdir()
+    request = prepare_request(
+        run, data,
+        now_utc=datetime(2026, 9, 21, 22, 2, tzinfo=timezone.utc),
+        latest_closed=True)
+    serialized = json.dumps(request, sort_keys=True)
+    assert "HistoricalBootstrap" not in serialized
+    assert request["range_contract"] == "EXACT_CONTIGUOUS_NO_TRUNCATION"
 
 
 def native():
