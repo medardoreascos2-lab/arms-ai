@@ -1,0 +1,37 @@
+{
+  "schema": "arms.current-paper-recency-block.d4e7.v1",
+  "status": "OFFLINE_FIX_REVIEW_PASS_LIVE_RERUN_PENDING",
+  "baseline_head": "ba0155313d82c8c76d664dae719b396223d8a3ee",
+  "change_commit": "7e88d40cf159dd062de2482a4906ecddcaf9ac54",
+  "review_head": "0ffa64d662385791fd2c71c179f51ce6d3360a9f",
+  "root_cause": "ABSOLUTE_RECENCY_UNPROVEN_MUST_BLOCK_WITHOUT_TEARDOWN",
+  "recency_failure_state": "RECENCY_BLOCKED",
+  "recovery_policy": "FRESH_PROVEN_RECENCY_REQUIRED",
+  "authority_change": "NONE",
+  "paper_auto_enable": false,
+  "paper_execution_enabled": false,
+  "live_execution_allowed": false,
+  "ninjatrader_account_access": false,
+  "ninjatrader_order_authority": false,
+  "order_submit_reachable": false,
+  "live_rerun": "PENDING",
+  "offline_regression_status": "PASS",
+  "offline_regression_passed": 57,
+  "offline_regression_failed": 0,
+  "source_sha256": {
+    "backend/backtesting/certified_native_paper_bridge_v1.py": "6224192f0efc67da73f700c9016efa15ff9fde1de6496b1363fb6d7bddb6ea2f",
+    "backend/backtesting/native_current_paper_coordinator_v1.py": "d3ba2864053c64425ebf030d7d39237cb564500d1e2f2a567f534f751c094e32",
+    "backend/market_data/current_candle_authority_v1.py": "bcfe63f74c7d22880ed9d04288279743f92698273157d5944a7817db0c7f5561",
+    "backend/tests/test_certified_native_paper_bridge_v1.py": "9eba731e8c9ca4cb49f5d0caa867b2a512b3f7490d007e376e23ceead11be921",
+    "backend/tests/test_native_current_paper_coordinator_v1.py": "394cbbe764a1d3b211cefcc94bfa428e6e66e5f8d6ef49d4afe6fd587fd999ad"
+  },
+  "focused_cases": [
+    "test_unproven_recency_blocks_without_terminating_and_fresh_recovers",
+    "test_pending_staleness_fails_closed",
+    "test_later_record_cannot_overtake_future_head",
+    "native_current_paper_coordinator_recency_block"
+  ],
+  "proof_limitations": [
+    "Offline deterministic certification only; no new native NinjaTrader LIVE rerun has been performed for the post-7e88d40c bridge."
+  ]
+}

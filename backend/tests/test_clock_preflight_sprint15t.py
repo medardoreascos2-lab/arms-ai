@@ -610,3 +610,61 @@ def test_review_provenance_requires_explicit_text_identity(value):
     x=fixture_inputs();x["bounds"]=replace(x["bounds"],provenance=value)
     result=assess(**x)
     assert result["status"]=="UNKNOWN" and not any(result["clock_ready"].values())
+
+
+def test_current_paper_recency_block_d4e7_offline_certification():
+    import hashlib
+
+    artifact = json.loads(Path(
+        "backend/tests/current_paper_recency_block_d4e7.json"
+    ).read_text(encoding="utf-8"))
+
+    assert artifact["schema"] == "arms.current-paper-recency-block.d4e7.v1"
+    assert artifact["status"] == "OFFLINE_FIX_REVIEW_PASS_LIVE_RERUN_PENDING"
+    assert artifact["baseline_head"] == "ba0155313d82c8c76d664dae719b396223d8a3ee"
+    assert artifact["change_commit"] == "7e88d40cf159dd062de2482a4906ecddcaf9ac54"
+    assert artifact["review_head"] == "0ffa64d662385791fd2c71c179f51ce6d3360a9f"
+    assert artifact["root_cause"] == "ABSOLUTE_RECENCY_UNPROVEN_MUST_BLOCK_WITHOUT_TEARDOWN"
+    assert artifact["recency_failure_state"] == "RECENCY_BLOCKED"
+    assert artifact["recovery_policy"] == "FRESH_PROVEN_RECENCY_REQUIRED"
+    assert artifact["authority_change"] == "NONE"
+    assert artifact["live_rerun"] == "PENDING"
+    assert artifact["offline_regression_status"] == "PASS"
+    assert artifact["offline_regression_passed"] == 57
+    assert artifact["offline_regression_failed"] == 0
+
+    for key in (
+        "paper_auto_enable",
+        "paper_execution_enabled",
+        "live_execution_allowed",
+        "ninjatrader_account_access",
+        "ninjatrader_order_authority",
+        "order_submit_reachable",
+    ):
+        assert artifact[key] is False
+
+    assert set(artifact["focused_cases"]) == {
+        "test_unproven_recency_blocks_without_terminating_and_fresh_recovers",
+        "test_pending_staleness_fails_closed",
+        "test_later_record_cannot_overtake_future_head",
+        "native_current_paper_coordinator_recency_block",
+    }
+
+    expected_sources = {
+        "backend/backtesting/certified_native_paper_bridge_v1.py":
+            "6224192f0efc67da73f700c9016efa15ff9fde1de6496b1363fb6d7bddb6ea2f",
+        "backend/backtesting/native_current_paper_coordinator_v1.py":
+            "d3ba2864053c64425ebf030d7d39237cb564500d1e2f2a567f534f751c094e32",
+        "backend/market_data/current_candle_authority_v1.py":
+            "bcfe63f74c7d22880ed9d04288279743f92698273157d5944a7817db0c7f5561",
+        "backend/tests/test_certified_native_paper_bridge_v1.py":
+            "9eba731e8c9ca4cb49f5d0caa867b2a512b3f7490d007e376e23ceead11be921",
+        "backend/tests/test_native_current_paper_coordinator_v1.py":
+            "394cbbe764a1d3b211cefcc94bfa428e6e66e5f8d6ef49d4afe6fd587fd999ad",
+    }
+    assert artifact["source_sha256"] == expected_sources
+    for path, digest in expected_sources.items():
+        assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+
+    assert len(artifact["proof_limitations"]) == 1
+    assert "no new native NinjaTrader LIVE rerun" in artifact["proof_limitations"][0]
