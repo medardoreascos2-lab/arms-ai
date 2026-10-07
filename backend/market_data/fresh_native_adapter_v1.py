@@ -176,7 +176,7 @@ class FreshNativeAdapterV1:
     def __init__(self, *, directory, qpc_clock, installed_exporter,
                  heartbeat_seconds=15, processing_seconds=90, pair_wait_seconds=5,
                  startup_seconds=900, health_gated=True, bootstrap=None,
-                 live_handoff=False):
+                 live_handoff=False, expected_one_click_binding=None):
         self.directory = local_path(directory)
         require(self.directory.is_dir(), 'DIRECTORY_REQUIRED')
         source = local_path(installed_exporter)
@@ -214,6 +214,19 @@ class FreshNativeAdapterV1:
         self.hello = None
         self.last_pair = None
         self.last_receipt = None
+        if expected_one_click_binding is not None:
+            require(
+                type(expected_one_click_binding) is dict
+                and set(expected_one_click_binding) == {
+                    'native_runtime_id', 'binding_nonce',
+                    'binding_claim_sha256', 'handoff_file_sha256',
+                }
+                and all(type(value) is str and bool(value)
+                        for value in expected_one_click_binding.values()),
+                'ONE_CLICK_BINDING_EXPECTATION',
+            )
+        self.expected_one_click_binding = expected_one_click_binding
+        self.one_click_binding = None
         self.bootstrap_records = 0
         self.delivered_records = 0
         self.heartbeat = 0
@@ -295,6 +308,35 @@ class FreshNativeAdapterV1:
             session,
             reason,
         )
+
+    def _validate_one_click_binding_receipt(self, path, session, reason):
+        if self.expected_one_click_binding is None:
+            require(path is None, reason)
+            return None
+        if path is None:
+            return None
+        raw = local_path(path).read_bytes()
+        require(0 < len(raw) <= 4096 and raw.endswith(b'\n'), reason)
+        receipt = parse(raw[:-1])
+        expected = {
+            'schema': 'arms.nt.one-click-binding-receipt.v1',
+            'session': session,
+            'read_only': True,
+            **self.expected_one_click_binding,
+            'execution_authority': False,
+            'order_authority': False,
+            'paper_execution_authority': False,
+            'live_execution_authority': False,
+            'broker_authority': False,
+            'strategy_enable_authority': False,
+            'ninjatrader_control_authority': False,
+            'paper_execution_enabled': False,
+            'live_execution_allowed': False,
+            'external_order_authority': False,
+            'broker_live_order_authority': False,
+        }
+        require(receipt == expected, reason)
+        return receipt
 
     def _validate_closed_predecessor(
         self,
@@ -381,6 +423,7 @@ class FreshNativeAdapterV1:
             connections = {}
             timing = {}
             seals = {}
+            binding_receipts = {}
             present = set()
 
             for raw_entry in entries:
@@ -418,7 +461,15 @@ class FreshNativeAdapterV1:
 
                 entry = local_path(raw_entry)
                 require(entry.is_file(), reason)
-                if entry.name.endswith('.connection.jsonl'):
+                if entry.name.endswith('.one-click-binding.json'):
+                    session = self._preactivation_session_from_name(
+                        entry.name,
+                        '.one-click-binding.json',
+                        reason,
+                    )
+                    require(session not in binding_receipts, reason)
+                    binding_receipts[session] = entry
+                elif entry.name.endswith('.connection.jsonl'):
                     session = self._preactivation_session_from_name(
                         entry.name,
                         '.connection.jsonl',
@@ -446,6 +497,7 @@ class FreshNativeAdapterV1:
                 set(connections)
                 | set(timing)
                 | set(seals)
+                | set(binding_receipts)
             )
 
             if not sessions:
@@ -464,6 +516,7 @@ class FreshNativeAdapterV1:
                 set(connections).issubset(sessions)
                 and set(timing).issubset(sessions)
                 and set(seals).issubset(sessions)
+                and set(binding_receipts).issubset(sessions)
                 and len(sessions) <= 2,
                 reason,
             )
@@ -474,9 +527,14 @@ class FreshNativeAdapterV1:
                 hello = self._read_preactivation_hello(canonical[root], root, reason)
                 if hello is None:
                     return None
+                receipt = self._validate_one_click_binding_receipt(
+                    binding_receipts.get(root), root, reason)
+                if self.expected_one_click_binding is not None and receipt is None:
+                    return None
                 self.preactivation_lineage_root = root
                 self.preactivation_lineage_sessions = (root,)
                 self.preactivation_session = root
+                self.one_click_binding = receipt
             else:
                 root = self.preactivation_lineage_root
                 require(root in sessions, reason)
@@ -487,10 +545,19 @@ class FreshNativeAdapterV1:
                     and self.preactivation_lineage_sessions == (root,),
                     reason,
                 )
+                receipt = self._validate_one_click_binding_receipt(
+                    binding_receipts.get(root), root, reason)
+                if self.expected_one_click_binding is not None and receipt is None:
+                    return None
+                self.one_click_binding = receipt
                 self.preactivation_transition_pending = False
                 return root
 
             replacement = next(iter(sessions - {root}))
+            root_receipt = self._validate_one_click_binding_receipt(
+                binding_receipts.get(root), root, reason)
+            if self.expected_one_click_binding is not None and root_receipt is None:
+                return None
             terminal = self._validate_closed_predecessor(
                 root,
                 canonical[root],
@@ -514,6 +581,13 @@ class FreshNativeAdapterV1:
                 self.preactivation_transition_pending = True
                 return root
 
+            replacement_receipt = self._validate_one_click_binding_receipt(
+                binding_receipts.get(replacement), replacement, reason)
+            if (self.expected_one_click_binding is not None
+                    and replacement_receipt is None):
+                self.preactivation_transition_pending = True
+                return root
+
             require(ticks(terminal['event_time']) < ticks(hello['event_time']), reason)
 
             lineage = (root, replacement)
@@ -525,6 +599,7 @@ class FreshNativeAdapterV1:
                 )
                 self.preactivation_lineage_sessions = lineage
                 self.preactivation_session = replacement
+                self.one_click_binding = replacement_receipt
             else:
                 require(self.preactivation_lineage_sessions == lineage, reason)
                 require(self.preactivation_session == replacement, reason)

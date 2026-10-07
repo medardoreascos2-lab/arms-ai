@@ -58,7 +58,7 @@
   },
   "installed_exporter": {
     "path": "C:/Users/Thecrazyboss/OneDrive/Documents/NinjaTrader 8/bin/Custom/Indicators/ArmsReadOnlyMarketV1.cs",
-    "sha256": "db143f7d4a61fbc797623b38bdcb3cfde681e3733b2643a067c05c631f52dde2"
+    "sha256": "231c2d0aa465e6ae4738474f2d55d6c6599263344f0bb7ba98fc011f37dfa2a3"
   },
   "bootstrap_evidence": {
     "path": ".arms-dev/analysis-native/869d169e-2a75-4366-aeb7-0ed113265576/certified-chart-catchup.bundle.json",
@@ -66,7 +66,7 @@
   },
   "startup_chart_catchup_source": {
     "path": "C:/Users/Thecrazyboss/OneDrive/Documents/NinjaTrader 8/bin/Custom/Indicators/ArmsChartCatchupBridgeV1.cs",
-    "sha256": "44ea69a32b157cb8e0e11cfb4d596838b3d49968a3681c6551d2318f0bf8e393"
+    "sha256": "809cefa3f3bca87c84995132a006d1b0b00e7c94e5835a291559f3e3fcfe9329"
   },
   "native_spec": {
     "path": "backend/config/native_capture_spec_20261006T223000Z.json",
@@ -91,7 +91,7 @@
     },
     "tools/arms_one_click_runtime_phase3_v1.py": {
       "path": "tools/arms_one_click_runtime_phase3_v1.py",
-      "sha256": "c489aa72eb3f2ed45920e1cfe777549967cd4e4c54432bc148b6b065b5ff29b7"
+      "sha256": "0b1684f7ff3d6d3d9c64d1f1e14b6313deadd2504c54db3146c6ab9552aa81cf"
     },
     "tools/start_native_current_paper_v1.py": {
       "path": "tools/start_native_current_paper_v1.py",

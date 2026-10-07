@@ -18,12 +18,18 @@ SOURCE = Path('integrations/ninjatrader/ArmsReadOnlyMarketV1.cs').resolve()
 TAIL = Path('backend/tests/fixtures/ArmsReadOnlyMarketV1.generated.txt').read_text()
 
 
-def test_committed_and_actual_generated_tail_and_format_variation():
+def test_committed_authored_source_and_format_variation():
     source = SOURCE.read_text()
-    for text in (source, source+TAIL, source+TAIL.replace('\t', '    ').replace('input ,', 'input,')):
-        result = verify_exporter_source(('\ufeff'+text.replace('\n','\r\n')).encode())
+    for raw in (('\ufeff' + source).encode(),
+                ('\ufeff' + source.replace('\n', '\r\n')).encode()):
+        result = verify_exporter_source(raw)
         assert result['authored_sha256'] == AUTHORED_SHA256
         assert result['compiled_assembly_attested'] is False
+
+
+def test_prior_generated_wrapper_is_revoked_until_real_regeneration():
+    with pytest.raises(ValueError, match="UNRECOGNIZED_GENERATED_TAIL"):
+        verify_exporter_source((SOURCE.read_text() + TAIL).encode())
 
 
 @pytest.mark.parametrize('mutation', [

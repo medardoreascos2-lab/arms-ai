@@ -22,7 +22,16 @@ from tools.native_timing_witness_v1 import (
 )
 
 SCHEMA = "arms.certified-chart-catchup.v1"
-EXPORTER_SHA256 = "61696d2d0b34869585f639ec6643acfb20dd4db1c9cdad1210bdb5ea9773fd57"
+CURRENT_EXPORTER_SHA256 = "8b47b99b50e58871561b7e7f79ff64ba2006e7bdd765373e0a06385581234d8f"
+LEGACY_EXPORTER_SHA256 = "61696d2d0b34869585f639ec6643acfb20dd4db1c9cdad1210bdb5ea9773fd57"
+REVIEWED_EXPORTER_HASHES = frozenset((
+    CURRENT_EXPORTER_SHA256,
+    LEGACY_EXPORTER_SHA256,
+))
+
+# Current source identity for new capture and source verification. The legacy
+# identity is accepted only by certify_chart_catchup_bundle below.
+EXPORTER_SHA256 = CURRENT_EXPORTER_SHA256
 
 SOURCE = "NINJATRADER_LOADED_CHART_BARS"
 NATIVE_SOURCE = "NATIVE_HISTORICAL_REPOSITORY"
@@ -229,7 +238,7 @@ def certify_chart_catchup_bundle(
 
     require(
         bundle["authored_sha256"]
-        == EXPORTER_SHA256,
+        in REVIEWED_EXPORTER_HASHES,
         "CHART_CATCHUP_EXPORTER_IDENTITY",
     )
 

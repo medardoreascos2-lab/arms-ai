@@ -17,8 +17,8 @@ BOUNDARY = (
 )
 
 WRAPPER_TOKENS_SHA256 = (
-    "2f2143c37c5b50c308dcf210ef1f62cd"
-    "b33247ed874aa23812c96153b50ba62f"
+    "f2a6d30fba8edc9b28537e602912424f"
+    "aa9f841b5b1bef7b3bac60b5917a9772"
 )
 
 
@@ -107,13 +107,8 @@ def verify_chart_catchup_source(
             mismatch_reason,
         )
 
-        body = tail.rsplit(
-            "#endregion",
-            1,
-        )[0]
-
         require(
-            _token_hash(body)
+            _token_hash(tail)
             == WRAPPER_TOKENS_SHA256,
             mismatch_reason,
         )
@@ -121,9 +116,8 @@ def verify_chart_catchup_source(
         # NinjaTrader may insert separating blank
         # lines before its generated region. They
         # are not part of the authored source.
-        authored_bytes = (
-            authored.rstrip("\n")
-            + "\n"
+        authored_bytes = authored.rstrip(
+            "\n"
         ).encode(
             "utf-8"
         )
@@ -135,7 +129,9 @@ def verify_chart_catchup_source(
     else:
         # Preserve the historical exact authored
         # source semantics when no wrapper exists.
-        authored_bytes = authored.encode(
+        authored_bytes = authored.rstrip(
+            "\n"
+        ).encode(
             "utf-8"
         )
 

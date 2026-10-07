@@ -145,6 +145,75 @@ def write_canonical_hello(inbox, session, *, payload=None, newline=True):
     )
 
 
+def one_click_expectation():
+    return {
+        "native_runtime_id": "11111111-2222-4333-8444-555555555555",
+        "binding_nonce": "ab" * 32,
+        "binding_claim_sha256": "cd" * 32,
+        "handoff_file_sha256": "ef" * 32,
+    }
+
+
+def write_binding_receipt(inbox, session, expectation, **overrides):
+    receipt = {
+        "schema": "arms.nt.one-click-binding-receipt.v1",
+        "session": session,
+        **expectation,
+        "read_only": True,
+        "execution_authority": False,
+        "order_authority": False,
+        "paper_execution_authority": False,
+        "live_execution_authority": False,
+        "broker_authority": False,
+        "strategy_enable_authority": False,
+        "ninjatrader_control_authority": False,
+        "paper_execution_enabled": False,
+        "live_execution_allowed": False,
+        "external_order_authority": False,
+        "broker_live_order_authority": False,
+    }
+    receipt.update(overrides)
+    (inbox / (session + ".one-click-binding.json")).write_bytes(
+        encode(receipt) + b"\n")
+
+
+def test_one_click_hello_waits_for_exact_binding_receipt(tmp_path):
+    inbox = tmp_path / "one-click-inbox"
+    inbox.mkdir()
+    expected = one_click_expectation()
+    adapter = FreshNativeAdapterV1(
+        directory=inbox, installed_exporter=SOURCE,
+        qpc_clock=lambda: ("binding-receipt-test", 1000, 1000),
+        health_gated=True, expected_one_click_binding=expected)
+    session = write_valid_buffer(inbox)
+    assert adapter.validate_preactivation_buffer("TEST_BINDING") is None
+    write_binding_receipt(inbox, session, expected)
+    assert adapter.validate_preactivation_buffer("TEST_BINDING") == session
+    assert adapter.one_click_binding["binding_nonce"] == expected["binding_nonce"]
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("native_runtime_id", "ffffffff-eeee-4ddd-8ccc-bbbbbbbbbbbb"),
+    ("binding_nonce", "00" * 32),
+    ("binding_claim_sha256", "00" * 32),
+    ("handoff_file_sha256", "00" * 32),
+    ("paper_execution_enabled", True),
+])
+def test_one_click_hello_rejects_foreign_or_authorized_receipt(
+        tmp_path, field, value):
+    inbox = tmp_path / "one-click-invalid"
+    inbox.mkdir()
+    expected = one_click_expectation()
+    adapter = FreshNativeAdapterV1(
+        directory=inbox, installed_exporter=SOURCE,
+        qpc_clock=lambda: ("binding-receipt-invalid", 1000, 1000),
+        health_gated=True, expected_one_click_binding=expected)
+    session = write_valid_buffer(inbox)
+    write_binding_receipt(inbox, session, expected, **{field: value})
+    with pytest.raises(ValueError, match="TEST_BINDING"):
+        adapter.validate_preactivation_buffer("TEST_BINDING")
+
+
 def test_connection_sidecar_can_precede_exact_canonical_hello(tmp_path):
     adapter, inbox, _ = new_adapter(tmp_path)
     session = str(uuid4())

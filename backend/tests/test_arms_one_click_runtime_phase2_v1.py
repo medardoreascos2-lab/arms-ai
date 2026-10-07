@@ -195,10 +195,18 @@ def _complete_phase3(run):
     class HelloObserver:
         @staticmethod
         def observe_evidence():
+            handoff = phase3.status(run)["handoff"]
+            control = json.loads(Path(
+                handoff["native_binding"]["control_file"]).read_text(
+                    encoding="utf-8"))
+            claim = json.loads(control["claim_json"])
             return {
                 "native_session_id": SESSION_ID,
                 "native_runtime_id": NATIVE_ID,
                 "provider": "Provider31",
+                "binding_nonce": claim["binding_nonce"],
+                "binding_claim_sha256": control["claim_sha256"],
+                "handoff_file_sha256": claim["handoff_file_sha256"],
             }
 
     return phase3.begin_operator_apply(

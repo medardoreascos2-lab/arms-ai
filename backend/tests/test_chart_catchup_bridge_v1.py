@@ -17,9 +17,12 @@ from backend.market_data.certified_bootstrap_v1 import (
 )
 from backend.market_data.chart_catchup_bridge_v1 import (
     ALLOWED_BASE_SOURCES,
+    CURRENT_EXPORTER_SHA256,
     EXPORTER_SHA256,
+    LEGACY_EXPORTER_SHA256,
     MERGED_SOURCE,
     NATIVE_SOURCE,
+    REVIEWED_EXPORTER_HASHES,
 )
 from backend.tests.test_native_historical_bootstrap_sprint16a import (
     bundle as native_bundle,
@@ -331,7 +334,7 @@ def test_productive_source_hash_and_no_execution_surface():
 
     assert (
         sha256(
-            normalized
+            normalized.rstrip(b"\n")
         ).hexdigest()
         == EXPORTER_SHA256
     )
@@ -361,6 +364,83 @@ def test_productive_source_hash_and_no_execution_surface():
         "execution_authority ="
         in text
     )
+
+
+def with_exporter_identity(raw, identity):
+    bundle = json.loads(raw)
+    bundle["authored_sha256"] = identity
+    return json.dumps(
+        bundle,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def test_current_and_reviewed_legacy_exporter_identities_are_exact():
+    assert EXPORTER_SHA256 == CURRENT_EXPORTER_SHA256
+    assert REVIEWED_EXPORTER_HASHES == frozenset((
+        CURRENT_EXPORTER_SHA256,
+        LEGACY_EXPORTER_SHA256,
+    ))
+
+    raw, _, current = certified()
+    assert current.source == MERGED_SOURCE
+
+    legacy_raw = with_exporter_identity(
+        raw,
+        LEGACY_EXPORTER_SHA256,
+    )
+    legacy = certify_bootstrap(
+        legacy_raw,
+        expected_sha256=sha256(legacy_raw).hexdigest(),
+    )
+    assert legacy.sha256 != current.sha256
+    assert legacy.bars == current.bars
+    assert legacy.sessions == current.sessions
+    assert legacy.gap_count == current.gap_count
+    assert legacy.gap_report == current.gap_report
+    assert legacy.source == current.source
+
+
+def test_unknown_chart_catchup_exporter_identity_fails_closed():
+    raw, _, _ = certified()
+    unknown = with_exporter_identity(raw, "0" * 64)
+
+    with pytest.raises(
+        ValueError,
+        match="CHART_CATCHUP_EXPORTER_IDENTITY",
+    ):
+        certify_bootstrap(
+            unknown,
+            expected_sha256=sha256(unknown).hexdigest(),
+        )
+
+
+def test_legacy_identity_does_not_authorize_forged_bundle_content():
+    raw, _, _ = certified()
+    bundle = json.loads(
+        with_exporter_identity(
+            raw,
+            LEGACY_EXPORTER_SHA256,
+        )
+    )
+    bundle["bridge_utf8"] = bundle["bridge_utf8"].replace(
+        '"runtime_admission":false',
+        '"runtime_admission":true',
+        1,
+    )
+    forged = json.dumps(
+        bundle,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="CHART_CATCHUP_HEADER_IDENTITY",
+    ):
+        certify_bootstrap(
+            forged,
+            expected_sha256=sha256(forged).hexdigest(),
+        )
 
 
 def test_chainable_base_source_policy_is_exactly_two_values():
@@ -619,6 +699,7 @@ def test_missing_open_minute_fails_closed():
 
     with pytest.raises(
         ValueError,
+        match="UNEXPECTED_DATA_GAP",
     ):
         build_bundle(
             base_raw(),

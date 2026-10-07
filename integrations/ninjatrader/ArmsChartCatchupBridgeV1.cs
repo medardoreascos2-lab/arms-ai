@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using NinjaTrader.Cbi;
 using NinjaTrader.Data;
@@ -30,6 +31,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         private StreamWriter lifecycleWriter;
         private int lifecycleSequence;
         private string lifecycleState;
+        private string bindingRuntimeId, bindingNonce, bindingClaimSha256, bindingHandoffSha256;
 
         [NinjaScriptProperty]
         [Display(
@@ -40,9 +42,13 @@ namespace NinjaTrader.NinjaScript.Indicators
         public bool CaptureEnabled { get; set; }
 
         [NinjaScriptProperty]
+        [Display(Name = "One Click binding file", Order = 2, GroupName = "ARMS read-only catch-up")]
+        public string OneClickBindingFile { get; set; }
+
+        [NinjaScriptProperty]
         [Display(
             Name = "Fresh private output directory",
-            Order = 2,
+            Order = 3,
             GroupName = "ARMS read-only catch-up"
         )]
         public string OutputDirectory { get; set; }
@@ -50,7 +56,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         [NinjaScriptProperty]
         [Display(
             Name = "Expected provider enum",
-            Order = 3,
+            Order = 4,
             GroupName = "ARMS read-only catch-up"
         )]
         public string ExpectedProvider { get; set; }
@@ -58,7 +64,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         [NinjaScriptProperty]
         [Display(
             Name = "From close UTC",
-            Order = 4,
+            Order = 5,
             GroupName = "ARMS read-only catch-up"
         )]
         public string FromCloseUtc { get; set; }
@@ -66,7 +72,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         [NinjaScriptProperty]
         [Display(
             Name = "Through close UTC / LATEST_CLOSED",
-            Order = 5,
+            Order = 6,
             GroupName = "ARMS read-only catch-up"
         )]
         public string ThroughCloseUtc { get; set; }
@@ -74,7 +80,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         [NinjaScriptProperty]
         [Display(
             Name = "Live output directory",
-            Order = 6,
+            Order = 7,
             GroupName = "ARMS read-only catch-up"
         )]
         public string LiveOutputDirectory { get; set; }
@@ -95,6 +101,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 IsSuspendedWhileInactive = false;
 
                 CaptureEnabled = false;
+                OneClickBindingFile = "";
                 OutputDirectory = "";
                 ExpectedProvider = "";
                 FromCloseUtc = "";
@@ -116,6 +123,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
                     try
                     {
+                        if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) ResolveOneClickBinding();
                         OpenLifecycle();
 
                         RecordLifecycle(
@@ -169,6 +177,125 @@ namespace NinjaTrader.NinjaScript.Indicators
         {
             if (!value)
                 throw new InvalidOperationException();
+        }
+
+        private static string BindingText(IDictionary<string, object> value, string key)
+        {
+            object raw;
+            Need(value.TryGetValue(key, out raw) && raw is string && !String.IsNullOrWhiteSpace((string)raw));
+            return (string)raw;
+        }
+
+        private static bool SafeBoundPath(string value, bool directory)
+        {
+            if (String.IsNullOrWhiteSpace(value) || !Path.IsPathRooted(value)
+                || Path.GetPathRoot(value).StartsWith(@"\\")) return false;
+            string full = Path.GetFullPath(value);
+            if (full != value || (directory ? !Directory.Exists(full) : !File.Exists(full))) return false;
+            FileSystemInfo item = directory ? (FileSystemInfo)new DirectoryInfo(full) : new FileInfo(full);
+            while (item != null)
+            {
+                if ((item.Attributes & System.IO.FileAttributes.ReparsePoint) != 0) return false;
+                item = item is DirectoryInfo ? ((DirectoryInfo)item).Parent : ((FileInfo)item).Directory;
+            }
+            return new System.IO.DriveInfo(Path.GetPathRoot(full)).DriveType == System.IO.DriveType.Fixed;
+        }
+
+        private static bool BindingHex(string value, int length)
+        {
+            return value != null && value.Length == length
+                && value.All(character => (character >= '0' && character <= '9')
+                    || (character >= 'a' && character <= 'f'));
+        }
+
+        private void ResolveOneClickBinding()
+        {
+            Need(SafeBoundPath(OneClickBindingFile, false)
+                && Path.GetFileName(OneClickBindingFile) == "active-binding.json"
+                && new DirectoryInfo(Path.GetDirectoryName(OneClickBindingFile)).Name == "one-click-native-control");
+            var serializer = new JavaScriptSerializer();
+            var control = serializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(OneClickBindingFile, Encoding.UTF8));
+            Need(control.Count == 4
+                && BindingText(control, "schema") == "arms.one-click-native-binding-control.v1"
+                && BindingText(control, "state") == "ACTIVE");
+            string claimJson = BindingText(control, "claim_json");
+            string claimSha = BindingText(control, "claim_sha256");
+            Need(BindingHex(claimSha, 64) && Hash(Encoding.UTF8.GetBytes(claimJson)) == claimSha);
+            var claim = serializer.Deserialize<Dictionary<string, object>>(claimJson);
+            string[] authorities = { "execution_authority", "order_authority", "paper_execution_authority",
+                "live_execution_authority", "broker_authority", "strategy_enable_authority",
+                "ninjatrader_control_authority", "paper_execution_enabled", "live_execution_allowed",
+                "external_order_authority", "broker_live_order_authority" };
+            Need(claim.Count == 32
+                && BindingText(claim, "schema") == "arms.one-click-native-binding-claim.v1"
+                && !authorities.Any(key => !claim.ContainsKey(key) || !(claim[key] is bool) || (bool)claim[key])
+                && Convert.ToInt32(claim["generation"], CultureInfo.InvariantCulture) == 1
+                && Convert.ToInt32(claim["apply_limit"], CultureInfo.InvariantCulture) == 1);
+            DateTime created, expires;
+            Need(DateTime.TryParse(BindingText(claim, "created_utc"), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out created)
+                && DateTime.TryParse(BindingText(claim, "expires_utc"), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out expires)
+                && created <= DateTime.UtcNow && DateTime.UtcNow <= expires
+                && expires > created && expires - created <= TimeSpan.FromSeconds(60));
+            string runtime = BindingText(claim, "runtime_directory");
+            string parent = BindingText(claim, "runtime_parent");
+            string inbox = BindingText(claim, "live_inbox");
+            string catchup = BindingText(claim, "catchup_output_directory");
+            string runtimeId = BindingText(claim, "native_runtime_id");
+            Guid runtimeGuid;
+            Need(Guid.TryParseExact(runtimeId, "D", out runtimeGuid) && runtimeGuid.ToString("D") == runtimeId
+                && Regex.IsMatch(BindingText(claim, "one_click_run_id"), @"^[0-9]{8}T[0-9]{6}Z-oneclick-[0-9a-f]{12}$")
+                && SafeBoundPath(parent, true) && SafeBoundPath(runtime, true)
+                && SafeBoundPath(inbox, true) && SafeBoundPath(catchup, true)
+                && Directory.GetParent(runtime).FullName == parent && Path.GetFileName(runtime) == runtimeId
+                && Path.Combine(runtime, "inbox") == inbox && Path.Combine(runtime, "chart-catchup") == catchup
+                && Directory.GetParent(parent).FullName == Directory.GetParent(Path.GetDirectoryName(OneClickBindingFile)).FullName
+                && BindingText(claim, "expected_provider") == "Provider31"
+                && BindingText(claim, "contract") == "NQ DEC26"
+                && BindingText(claim, "bars_period") == "Minute"
+                && Convert.ToInt32(claim["bars_value"], CultureInfo.InvariantCulture) == 1
+                && BindingText(claim, "trading_hours") == "CME US Index Futures ETH"
+                && BindingText(claim, "through_close_utc") == "LATEST_CLOSED"
+                && BindingHex(BindingText(claim, "binding_nonce"), 64)
+                && BindingHex(BindingText(claim, "handoff_file_sha256"), 64)
+                && BindingHex(BindingText(claim, "phase3_source_sha256"), 64));
+            DateTime from;
+            Need(DateTime.TryParse(BindingText(claim, "from_close_utc"), CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out from));
+            OutputDirectory = catchup;
+            LiveOutputDirectory = inbox;
+            ExpectedProvider = BindingText(claim, "expected_provider");
+            FromCloseUtc = BindingText(claim, "from_close_utc");
+            ThroughCloseUtc = BindingText(claim, "through_close_utc");
+            bindingRuntimeId = runtimeId;
+            bindingNonce = BindingText(claim, "binding_nonce");
+            bindingClaimSha256 = claimSha;
+            bindingHandoffSha256 = BindingText(claim, "handoff_file_sha256");
+        }
+
+        private void ValidateBindingReceipt(string directory, string session)
+        {
+            string path = Path.Combine(directory, session + ".one-click-binding.json");
+            if (String.IsNullOrWhiteSpace(bindingNonce)) { Need(!File.Exists(path)); return; }
+            Need(SafeBoundPath(path, false));
+            byte[] raw = File.ReadAllBytes(path);
+            Need(raw.Length > 0 && raw.Length <= 4096 && raw[raw.Length - 1] == (byte)'\n');
+            var receipt = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(
+                Encoding.UTF8.GetString(raw).TrimEnd('\n'));
+            Need(receipt.Count == 18
+                && BindingText(receipt, "schema") == "arms.nt.one-click-binding-receipt.v1"
+                && BindingText(receipt, "session") == session
+                && BindingText(receipt, "native_runtime_id") == bindingRuntimeId
+                && BindingText(receipt, "binding_nonce") == bindingNonce
+                && BindingText(receipt, "binding_claim_sha256") == bindingClaimSha256
+                && BindingText(receipt, "handoff_file_sha256") == bindingHandoffSha256
+                && receipt["read_only"] is bool && (bool)receipt["read_only"]
+                && new[] { "execution_authority", "order_authority", "paper_execution_authority",
+                    "live_execution_authority", "broker_authority", "strategy_enable_authority",
+                    "ninjatrader_control_authority", "paper_execution_enabled", "live_execution_allowed",
+                    "external_order_authority", "broker_live_order_authority" }
+                    .All(key => receipt.ContainsKey(key) && receipt[key] is bool && !(bool)receipt[key]));
         }
 
         private static string ErrorCode(Exception error)
@@ -650,7 +777,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 Need(
                     (
                         current.Attributes
-                        & FileAttributes.ReparsePoint
+                        & System.IO.FileAttributes.ReparsePoint
                     )
                     == 0
                 );
@@ -775,7 +902,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 Need(
                     (
                         current.Attributes
-                        & FileAttributes.ReparsePoint
+                        & System.IO.FileAttributes.ReparsePoint
                     )
                     == 0
                 );
@@ -1120,6 +1247,11 @@ namespace NinjaTrader.NinjaScript.Indicators
 
             ValidateHello(
                 rows[0],
+                session
+            );
+
+            ValidateBindingReceipt(
+                Path.GetDirectoryName(path),
                 session
             );
 

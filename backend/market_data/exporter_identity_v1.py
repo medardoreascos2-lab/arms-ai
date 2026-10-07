@@ -8,8 +8,8 @@ import re
 from backend.market_data.analysis_time_profile_v1 import require
 
 BOUNDARY = '#region NinjaScript generated code. Neither change nor remove.'
-AUTHORED_SHA256 = '593d84014549759d8ad451ebedfd1fa87392aab9df97021ad592cda8f42f9a50'
-WRAPPER_TOKENS_SHA256 = '602e415d3580d6835424b667cbec475d7a80987cde07ff282686144d58fa45f1'
+AUTHORED_SHA256 = '2029754eb308627f3c8d1bf21ad9d915e2fb6760ebc31a07c92237024509258e'
+WRAPPER_TOKENS_SHA256 = '2486b08e800547e39c02fa8da0aa59637b9408eca89ff69c35f1e3fa5b4d05c3'
 
 
 def verify_exporter_source(source):
@@ -25,10 +25,10 @@ def verify_exporter_source(source):
         require(authored.endswith('\n') and tail.startswith('\n'), 'MALFORMED_GENERATED_BOUNDARY')
         require(tail.count('#endregion') == 1 and tail.rstrip('\n').endswith('#endregion'),
                 'MALFORMED_GENERATED_TAIL')
-        body = tail.rsplit('#endregion', 1)[0]
+        # Pin the entire generated tail, including its terminal #endregion.
         # Lexical tokens, not whitespace removal: split identifiers/operators
         # cannot alias legal tokens. No comments/directives/literals are allowed.
-        tokens = re.findall(r'[A-Za-z_][A-Za-z_0-9]*|[0-9]+|==|!=|\+\+|\S', body)
+        tokens = re.findall(r'[A-Za-z_][A-Za-z_0-9]*|[0-9]+|==|!=|\+\+|\S', tail)
         require(sha256('\n'.join(tokens).encode()).hexdigest() == WRAPPER_TOKENS_SHA256,
                 'UNRECOGNIZED_GENERATED_TAIL')
     digest = sha256(authored.rstrip('\n').encode('utf-8')).hexdigest()

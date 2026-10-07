@@ -114,6 +114,21 @@ def _hello_evidence(runtime_id=NATIVE_ID, provider="Provider31",
     }
 
 
+def _active_hello(run, **overrides):
+    handoff = phase3.status(run)["handoff"]
+    control = json.loads(Path(
+        handoff["native_binding"]["control_file"]).read_text(encoding="utf-8"))
+    claim = json.loads(control["claim_json"])
+    evidence = {
+        **_hello_evidence(),
+        "binding_nonce": claim["binding_nonce"],
+        "binding_claim_sha256": control["claim_sha256"],
+        "handoff_file_sha256": claim["handoff_file_sha256"],
+    }
+    evidence.update(overrides)
+    return evidence
+
+
 def _execute(run, authorization, adapter, observer, *, now=NOW):
     fake_time = FakeTime()
     return phase3.execute_authorized(
@@ -132,14 +147,17 @@ def test_handoff_derives_exact_dynamic_paths_and_preserves_zero_authority(tmp_pa
     assert handoff["runtime"]["from_close_utc"] == request["from_close_utc"]
     assert handoff["runtime"]["through_close_utc"] == "LATEST_CLOSED"
     assert handoff["chart_contract"] == phase3._CHART
+    binding_file = Path(handoff["native_binding"]["control_file"])
     assert handoff["settings"]["ArmsReadOnlyMarketV1"] == {
-        "OutputDirectory": str((runtime / "inbox").resolve()),
+        "OneClickBindingFile": str(binding_file),
+        "OutputDirectory": "",
         "ExpectedProvider": "Provider31",
     }
     assert handoff["settings"]["ArmsChartCatchupBridgeV1"]["CaptureEnabled"] is True
     assert result["ninjatrader_setup_authority"] is False
     assert all(result[key] is False for key in phase3._ZERO_AUTHORITY)
     assert phase2.status(run)["ninjatrader_control_authority"] is False
+    assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "REVOKED"
     assert fixture.active.read_text(encoding="utf-8") == "DO NOT TOUCH"
 
 
@@ -219,14 +237,18 @@ def test_operator_authorize_exposes_exact_sealed_values_and_zero_authority(
     assert result["state"] == phase3.AUTHORIZED
     assert result["apply_limit"] == 1
     assert result["chart_contract"] == phase3._CHART
+    binding_file = Path(result["handoff"]["native_binding"]["control_file"]) if "handoff" in result else Path(phase3.status(run)["handoff"]["native_binding"]["control_file"])
     assert result["settings"]["ArmsReadOnlyMarketV1"] == {
-        "OutputDirectory": str((runtime / "inbox").resolve()),
+        "OneClickBindingFile": str(binding_file),
+        "OutputDirectory": "",
         "ExpectedProvider": "Provider31",
     }
     catchup = result["settings"]["ArmsChartCatchupBridgeV1"]
     assert catchup["CaptureEnabled"] is True
-    assert catchup["FromCloseUtc"] == "2026-10-06T17:38:00Z"
-    assert catchup["ThroughCloseUtc"] == "LATEST_CLOSED"
+    assert catchup["OneClickBindingFile"] == str(binding_file)
+    assert catchup["FromCloseUtc"] == ""
+    assert catchup["ThroughCloseUtc"] == ""
+    assert catchup["LiveOutputDirectory"] == ""
     assert result["ninjatrader_setup_authority"] is True
     assert all(result[key] is False for key in phase3._ZERO_AUTHORITY)
     persisted = phase3.status(run)
@@ -234,6 +256,7 @@ def test_operator_authorize_exposes_exact_sealed_values_and_zero_authority(
     assert persisted["apply_count"] == 0
     serialized = (run / "phase3-events.json").read_text(encoding="utf-8")
     assert result["authorization_token"] not in serialized
+    assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "REVOKED"
 
 
 def test_operator_attempt_is_recorded_before_hello_and_is_one_shot(tmp_path):
@@ -254,7 +277,16 @@ def test_operator_attempt_is_recorded_before_hello_and_is_one_shot(tmp_path):
                 (run / "phase3-events.json").read_text(encoding="utf-8"))[
                     "events"]
             assert phase3.APPLYING in [event["state"] for event in events]
-            return _hello_evidence()
+            control = json.loads(Path(state["handoff"]["native_binding"]["control_file"]).read_text(encoding="utf-8"))
+            assert control["state"] == "ACTIVE"
+            claim = json.loads(control["claim_json"])
+            runtime = state["handoff"]["runtime"]
+            assert claim["runtime_directory"] == runtime["directory"]
+            assert claim["live_inbox"] == runtime["live_inbox"]
+            assert claim["catchup_output_directory"] == runtime["catchup_output_directory"]
+            assert claim["apply_limit"] == 1
+            assert all(claim[key] is False for key in phase3._ZERO_AUTHORITY)
+            return _active_hello(run)
 
     result = phase3.begin_operator_apply(
         run, authorization["authorization_token"],
@@ -265,6 +297,8 @@ def test_operator_attempt_is_recorded_before_hello_and_is_one_shot(tmp_path):
     assert result["apply_count"] == 1
     assert result["ninjatrader_setup_authority"] is False
     assert all(result[key] is False for key in phase3._ZERO_AUTHORITY)
+    binding_file = Path(result["details"]["operator_attempt"]["binding_control_file"])
+    assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "REVOKED"
     with pytest.raises(phase3.Phase3Blocked,
                        match="SETUP_AUTHORIZATION_REQUIRED"):
         phase3.begin_operator_apply(
@@ -329,6 +363,82 @@ def test_operator_hello_timeout_preserves_failed_attempt_evidence(tmp_path):
     assert state["state"] == phase3.FAILED
     assert state["apply_count"] == 1
     assert all(state[key] is False for key in phase3._ZERO_AUTHORITY)
+    binding_file = Path(state["handoff"]["native_binding"]["control_file"])
+    assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "REVOKED"
+
+
+@pytest.mark.parametrize("fault", [
+    "stale_run", "expired", "runtime_id", "handoff_hash", "outside_parent",
+    "traversal", "inbox_leaf", "catchup_leaf", "forged_field",
+])
+def test_fixed_binding_claim_faults_are_rejected(tmp_path, fault):
+    _, run, runtime, *_ = _prepare(tmp_path)
+    authorization = _operator_authorize(run)
+    _, _, handoff, handoff_sha = phase3._load_handoff(run)
+    state, _ = phase3._load_evidence(run, handoff)
+    claim = phase3._binding_claim(
+        handoff, handoff_sha, state["details"]["authorization"], NOW,
+        b"n" * 32)
+    check_time = NOW
+    if fault == "stale_run":
+        claim["one_click_run_id"] = "20261007T000000Z-oneclick-deadbeefdead"
+    elif fault == "expired":
+        check_time = NOW + timedelta(seconds=31)
+    elif fault == "runtime_id":
+        claim["native_runtime_id"] = "ffffffff-eeee-4ddd-8ccc-bbbbbbbbbbbb"
+    elif fault == "handoff_hash":
+        claim["handoff_file_sha256"] = "0" * 64
+    elif fault == "outside_parent":
+        claim["runtime_parent"] = str(runtime.parent.parent)
+    elif fault == "traversal":
+        claim["runtime_directory"] = str(runtime / ".." / runtime.name)
+    elif fault == "inbox_leaf":
+        claim["live_inbox"] = str(runtime / "chart-catchup")
+    elif fault == "catchup_leaf":
+        claim["catchup_output_directory"] = str(runtime / "inbox")
+    else:
+        claim["forged"] = True
+    with pytest.raises(phase3.Phase3Blocked):
+        phase3._validate_binding_claim(
+            claim, handoff=handoff, handoff_file_sha=handoff_sha,
+            now=check_time)
+
+
+def test_prepare_does_not_overwrite_an_unexpired_active_binding(tmp_path):
+    _, run, runtime, *_ = _fixture(tmp_path)
+    _, manifest, *_ = phase3._load_context(run, require_waiting=True)
+    binding_file = phase3._binding_file(manifest, create=True)
+    _write_json(binding_file, {
+        "schema": phase3.BINDING_CONTROL_SCHEMA,
+        "state": "ACTIVE",
+        "claim_json": json.dumps({
+            "expires_utc": (NOW + timedelta(seconds=30)).isoformat(
+            ).replace("+00:00", "Z")}),
+        "claim_sha256": "0" * 64,
+    })
+    with pytest.raises(phase3.Phase3Blocked,
+                       match="NATIVE_BINDING_ALREADY_ACTIVE"):
+        phase3.prepare_handoff(run, runtime, clock=lambda: NOW)
+    assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "ACTIVE"
+
+
+def test_begin_apply_cannot_overwrite_another_run_binding_owner(tmp_path):
+    _, run, *_ = _prepare(tmp_path)
+    authorization = _operator_authorize(run)
+    binding_file = Path(
+        phase3.status(run)["handoff"]["native_binding"]["control_file"])
+    foreign = json.loads(binding_file.read_text(encoding="utf-8"))
+    foreign["one_click_run_id"] = "20261007T000000Z-oneclick-deadbeefdead"
+    _write_json(binding_file, foreign)
+    with pytest.raises(phase3.Phase3Blocked,
+                       match="NATIVE_BINDING_OWNERSHIP_MISMATCH"):
+        phase3.begin_operator_apply(
+            run, authorization["authorization_token"],
+            authorization["handoff_file_sha256"],
+            hello_observer=FakeOperatorHelloObserver([]), clock=lambda: NOW)
+    assert phase3.status(run)["state"] == phase3.FAILED
+    assert json.loads(binding_file.read_text(encoding="utf-8"))[
+        "one_click_run_id"] == foreign["one_click_run_id"]
 
 
 def test_operator_authorization_expires_before_apply_attempt(tmp_path):

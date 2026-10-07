@@ -25,7 +25,7 @@ from tools.production_timing_v1 import PAIR_FIELDS, parse
 
 
 SCHEMA = 'arms.market-analysis-time-profile.v1'
-EXPORTER_SHA256 = '9383d39f8b39f62d5bed235d69f4200e0a31d5a14515e5caf078805d03fcd350'
+EXPORTER_SHA256 = 'a436032289c0b0e89e90a3cd43764a80e1e89b94f8ba0c503271dcd8983f3e77'
 COMPONENTS = ('1m','15m','1h','trend','trend_1m','trend_15m','trend_1h',
               'structure','liquidity','fvg','regime','confluence','confidence')
 

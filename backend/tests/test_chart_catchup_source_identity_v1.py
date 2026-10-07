@@ -7,6 +7,10 @@ import re
 import pytest
 
 import backend.market_data.chart_catchup_source_identity_v1 as identity
+from backend.market_data.chart_catchup_bridge_v1 import (
+    CURRENT_EXPORTER_SHA256,
+    LEGACY_EXPORTER_SHA256,
+)
 
 
 SOURCE = Path(
@@ -86,6 +90,19 @@ def test_authored_mutation_fails_closed():
         )
 
 
+def test_legacy_bundle_identity_cannot_satisfy_current_source_verification():
+    assert identity.EXPORTER_SHA256 == CURRENT_EXPORTER_SHA256
+    assert LEGACY_EXPORTER_SHA256 != identity.EXPORTER_SHA256
+
+    with pytest.raises(
+        ValueError,
+        match="CHART_CATCHUP_EXPORTER_SOURCE_CHANGED",
+    ):
+        identity.verify_chart_catchup_source(
+            LEGACY_EXPORTER_SHA256.encode("ascii")
+        )
+
+
 def test_custom_failure_reason_is_preserved():
     with pytest.raises(
         ValueError,
@@ -113,7 +130,7 @@ def test_generated_wrapper_requires_pinned_tokens(
     monkeypatch.setattr(
         identity,
         "WRAPPER_TOKENS_SHA256",
-        token_hash(body),
+        token_hash(body + "\n#endregion"),
     )
 
     result = (

@@ -4,9 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using System.Windows.Threading;
 using NinjaTrader.Cbi;
@@ -32,13 +35,18 @@ namespace NinjaTrader.NinjaScript.Indicators
         private System.Threading.Timer startupDeadline;
         private bool helloSent, started;
         private TimingEvidence timing;
+        private string bindingRuntimeId, bindingNonce, bindingClaimSha256, bindingHandoffSha256;
 
         [NinjaScriptProperty]
-        [Display(Name = "Private output directory", Order = 1, GroupName = "ARMS read only")]
+        [Display(Name = "One Click binding file", Order = 1, GroupName = "ARMS read only")]
+        public string OneClickBindingFile { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Private output directory", Order = 2, GroupName = "ARMS read only")]
         public string OutputDirectory { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Expected provider enum", Order = 2, GroupName = "ARMS read only")]
+        [Display(Name = "Expected provider enum", Order = 3, GroupName = "ARMS read only")]
         public string ExpectedProvider { get; set; }
 
         protected override void OnStateChange()
@@ -51,6 +59,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 IsOverlay = true;
                 IsChartOnly = true;
                 IsSuspendedWhileInactive = false;
+                OneClickBindingFile = "";
                 OutputDirectory = "";
                 ExpectedProvider = "";
             }
@@ -64,6 +73,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                     string startupStage = "SOURCE_VALIDATION";
                     try
                     {
+                        if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) ResolveOneClickBinding();
                         contract = Instrument.FullName;
                         template = Bars.TradingHours.Name;
                         expiry = Instrument.Expiry.ToString("yyyy-MM-dd");
@@ -82,6 +92,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                             Path.Combine(OutputDirectory, session + ".connection.jsonl"),
                             FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false));
                         connectionWriter.AutoFlush = true;
+                        if (!String.IsNullOrWhiteSpace(bindingNonce)) WriteBindingReceipt();
                         firstRealtimeBar = -1;
                         // No HELLO (reader readiness) or candles during STARTING.
                         startupStage = "DEADLINE_SCHEDULE";
@@ -118,6 +129,126 @@ namespace NinjaTrader.NinjaScript.Indicators
             else if (started)
             {
                 lock (sync) Stop("STOP_LIFECYCLE_CHANGED");
+            }
+        }
+
+        private static string Text(IDictionary<string, object> value, string key)
+        {
+            object raw;
+            if (!value.TryGetValue(key, out raw) || !(raw is string) || String.IsNullOrWhiteSpace((string)raw))
+                throw new InvalidOperationException();
+            return (string)raw;
+        }
+
+        private static bool SafeLocalPath(string value, bool directory)
+        {
+            if (String.IsNullOrWhiteSpace(value) || !Path.IsPathRooted(value)
+                || Path.GetPathRoot(value).StartsWith(@"\\")) return false;
+            string full = Path.GetFullPath(value);
+            if (full != value || (directory ? !Directory.Exists(full) : !File.Exists(full))) return false;
+            FileSystemInfo item = directory ? (FileSystemInfo)new DirectoryInfo(full) : new FileInfo(full);
+            while (item != null)
+            {
+                if ((item.Attributes & System.IO.FileAttributes.ReparsePoint) != 0) return false;
+                item = item is DirectoryInfo ? ((DirectoryInfo)item).Parent : ((FileInfo)item).Directory;
+            }
+            return new System.IO.DriveInfo(Path.GetPathRoot(full)).DriveType == System.IO.DriveType.Fixed;
+        }
+
+        private static string HexSha256(string value)
+        {
+            using (var hash = SHA256.Create())
+                return String.Concat(hash.ComputeHash(Encoding.UTF8.GetBytes(value)).Select(b => b.ToString("x2")));
+        }
+
+        private static bool Hex(string value, int length)
+        {
+            return value != null && value.Length == length
+                && value.All(character => (character >= '0' && character <= '9')
+                    || (character >= 'a' && character <= 'f'));
+        }
+
+        private void ResolveOneClickBinding()
+        {
+            if (!SafeLocalPath(OneClickBindingFile, false)
+                || Path.GetFileName(OneClickBindingFile) != "active-binding.json"
+                || new DirectoryInfo(Path.GetDirectoryName(OneClickBindingFile)).Name != "one-click-native-control")
+                throw new InvalidOperationException();
+            var serializer = new JavaScriptSerializer();
+            var control = serializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(OneClickBindingFile, Encoding.UTF8));
+            if (control.Count != 4 || Text(control, "schema") != "arms.one-click-native-binding-control.v1"
+                || Text(control, "state") != "ACTIVE") throw new InvalidOperationException();
+            string claimJson = Text(control, "claim_json");
+            string claimSha = Text(control, "claim_sha256");
+            if (!Hex(claimSha, 64) || HexSha256(claimJson) != claimSha) throw new InvalidOperationException();
+            var claim = serializer.Deserialize<Dictionary<string, object>>(claimJson);
+            string[] authorities = { "execution_authority", "order_authority", "paper_execution_authority",
+                "live_execution_authority", "broker_authority", "strategy_enable_authority",
+                "ninjatrader_control_authority", "paper_execution_enabled", "live_execution_allowed",
+                "external_order_authority", "broker_live_order_authority" };
+            if (claim.Count != 32 || Text(claim, "schema") != "arms.one-click-native-binding-claim.v1"
+                || authorities.Any(key => !claim.ContainsKey(key) || !(claim[key] is bool) || (bool)claim[key])
+                || Convert.ToInt32(claim["generation"], CultureInfo.InvariantCulture) != 1
+                || Convert.ToInt32(claim["apply_limit"], CultureInfo.InvariantCulture) != 1)
+                throw new InvalidOperationException();
+            DateTime created, expires;
+            if (!DateTime.TryParse(Text(claim, "created_utc"), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out created)
+                || !DateTime.TryParse(Text(claim, "expires_utc"), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out expires)
+                || created > DateTime.UtcNow || DateTime.UtcNow > expires
+                || expires <= created || expires - created > TimeSpan.FromSeconds(60))
+                throw new InvalidOperationException();
+            string runtime = Text(claim, "runtime_directory");
+            string parent = Text(claim, "runtime_parent");
+            string inbox = Text(claim, "live_inbox");
+            string catchup = Text(claim, "catchup_output_directory");
+            Guid runtimeGuid;
+            string runtimeId = Text(claim, "native_runtime_id");
+            if (!Guid.TryParseExact(runtimeId, "D", out runtimeGuid) || runtimeGuid.ToString("D") != runtimeId
+                || !SafeLocalPath(parent, true) || !SafeLocalPath(runtime, true) || !SafeLocalPath(inbox, true)
+                || !SafeLocalPath(catchup, true) || Directory.GetParent(runtime).FullName != parent
+                || Path.GetFileName(runtime) != runtimeId || Path.Combine(runtime, "inbox") != inbox
+                || Path.Combine(runtime, "chart-catchup") != catchup
+                || Directory.GetParent(parent).FullName != Directory.GetParent(Path.GetDirectoryName(OneClickBindingFile)).FullName
+                || Text(claim, "expected_provider") != "Provider31" || Text(claim, "contract") != "NQ DEC26"
+                || Text(claim, "bars_period") != "Minute" || Convert.ToInt32(claim["bars_value"], CultureInfo.InvariantCulture) != 1
+                || Text(claim, "trading_hours") != "CME US Index Futures ETH"
+                || Text(claim, "through_close_utc") != "LATEST_CLOSED"
+                || !Regex.IsMatch(Text(claim, "one_click_run_id"), @"^[0-9]{8}T[0-9]{6}Z-oneclick-[0-9a-f]{12}$")
+                || !Hex(Text(claim, "binding_nonce"), 64) || !Hex(Text(claim, "handoff_file_sha256"), 64)
+                || !Hex(Text(claim, "phase3_source_sha256"), 64))
+                throw new InvalidOperationException();
+            DateTime from;
+            if (!DateTime.TryParse(Text(claim, "from_close_utc"), CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out from)) throw new InvalidOperationException();
+            OutputDirectory = inbox;
+            ExpectedProvider = Text(claim, "expected_provider");
+            bindingRuntimeId = runtimeId;
+            bindingNonce = Text(claim, "binding_nonce");
+            bindingClaimSha256 = claimSha;
+            bindingHandoffSha256 = Text(claim, "handoff_file_sha256");
+        }
+
+        private void WriteBindingReceipt()
+        {
+            var receipt = new Dictionary<string, object> {
+                { "schema", "arms.nt.one-click-binding-receipt.v1" }, { "session", session },
+                { "native_runtime_id", bindingRuntimeId }, { "binding_nonce", bindingNonce },
+                { "binding_claim_sha256", bindingClaimSha256 }, { "handoff_file_sha256", bindingHandoffSha256 },
+                { "read_only", true }, { "execution_authority", false }, { "order_authority", false },
+                { "paper_execution_authority", false }, { "live_execution_authority", false },
+                { "broker_authority", false }, { "strategy_enable_authority", false },
+                { "ninjatrader_control_authority", false }, { "paper_execution_enabled", false },
+                { "live_execution_allowed", false }, { "external_order_authority", false },
+                { "broker_live_order_authority", false } };
+            using (var stream = new FileStream(Path.Combine(OutputDirectory, session + ".one-click-binding.json"),
+                FileMode.CreateNew, FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough))
+            using (var output = new StreamWriter(stream, new UTF8Encoding(false)))
+            {
+                output.WriteLine(new JavaScriptSerializer().Serialize(receipt));
+                output.Flush();
+                stream.Flush(true);
             }
         }
 

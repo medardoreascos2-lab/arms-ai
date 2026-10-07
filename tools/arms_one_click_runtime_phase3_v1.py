@@ -28,6 +28,9 @@ EVENTS_SCHEMA = "arms.one-click-runtime-phase3-events.v1"
 EVENT_SCHEMA = "arms.one-click-runtime-phase3-event.v1"
 STATE_SCHEMA = "arms.one-click-runtime-phase3-state.v1"
 RECEIPT_SCHEMA = "arms.one-click-runtime-phase3-apply-receipt.v1"
+BINDING_CONTROL_SCHEMA = "arms.one-click-native-binding-control.v1"
+BINDING_CLAIM_SCHEMA = "arms.one-click-native-binding-claim.v1"
+BINDING_RECEIPT_SCHEMA = "arms.nt.one-click-binding-receipt.v1"
 PHASE3_SOURCE = "tools/arms_one_click_runtime_phase3_v1.py"
 PREPARED = "HANDOFF_PREPARED"
 AUTHORIZED = "SETUP_AUTHORIZED"
@@ -41,6 +44,9 @@ _HANDOFF_NAME = "phase3-handoff.json"
 _EVENTS_NAME = "phase3-events.json"
 _STATE_NAME = "phase3-state.json"
 _LOCK_NAME = ".phase3-transition.lock"
+_BINDING_DIRECTORY_NAME = "one-click-native-control"
+_BINDING_FILE_NAME = "active-binding.json"
+_BINDING_LOCK_NAME = ".binding-transition.lock"
 _ZERO_AUTHORITY = {
     "execution_authority": False,
     "order_authority": False,
@@ -98,7 +104,7 @@ class NativeSetupAdapter:
 class NativeHelloObserver:
     """Uses the certified reader's preactivation HELLO validation."""
 
-    def __init__(self, handoff):
+    def __init__(self, handoff, binding_claim):
         from backend.market_data.fresh_native_adapter_v1 import (
             FreshNativeAdapterV1, WindowsQpc,
         )
@@ -108,6 +114,12 @@ class NativeHelloObserver:
             installed_exporter=handoff["inputs"]["installed_exporter"]["path"],
             startup_seconds=handoff["hello_timeout_seconds"],
             health_gated=True,
+            expected_one_click_binding={
+                "native_runtime_id": binding_claim["native_runtime_id"],
+                "binding_nonce": binding_claim["binding_nonce"],
+                "binding_claim_sha256": _digest(binding_claim),
+                "handoff_file_sha256": binding_claim["handoff_file_sha256"],
+            },
         )
         self._native_runtime_id = handoff["runtime"]["native_runtime_id"]
         self._provider = handoff["runtime"]["expected_provider"]
@@ -124,6 +136,12 @@ class NativeHelloObserver:
             "native_session_id": session,
             "native_runtime_id": self._native_runtime_id,
             "provider": self._provider,
+            "binding_nonce": self._adapter.one_click_binding[
+                "binding_nonce"],
+            "binding_claim_sha256": self._adapter.one_click_binding[
+                "binding_claim_sha256"],
+            "handoff_file_sha256": self._adapter.one_click_binding[
+                "handoff_file_sha256"],
         }
 
 
@@ -255,21 +273,263 @@ def _validate_runtime(manifest, runtime_directory):
     }
 
 
-def _settings(runtime):
+def _binding_file(manifest, *, create=False):
+    runtime_parent = Path(
+        manifest["targets"]["runtime_parent"]).resolve(strict=True)
+    control = runtime_parent.parent / _BINDING_DIRECTORY_NAME
+    if create:
+        control.mkdir(exist_ok=True)
+    control = control.resolve(strict=True)
+    if (control.parent != runtime_parent.parent
+            or control.name != _BINDING_DIRECTORY_NAME
+            or any(path.is_symlink() for path in (control, *control.parents))):
+        raise Phase3Blocked("NATIVE_BINDING_CONTROL_PATH_INVALID")
+    return control / _BINDING_FILE_NAME
+
+
+def _settings(runtime, binding_file):
     return {
         "ArmsReadOnlyMarketV1": {
-            "OutputDirectory": runtime["live_inbox"],
+            "OneClickBindingFile": str(binding_file),
+            "OutputDirectory": "",
             "ExpectedProvider": runtime["expected_provider"],
         },
         "ArmsChartCatchupBridgeV1": {
             "CaptureEnabled": True,
-            "OutputDirectory": runtime["catchup_output_directory"],
+            "OneClickBindingFile": str(binding_file),
+            "OutputDirectory": "",
             "ExpectedProvider": runtime["expected_provider"],
-            "FromCloseUtc": runtime["from_close_utc"],
-            "ThroughCloseUtc": runtime["through_close_utc"],
-            "LiveOutputDirectory": runtime["live_inbox"],
+            "FromCloseUtc": "",
+            "ThroughCloseUtc": "",
+            "LiveOutputDirectory": "",
         },
     }
+
+
+def _revoked_binding(*, run_id, native_runtime_id, timestamp):
+    return {
+        "schema": BINDING_CONTROL_SCHEMA,
+        "state": "REVOKED",
+        "one_click_run_id": run_id,
+        "native_runtime_id": native_runtime_id,
+        "revoked_utc": timestamp,
+        **_ZERO_AUTHORITY,
+    }
+
+
+def _binding_lock(manifest):
+    path = _binding_file(manifest, create=True).parent / _BINDING_LOCK_NAME
+    try:
+        stream = path.open("xb")
+        stream.write(b"one-click-native-binding-transition\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+        stream.close()
+    except FileExistsError as error:
+        raise Phase3Blocked("NATIVE_BINDING_TRANSITION_IN_PROGRESS") from error
+    return path
+
+
+def _initialize_revoked_binding(manifest, *, run_id, native_runtime_id, clock):
+    now = _now(clock)
+    lock = _binding_lock(manifest)
+    try:
+        path = _binding_file(manifest)
+        if path.exists():
+            current, _ = phase1._read_json(path, BINDING_CONTROL_SCHEMA)
+            if current.get("state") == "ACTIVE":
+                try:
+                    claim = json.loads(current["claim_json"])
+                    expires = _parse_utc(
+                        claim["expires_utc"], "NATIVE_BINDING_CONTROL_INVALID")
+                except (KeyError, TypeError, ValueError,
+                        json.JSONDecodeError) as error:
+                    raise Phase3Blocked(
+                        "NATIVE_BINDING_CONTROL_INVALID") from error
+                if now <= expires:
+                    raise Phase3Blocked("NATIVE_BINDING_ALREADY_ACTIVE")
+            elif current.get("state") != "REVOKED":
+                raise Phase3Blocked("NATIVE_BINDING_CONTROL_INVALID")
+        phase1._atomic_json(path, _revoked_binding(
+            run_id=run_id, native_runtime_id=native_runtime_id,
+            timestamp=_utc(now)))
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def _revoke_binding(manifest, *, run_id, native_runtime_id, clock,
+                    expected_claim_sha256=None):
+    path = _binding_file(manifest, create=True)
+    lock = _binding_lock(manifest)
+    try:
+        current, _ = phase1._read_json(path, BINDING_CONTROL_SCHEMA)
+        if current.get("state") == "ACTIVE":
+            if (expected_claim_sha256 is None
+                    or current.get("claim_sha256") != expected_claim_sha256):
+                raise Phase3Blocked("NATIVE_BINDING_OWNERSHIP_MISMATCH")
+        elif (current.get("state") != "REVOKED"
+                or current.get("one_click_run_id") != run_id
+                or current.get("native_runtime_id") != native_runtime_id):
+            raise Phase3Blocked("NATIVE_BINDING_OWNERSHIP_MISMATCH")
+        phase1._atomic_json(path, _revoked_binding(
+            run_id=run_id, native_runtime_id=native_runtime_id,
+            timestamp=_utc(_now(clock))))
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def _binding_claim(handoff, handoff_file_sha, authorization_record, now,
+                   nonce):
+    if type(nonce) is not bytes or len(nonce) < 32:
+        raise Phase3Blocked("CRYPTOGRAPHIC_BINDING_NONCE_REQUIRED")
+    claim = {
+        "schema": BINDING_CLAIM_SCHEMA,
+        "one_click_run_id": handoff["run_id"],
+        "native_runtime_id": handoff["runtime"]["native_runtime_id"],
+        "runtime_parent": str(Path(
+            handoff["runtime"]["directory"]).resolve(strict=True).parent),
+        "runtime_directory": handoff["runtime"]["directory"],
+        "live_inbox": handoff["runtime"]["live_inbox"],
+        "catchup_output_directory": handoff["runtime"][
+            "catchup_output_directory"],
+        "expected_provider": handoff["runtime"]["expected_provider"],
+        "contract": handoff["chart_contract"]["instrument"],
+        "bars_period": handoff["chart_contract"]["bars_period"],
+        "bars_value": handoff["chart_contract"]["bars_value"],
+        "trading_hours": handoff["chart_contract"]["trading_hours"],
+        "from_close_utc": handoff["runtime"]["from_close_utc"],
+        "through_close_utc": handoff["runtime"]["through_close_utc"],
+        "handoff_file_sha256": handoff_file_sha,
+        "phase3_source_sha256": handoff["bindings"][
+            "phase3_source_sha256"],
+        "binding_nonce": nonce.hex(),
+        "generation": 1,
+        "created_utc": _utc(now),
+        "expires_utc": authorization_record["expires_utc"],
+        "apply_limit": 1,
+        **_ZERO_AUTHORITY,
+    }
+    _validate_binding_claim(
+        claim, handoff=handoff, handoff_file_sha=handoff_file_sha,
+        now=now)
+    return claim
+
+
+def _validate_binding_claim(claim, *, handoff, handoff_file_sha, now):
+    if type(claim) is not dict:
+        raise Phase3Blocked("NATIVE_BINDING_CLAIM_INVALID")
+    expected = _binding_claim_fields(handoff, handoff_file_sha)
+    if (set(claim) != expected
+            or any(claim.get(key) is not False for key in _ZERO_AUTHORITY)):
+        raise Phase3Blocked("NATIVE_BINDING_CLAIM_INVALID")
+    try:
+        runtime_id = str(UUID(claim["native_runtime_id"]))
+        nonce = bytes.fromhex(claim["binding_nonce"])
+        created = _parse_utc(claim["created_utc"], "NATIVE_BINDING_TIME_INVALID")
+        expires = _parse_utc(claim["expires_utc"], "NATIVE_BINDING_TIME_INVALID")
+    except (ValueError, TypeError, AttributeError, KeyError) as error:
+        raise Phase3Blocked("NATIVE_BINDING_CLAIM_INVALID") from error
+    expected_values = {
+        "schema": BINDING_CLAIM_SCHEMA,
+        "one_click_run_id": handoff["run_id"],
+        "native_runtime_id": handoff["runtime"]["native_runtime_id"],
+        "runtime_parent": str(Path(handoff["runtime"]["directory"]).parent),
+        "runtime_directory": handoff["runtime"]["directory"],
+        "live_inbox": handoff["runtime"]["live_inbox"],
+        "catchup_output_directory": handoff["runtime"][
+            "catchup_output_directory"],
+        "expected_provider": handoff["runtime"]["expected_provider"],
+        "contract": handoff["chart_contract"]["instrument"],
+        "bars_period": handoff["chart_contract"]["bars_period"],
+        "bars_value": handoff["chart_contract"]["bars_value"],
+        "trading_hours": handoff["chart_contract"]["trading_hours"],
+        "from_close_utc": handoff["runtime"]["from_close_utc"],
+        "through_close_utc": handoff["runtime"]["through_close_utc"],
+        "handoff_file_sha256": handoff_file_sha,
+        "phase3_source_sha256": handoff["bindings"]["phase3_source_sha256"],
+        "generation": 1,
+        "apply_limit": 1,
+    }
+    if (runtime_id != claim["native_runtime_id"]
+            or len(nonce) < 32
+            or any(claim.get(key) != value
+                   for key, value in expected_values.items())
+            or not created <= now <= expires
+            or not timedelta(0) < expires - created
+            <= timedelta(seconds=AUTHORIZATION_TTL_SECONDS)):
+        raise Phase3Blocked("NATIVE_BINDING_CLAIM_INVALID")
+    runtime = Path(claim["runtime_directory"]).resolve(strict=True)
+    parent = Path(claim["runtime_parent"]).resolve(strict=True)
+    inbox = Path(claim["live_inbox"]).resolve(strict=True)
+    catchup = Path(claim["catchup_output_directory"]).resolve(strict=True)
+    if (not all(Path(claim[key]).is_absolute() for key in (
+            "runtime_parent", "runtime_directory", "live_inbox",
+            "catchup_output_directory"))
+            or runtime.parent != parent
+            or runtime.name != runtime_id
+            or inbox != (runtime / "inbox").resolve(strict=True)
+            or catchup != (runtime / "chart-catchup").resolve(strict=True)
+            or any(path.is_symlink() for path in (
+                runtime, inbox, catchup, *runtime.parents))):
+        raise Phase3Blocked("NATIVE_BINDING_PATH_INVALID")
+    return claim
+
+
+def _binding_claim_fields(handoff, handoff_file_sha):
+    return {
+        "schema", "one_click_run_id", "native_runtime_id",
+        "runtime_parent", "runtime_directory", "live_inbox",
+        "catchup_output_directory", "expected_provider", "contract",
+        "bars_period", "bars_value", "trading_hours", "from_close_utc",
+        "through_close_utc", "handoff_file_sha256",
+        "phase3_source_sha256", "binding_nonce", "generation",
+        "created_utc", "expires_utc", "apply_limit", *_ZERO_AUTHORITY,
+    }
+
+
+def _publish_active_binding(manifest, claim):
+    claim_json = phase1._canonical(claim).decode("utf-8")
+    value = {
+        "schema": BINDING_CONTROL_SCHEMA,
+        "state": "ACTIVE",
+        "claim_json": claim_json,
+        "claim_sha256": sha256(claim_json.encode("utf-8")).hexdigest(),
+    }
+    path = _binding_file(manifest, create=True)
+    lock = _binding_lock(manifest)
+    try:
+        current, _ = phase1._read_json(path, BINDING_CONTROL_SCHEMA)
+        if (current.get("state") != "REVOKED"
+                or current.get("one_click_run_id")
+                != claim["one_click_run_id"]
+                or current.get("native_runtime_id")
+                != claim["native_runtime_id"]):
+            raise Phase3Blocked("NATIVE_BINDING_OWNERSHIP_MISMATCH")
+        phase1._atomic_json(path, value)
+    finally:
+        lock.unlink(missing_ok=True)
+    return value["claim_sha256"]
+
+
+def _load_active_binding(manifest, handoff, handoff_file_sha, *, now):
+    value, _ = phase1._read_json(
+        _binding_file(manifest), BINDING_CONTROL_SCHEMA)
+    if (set(value) != {"schema", "state", "claim_json", "claim_sha256"}
+            or value.get("state") != "ACTIVE"
+            or type(value.get("claim_json")) is not str
+            or sha256(value["claim_json"].encode("utf-8")).hexdigest()
+            != value.get("claim_sha256")):
+        raise Phase3Blocked("NATIVE_BINDING_CONTROL_INVALID")
+    try:
+        claim = json.loads(value["claim_json"])
+    except (UnicodeError, json.JSONDecodeError, TypeError, ValueError) as error:
+        raise Phase3Blocked("NATIVE_BINDING_CONTROL_INVALID") from error
+    _validate_binding_claim(
+        claim, handoff=handoff, handoff_file_sha=handoff_file_sha,
+        now=now)
+    if value["claim_sha256"] != _digest(claim):
+        raise Phase3Blocked("NATIVE_BINDING_CONTROL_INVALID")
+    return claim
 
 
 def _event(*, handoff, sequence, previous, transition, state, timestamp,
@@ -340,7 +600,16 @@ def _load_handoff(run_directory):
             or handoff.get("chart_contract") != _CHART):
         raise Phase3Blocked("HANDOFF_BINDING_INVALID")
     runtime = _validate_runtime(manifest, handoff["runtime"]["directory"])
-    if runtime != handoff["runtime"] or _settings(runtime) != handoff["settings"]:
+    binding_file = _binding_file(manifest)
+    expected_binding = {
+        "control_file": str(binding_file),
+        "control_schema": BINDING_CONTROL_SCHEMA,
+        "claim_schema": BINDING_CLAIM_SCHEMA,
+        "receipt_schema": BINDING_RECEIPT_SCHEMA,
+    }
+    if (runtime != handoff["runtime"]
+            or _settings(runtime, binding_file) != handoff["settings"]
+            or handoff.get("native_binding") != expected_binding):
         raise Phase3Blocked("HANDOFF_RUNTIME_DRIFT")
     return directory, manifest, handoff, sha256(raw).hexdigest()
 
@@ -392,11 +661,21 @@ def prepare_handoff(run_directory, runtime_directory, *, clock=None,
     }
     if phase2_state["native_setup"] != expected_phase2_runtime:
         raise Phase3Blocked("PHASE2_NATIVE_SETUP_BINDING_MISMATCH")
+    binding_file = _binding_file(manifest, create=True)
+    _initialize_revoked_binding(
+        manifest, run_id=manifest["run_id"],
+        native_runtime_id=runtime["native_runtime_id"], clock=clock)
     handoff = {
         "schema": HANDOFF_SCHEMA, "run_id": manifest["run_id"],
         "created_utc": _utc(_now(clock)), "bindings": bindings,
         "runtime": runtime, "chart_contract": dict(_CHART),
-        "settings": _settings(runtime),
+        "settings": _settings(runtime, binding_file),
+        "native_binding": {
+            "control_file": str(binding_file),
+            "control_schema": BINDING_CONTROL_SCHEMA,
+            "claim_schema": BINDING_CLAIM_SCHEMA,
+            "receipt_schema": BINDING_RECEIPT_SCHEMA,
+        },
         "inputs": {
             name: dict(manifest["inputs"][name]) for name in (
                 "installed_exporter", "startup_chart_catchup_source",
@@ -510,7 +789,7 @@ def _operator_authorization_record(state, handoff, handoff_file_sha,
     return record, reason
 
 
-def _validate_operator_hello(evidence, handoff):
+def _validate_operator_hello(evidence, handoff, binding_claim):
     if type(evidence) is not dict:
         raise Phase3Blocked("NATIVE_HELLO_EVIDENCE_INVALID")
     try:
@@ -521,6 +800,9 @@ def _validate_operator_hello(evidence, handoff):
         "native_session_id": session,
         "native_runtime_id": handoff["runtime"]["native_runtime_id"],
         "provider": handoff["runtime"]["expected_provider"],
+        "binding_nonce": binding_claim["binding_nonce"],
+        "binding_claim_sha256": _digest(binding_claim),
+        "handoff_file_sha256": binding_claim["handoff_file_sha256"],
     }
     if evidence != expected:
         raise Phase3Blocked("FOREIGN_NATIVE_HELLO_SESSION")
@@ -530,9 +812,10 @@ def _validate_operator_hello(evidence, handoff):
 def begin_operator_apply(run_directory, supplied_token,
                          confirmed_handoff_sha256, *, hello_observer=None,
                          clock=None, monotonic=time.monotonic,
-                         sleeper=time.sleep, on_apply_recorded=None):
+                         sleeper=time.sleep, on_apply_recorded=None,
+                         nonce_factory=token_bytes):
     now = _now(clock)
-    directory, _, handoff, handoff_file_sha = _load_handoff(run_directory)
+    directory, manifest, handoff, handoff_file_sha = _load_handoff(run_directory)
     state, _ = _load_evidence(directory, handoff)
     if state["state"] != AUTHORIZED or state["apply_count"] != 0:
         raise Phase3Blocked("SETUP_AUTHORIZATION_REQUIRED")
@@ -547,11 +830,16 @@ def begin_operator_apply(run_directory, supplied_token,
             expected_states=(AUTHORIZED,))
         raise Phase3Blocked(reason)
 
-    observer = hello_observer or NativeHelloObserver(handoff)
+    binding_claim = _binding_claim(
+        handoff, handoff_file_sha, record, now, nonce_factory(32))
+    observer = hello_observer or NativeHelloObserver(handoff, binding_claim)
     attempt = {
         "mode": "OPERATOR_ASSISTED_ONE_SHOT",
         "authorization_token_sha256": record["token_sha256"],
         "confirmed_handoff_file_sha256": confirmed_handoff_sha256,
+        "binding_nonce": binding_claim["binding_nonce"],
+        "binding_claim_sha256": _digest(binding_claim),
+        "binding_control_file": handoff["native_binding"]["control_file"],
     }
     applying = _transition(
         directory, handoff, state=APPLYING,
@@ -559,6 +847,12 @@ def begin_operator_apply(run_directory, supplied_token,
         apply_count=1, details={"operator_attempt": attempt},
         expected_states=(AUTHORIZED,))
     try:
+        published_sha = _publish_active_binding(manifest, binding_claim)
+        if (published_sha != attempt["binding_claim_sha256"]
+                or _load_active_binding(
+                    manifest, handoff, handoff_file_sha, now=now)
+                != binding_claim):
+            raise Phase3Blocked("NATIVE_BINDING_PUBLICATION_INVALID")
         if on_apply_recorded is not None:
             on_apply_recorded(applying)
         _transition(
@@ -570,7 +864,13 @@ def begin_operator_apply(run_directory, supplied_token,
         while monotonic() <= deadline:
             evidence = observer.observe_evidence()
             if evidence is not None:
-                session = _validate_operator_hello(evidence, handoff)
+                session = _validate_operator_hello(
+                    evidence, handoff, binding_claim)
+                _revoke_binding(
+                    manifest, run_id=handoff["run_id"],
+                    native_runtime_id=handoff["runtime"]["native_runtime_id"],
+                    clock=clock,
+                    expected_claim_sha256=attempt["binding_claim_sha256"])
                 return _transition(
                     directory, handoff, state=COMPLETE,
                     transition="NATIVE_HELLO_ACCEPTED_SETUP_RELINQUISHED",
@@ -582,6 +882,14 @@ def begin_operator_apply(run_directory, supplied_token,
             sleeper(0.05)
         raise Phase3Blocked("NATIVE_HELLO_TIMEOUT")
     except BaseException as error:
+        try:
+            _revoke_binding(
+                manifest, run_id=handoff["run_id"],
+                native_runtime_id=handoff["runtime"]["native_runtime_id"],
+                clock=clock,
+                expected_claim_sha256=attempt["binding_claim_sha256"])
+        except BaseException:
+            pass
         current, _ = _load_evidence(directory, handoff)
         if current["state"] in {APPLYING, AWAITING_HELLO}:
             _transition(
@@ -616,9 +924,10 @@ def _validate_receipt(receipt, handoff):
 
 def execute_authorized(run_directory, authorization, supplied_token, *,
                        setup_adapter=None, hello_observer=None, clock=None,
-                       monotonic=time.monotonic, sleeper=time.sleep):
+                       monotonic=time.monotonic, sleeper=time.sleep,
+                       nonce_factory=token_bytes):
     now = _now(clock)
-    directory, _, handoff, handoff_file_sha = _load_handoff(run_directory)
+    directory, manifest, handoff, handoff_file_sha = _load_handoff(run_directory)
     state, _ = _load_evidence(directory, handoff)
     if state["state"] != AUTHORIZED or state["apply_count"] != 0:
         raise Phase3Blocked("SETUP_AUTHORIZATION_REQUIRED")
@@ -645,12 +954,17 @@ def execute_authorized(run_directory, authorization, supplied_token, *,
                     expected_states=(AUTHORIZED,))
         raise Phase3Blocked(reason)
 
-    observer = hello_observer or NativeHelloObserver(handoff)
+    authorization_record = state["details"]["authorization"]
+    binding_claim = _binding_claim(
+        handoff, handoff_file_sha, authorization_record, now,
+        nonce_factory(32))
+    observer = hello_observer or NativeHelloObserver(handoff, binding_claim)
     adapter = setup_adapter or NativeSetupAdapter()
     _transition(directory, handoff, state=APPLYING,
                 transition="SETUP_APPLY_ATTEMPT_RECORDED", clock=lambda: now,
                 apply_count=1, expected_states=(AUTHORIZED,))
     try:
+        _publish_active_binding(manifest, binding_claim)
         receipt = adapter.apply_once(handoff=handoff)
         expected_session = _validate_receipt(receipt, handoff)
         _transition(directory, handoff, state=AWAITING_HELLO,
@@ -663,6 +977,11 @@ def execute_authorized(run_directory, authorization, supplied_token, *,
             if observed is not None:
                 if observed != expected_session:
                     raise Phase3Blocked("FOREIGN_NATIVE_HELLO_SESSION")
+                _revoke_binding(
+                    manifest, run_id=handoff["run_id"],
+                    native_runtime_id=handoff["runtime"]["native_runtime_id"],
+                    clock=clock,
+                    expected_claim_sha256=_digest(binding_claim))
                 return _transition(
                     directory, handoff, state=COMPLETE,
                     transition="NATIVE_HELLO_ACCEPTED_SETUP_RELINQUISHED",
@@ -672,6 +991,14 @@ def execute_authorized(run_directory, authorization, supplied_token, *,
             sleeper(0.05)
         raise Phase3Blocked("NATIVE_HELLO_TIMEOUT")
     except BaseException as error:
+        try:
+            _revoke_binding(
+                manifest, run_id=handoff["run_id"],
+                native_runtime_id=handoff["runtime"]["native_runtime_id"],
+                clock=clock,
+                expected_claim_sha256=_digest(binding_claim))
+        except BaseException:
+            pass
         current, _ = _load_evidence(directory, handoff)
         if current["state"] in {APPLYING, AWAITING_HELLO}:
             _transition(directory, handoff, state=FAILED,
