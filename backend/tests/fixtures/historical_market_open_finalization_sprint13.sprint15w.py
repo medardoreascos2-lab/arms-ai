@@ -72,10 +72,6 @@ def test_native_certificate_is_bound_to_reviewed_source_and_preserves_scope():
         reviewed = ROOT/name
         if name == "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs":
             reviewed = ROOT/"backend/tests/fixtures/ArmsReadOnlyMarketV1.sprint13.cs"
-        if name == "backend/market_data/current_candle_authority_v1.py":
-            reviewed = ROOT/"backend/tests/fixtures/current_candle_authority_v1.sprint13.py"
-        if name == "backend/backtesting/current_paper_runtime_v1.py":
-            reviewed = ROOT/"backend/tests/fixtures/current_paper_runtime_v1.sprint13.py"
         assert sha256(reviewed.read_bytes().replace(b"\r\n", b"\n")).hexdigest() == expected, name
     for tf, minutes in (("15m", 15), ("1h", 60)):
         detail = evidence["htf"][tf]

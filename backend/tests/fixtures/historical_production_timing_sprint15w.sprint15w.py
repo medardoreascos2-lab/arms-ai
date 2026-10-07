@@ -308,17 +308,8 @@ def test_offline_certificate_never_promotes_native_or_clock_authority():
     assert cert['native_capture']['capture_status'] == 'INCOMPLETE_COORDINATED_CAPTURE_VALID_SEALED_STREAM'
     assert cert['reference_bound_status'] == cert['drift_bound_status'] == 'UNKNOWN'
     assert cert['runtime_admission'] is False and cert['live_authority'] is False
-    historical = {
-        'backend/tests/test_clock_preflight_sprint15t.py':
-            'backend/tests/fixtures/historical_clock_preflight_sprint15t.sprint15w.py',
-        'backend/tests/test_production_timing_sprint15w.py':
-            'backend/tests/fixtures/historical_production_timing_sprint15w.sprint15w.py',
-        'backend/tests/test_market_open_finalization_sprint13.py':
-            'backend/tests/fixtures/historical_market_open_finalization_sprint13.sprint15w.py',
-    }
     for name,digest in cert['reviewed_source_sha256'].items():
-        reviewed = ROOT/historical.get(name, name)
-        assert hashlib.sha256(reviewed.read_bytes().replace(b'\r\n',b'\n')).hexdigest() == digest,name
+        assert hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest() == digest,name
 
 
 @pytest.fixture(scope='module')

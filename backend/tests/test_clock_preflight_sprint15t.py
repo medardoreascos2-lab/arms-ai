@@ -435,7 +435,7 @@ def test_current_paper_preboundary_defer_artifact_is_offline_only():
         "backend/backtesting/certified_native_paper_bridge_v1.py":
             "backend/tests/fixtures/certified_native_paper_bridge_v1.d4e5c2.py",
         "backend/tests/test_certified_native_paper_bridge_v1.py":
-            "backend/tests/fixtures/test_certified_native_paper_bridge_v1.d4e5c2.py",
+            "backend/tests/fixtures/historical_test_certified_native_paper_bridge_v1.d4e5c2.py",
     }
     for path, digest in artifact["source_sha256"].items():
         source = Path(historical_source_paths.get(path, path))
