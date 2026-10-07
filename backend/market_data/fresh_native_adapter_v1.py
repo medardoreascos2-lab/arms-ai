@@ -39,6 +39,27 @@ PREACTIVATION_HELLO_PAYLOAD = {
     'read_only': True,
 }
 
+ONE_CLICK_AUTHORITY_FIELDS = (
+    'execution_authority',
+    'order_authority',
+    'paper_execution_authority',
+    'live_execution_authority',
+    'broker_authority',
+    'strategy_enable_authority',
+    'ninjatrader_control_authority',
+    'paper_execution_enabled',
+    'live_execution_allowed',
+    'external_order_authority',
+    'broker_live_order_authority',
+)
+
+ONE_CLICK_BINDING_FIELDS = (
+    'native_runtime_id',
+    'binding_nonce',
+    'binding_claim_sha256',
+    'handoff_file_sha256',
+)
+
 
 def _exact_prefix_digest(handle, size):
     """Hash exactly *size* bytes even when an unbuffered read is short."""
@@ -176,7 +197,8 @@ class FreshNativeAdapterV1:
     def __init__(self, *, directory, qpc_clock, installed_exporter,
                  heartbeat_seconds=15, processing_seconds=90, pair_wait_seconds=5,
                  startup_seconds=900, health_gated=True, bootstrap=None,
-                 live_handoff=False, expected_one_click_binding=None):
+                 live_handoff=False, expected_one_click_binding=None,
+                 allow_unbound_one_click_binding=False):
         self.directory = local_path(directory)
         require(self.directory.is_dir(), 'DIRECTORY_REQUIRED')
         source = local_path(installed_exporter)
@@ -189,6 +211,14 @@ class FreshNativeAdapterV1:
         require(
             type(live_handoff) is bool,
             'LIVE_HANDOFF_FLAG',
+        )
+        require(
+            type(allow_unbound_one_click_binding) is bool
+            and not (
+                allow_unbound_one_click_binding
+                and expected_one_click_binding is not None
+            ),
+            'ONE_CLICK_BINDING_POLICY',
         )
         self.clock = qpc_clock
         self.epoch, self.frequency, self.start = self.clock()
@@ -226,6 +256,7 @@ class FreshNativeAdapterV1:
                 'ONE_CLICK_BINDING_EXPECTATION',
             )
         self.expected_one_click_binding = expected_one_click_binding
+        self.allow_unbound_one_click_binding = allow_unbound_one_click_binding
         self.one_click_binding = None
         self.bootstrap_records = 0
         self.delivered_records = 0
@@ -311,29 +342,45 @@ class FreshNativeAdapterV1:
 
     def _validate_one_click_binding_receipt(self, path, session, reason):
         if self.expected_one_click_binding is None:
-            require(path is None, reason)
-            return None
+            if path is None:
+                return None
+            require(self.allow_unbound_one_click_binding, reason)
         if path is None:
             return None
         raw = local_path(path).read_bytes()
-        require(0 < len(raw) <= 4096 and raw.endswith(b'\n'), reason)
+        require(len(raw) <= 4096, reason)
+        if not raw or not raw.endswith(b'\n'):
+            return None
         receipt = parse(raw[:-1])
-        expected = {
+        authority = {
             'schema': 'arms.nt.one-click-binding-receipt.v1',
             'session': session,
             'read_only': True,
+            **{key: False for key in ONE_CLICK_AUTHORITY_FIELDS},
+        }
+        if self.expected_one_click_binding is None:
+            require(
+                set(receipt) == set(authority) | set(ONE_CLICK_BINDING_FIELDS)
+                and all(receipt.get(key) == value for key, value in authority.items())
+                and type(receipt.get('native_runtime_id')) is str
+                and str(UUID(receipt['native_runtime_id']))
+                == receipt['native_runtime_id']
+                and all(
+                    type(receipt.get(key)) is str
+                    and len(receipt[key]) == 64
+                    and all(character in '0123456789abcdef'
+                            for character in receipt[key])
+                    for key in ONE_CLICK_BINDING_FIELDS[1:]
+                ),
+                reason,
+            )
+            # Phase 2 only quarantines this closed, zero-authority shape.
+            # Phase 3 separately validates the exact claim and never shares
+            # binding authority with this adapter.
+            return None
+        expected = {
+            **authority,
             **self.expected_one_click_binding,
-            'execution_authority': False,
-            'order_authority': False,
-            'paper_execution_authority': False,
-            'live_execution_authority': False,
-            'broker_authority': False,
-            'strategy_enable_authority': False,
-            'ninjatrader_control_authority': False,
-            'paper_execution_enabled': False,
-            'live_execution_allowed': False,
-            'external_order_authority': False,
-            'broker_live_order_authority': False,
         }
         require(receipt == expected, reason)
         return receipt

@@ -10,8 +10,11 @@ from tools.native_timing_witness_v1 import live_process_start
 
 
 class AnalysisStartupV1:
-    def __init__(self, *, run_id, installed_exporter, qpc_clock=None, bootstrap=None):
+    def __init__(self, *, run_id, installed_exporter, qpc_clock=None,
+                 bootstrap=None, allow_unbound_one_click_binding=False):
         require(str(UUID(run_id)) == run_id, 'RUN_UUID')
+        require(type(allow_unbound_one_click_binding) is bool,
+                'ONE_CLICK_BINDING_POLICY')
         self.run_id = run_id
         self.pid = os.getpid()
         self.process_start = live_process_start(self.pid)
@@ -20,6 +23,7 @@ class AnalysisStartupV1:
         self.epoch, self.frequency, self.last_now = self.clock()
         self.installed_exporter = installed_exporter
         self.bootstrap = bootstrap
+        self.allow_unbound_one_click_binding = allow_unbound_one_click_binding
         self.bootstrap_replacement_count = 0
         self.lock = RLock()
         self.phase = 'BACKEND_STARTING'
@@ -110,7 +114,8 @@ class AnalysisStartupV1:
                 folder = local_path(directory)
                 folder.mkdir(exist_ok=False)  # Never accept a prior empty inbox either.
                 self.adapter = FreshNativeAdapterV1(directory=folder, installed_exporter=self.installed_exporter,
-                    qpc_clock=self.clock, health_gated=True, bootstrap=self.bootstrap)
+                    qpc_clock=self.clock, health_gated=True, bootstrap=self.bootstrap,
+                    allow_unbound_one_click_binding=self.allow_unbound_one_click_binding)
                 self.phase = 'VERIFYING_WAITING'
             except Exception:
                 self.revoke('ADAPTER_STARTUP_FAILED')

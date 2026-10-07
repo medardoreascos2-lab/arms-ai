@@ -527,7 +527,12 @@ def run(args, lifecycle_factory=None):
     parent.mkdir(parents=True, exist_ok=True)
     folder = parent/run_id
     folder.mkdir(exist_ok=False)
-    runtime = AnalysisStartupV1(run_id=run_id, installed_exporter=source, bootstrap=bootstrap)
+    runtime = AnalysisStartupV1(
+        run_id=run_id,
+        installed_exporter=source,
+        bootstrap=bootstrap,
+        allow_unbound_one_click_binding=catchup_source is not None,
+    )
     backend_url = f'http://127.0.0.1:{args.port}'
     frontend_url = f'http://127.0.0.1:{args.frontend_port}'
     health_url = backend_url+'/api/v2/market-analysis/health'

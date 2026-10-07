@@ -12,6 +12,12 @@ from backend.market_data.fresh_native_adapter_v1 import FreshNativeAdapterV1
 from backend.api.market_analysis_time_app_v1 import create_market_analysis_time_app_v1
 from backend.tests.test_analysis_time_sprint15x import forbid_account_and_execution_construction
 from backend.tests.test_fresh_native_adapter_sprint15y import Files
+from backend.tests.test_preactivation_live_buffer_v1 import (
+    one_click_expectation,
+    write_binding_receipt,
+    write_canonical_hello,
+)
+from backend.tests.test_startup_catchup_admission_v1 import certified_bootstrap
 from tools.analysis_native_startup_v1 import _shutdown_fault_telemetry
 
 SOURCE = Path('integrations/ninjatrader/ArmsReadOnlyMarketV1.cs').resolve()
@@ -56,11 +62,13 @@ def test_source_and_boundary_mutations_fail_closed(mutation):
 
 
 class Harness:
-    def __init__(self, tmp_path, monkeypatch):
+    def __init__(self, tmp_path, monkeypatch,
+                 allow_unbound_one_click_binding=False):
         monkeypatch.setattr('backend.market_data.analysis_startup_v1.live_process_start',lambda pid: 42 if pid else None)
         self.now = 1000
         self.runtime = AnalysisStartupV1(run_id=str(uuid4()), installed_exporter=SOURCE,
-                                        qpc_clock=lambda: ('offline',1000,self.now))
+            qpc_clock=lambda: ('offline',1000,self.now),
+            allow_unbound_one_click_binding=allow_unbound_one_click_binding)
         self.folder = tmp_path/'inbox'
     def backend(self):
         self.runtime.poll()
@@ -132,6 +140,47 @@ def test_allowance_starts_only_after_all_gates_and_uses_new_qpc_origin(tmp_path,
     h.now+=900000;r.poll();assert r.adapter.status=='WAITING'
     h.now+=1;r.poll();assert r.adapter.status=='REVOKED'
     assert r.phase=='FAILED'
+
+
+def test_fixed_binding_handoff_and_catchup_preserve_waiting_gate_order(
+        tmp_path, monkeypatch, forbid_account_and_execution_construction):
+    h = Harness(
+        tmp_path,
+        monkeypatch,
+        allow_unbound_one_click_binding=True,
+    )
+    h.prepare()
+    h.tick()
+
+    session = str(uuid4())
+    write_canonical_hello(h.folder, session)
+    write_binding_receipt(
+        h.folder,
+        session,
+        one_click_expectation(),
+    )
+
+    h.tick()
+    h.tick()
+    runtime = h.runtime
+    assert runtime.phase == 'VERIFYING_WAITING'
+    assert runtime.adapter.status == 'WAITING'
+    assert runtime.adapter.preactivation_session == session
+    assert runtime.adapter.one_click_binding is None
+    assert runtime.adapter.activation_start is None
+
+    runtime.install_waiting_bootstrap(certified_bootstrap())
+    assert runtime.phase == 'VERIFYING_WAITING'
+    assert runtime.observations == []
+
+    for _ in range(3):
+        h.tick()
+    h.finish()
+    assert runtime.phase == 'AWAITING_OPERATOR_ACTIVATION'
+
+    with pytest.raises(ValueError, match='WAITING_GATE_ORDER'):
+        runtime.observe_waiting(runtime.health(), runtime.pid)
+    assert runtime.phase == 'FAILED'
 
 
 def test_offline_success_never_starts_allowance_and_get_cannot_arm(tmp_path,monkeypatch,forbid_account_and_execution_construction):

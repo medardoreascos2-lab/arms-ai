@@ -192,6 +192,64 @@ def test_one_click_hello_waits_for_exact_binding_receipt(tmp_path):
     assert adapter.one_click_binding["binding_nonce"] == expected["binding_nonce"]
 
 
+def test_phase2_quarantines_zero_authority_receipt_without_binding_it(tmp_path):
+    inbox = tmp_path / "one-click-phase2-inbox"
+    inbox.mkdir()
+    adapter = FreshNativeAdapterV1(
+        directory=inbox,
+        installed_exporter=SOURCE,
+        qpc_clock=lambda: ("phase2-binding-receipt", 1000, 1000),
+        health_gated=True,
+        allow_unbound_one_click_binding=True,
+    )
+    session = write_valid_buffer(inbox)
+    write_binding_receipt(inbox, session, one_click_expectation())
+
+    assert adapter.validate_preactivation_buffer("TEST_BINDING") == session
+    assert adapter.one_click_binding is None
+    assert adapter.activation_start is None
+    assert adapter.status == "WAITING"
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("paper_execution_enabled", True),
+    ("live_execution_allowed", True),
+    ("external_order_authority", True),
+    ("broker_live_order_authority", True),
+    ("binding_claim_sha256", "not-a-reviewed-hash"),
+])
+def test_phase2_unbound_receipt_policy_remains_fail_closed(
+        tmp_path, field, value):
+    inbox = tmp_path / ("one-click-phase2-invalid-" + field)
+    inbox.mkdir()
+    adapter = FreshNativeAdapterV1(
+        directory=inbox,
+        installed_exporter=SOURCE,
+        qpc_clock=lambda: ("phase2-binding-invalid", 1000, 1000),
+        health_gated=True,
+        allow_unbound_one_click_binding=True,
+    )
+    session = write_valid_buffer(inbox)
+    write_binding_receipt(
+        inbox,
+        session,
+        one_click_expectation(),
+        **{field: value},
+    )
+
+    with pytest.raises(ValueError, match="TEST_BINDING"):
+        adapter.validate_preactivation_buffer("TEST_BINDING")
+
+
+def test_default_adapter_still_rejects_unexpected_one_click_receipt(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    session = write_valid_buffer(inbox)
+    write_binding_receipt(inbox, session, one_click_expectation())
+
+    with pytest.raises(ValueError, match="TEST_BINDING"):
+        adapter.validate_preactivation_buffer("TEST_BINDING")
+
+
 @pytest.mark.parametrize(("field", "value"), [
     ("native_runtime_id", "ffffffff-eeee-4ddd-8ccc-bbbbbbbbbbbb"),
     ("binding_nonce", "00" * 32),
