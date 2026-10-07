@@ -678,7 +678,7 @@ The following remain binding:
 
 ## 15. OCTOBER 2026 OPERATIONAL CHECKPOINT
 
-<- authenticated read-only PAPER Beta Dashboard ARMS_OCTOBER_2026_ROADMAP_CHECKPOINT -->
+<!-- ARMS_OCTOBER_2026_ROADMAP_CHECKPOINT -->
 
 
 The roadmap has advanced beyond the earlier generic Phase 2 planning statement.
