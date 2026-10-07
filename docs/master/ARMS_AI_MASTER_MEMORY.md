@@ -755,3 +755,139 @@ The permanent safety principles remain:
 10. Destructive consolidation requires call-graph and compatibility evidence.
 11. Autonomous LIVE trading remains blocked.
 12. Physical broker OCO and protective-order submission remain unavailable.
+
+---
+
+## 18. OCTOBER 2026 CURRENT OPERATIONAL CHECKPOINT
+
+<!-- ARMS_OCTOBER_2026_OPERATIONAL_CHECKPOINT -->
+
+**Checkpoint date:** 2026-10-07
+
+The current repository has progressed materially beyond the earlier Phase 2
+planning checkpoint recorded above.
+
+Current local repository state:
+
+- branch: `refactor/backend-architecture`;
+- local HEAD:
+  `9c2009edfa506df21b73f0e2efa30f8abf03968e`;
+- remote baseline:
+  `ca51ebef489ef4f7e80c25e3a4364138147d8346`;
+- local branch relation: `AHEAD=10`, `BEHIND=0`;
+- tracked worktree: clean at this checkpoint;
+- index: empty.
+
+The ten local commits ahead of the remote are:
+
+1. `b37f56a5ed2aa1ac4cb83fbfe331b8d90bfc9fb5`
+   — preserve catch-up across expected market rotation.
+2. `764b817ba4d036a3c9f7c9ca1e7458d0acf20f08`
+   — seal catch-up lifecycle validation.
+3. `3896c8c68b197e1d5f07367e5e62919c635d9598`
+   — add one-shot PAPER enable command channel.
+4. `4e50834f04e27920aac9900d1fcd1f87618d544c`
+   — harden L1 and PAPER supervision.
+5. `f958f003bdac76901188f8bcd7963dcea8227803`
+   — certify R24B offline stability.
+6. `9a9afe21496bf88378081ab271d6925de600f5c6`
+   — wait for bounded L1 catch-up.
+7. `17326f0fbe65c0a4e5ac9490b562490535925808`
+   — harden Windows supervisor ownership.
+8. `ba0155313d82c8c76d664dae719b396223d8a3ee`
+   — explicitly bound chart catch-up range.
+9. `7e88d40cf159dd062de2482a4906ecddcaf9ac54`
+   — block unproven absolute recency without teardown.
+10. `9c2009edfa506df21b73f0e2efa30f8abf03968e`
+    — integrate authenticated PAPER Beta Dashboard.
+
+### Current runtime evidence
+
+The latest One-Click Phase 2 startup reached process ownership and then failed
+closed with:
+
+`STARTUP_LIVE_QUARANTINE_TIMEOUT`
+
+The failure occurred while startup was waiting for a valid preactivation/live
+quarantine session before chart catch-up admission.
+
+The startup request was configured for:
+
+- chart catch-up required;
+- capture enabled;
+- provider enum `Provider31`;
+- dynamic `LATEST_CLOSED` boundary;
+- bounded exact contiguous catch-up;
+- PAPER execution disabled;
+- LIVE execution disallowed;
+- external order authority disabled;
+- broker LIVE order authority disabled.
+
+This is an operational readiness block, not evidence of an order submission or
+financial execution failure.
+
+### Current hardening completed locally
+
+The current local changes additionally certify:
+
+- Windows runtime ownership using PID plus process creation identity;
+- exact Windows Job Object membership reconciliation;
+- fail-closed PID reuse handling;
+- controlled run-bound supervisor stop;
+- owned-process, owned-port and Job Object cleanup evidence;
+- maximum chart catch-up duration of two days;
+- `EXACT_CONTIGUOUS_NO_TRUNCATION` catch-up contract;
+- no silent clipping of an oversized catch-up interval;
+- invalid/future catch-up time boundaries fail closed;
+- unproven absolute market recency becomes `RECENCY_BLOCKED`;
+- coordinator projects this as `WAITING_FOR_FRESH_DATA`;
+- PAPER remains disabled while recency is unproven;
+- fresh valid data can recover observation without tearing down the whole
+  runtime;
+- authenticated Beta Dashboard remains an observation/read-only PAPER product
+  surface.
+
+### Current NinjaTrader boundary
+
+No NinjaTrader mutation was performed during the terminal/MEDAR recovery
+sequence documented by this checkpoint.
+
+The native chart preparation remains a separate operational gate.
+
+The currently intended native chart contract remains:
+
+- instrument: `NQ DEC26`;
+- primary series: `1 Minute`;
+- trading hours: `CME US Index Futures ETH`;
+- provider: `Provider31`;
+- chart components:
+  `ArmsReadOnlyMarketV1` and `ArmsChartCatchupBridgeV1`.
+
+The controlled single-Apply chart-preparation budget remains reserved according
+to the current operator checkpoint. No additional Apply is authorized until the
+chart fields and capture namespace are verified.
+
+### Current safety status
+
+The following remain binding:
+
+- PAPER execution is not automatically enabled.
+- LIVE execution is not authorized.
+- External order authority remains disabled.
+- Broker LIVE order authority remains disabled.
+- Native chart preparation does not authorize trading.
+- A successful runtime startup does not itself authorize PAPER execution.
+- Autonomous LIVE trading remains blocked.
+- Physical real-money broker submission remains blocked.
+
+### Current next action
+
+Complete current-source regression certification for the ten local commits,
+then perform controlled remote synchronization only if all applicable gates
+remain green.
+
+After source certification, the next operational gate is native NinjaTrader
+chart preparation and evidence capture for the preactivation/live quarantine
+and chart catch-up lifecycle.
+
+Do not weaken or bypass `STARTUP_LIVE_QUARANTINE_TIMEOUT` to make startup pass.

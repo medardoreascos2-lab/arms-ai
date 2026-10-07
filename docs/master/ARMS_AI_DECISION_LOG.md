@@ -1077,3 +1077,110 @@ V10 market-to-candidate evidence and operational/provenance limitations remain.
 **Superseded by**
 
 None.
+---
+
+## DEC-0023 — Preserve fail-closed native startup while hardening current PAPER operations
+
+**Date:** 2026-10-07
+
+**Status:** Accepted for current local PAPER/runtime hardening scope.
+
+**Area:** Native startup, chart catch-up, recency, runtime supervision, and authenticated PAPER observation.
+
+**Context**
+
+October runtime work progressed beyond the V11 dashboard checkpoint. Current
+One-Click startup successfully reached authorized process startup and recorded
+owned process identity, but a real operational attempt stopped at
+`STARTUP_LIVE_QUARANTINE_TIMEOUT` while waiting for a valid native
+preactivation session.
+
+The failure occurred before PAPER execution enablement and with LIVE, external
+order, and broker LIVE authority disabled.
+
+Separate local work also exposed the need for stronger process ownership,
+bounded catch-up evidence, recoverable stale-data observation, and a read-only
+Beta product surface.
+
+**Decision**
+
+Retain the live-quarantine gate exactly as a fail-closed startup requirement.
+Do not convert the timeout into successful admission and do not fabricate native
+chart evidence.
+
+Adopt the following local hardening contracts:
+
+1. Windows supervisor ownership is identified by PID plus process creation
+   identity and reconciled against exact Job Object membership.
+2. Supervisor cleanup must prove zero owned surviving processes, zero owned open
+   ports, and zero remaining Job Object members.
+3. Chart catch-up is exact and contiguous, never silently truncated, and is
+   limited to the explicitly certified maximum interval.
+4. Absolute recency that cannot be proven blocks observation as
+   `RECENCY_BLOCKED` rather than granting execution or forcing an unnecessary
+   permanent runtime teardown.
+5. The coordinator exposes the recoverable condition as
+   `WAITING_FOR_FRESH_DATA`.
+6. Fresh valid data may recover observation, but PAPER remains independently
+   disabled unless separately authorized.
+7. The authenticated Beta Dashboard is observational PAPER functionality only
+   and does not create a trading-command authority.
+8. Native chart preparation remains an explicit separate operational gate.
+
+**Evidence**
+
+Current local commits include:
+
+- `17326f0fbe65c0a4e5ac9490b562490535925808`
+  — Windows supervisor ownership hardening;
+- `ba0155313d82c8c76d664dae719b396223d8a3ee`
+  — bounded chart catch-up contract;
+- `7e88d40cf159dd062de2482a4906ecddcaf9ac54`
+  — recoverable fail-closed recency behavior;
+- `9c2009edfa506df21b73f0e2efa30f8abf03968e`
+  — authenticated PAPER Beta Dashboard integration.
+
+Focused certification at this checkpoint includes:
+
+- Windows supervisor tests: 20 passed;
+- startup/catch-up targeted tests: 48 passed;
+- bridge/coordinator tests: 57 passed;
+- focused recency tests: 5 passed;
+- Beta backend tests: 17 passed;
+- Beta frontend tests: 10 passed;
+- Next.js production build: passed.
+
+These are targeted current-source results and are not a substitute for the
+final aggregate regression gate.
+
+**Consequences**
+
+The local branch is ten commits ahead of the current remote baseline at this
+checkpoint.
+
+No LIVE execution authorization is granted.
+
+No physical broker authority is granted.
+
+No automatic PAPER enablement is granted.
+
+The next source-control action is aggregate regression certification followed
+by controlled remote synchronization only if the branch remains green and
+clean.
+
+The next operational action after source certification is native NinjaTrader
+chart preparation and genuine preactivation/chart-catch-up evidence.
+
+`STARTUP_LIVE_QUARANTINE_TIMEOUT` must remain fail closed until valid native
+evidence exists.
+
+**Supersedes**
+
+Only outdated current-next-action wording that still described Phase 2 planning
+as the immediate work item.
+
+**Does not supersede**
+
+DEC-0019 Phase 1 closure, DEC-0020 through DEC-0022 scoped evidence, or any
+permanent PAPER/LIVE, risk, freshness, account, recovery, or real-broker safety
+boundary.

@@ -673,3 +673,88 @@ The following remain binding:
 - destructive consolidation requires call-graph and compatibility evidence;
 - autonomous LIVE trading remains blocked;
 - physical broker OCO and protective-order submission remain unavailable.
+
+---
+
+## 15. OCTOBER 2026 OPERATIONAL CHECKPOINT
+
+
+The roadmap has advanced beyond the earlier generic Phase 2 planning statement.
+
+### Current repository checkpoint
+
+- local HEAD:
+  `9c2009edfa506df21b73f0e2efa30f8abf03968e`;
+- remote baseline:
+  `ca51ebef489ef4f7e80c25e3a4364138147d8346`;
+- local relation: `AHEAD=10`, `BEHIND=0`;
+- tracked worktree: clean before this MEDAR update;
+- index: empty before this MEDAR update.
+
+### Completed local hardening in the current checkpoint
+
+The following current work is locally implemented and targeted-tested:
+
+- expected-market-rotation catch-up continuity;
+- catch-up lifecycle sealing;
+- one-shot PAPER enable command channel;
+- L1/PAPER supervision hardening;
+- R24B offline stability certification;
+- bounded L1 catch-up wait;
+- Windows Job Object ownership hardening;
+- exact bounded chart catch-up contract;
+- recoverable fail-closed recency handling;
+- authenticated read-only PAPER Beta Dashboard integration.
+
+### Current operational blocker
+
+The most recent genuine One-Click Phase 2 startup terminated fail closed with:
+
+`STARTUP_LIVE_QUARANTINE_TIMEOUT`
+
+The runtime was waiting for native preactivation/live-quarantine evidence.
+
+This gate must not be bypassed or converted into permissive startup behavior.
+
+### Immediate roadmap sequence
+
+```text
+aggregate current-source regression
+→ controlled local/remote synchronization
+→ native NinjaTrader chart preparation
+→ verify fresh chart capture namespace
+→ exactly one controlled Apply when all chart fields are verified
+→ prove READ_ONLY_MARKET_LIVE_HELLO
+→ prove CHART_CATCHUP_LIFECYCLE_STARTED
+→ prove CHART_CATCHUP_CONTIGUOUS
+→ prove CHART_CATCHUP_COMPLETED
+→ reattempt One-Click startup with genuine native evidence
+→ keep PAPER disabled until separately authorized
+```
+
+### Native chart target
+
+Current intended first native certification target:
+
+- `NQ DEC26`;
+- `1 Minute`;
+- `CME US Index Futures ETH`;
+- `Provider31`;
+- `ArmsReadOnlyMarketV1`;
+- `ArmsChartCatchupBridgeV1`.
+
+MNQ remains an intended trading-market target, but this specific native capture
+checkpoint is centered on NQ.
+
+### Safety boundary
+
+This checkpoint does not authorize:
+
+- LIVE execution;
+- real-money broker order submission;
+- automatic PAPER enablement;
+- bypass of freshness, risk, account, recovery, or native-evidence gates;
+- consumption of the controlled Apply before chart fields are verified.
+
+Operational success requires genuine native evidence, not replacement of a
+blocking safety gate with permissive behavior.
