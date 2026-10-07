@@ -1,5 +1,11 @@
 # Authorized local PAPER dashboard
 
+Beta Dashboard V1 now adapts this same `/dashboard-v2` route. Beta users receive
+only authenticated LIVE, HISTORY, and PERFORMANCE PAPER views; admins can also
+open the existing owner console. Setup, data-boundary, auth, and validation
+details are documented in
+[`docs/architecture/beta_dashboard_v1.md`](../docs/architecture/beta_dashboard_v1.md).
+
 The operational view is `/dashboard-v2`. Use the coordinated backend on loopback
 (`python -m uvicorn backend.api.asgi:app --host 127.0.0.1 --port 8000`) with its
 existing PAPER account namespace, admission policy, admin authorization and

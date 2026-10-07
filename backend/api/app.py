@@ -651,6 +651,12 @@ from backend.config.api_settings import (
 from backend.security.admin_authorization_v2 import (
     AdminAuthorizationV2,
 )
+from backend.security.beta_access_v1 import BetaUserStoreV1
+from backend.dashboard.beta_dashboard_projection_v1 import BetaDashboardProjectionV1
+from backend.dashboard.current_paper_read_model_v1 import (
+    CurrentPaperReadOnlySourceV1,
+)
+from backend.api.beta_dashboard_api_v1 import create_beta_dashboard_router_v1
 from backend.api.admin_authorization_dependency_v2 import (
     require_admin_authorization_v2,
 )
@@ -1466,6 +1472,15 @@ def create_app(
         title=settings.title,
         version=settings.version,
         debug=settings.debug,
+    )
+
+    # Beta identity is isolated from trading/account authority. Without an
+    # explicit database path it remains process-local and fails closed after a
+    # restart; local beta configuration supplies an isolated persistent path.
+    app.state.beta_user_store_v1 = BetaUserStoreV1.from_environment()
+    app.state.beta_dashboard_projection_v1 = BetaDashboardProjectionV1()
+    app.state.beta_current_paper_source_v1 = (
+        CurrentPaperReadOnlySourceV1.from_environment()
     )
 
     app.state.risk_event_store_v2 = (
@@ -2867,6 +2882,17 @@ def create_app(
         create_dashboard_live_router_v2(
             live_data_service_v2=(
                 app.state.dashboard_live_data_service_v2
+            ),
+        )
+    )
+
+    app.include_router(
+        create_beta_dashboard_router_v1(
+            user_store=app.state.beta_user_store_v1,
+            projection=app.state.beta_dashboard_projection_v1,
+            live_data_service=(
+                app.state.beta_current_paper_source_v1
+                or app.state.dashboard_live_data_service_v2
             ),
         )
     )

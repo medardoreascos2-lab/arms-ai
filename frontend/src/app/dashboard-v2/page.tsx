@@ -43,6 +43,7 @@ import AIDecisionEngineCard from "@/components/dashboard-v2/AIDecisionEngineCard
 import TradeJournalCard from "@/components/dashboard-v2/TradeJournalCard";
 import StrategyRankingCard from "@/components/dashboard-v2/StrategyRankingCard";
 import AICopilotCard from "@/components/dashboard-v2/AICopilotCard";
+import BetaDashboardV1 from "@/components/dashboard-v2/BetaDashboardV1";
 
 
 type MetricItem = {
@@ -212,7 +213,7 @@ function DataPanel({
 }
 
 
-export default function DashboardV2Page() {
+function AdminDashboardV2() {
   const [
     liveSnapshot,
     setLiveSnapshot,
@@ -1806,4 +1807,8 @@ export default function DashboardV2Page() {
       </div>
     </main>
   );
+}
+
+export default function DashboardV2Page() {
+  return <BetaDashboardV1 />;
 }
