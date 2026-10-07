@@ -1,0 +1,144 @@
+{
+  "schema": "arms.one-click-runtime-profile.v1",
+  "reviewed_profile_version": "PHASE_1B_REAL_OFFLINE_V1",
+  "mode": "OFFLINE_ONLY",
+  "execution_authority": false,
+  "live_authority": false,
+  "external_order_authority": false,
+  "future_runtime_execution_enabled": false,
+  "python_path": ".venv/Scripts/python.exe",
+  "python_identity": {
+    "implementation": "CPython",
+    "version": "3.13.16",
+    "architecture": "x64",
+    "gil": "STANDARD",
+    "sha256": "21bba195c88bcc007c8fd8e99603e9c0d82be1e08cff2f23bd5b2264f3148289"
+  },
+  "market_identity": {
+    "provider": "Provider31",
+    "canonical_provider": "NINJATRADER:Provider31",
+    "instrument": "NQ",
+    "contract": "NQ DEC26",
+    "expiry": "2026-12-01",
+    "trading_hours": "CME US Index Futures ETH",
+    "bars_period": "Minute",
+    "bars_value": 1,
+    "source_timezone": "UTC"
+  },
+  "risk_and_execution_parameters": {
+    "risk_percent": 0.5,
+    "minimum_reward_risk_ratio": 2.0,
+    "minimum_stop_points": 1.0,
+    "maximum_stop_points": 100.0,
+    "maximum_spread_points": 5.0,
+    "minimum_atr_points": 1.0,
+    "maximum_quote_age_seconds": 30.0,
+    "maximum_signal_age_seconds": 300,
+    "minimum_probability": 0.8,
+    "minimum_confluence": 0.8,
+    "minimum_trade_quality": 85,
+    "maximum_open_positions": 1,
+    "paper_boundary": 80.5,
+    "paper_stop_loss_points": 30.0,
+    "paper_take_profit_points": 60.0,
+    "fee_per_contract_side": 5.0,
+    "slippage_ticks_side": 2
+  },
+  "runtime_environment": {
+    "ARMS_MAXIMUM_QUOTE_AGE_SECONDS": "30",
+    "ARMS_MINIMUM_REWARD_RISK_RATIO": "2.0",
+    "ARMS_MINIMUM_STOP_POINTS": "1",
+    "ARMS_MAXIMUM_STOP_POINTS": "100",
+    "ARMS_MAXIMUM_SPREAD_POINTS": "5",
+    "ARMS_MINIMUM_ATR_POINTS": "1",
+    "ARMS_MINIMUM_A_PLUS_PROBABILITY": "0.80",
+    "ARMS_MINIMUM_A_PLUS_CONFLUENCE_SCORE": "0.80",
+    "ARMS_MAXIMUM_SIGNAL_AGE_SECONDS": "300",
+    "ARMS_MAXIMUM_OPEN_POSITIONS": "1"
+  },
+  "installed_exporter": {
+    "path": "C:/Users/Thecrazyboss/OneDrive/Documents/NinjaTrader 8/bin/Custom/Indicators/ArmsReadOnlyMarketV1.cs",
+    "sha256": "db143f7d4a61fbc797623b38bdcb3cfde681e3733b2643a067c05c631f52dde2"
+  },
+  "bootstrap_evidence": {
+    "path": ".arms-dev/analysis-native/869d169e-2a75-4366-aeb7-0ed113265576/certified-chart-catchup.bundle.json",
+    "sha256": "805caacded91dbb05a4670392ae729cbcb6dd0b051daf268198b484edd0aa8ec"
+  },
+  "startup_chart_catchup_source": {
+    "path": "C:/Users/Thecrazyboss/OneDrive/Documents/NinjaTrader 8/bin/Custom/Indicators/ArmsChartCatchupBridgeV1.cs",
+    "sha256": "44ea69a32b157cb8e0e11cfb4d596838b3d49968a3681c6551d2318f0bf8e393"
+  },
+  "native_spec": {
+    "path": "backend/config/native_capture_spec_20261006T223000Z.json",
+    "sha256": "6f71cd7eaf7d7e3b78705547f2b86f480aa31871b186be13ab4997f44e0a14cc"
+  },
+  "paper_config": {
+    "path": "backend/config/paper_research_sprint07r.json",
+    "sha256": "64ae9e48ad87ecd9ac5e4e573c78b9453ce5744c78ae79a5c0c350b56fc5ccd3"
+  },
+  "reviewed_source_pins": {
+    "scripts/arms-runtime-v1.ps1": {
+      "path": "scripts/arms-runtime-v1.ps1",
+      "sha256": "dc8b8a59c4b013d6da44486857e89281a12a4c0fadf9ad19517b224a6fca688f"
+    },
+    "tools/arms_one_click_runtime_v1.py": {
+      "path": "tools/arms_one_click_runtime_v1.py",
+      "sha256": "d7f4919f673bf98d8be031a1ed18d3572b4b1809e18470a2010e8f2bec9ba386"
+    },
+    "tools/arms_one_click_runtime_phase2_v1.py": {
+      "path": "tools/arms_one_click_runtime_phase2_v1.py",
+      "sha256": "573a36e9da11dd1a103e8fa00b952aa6966a0d5992e160a8ed3a6d2a94c67876"
+    },
+    "tools/start_native_current_paper_v1.py": {
+      "path": "tools/start_native_current_paper_v1.py",
+      "sha256": "527ae80310ade683854e3ab9e6e605cad5b43772152b4e8c7639a41dfd1b1830"
+    },
+    "tools/windows_runtime_supervisor_v1.py": {
+      "path": "tools/windows_runtime_supervisor_v1.py",
+      "sha256": "323b56986c7102e5fdfff0a89ab9c1e5c659c62af1cb53f161c6e0c9b2075afa"
+    },
+    "tools/analysis_native_startup_v1.py": {
+      "path": "tools/analysis_native_startup_v1.py",
+      "sha256": "bb9baaaf59935a5ba6909d579fb99cdce7eac79f448843bd498a31e6156244b0"
+    },
+    "tools/startup_chart_catchup_v1.py": {
+      "path": "tools/startup_chart_catchup_v1.py",
+      "sha256": "d73851944bde8c53c3c7d91777ec817542312e34938e7459dc2caaa2598bc724"
+    }
+  },
+  "runtime_parent": ".arms-dev/analysis-native",
+  "paper_namespace_parent": ".arms-dev/current-paper/runs",
+  "news_parent": "C:/Users/Thecrazyboss/AppData/Local/ARMS-AI/current-paper-news-v1",
+  "l1_parent": "C:/Users/Thecrazyboss/AppData/Local/ARMS-AI/current-paper-l1-v1",
+  "path_templates": {
+    "analysis_namespace": ".arms-dev/analysis-native/{RUN_ID}",
+    "market_inbox": ".arms-dev/analysis-native/{RUN_ID}/inbox",
+    "catchup_directory": ".arms-dev/analysis-native/{RUN_ID}/chart-catchup",
+    "external_private_l1_root": "C:/Users/Thecrazyboss/AppData/Local/ARMS-AI/current-paper-l1-v1/{RUN_ID}",
+    "paper_run_namespace": ".arms-dev/current-paper/runs/{RUN_ID}",
+    "command_channel": ".arms-dev/current-paper/runs/{RUN_ID}/controller-command-v1",
+    "current_paper_news_root": "C:/Users/Thecrazyboss/AppData/Local/ARMS-AI/current-paper-news-v1/{RUN_ID}",
+    "local_dumps": "reports/one-click-runtime-v1/{RUN_ID}/localdumps",
+    "runtime_evidence_directory": "reports/one-click-runtime-v1/{RUN_ID}"
+  },
+  "stable_path_policy": {
+    "mechanism": "ATOMIC_JSON_POINTER",
+    "pointer_path": ".arms-one-click-runtime-v1/stable/current-plan.json",
+    "atomic_publication_required": true,
+    "pointer_switch_during_active_run_allowed": false,
+    "pointer_switch_performed_by_offline_start": false,
+    "stale_run_cross_binding_allowed": false,
+    "historical_run_mutation_allowed": false
+  },
+  "private_acl_required": true,
+  "excluded_active_run_ids": [
+    "20261006T171457Z-r24c-r13-992631f4"
+  ],
+  "ports": {
+    "backend": 54920,
+    "frontend": 54921,
+    "paper": 54922
+  },
+  "admin_token_env": "ARMS_ONE_CLICK_RUNTIME_V1_ADMIN_TOKEN",
+  "startup_chart_catchup_timeout_seconds": 900
+}
