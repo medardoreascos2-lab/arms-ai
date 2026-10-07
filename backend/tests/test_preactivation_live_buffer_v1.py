@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
+
 from backend.market_data.certified_bootstrap_v1 import (
     BootstrapBar,
     CertifiedBootstrap,
@@ -126,6 +128,119 @@ def write_valid_buffer(inbox):
     connection.write_bytes(b"")
 
     return session
+
+
+def write_canonical_hello(inbox, session, *, payload=None, newline=True):
+    hello = {
+        "schema": "arms.nt.market.v1",
+        "session": session,
+        "sequence": 0,
+        "event_time": "2026-09-30T16:14:00.0000000Z",
+        "kind": "HELLO",
+        "payload": HELLO_PAYLOAD if payload is None else payload,
+    }
+    raw = encode(hello)
+    (inbox / (session + ".jsonl")).write_bytes(
+        raw + (b"\n" if newline else b"")
+    )
+
+
+def test_connection_sidecar_can_precede_exact_canonical_hello(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    session = str(uuid4())
+    connection = inbox / (session + ".connection.jsonl")
+    connection.write_bytes(b"")
+
+    assert adapter.validate_preactivation_buffer("TEST_PRE_HELLO") is None
+
+    write_canonical_hello(inbox, session)
+
+    assert adapter.validate_preactivation_buffer("TEST_PRE_HELLO") == session
+
+
+def test_persistent_orphan_sidecar_never_binds_a_session(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    session = str(uuid4())
+    (inbox / (session + ".connection.jsonl")).write_bytes(b"")
+
+    for _ in range(3):
+        assert adapter.validate_preactivation_buffer("TEST_PRE_HELLO") is None
+
+    assert adapter.preactivation_lineage_root is None
+    assert adapter.preactivation_session is None
+
+
+def test_timing_sidecar_can_precede_exact_canonical_hello(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    session = str(uuid4())
+    timing = inbox / "timing"
+    timing.mkdir()
+    (timing / (session + ".production-timing.jsonl")).write_bytes(b"")
+
+    assert adapter.validate_preactivation_buffer("TEST_PRE_HELLO") is None
+
+    write_canonical_hello(inbox, session)
+
+    assert adapter.validate_preactivation_buffer("TEST_PRE_HELLO") == session
+
+
+def test_orphan_sidecar_then_foreign_canonical_fails_closed(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    orphan = str(uuid4())
+    canonical = str(uuid4())
+    (inbox / (orphan + ".connection.jsonl")).write_bytes(b"")
+
+    assert adapter.validate_preactivation_buffer("TEST_PRE_HELLO") is None
+    write_canonical_hello(inbox, canonical)
+
+    with pytest.raises(ValueError, match="TEST_PRE_HELLO"):
+        adapter.validate_preactivation_buffer("TEST_PRE_HELLO")
+
+
+def test_conflicting_orphan_sidecars_fail_closed(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    connection_session = str(uuid4())
+    timing_session = str(uuid4())
+    (inbox / (connection_session + ".connection.jsonl")).write_bytes(b"")
+    timing = inbox / "timing"
+    timing.mkdir()
+    (timing / (timing_session + ".production-timing.jsonl")).write_bytes(b"")
+
+    with pytest.raises(ValueError, match="TEST_PRE_HELLO"):
+        adapter.validate_preactivation_buffer("TEST_PRE_HELLO")
+
+
+def test_malformed_canonical_hello_fails_closed_immediately(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    session = str(uuid4())
+    (inbox / (session + ".jsonl")).write_bytes(b"not-json\n")
+
+    with pytest.raises(ValueError):
+        adapter.validate_preactivation_buffer("TEST_PRE_HELLO")
+
+
+def test_incomplete_canonical_hello_remains_pending_until_complete(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    session = str(uuid4())
+    write_canonical_hello(inbox, session, newline=False)
+
+    assert adapter.validate_preactivation_buffer("TEST_PRE_HELLO") is None
+
+    with (inbox / (session + ".jsonl")).open("ab") as handle:
+        handle.write(b"\n")
+
+    assert adapter.validate_preactivation_buffer("TEST_PRE_HELLO") == session
+
+
+def test_exact_canonical_hello_payload_mismatch_fails_closed(tmp_path):
+    adapter, inbox, _ = new_adapter(tmp_path)
+    session = str(uuid4())
+    payload = dict(HELLO_PAYLOAD)
+    payload["provider"] = "FOREIGN_PROVIDER"
+    write_canonical_hello(inbox, session, payload=payload)
+
+    with pytest.raises(ValueError, match="TEST_PRE_HELLO"):
+        adapter.validate_preactivation_buffer("TEST_PRE_HELLO")
 
 
 def test_single_preactivation_session_is_quarantined(

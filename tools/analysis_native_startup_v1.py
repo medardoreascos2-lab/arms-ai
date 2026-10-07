@@ -21,6 +21,15 @@ from backend.market_data.fresh_native_adapter_v1 import local_path
 from tools.native_timing_witness_v1 import live_process_start
 
 ROOT = Path(__file__).resolve().parents[1]
+KNOWN_STARTUP_TERMINAL_ERROR_CODES = frozenset({
+    'UNEXPECTED_DATA_GAP',
+})
+
+
+def _startup_error_code(error):
+    """Return only reviewed terminal startup diagnostics."""
+    value = str(error)
+    return value if value in KNOWN_STARTUP_TERMINAL_ERROR_CODES else None
 
 
 def _shutdown_fault_telemetry(health):
@@ -956,7 +965,12 @@ def run(args, lifecycle_factory=None):
         raise
     except BaseException as error:
         runtime.revoke('STARTUP_OR_HEALTH_FAILED')
-        result.update(status='FAILED', error_type=type(error).__name__, health=runtime.health())
+        result.update(
+            status='FAILED',
+            error_type=type(error).__name__,
+            error_code=_startup_error_code(error),
+            health=runtime.health(),
+        )
         raise
     finally:
         propagating_error = (

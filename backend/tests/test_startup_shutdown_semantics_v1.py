@@ -2,6 +2,8 @@
 import ast
 from pathlib import Path
 
+from tools.analysis_native_startup_v1 import _startup_error_code
+
 
 ORCHESTRATOR = Path(
     "tools/analysis_native_startup_v1.py"
@@ -124,10 +126,26 @@ def test_non_keyboard_base_exception_remains_fail_closed():
         in fallback
     )
 
+    assert (
+        "error_code=_startup_error_code(error)"
+        in fallback
+    )
+
     assert isinstance(
         node.handlers[1].body[-1],
         ast.Raise,
     )
+
+
+def test_known_startup_terminal_error_is_normalized():
+    assert (
+        _startup_error_code(ValueError("UNEXPECTED_DATA_GAP"))
+        == "UNEXPECTED_DATA_GAP"
+    )
+
+
+def test_unknown_startup_error_text_is_not_promoted():
+    assert _startup_error_code(ValueError("attacker-controlled")) is None
 
 
 def test_finally_still_closes_runtime_and_persists_shutdown_result():

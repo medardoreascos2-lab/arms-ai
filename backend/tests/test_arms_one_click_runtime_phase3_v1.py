@@ -9,13 +9,13 @@ from uuid import UUID
 import pytest
 
 from backend.tests.test_arms_one_click_runtime_phase2_v1 import (
-    NOW, _fixture as phase2_fixture,
+    FakeProcessAdapter, NATIVE_ID, NOW, _authorize as phase2_authorize,
+    _fixture as phase2_fixture, _start as phase2_start,
 )
 from tools import arms_one_click_runtime_phase2_v1 as phase2
 from tools import arms_one_click_runtime_phase3_v1 as phase3
 
 
-NATIVE_ID = "11111111-2222-4333-8444-555555555555"
 SESSION_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 
 
@@ -50,6 +50,14 @@ class FakeHelloObserver:
         return self.values.pop(0) if self.values else None
 
 
+class FakeOperatorHelloObserver:
+    def __init__(self, values):
+        self.values = list(values)
+
+    def observe_evidence(self):
+        return self.values.pop(0) if self.values else None
+
+
 class FakeTime:
     def __init__(self):
         self.value = 0.0
@@ -65,69 +73,16 @@ def _write_json(path, value):
     path.write_text(json.dumps(value), encoding="utf-8")
 
 
-def _runtime_artifacts(manifest, runtime):
-    inbox = runtime / "inbox"
-    catchup = runtime / "chart-catchup"
-    inbox.mkdir(parents=True)
-    catchup.mkdir()
-    claim = {
-        "run_id": NATIVE_ID,
-        "pid": 1234,
-        "process_start": 5678,
-        "mode": "ANALYSIS_ONLY",
-        "exporter_identity": {"authored_sha256": "a" * 64},
-        "bootstrap_sha256": manifest["inputs"]["bootstrap_evidence"]["sha256"],
-        "startup_chart_catchup_required": True,
-        "backend_url": f"http://127.0.0.1:{manifest['ports']['backend']}",
-        "dashboard_url": (
-            f"http://127.0.0.1:{manifest['ports']['frontend']}/market-analysis"),
-        "input_directory": str(inbox.resolve()),
-    }
-    request = {
-        "schema": "arms.startup-chart-catchup-request.v1",
-        "indicator": "ArmsChartCatchupBridgeV1",
-        "capture_enabled": True,
-        "output_directory": str(catchup.resolve()),
-        "live_output_directory": str(inbox.resolve()),
-        "expected_provider_enum": "Provider31",
-        "from_close_utc": "2026-10-06T17:38:00Z",
-        "through_close_utc": "LATEST_CLOSED",
-        "through_selection": "CHART_LATEST_CLOSED",
-        "absolute_time_authority": "NONE",
-        "range_contract": "EXACT_CONTIGUOUS_NO_TRUNCATION",
-        "range_duration_seconds": 26220,
-        "range_maximum_seconds": 172800,
-        "observation_only": True,
-        "runtime_admission": False,
-        "execution_authority": False,
-    }
-    _write_json(runtime / "claim.json", claim)
-    _write_json(runtime / "chart-catchup-request.json", request)
-    return claim, request
-
-
 def _fixture(tmp_path):
     fixture, run = phase2_fixture(tmp_path)
     fixture.active.write_text("DO NOT TOUCH", encoding="utf-8")
-    directory, manifest, phase1_state, _, _ = phase2._load_plan(
-        run, now=NOW)
-    bindings = phase2._bindings(manifest, phase1_state)
-    authorization = phase2.authorize_start(
-        run, clock=lambda: NOW, token_factory=lambda _: b"p" * 32)
-    phase2._transition(
-        directory, manifest, bindings, state=phase2.STARTING,
-        transition="PROCESS_STARTING", clock=lambda: NOW,
-        expected_states=(phase2.AUTHORIZED,))
-    ownership = {
-        "pid": 43210, "identity": [101, 202],
-        "command_sha256": "b" * 64, "spawn_challenge_sha256": "c" * 64,
-    }
-    phase2._transition(
-        directory, manifest, bindings, state=phase2.STARTING,
-        transition="PROCESS_OWNERSHIP_RECORDED", clock=lambda: NOW,
-        details={"ownership": ownership}, expected_states=(phase2.STARTING,))
-    runtime = Path(manifest["targets"]["runtime_parent"]) / NATIVE_ID
-    claim, request = _runtime_artifacts(manifest, runtime)
+    authorization = phase2_authorize(run)
+    phase2_start(run, authorization, FakeProcessAdapter())
+    state = phase2.status(run)
+    runtime = Path(state["native_setup"]["runtime_directory"])
+    claim = json.loads((runtime / "claim.json").read_text(encoding="utf-8"))
+    request = json.loads(
+        (runtime / "chart-catchup-request.json").read_text(encoding="utf-8"))
     return fixture, run, runtime, claim, request, authorization
 
 
@@ -142,6 +97,21 @@ def _authorize(run, *, now=NOW, ttl=30):
     return phase3.authorize_setup(
         run, clock=lambda: now, ttl_seconds=ttl,
         token_factory=lambda _: b"s" * 32)
+
+
+def _operator_authorize(run, *, now=NOW, ttl=30):
+    return phase3.operator_authorization(
+        run, clock=lambda: now, ttl_seconds=ttl,
+        token_factory=lambda _: b"o" * 32)
+
+
+def _hello_evidence(runtime_id=NATIVE_ID, provider="Provider31",
+                    session=SESSION_ID):
+    return {
+        "native_session_id": session,
+        "native_runtime_id": runtime_id,
+        "provider": provider,
+    }
 
 
 def _execute(run, authorization, adapter, observer, *, now=NOW):
@@ -189,6 +159,17 @@ def test_invalid_or_stale_runtime_request_is_rejected(tmp_path, field, value):
     assert not (run / "phase3-handoff.json").exists()
 
 
+def test_run_derived_from_close_is_bound_before_phase3_prepare(tmp_path):
+    _, run, runtime, _, request, _ = _fixture(tmp_path)
+    request["from_close_utc"] = "2026-10-06T17:39:00Z"
+    _write_json(runtime / "chart-catchup-request.json", request)
+    with pytest.raises(
+            phase3.Phase3Blocked,
+            match="PHASE2_NATIVE_SETUP_BINDING_MISMATCH"):
+        phase3.prepare_handoff(run, runtime, clock=lambda: NOW)
+    assert not (run / "phase3-handoff.json").exists()
+
+
 @pytest.mark.parametrize("mutation", [
     lambda r: r["chart_contract"].update(instrument="ES DEC26"),
     lambda r: r["chart_contract"].update(bars_value=5),
@@ -229,6 +210,141 @@ def test_exactly_one_apply_and_second_attempt_is_blocked(tmp_path):
     with pytest.raises(phase3.Phase3Blocked, match="SETUP_AUTHORIZATION_REQUIRED"):
         _execute(run, authorization, adapter, FakeHelloObserver([SESSION_ID]))
     assert len(adapter.calls) == 1
+
+
+def test_operator_authorize_exposes_exact_sealed_values_and_zero_authority(
+        tmp_path):
+    _, run, runtime, _, _, _, _ = _prepare(tmp_path)
+    result = _operator_authorize(run)
+    assert result["state"] == phase3.AUTHORIZED
+    assert result["apply_limit"] == 1
+    assert result["chart_contract"] == phase3._CHART
+    assert result["settings"]["ArmsReadOnlyMarketV1"] == {
+        "OutputDirectory": str((runtime / "inbox").resolve()),
+        "ExpectedProvider": "Provider31",
+    }
+    catchup = result["settings"]["ArmsChartCatchupBridgeV1"]
+    assert catchup["CaptureEnabled"] is True
+    assert catchup["FromCloseUtc"] == "2026-10-06T17:38:00Z"
+    assert catchup["ThroughCloseUtc"] == "LATEST_CLOSED"
+    assert result["ninjatrader_setup_authority"] is True
+    assert all(result[key] is False for key in phase3._ZERO_AUTHORITY)
+    persisted = phase3.status(run)
+    assert persisted["state"] == phase3.AUTHORIZED
+    assert persisted["apply_count"] == 0
+    serialized = (run / "phase3-events.json").read_text(encoding="utf-8")
+    assert result["authorization_token"] not in serialized
+
+
+def test_operator_attempt_is_recorded_before_hello_and_is_one_shot(tmp_path):
+    _, run, *_ = _prepare(tmp_path)
+    authorization = _operator_authorize(run)
+    announcements = []
+
+    class InspectingObserver:
+        @staticmethod
+        def observe_evidence():
+            state = phase3.status(run)
+            assert announcements
+            assert announcements[0]["state"] == phase3.APPLYING
+            assert announcements[0]["apply_count"] == 1
+            assert state["state"] == phase3.AWAITING_HELLO
+            assert state["apply_count"] == 1
+            events = json.loads(
+                (run / "phase3-events.json").read_text(encoding="utf-8"))[
+                    "events"]
+            assert phase3.APPLYING in [event["state"] for event in events]
+            return _hello_evidence()
+
+    result = phase3.begin_operator_apply(
+        run, authorization["authorization_token"],
+        authorization["handoff_file_sha256"],
+        hello_observer=InspectingObserver(), clock=lambda: NOW,
+        on_apply_recorded=announcements.append)
+    assert result["state"] == phase3.COMPLETE
+    assert result["apply_count"] == 1
+    assert result["ninjatrader_setup_authority"] is False
+    assert all(result[key] is False for key in phase3._ZERO_AUTHORITY)
+    with pytest.raises(phase3.Phase3Blocked,
+                       match="SETUP_AUTHORIZATION_REQUIRED"):
+        phase3.begin_operator_apply(
+            run, authorization["authorization_token"],
+            authorization["handoff_file_sha256"],
+            hello_observer=FakeOperatorHelloObserver([_hello_evidence()]),
+            clock=lambda: NOW)
+
+
+@pytest.mark.parametrize("evidence", [
+    _hello_evidence(runtime_id="ffffffff-eeee-4ddd-8ccc-bbbbbbbbbbbb"),
+    _hello_evidence(provider="Provider32"),
+    _hello_evidence(session="not-a-session"),
+])
+def test_operator_foreign_hello_is_rejected_fail_closed(tmp_path, evidence):
+    _, run, *_ = _prepare(tmp_path)
+    authorization = _operator_authorize(run)
+    with pytest.raises(phase3.Phase3Blocked):
+        phase3.begin_operator_apply(
+            run, authorization["authorization_token"],
+            authorization["handoff_file_sha256"],
+            hello_observer=FakeOperatorHelloObserver([evidence]),
+            clock=lambda: NOW)
+    state = phase3.status(run)
+    assert state["state"] == phase3.FAILED
+    assert state["apply_count"] == 1
+    assert state["ninjatrader_setup_authority"] is False
+
+
+def test_operator_stale_hello_validation_failure_is_preserved(tmp_path):
+    _, run, *_ = _prepare(tmp_path)
+    authorization = _operator_authorize(run)
+
+    class StaleHelloObserver:
+        @staticmethod
+        def observe_evidence():
+            raise phase3.Phase3Blocked("PHASE3_NATIVE_HELLO_INVALID")
+
+    with pytest.raises(phase3.Phase3Blocked,
+                       match="PHASE3_NATIVE_HELLO_INVALID"):
+        phase3.begin_operator_apply(
+            run, authorization["authorization_token"],
+            authorization["handoff_file_sha256"],
+            hello_observer=StaleHelloObserver(), clock=lambda: NOW)
+    state = phase3.status(run)
+    assert state["state"] == phase3.FAILED
+    assert state["apply_count"] == 1
+
+
+def test_operator_hello_timeout_preserves_failed_attempt_evidence(tmp_path):
+    _, run, *_ = _prepare(tmp_path, timeout=1)
+    authorization = _operator_authorize(run)
+    timer = FakeTime()
+    with pytest.raises(phase3.Phase3Blocked, match="NATIVE_HELLO_TIMEOUT"):
+        phase3.begin_operator_apply(
+            run, authorization["authorization_token"],
+            authorization["handoff_file_sha256"],
+            hello_observer=FakeOperatorHelloObserver([]),
+            clock=lambda: NOW, monotonic=timer.monotonic,
+            sleeper=timer.sleep)
+    state = phase3.status(run)
+    assert state["state"] == phase3.FAILED
+    assert state["apply_count"] == 1
+    assert all(state[key] is False for key in phase3._ZERO_AUTHORITY)
+
+
+def test_operator_authorization_expires_before_apply_attempt(tmp_path):
+    _, run, *_ = _prepare(tmp_path)
+    authorization = _operator_authorize(run, ttl=1)
+    with pytest.raises(phase3.Phase3Blocked,
+                       match="SETUP_AUTHORIZATION_EXPIRED"):
+        phase3.begin_operator_apply(
+            run, authorization["authorization_token"],
+            authorization["handoff_file_sha256"],
+            hello_observer=FakeOperatorHelloObserver([_hello_evidence()]),
+            clock=lambda: NOW + timedelta(seconds=2))
+    state = phase3.status(run)
+    assert state["state"] == phase3.REVOKED
+    assert state["apply_count"] == 0
+    assert state["ninjatrader_setup_authority"] is False
 
 
 def test_expired_authorization_is_consumed_relinquished_and_cannot_be_reused(tmp_path):

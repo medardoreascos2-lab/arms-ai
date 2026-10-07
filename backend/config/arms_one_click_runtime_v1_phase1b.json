@@ -87,11 +87,11 @@
     },
     "tools/arms_one_click_runtime_phase2_v1.py": {
       "path": "tools/arms_one_click_runtime_phase2_v1.py",
-      "sha256": "573a36e9da11dd1a103e8fa00b952aa6966a0d5992e160a8ed3a6d2a94c67876"
+      "sha256": "056972065d834712390b718634d6410f0e81b31766e2f9a9cedb3683bdc3d5a1"
     },
     "tools/arms_one_click_runtime_phase3_v1.py": {
       "path": "tools/arms_one_click_runtime_phase3_v1.py",
-      "sha256": "6c29249344fefe4904feaedeaf0213691814c1a2e38190d7c334e53ced6c97a2"
+      "sha256": "c489aa72eb3f2ed45920e1cfe777549967cd4e4c54432bc148b6b065b5ff29b7"
     },
     "tools/start_native_current_paper_v1.py": {
       "path": "tools/start_native_current_paper_v1.py",
@@ -99,11 +99,11 @@
     },
     "tools/windows_runtime_supervisor_v1.py": {
       "path": "tools/windows_runtime_supervisor_v1.py",
-      "sha256": "323b56986c7102e5fdfff0a89ab9c1e5c659c62af1cb53f161c6e0c9b2075afa"
+      "sha256": "add171d4c722f84481cbc9ddd852b575e2b97d9a9849b95278142582e945ef73"
     },
     "tools/analysis_native_startup_v1.py": {
       "path": "tools/analysis_native_startup_v1.py",
-      "sha256": "bb9baaaf59935a5ba6909d579fb99cdce7eac79f448843bd498a31e6156244b0"
+      "sha256": "3cf217cccb0f9125b7c94b19fcb4e834726204638a2a0543f953968e655bca58"
     },
     "tools/startup_chart_catchup_v1.py": {
       "path": "tools/startup_chart_catchup_v1.py",

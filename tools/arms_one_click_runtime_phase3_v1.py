@@ -1,10 +1,10 @@
 """One-Click Phase 3: sealed, one-shot native setup handoff.
 
 This module has no GUI implementation and no trading surface.  It validates
-the exact runtime request, grants a process-local authorization for one setup
-Apply, records the attempt before invoking an injected adapter, and accepts
-completion only after the expected native session emits a valid read-only
-HELLO in the exact run inbox.
+the exact runtime request, grants either an in-process test authorization or a
+short-lived operator authorization for one setup Apply, records the attempt
+before any Apply, and accepts completion only after a bound read-only HELLO
+arrives in the exact run inbox.
 """
 
 import argparse
@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path
 from secrets import compare_digest, token_bytes
+import sys
 import time
 from uuid import UUID
 
@@ -73,6 +74,7 @@ class SetupAuthorization:
     profile_sha256: str
     capture_spec_sha256: str
     phase3_source_sha256: str
+    phase2_native_setup_sha256: str
     issued_utc: datetime
     expires_utc: datetime
     issuer_pid: int
@@ -81,6 +83,9 @@ class SetupAuthorization:
 
     def token_for_immediate_consumption(self):
         return self._token
+
+    def operator_token(self):
+        return self._token.hex()
 
 
 class NativeSetupAdapter:
@@ -104,10 +109,22 @@ class NativeHelloObserver:
             startup_seconds=handoff["hello_timeout_seconds"],
             health_gated=True,
         )
+        self._native_runtime_id = handoff["runtime"]["native_runtime_id"]
+        self._provider = handoff["runtime"]["expected_provider"]
 
     def observe(self):
         return self._adapter.validate_preactivation_buffer(
             "PHASE3_NATIVE_HELLO_INVALID")
+
+    def observe_evidence(self):
+        session = self.observe()
+        if session is None:
+            return None
+        return {
+            "native_session_id": session,
+            "native_runtime_id": self._native_runtime_id,
+            "provider": self._provider,
+        }
 
 
 def _now(clock=None):
@@ -154,27 +171,32 @@ def _phase3_source(manifest):
     return descriptor
 
 
-def _load_context(run_directory, *, runtime_required=True):
+def _load_context(run_directory, *, require_waiting=False):
     directory, manifest, phase1_state, _, validated = phase1._load_and_verify(
         run_directory, allow_runtime_targets=True)
     if not validated["reviewed"]:
         raise Phase3Blocked("REVIEWED_PHASE1B_PLAN_REQUIRED")
     source = _phase3_source(manifest)
     state, _ = phase2._load_phase2(directory)
-    if (state is None or state.get("state") not in {phase2.STARTING, phase2.RUNNING}
-            or type(state.get("ownership")) is not dict):
+    allowed_states = ({phase2.AWAITING_NATIVE_SETUP} if require_waiting else
+                      {phase2.AWAITING_NATIVE_SETUP, phase2.RUNNING,
+                       phase2.FAILED})
+    if (state is None or state.get("state") not in allowed_states
+            or type(state.get("ownership")) is not dict
+            or type(state.get("native_setup")) is not dict):
         raise Phase3Blocked("PHASE2_OWNED_RUNTIME_REQUIRED")
     bindings = {
         "plan_sha256": phase1_state["manifest_sha256"],
         "profile_sha256": manifest["profile"]["sha256"],
         "capture_spec_sha256": manifest["inputs"]["native_spec"]["sha256"],
         "phase3_source_sha256": source["sha256"],
+        "phase2_native_setup_sha256": _digest(state["native_setup"]),
     }
     if state.get("bindings") != {
             key: bindings[key] for key in (
                 "plan_sha256", "profile_sha256", "capture_spec_sha256")}:
         raise Phase3Blocked("PHASE2_BINDING_DRIFT")
-    return directory, manifest, validated, bindings
+    return directory, manifest, validated, bindings, state
 
 
 def _validate_runtime(manifest, runtime_directory):
@@ -309,7 +331,7 @@ def _load_evidence(directory, handoff):
 
 
 def _load_handoff(run_directory):
-    directory, manifest, _, bindings = _load_context(run_directory)
+    directory, manifest, _, bindings, _ = _load_context(run_directory)
     handoff, raw = phase1._read_json(directory / _HANDOFF_NAME, HANDOFF_SCHEMA)
     if (handoff.get("run_id") != manifest["run_id"]
             or handoff.get("bindings") != bindings
@@ -354,11 +376,22 @@ def prepare_handoff(run_directory, runtime_directory, *, clock=None,
             or isinstance(hello_timeout_seconds, bool)
             or not 0 < hello_timeout_seconds <= 900):
         raise Phase3Blocked("HELLO_TIMEOUT_INVALID")
-    directory, manifest, _, bindings = _load_context(run_directory)
+    directory, manifest, _, bindings, phase2_state = _load_context(
+        run_directory, require_waiting=True)
     if any((directory / name).exists()
            for name in (_HANDOFF_NAME, _EVENTS_NAME, _STATE_NAME)):
         raise Phase3Blocked("PHASE3_FRESH_HANDOFF_REQUIRED")
     runtime = _validate_runtime(manifest, runtime_directory)
+    expected_phase2_runtime = {
+        "runtime_directory": runtime["directory"],
+        "native_runtime_id": runtime["native_runtime_id"],
+        "live_inbox": runtime["live_inbox"],
+        "catchup_output_directory": runtime["catchup_output_directory"],
+        "claim_sha256": runtime["claim_sha256"],
+        "request_sha256": runtime["request_sha256"],
+    }
+    if phase2_state["native_setup"] != expected_phase2_runtime:
+        raise Phase3Blocked("PHASE2_NATIVE_SETUP_BINDING_MISMATCH")
     handoff = {
         "schema": HANDOFF_SCHEMA, "run_id": manifest["run_id"],
         "created_utc": _utc(_now(clock)), "bindings": bindings,
@@ -400,10 +433,165 @@ def authorize_setup(run_directory, *, clock=None, ttl_seconds=30,
         handoff_sha256=handoff_file_sha, **handoff["bindings"],
         issued_utc=now, expires_utc=now + timedelta(seconds=ttl_seconds),
         issuer_pid=os.getpid(), _token=raw_token)
+    authorization_record = {
+        "mode": "OPERATOR_ASSISTED_ONE_SHOT",
+        "token_sha256": sha256(raw_token).hexdigest(),
+        "handoff_file_sha256": handoff_file_sha,
+        "bindings": dict(handoff["bindings"]),
+        "issued_utc": _utc(authorization.issued_utc),
+        "expires_utc": _utc(authorization.expires_utc),
+    }
     _transition(directory, handoff, state=AUTHORIZED,
                 transition="SETUP_AUTHORIZED", clock=lambda: now,
-                apply_count=0, expected_states=(PREPARED,))
+                apply_count=0, details={"authorization": authorization_record},
+                expected_states=(PREPARED,))
     return authorization
+
+
+def operator_authorization(run_directory, *, clock=None, ttl_seconds=30,
+                           token_factory=token_bytes):
+    authorization = authorize_setup(
+        run_directory, clock=clock, ttl_seconds=ttl_seconds,
+        token_factory=token_factory)
+    _, _, handoff, handoff_file_sha = _load_handoff(run_directory)
+    return {
+        "schema": STATE_SCHEMA,
+        "state": AUTHORIZED,
+        "run_id": handoff["run_id"],
+        "authorization_token": authorization.operator_token(),
+        "expires_utc": _utc(authorization.expires_utc),
+        "handoff_file_sha256": handoff_file_sha,
+        "apply_limit": 1,
+        "operator_workflow": [
+            "VERIFY_THE_SEALED_VALUES_BELOW",
+            "RUN_BEGIN_APPLY_WITH_TOKEN_AND_HANDOFF_SHA256",
+            "WAIT_FOR_SETUP_APPLYING_APPLY_COUNT_1_CONFIRMATION",
+            "PERFORM_EXACTLY_ONE_NINJATRADER_APPLY",
+            "WAIT_FOR_HANDOFF_COMPLETE",
+        ],
+        "chart_contract": handoff["chart_contract"],
+        "settings": handoff["settings"],
+        "ninjatrader_setup_authority": True,
+        **_ZERO_AUTHORITY,
+    }
+
+
+def _operator_authorization_record(state, handoff, handoff_file_sha,
+                                   supplied_token, confirmed_handoff_sha,
+                                   now):
+    record = state.get("details", {}).get("authorization")
+    reason = None
+    try:
+        token = bytes.fromhex(supplied_token)
+    except (TypeError, ValueError):
+        token = None
+    if type(record) is not dict:
+        reason = "DURABLE_SETUP_AUTHORIZATION_REQUIRED"
+    elif type(token) is not bytes or len(token) < 32:
+        reason = "SETUP_AUTHORIZATION_TOKEN_INVALID"
+    elif not compare_digest(
+            sha256(token).hexdigest(), record.get("token_sha256", "")):
+        reason = "SETUP_AUTHORIZATION_TOKEN_INVALID"
+    elif confirmed_handoff_sha != handoff_file_sha:
+        reason = "HANDOFF_SHA256_CONFIRMATION_MISMATCH"
+    elif record.get("handoff_file_sha256") != handoff_file_sha:
+        reason = "SETUP_AUTHORIZATION_BINDING_MISMATCH"
+    elif record.get("bindings") != handoff["bindings"]:
+        reason = "SETUP_AUTHORIZATION_BINDING_MISMATCH"
+    else:
+        try:
+            expires = _parse_utc(
+                record.get("expires_utc"),
+                "SETUP_AUTHORIZATION_EXPIRY_INVALID")
+            if now > expires:
+                reason = "SETUP_AUTHORIZATION_EXPIRED"
+        except Phase3Blocked:
+            reason = "SETUP_AUTHORIZATION_EXPIRY_INVALID"
+    return record, reason
+
+
+def _validate_operator_hello(evidence, handoff):
+    if type(evidence) is not dict:
+        raise Phase3Blocked("NATIVE_HELLO_EVIDENCE_INVALID")
+    try:
+        session = str(UUID(evidence.get("native_session_id")))
+    except (ValueError, TypeError, AttributeError) as error:
+        raise Phase3Blocked("NATIVE_SESSION_ID_INVALID") from error
+    expected = {
+        "native_session_id": session,
+        "native_runtime_id": handoff["runtime"]["native_runtime_id"],
+        "provider": handoff["runtime"]["expected_provider"],
+    }
+    if evidence != expected:
+        raise Phase3Blocked("FOREIGN_NATIVE_HELLO_SESSION")
+    return session
+
+
+def begin_operator_apply(run_directory, supplied_token,
+                         confirmed_handoff_sha256, *, hello_observer=None,
+                         clock=None, monotonic=time.monotonic,
+                         sleeper=time.sleep, on_apply_recorded=None):
+    now = _now(clock)
+    directory, _, handoff, handoff_file_sha = _load_handoff(run_directory)
+    state, _ = _load_evidence(directory, handoff)
+    if state["state"] != AUTHORIZED or state["apply_count"] != 0:
+        raise Phase3Blocked("SETUP_AUTHORIZATION_REQUIRED")
+    record, reason = _operator_authorization_record(
+        state, handoff, handoff_file_sha, supplied_token,
+        confirmed_handoff_sha256, now)
+    if reason is not None:
+        _transition(
+            directory, handoff, state=REVOKED,
+            transition="SETUP_AUTHORIZATION_REVOKED", clock=lambda: now,
+            apply_count=0, details={"reason": reason},
+            expected_states=(AUTHORIZED,))
+        raise Phase3Blocked(reason)
+
+    observer = hello_observer or NativeHelloObserver(handoff)
+    attempt = {
+        "mode": "OPERATOR_ASSISTED_ONE_SHOT",
+        "authorization_token_sha256": record["token_sha256"],
+        "confirmed_handoff_file_sha256": confirmed_handoff_sha256,
+    }
+    applying = _transition(
+        directory, handoff, state=APPLYING,
+        transition="SETUP_APPLY_ATTEMPT_RECORDED", clock=lambda: now,
+        apply_count=1, details={"operator_attempt": attempt},
+        expected_states=(AUTHORIZED,))
+    try:
+        if on_apply_recorded is not None:
+            on_apply_recorded(applying)
+        _transition(
+            directory, handoff, state=AWAITING_HELLO,
+            transition="OPERATOR_APPLY_AWAITING_NATIVE_HELLO", clock=clock,
+            apply_count=1, details={"operator_attempt": attempt},
+            expected_states=(APPLYING,))
+        deadline = monotonic() + handoff["hello_timeout_seconds"]
+        while monotonic() <= deadline:
+            evidence = observer.observe_evidence()
+            if evidence is not None:
+                session = _validate_operator_hello(evidence, handoff)
+                return _transition(
+                    directory, handoff, state=COMPLETE,
+                    transition="NATIVE_HELLO_ACCEPTED_SETUP_RELINQUISHED",
+                    clock=clock, apply_count=1,
+                    details={"operator_attempt": attempt,
+                             "hello_evidence": evidence,
+                             "native_session_id": session},
+                    expected_states=(AWAITING_HELLO,))
+            sleeper(0.05)
+        raise Phase3Blocked("NATIVE_HELLO_TIMEOUT")
+    except BaseException as error:
+        current, _ = _load_evidence(directory, handoff)
+        if current["state"] in {APPLYING, AWAITING_HELLO}:
+            _transition(
+                directory, handoff, state=FAILED,
+                transition="NATIVE_SETUP_FAILED_CLOSED", clock=clock,
+                apply_count=1,
+                details={"operator_attempt": attempt,
+                         "reason": str(error)},
+                expected_states=(APPLYING, AWAITING_HELLO))
+        raise
 
 
 def _validate_receipt(receipt, handoff):
@@ -503,18 +691,46 @@ def _print(value):
     print(json.dumps(value, sort_keys=True, indent=2, allow_nan=False))
 
 
+def _announce_operator_apply(state):
+    _print({
+        "schema": STATE_SCHEMA,
+        "state": state["state"],
+        "apply_count": state["apply_count"],
+        "operator_action": "PERFORM_EXACTLY_ONE_NINJATRADER_APPLY_NOW",
+        "ninjatrader_setup_authority": True,
+        **_ZERO_AUTHORITY,
+    })
+    sys.stdout.flush()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     prepare = commands.add_parser("prepare")
     prepare.add_argument("--run", type=Path, required=True)
     prepare.add_argument("--runtime", type=Path, required=True)
+    authorize = commands.add_parser("authorize")
+    authorize.add_argument("--run", type=Path, required=True)
+    authorize.add_argument("--ttl-seconds", type=float, default=30)
+    begin_apply = commands.add_parser("begin-apply")
+    begin_apply.add_argument("--run", type=Path, required=True)
+    begin_apply.add_argument("--token", required=True)
+    begin_apply.add_argument("--confirm-handoff-sha256", required=True)
     status_parser = commands.add_parser("status")
     status_parser.add_argument("--run", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        result = (prepare_handoff(args.run, args.runtime)
-                  if args.command == "prepare" else status(args.run))
+        if args.command == "prepare":
+            result = prepare_handoff(args.run, args.runtime)
+        elif args.command == "authorize":
+            result = operator_authorization(
+                args.run, ttl_seconds=args.ttl_seconds)
+        elif args.command == "begin-apply":
+            result = begin_operator_apply(
+                args.run, args.token, args.confirm_handoff_sha256,
+                on_apply_recorded=_announce_operator_apply)
+        else:
+            result = status(args.run)
         _print(result)
         return 0
     except (Phase3Blocked, phase2.Phase2Blocked, phase1.OfflineBlocked,

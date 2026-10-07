@@ -65,6 +65,39 @@ def test_pid_reused_outside_exact_job_fails_closed(monkeypatch):
             FakeJob([set()]), ledger, attempts=1, delay=0)
 
 
+def test_job_member_exit_identity_probe_stabilizes_within_bound(monkeypatch):
+    assert supervisor.RECONCILE_ATTEMPTS == 20
+    assert supervisor.RECONCILE_DELAY_SECONDS == 0.05
+    assert ((supervisor.RECONCILE_ATTEMPTS - 1)
+            * supervisor.RECONCILE_DELAY_SECONDS) <= 1.0
+    ledger = supervisor.ProcessIdentityLedger()
+    identity = (1, 1)
+    ledger.register(1234, identity)
+    observations = iter((identity, identity, None))
+    sleeps = []
+    monkeypatch.setattr(
+        supervisor, '_pid_identity', lambda _pid: next(observations))
+    monkeypatch.setattr(supervisor.time, 'sleep', sleeps.append)
+
+    members = supervisor._reconcile_job_membership(
+        FakeJob([set()]), ledger)
+
+    assert members == set()
+    assert ledger.active == {}
+    assert ledger.exited == [(1234, identity)]
+    assert sleeps == [supervisor.RECONCILE_DELAY_SECONDS] * 2
+
+
+def test_persistent_missing_member_with_old_identity_fails_closed(monkeypatch):
+    ledger = supervisor.ProcessIdentityLedger()
+    ledger.register(1234, (1, 1))
+    monkeypatch.setattr(supervisor, '_pid_identity', lambda _pid: (1, 1))
+    monkeypatch.setattr(supervisor.time, 'sleep', lambda _delay: None)
+
+    with pytest.raises(RuntimeError, match='OWNED_JOB_MEMBERSHIP_AMBIGUOUS'):
+        supervisor._reconcile_job_membership(FakeJob([set()]), ledger)
+
+
 def test_different_identity_while_old_identity_alive_fails_closed(monkeypatch):
     ledger = supervisor.ProcessIdentityLedger()
     ledger.register(1234, (1, 1))

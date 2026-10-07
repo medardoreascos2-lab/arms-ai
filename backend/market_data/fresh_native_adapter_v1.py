@@ -442,6 +442,24 @@ class FreshNativeAdapterV1:
                 require(key in present, reason)
 
             sessions = set(canonical)
+            sidecar_sessions = (
+                set(connections)
+                | set(timing)
+                | set(seals)
+            )
+
+            if not sessions:
+                require(self.preactivation_lineage_root is None, reason)
+                require(
+                    len(sidecar_sessions) <= 1
+                    and set(seals).issubset(set(timing)),
+                    reason,
+                )
+                # The native exporter may publish diagnostics before its
+                # canonical stream.  Their identities remain pinned, but
+                # only the canonical sequence-zero HELLO can bind a session.
+                return None
+
             require(
                 set(connections).issubset(sessions)
                 and set(timing).issubset(sessions)
@@ -449,10 +467,6 @@ class FreshNativeAdapterV1:
                 and len(sessions) <= 2,
                 reason,
             )
-
-            if not sessions:
-                require(self.preactivation_lineage_root is None, reason)
-                return None
 
             if self.preactivation_lineage_root is None:
                 require(len(sessions) == 1, reason)

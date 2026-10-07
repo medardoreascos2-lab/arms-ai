@@ -18,6 +18,7 @@ import socket
 import subprocess
 import time
 import urllib.request
+from uuid import UUID
 
 from tools import arms_one_click_runtime_v1 as phase1
 from tools import windows_runtime_supervisor_v1 as supervisor
@@ -29,6 +30,7 @@ EVENT_SCHEMA = "arms.one-click-runtime-phase2-event.v1"
 PREPARED = phase1.PREPARED
 AUTHORIZED = "AUTHORIZED_START"
 STARTING = "STARTING"
+AWAITING_NATIVE_SETUP = "RUNTIME_AWAITING_NATIVE_SETUP"
 RUNNING = "RUNNING_DISABLED"
 STOPPING = "STOPPING"
 STOPPED = "STOPPED"
@@ -41,6 +43,11 @@ PHASE2_SOURCE = "tools/arms_one_click_runtime_phase2_v1.py"
 _EVENTS_NAME = "phase2-events.json"
 _STATE_NAME = "phase2-state.json"
 _LOCK_NAME = ".phase2-transition.lock"
+FINAL_READINESS_ERROR_CODES = frozenset({
+    "UNEXPECTED_DATA_GAP",
+})
+_FINAL_READINESS_EXIT_FALLBACK = (
+    "SUPERVISOR_EXITED_DURING_FINAL_READINESS")
 
 
 class Phase2Blocked(RuntimeError):
@@ -103,7 +110,7 @@ def _phase2_event(*, run_id, sequence, timestamp, previous, transition,
 
 
 def _state_from_event(event):
-    return {
+    state = {
         "schema": STATE_SCHEMA,
         "run_id": event["run_id"],
         "state": event["state"],
@@ -117,6 +124,9 @@ def _state_from_event(event):
         "broker_live_order_authority": False,
         "ninjatrader_control_authority": False,
     }
+    if "native_setup" in event["details"]:
+        state["native_setup"] = event["details"]["native_setup"]
+    return state
 
 
 def _load_phase2(directory):
@@ -273,6 +283,17 @@ def _revoke(directory, manifest, bindings, reason, clock):
 
 class WindowsProcessAdapter:
     @staticmethod
+    def _runtime_directories(manifest):
+        parent = Path(manifest["targets"]["runtime_parent"])
+        if not parent.exists():
+            return []
+        if not parent.is_dir():
+            raise Phase2Blocked("RUNTIME_PARENT_INVALID")
+        return sorted(
+            str(entry.resolve()) for entry in parent.iterdir()
+            if entry.is_dir())
+
+    @staticmethod
     def _verified_supervisor_ownership(*, report, manifest, challenge_sha256,
                                        command_sha256):
         pid = report.get("supervisor_pid")
@@ -296,6 +317,7 @@ class WindowsProcessAdapter:
         stdout_path = run_directory / "phase2-supervisor.stdout.log"
         stderr_path = run_directory / "phase2-supervisor.stderr.log"
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        runtime_directories_before_start = self._runtime_directories(manifest)
         challenge = token_urlsafe(48)
         challenge_sha256 = sha256(challenge.encode("utf-8")).hexdigest()
         child_environment = dict(environment)
@@ -316,10 +338,13 @@ class WindowsProcessAdapter:
         while time.monotonic() < deadline:
             try:
                 report, _ = phase1._read_json(report_path, supervisor.SCHEMA)
-                return self._verified_supervisor_ownership(
+                ownership = self._verified_supervisor_ownership(
                     report=report, manifest=manifest,
                     challenge_sha256=challenge_sha256,
                     command_sha256=command_sha256)
+                ownership["runtime_directories_before_start"] = (
+                    runtime_directories_before_start)
+                return ownership
             except (OSError, ValueError, TypeError, KeyError,
                     phase1.OfflineBlocked, Phase2Blocked) as error:
                 last_error = error
@@ -339,7 +364,118 @@ class WindowsProcessAdapter:
             raise Phase2Blocked("CONTROL_PLANE_RESPONSE_INVALID")
         return value
 
-    def wait_running(self, *, ownership, manifest, timeout_seconds):
+    @staticmethod
+    def _native_setup_binding(manifest, ownership):
+        parent = Path(manifest["targets"]["runtime_parent"]).resolve(strict=True)
+        before = set(ownership.get("runtime_directories_before_start", ()))
+        candidates = []
+        for entry in parent.iterdir():
+            if not entry.is_dir():
+                continue
+            resolved = entry.resolve()
+            if resolved.parent != parent or str(resolved) in before:
+                continue
+            try:
+                runtime_id = str(UUID(entry.name))
+            except (ValueError, TypeError, AttributeError):
+                continue
+            if runtime_id != entry.name:
+                continue
+            required = (
+                entry / "claim.json", entry / "chart-catchup-request.json",
+                entry / "inbox", entry / "chart-catchup")
+            if all(path.exists() for path in required):
+                candidates.append(resolved)
+        if len(candidates) != 1:
+            raise Phase2Blocked("EXACT_NATIVE_RUNTIME_REQUIRED")
+        runtime = candidates[0]
+        claim, claim_raw = phase1._read_json(runtime / "claim.json", None)
+        request, request_raw = phase1._read_json(
+            runtime / "chart-catchup-request.json",
+            "arms.startup-chart-catchup-request.v1")
+        inbox = (runtime / "inbox").resolve(strict=True)
+        catchup = (runtime / "chart-catchup").resolve(strict=True)
+        expected_claim = {
+            "run_id": runtime.name,
+            "mode": "ANALYSIS_ONLY",
+            "bootstrap_sha256": manifest["inputs"]["bootstrap_evidence"]["sha256"],
+            "startup_chart_catchup_required": True,
+            "backend_url": f"http://127.0.0.1:{manifest['ports']['backend']}",
+            "dashboard_url": (
+                f"http://127.0.0.1:{manifest['ports']['frontend']}/market-analysis"),
+            "input_directory": str(inbox),
+        }
+        expected_request = {
+            "capture_enabled": True,
+            "output_directory": str(catchup),
+            "live_output_directory": str(inbox),
+            "expected_provider_enum": "Provider31",
+            "through_close_utc": "LATEST_CLOSED",
+            "observation_only": True,
+            "runtime_admission": False,
+            "execution_authority": False,
+        }
+        if any(claim.get(key) != value for key, value in expected_claim.items()):
+            raise Phase2Blocked("NATIVE_RUNTIME_CLAIM_INVALID")
+        if any(request.get(key) != value for key, value in expected_request.items()):
+            raise Phase2Blocked("NATIVE_SETUP_REQUEST_INVALID")
+        return {
+            "runtime_directory": str(runtime),
+            "native_runtime_id": runtime.name,
+            "live_inbox": str(inbox),
+            "catchup_output_directory": str(catchup),
+            "claim_sha256": sha256(claim_raw).hexdigest(),
+            "request_sha256": sha256(request_raw).hexdigest(),
+        }
+
+    @staticmethod
+    def _final_readiness_exit_reason(*, manifest, native_setup):
+        fallback = _FINAL_READINESS_EXIT_FALLBACK
+        try:
+            if type(native_setup) is not dict:
+                return fallback
+            runtime_id = native_setup.get("native_runtime_id")
+            runtime_directory = native_setup.get("runtime_directory")
+            live_inbox = native_setup.get("live_inbox")
+            catchup_output = native_setup.get("catchup_output_directory")
+            if (type(runtime_id) is not str
+                    or str(UUID(runtime_id)) != runtime_id
+                    or type(runtime_directory) is not str
+                    or type(live_inbox) is not str
+                    or type(catchup_output) is not str):
+                return fallback
+            parent = Path(
+                manifest["targets"]["runtime_parent"]
+            ).resolve(strict=True)
+            runtime = Path(runtime_directory)
+            inbox = Path(live_inbox)
+            catchup = Path(catchup_output)
+            if (not runtime.is_absolute()
+                    or not inbox.is_absolute()
+                    or not catchup.is_absolute()):
+                return fallback
+            runtime = runtime.resolve(strict=True)
+            if runtime.parent != parent or runtime.name != runtime_id:
+                return fallback
+            if (inbox.resolve(strict=True)
+                    != (runtime / "inbox").resolve(strict=True)
+                    or catchup.resolve(strict=True)
+                    != (runtime / "chart-catchup").resolve(strict=True)):
+                return fallback
+            result, _ = phase1._read_json(
+                runtime / "shutdown-result.json", None)
+            error_code = result.get("error_code")
+            if (result.get("run_id") != runtime_id
+                    or result.get("status") != "FAILED"
+                    or result.get("error_type") != "ValueError"
+                    or error_code not in FINAL_READINESS_ERROR_CODES):
+                return fallback
+            return "FINAL_READINESS_FAILED:" + error_code
+        except (OSError, ValueError, TypeError, KeyError,
+                phase1.OfflineBlocked):
+            return fallback
+
+    def wait_native_setup(self, *, ownership, manifest, timeout_seconds):
         deadline = time.monotonic() + timeout_seconds
         ports = manifest["ports"]
         report_path = (Path(manifest["targets"]["supervisor_report_directory"])
@@ -363,12 +499,58 @@ class WindowsProcessAdapter:
                 with socket.create_connection(
                         ("127.0.0.1", ports["frontend"]), timeout=2):
                     pass
+                native_setup = self._native_setup_binding(manifest, ownership)
+                return {
+                    "analysis_runtime_process_alive": True,
+                    "supervisor_health": "PASS",
+                    "control_plane_observable": bool(analysis),
+                    "frontend_observable": True,
+                    "paper_readiness_required": False,
+                    "paper_execution_enabled": False,
+                    "live_execution_allowed": False,
+                    "external_order_authority": False,
+                    "broker_live_order_authority": False,
+                    "ninjatrader_touched": False,
+                    "native_setup": native_setup,
+                }
+            except (OSError, ValueError, TypeError, KeyError,
+                    json.JSONDecodeError, Phase2Blocked) as error:
+                last_error = error
+                time.sleep(0.1)
+        raise Phase2Blocked("NATIVE_SETUP_READINESS_TIMEOUT") from last_error
+
+    def wait_running(self, *, ownership, manifest, native_setup,
+                     timeout_seconds):
+        deadline = time.monotonic() + timeout_seconds
+        ports = manifest["ports"]
+        report_path = (Path(manifest["targets"]["supervisor_report_directory"])
+                       / "supervisor-start.json")
+        last_error = None
+        while time.monotonic() < deadline:
+            if not self.matches(ownership):
+                raise Phase2Blocked(self._final_readiness_exit_reason(
+                    manifest=manifest, native_setup=native_setup))
+            try:
+                report, _ = phase1._read_json(
+                    report_path, supervisor.SCHEMA)
+                if (report.get("run_id") != manifest["run_id"]
+                        or report.get("supervisor_pid") != ownership["pid"]
+                        or report.get("supervisor_identity")
+                        != ownership["identity"]
+                        or report.get("spawn_challenge_sha256")
+                        != ownership["spawn_challenge_sha256"]):
+                    raise Phase2Blocked("SUPERVISOR_OWNERSHIP_MISMATCH")
+                analysis = self._get_json(
+                    f"http://127.0.0.1:{ports['backend']}/api/v2/market-analysis/health")
+                with socket.create_connection(
+                        ("127.0.0.1", ports["frontend"]), timeout=2):
+                    pass
                 paper = self._get_json(
                     f"http://127.0.0.1:{ports['paper']}/api/v2/backtesting/dashboard")
                 snapshot = paper.get("paper_research")
                 if type(snapshot) is not dict:
                     raise Phase2Blocked("PAPER_SNAPSHOT_INVALID")
-                result = {
+                return {
                     "paper_runtime_process_alive": True,
                     "analysis_runtime_process_alive": True,
                     "supervisor_health": "PASS",
@@ -381,12 +563,11 @@ class WindowsProcessAdapter:
                     "broker_live_order_authority": False,
                     "ninjatrader_touched": False,
                 }
-                return result
             except (OSError, ValueError, TypeError, KeyError,
                     json.JSONDecodeError, Phase2Blocked) as error:
                 last_error = error
                 time.sleep(0.1)
-        raise Phase2Blocked("RUNTIME_START_READINESS_TIMEOUT") from last_error
+        raise Phase2Blocked("RUNTIME_FINAL_READINESS_TIMEOUT") from last_error
 
     def matches(self, ownership):
         return supervisor._pid_alive(
@@ -460,6 +641,43 @@ def _validate_running_result(result):
         raise Phase2Blocked("RUNNING_DISABLED_SAFETY_POSTCONDITION_FAILED")
 
 
+def _validate_native_setup_result(result, *, manifest, ownership):
+    expected = {
+        "analysis_runtime_process_alive": True,
+        "supervisor_health": "PASS",
+        "control_plane_observable": True,
+        "frontend_observable": True,
+        "paper_readiness_required": False,
+        "paper_execution_enabled": False,
+        "live_execution_allowed": False,
+        "external_order_authority": False,
+        "broker_live_order_authority": False,
+        "ninjatrader_touched": False,
+    }
+    if type(result) is not dict or any(result.get(key) != value
+                                       for key, value in expected.items()):
+        raise Phase2Blocked("NATIVE_SETUP_SAFETY_POSTCONDITION_FAILED")
+    binding = result.get("native_setup")
+    if type(binding) is not dict:
+        raise Phase2Blocked("NATIVE_SETUP_BINDING_REQUIRED")
+    current = WindowsProcessAdapter._native_setup_binding(manifest, ownership)
+    if binding != current:
+        raise Phase2Blocked("NATIVE_SETUP_BINDING_DRIFT")
+    return binding
+
+
+def _cleanup_after_failure(adapter, *, ownership, manifest):
+    if ownership is None:
+        return None
+    try:
+        return adapter.stop(ownership=ownership, manifest=manifest)
+    except BaseException as error:
+        return {
+            "cleanup_evidence_status": "FAILED",
+            "reason": type(error).__name__,
+        }
+
+
 def start_authorized(run_directory, authorization, supplied_token, *,
                      clock=None, process_adapter=None, readiness_timeout=960):
     now = _now(clock)
@@ -513,29 +731,96 @@ def start_authorized(run_directory, authorization, supplied_token, *,
             directory, manifest, bindings, state=STARTING,
             transition="PROCESS_OWNERSHIP_RECORDED", clock=clock,
             details={"ownership": ownership}, expected_states=(STARTING,))
+        result = adapter.wait_native_setup(
+            ownership=ownership, manifest=manifest,
+            timeout_seconds=readiness_timeout)
+        native_setup = _validate_native_setup_result(
+            result, manifest=manifest, ownership=ownership)
+        return _transition(
+            directory, manifest, bindings, state=AWAITING_NATIVE_SETUP,
+            transition="RUNTIME_NATIVE_SETUP_REQUIRED", clock=clock,
+            details={"ownership": ownership, "native_setup": native_setup,
+                     "readiness": result},
+            expected_states=(STARTING,))
+    except BaseException as error:
+        environment.pop(manifest["admin_token"]["environment_name"], None)
+        cleanup = _cleanup_after_failure(
+            adapter, ownership=ownership, manifest=manifest)
+        current, _ = _load_phase2(directory)
+        if current is not None and current["state"] in {
+                STARTING, AWAITING_NATIVE_SETUP}:
+            _transition(
+                directory, manifest, bindings, state=FAILED,
+                transition="RUNTIME_START_FAILED", clock=clock,
+                details={"ownership": ownership,
+                         "native_setup": current.get("native_setup"),
+                         "reason": type(error).__name__,
+                         "cleanup_evidence": cleanup},
+                expected_states=(STARTING, AWAITING_NATIVE_SETUP))
+        raise
+
+
+def continue_after_native_setup(run_directory, *, clock=None,
+                                process_adapter=None,
+                                readiness_timeout=960):
+    now = _now(clock)
+    directory, manifest, phase1_state, _, _ = _load_plan(
+        run_directory, now=now, allow_runtime_targets=True)
+    bindings = _bindings(manifest, phase1_state)
+    current, _ = _load_phase2(directory)
+    if (current is None or current["state"] != AWAITING_NATIVE_SETUP
+            or type(current.get("ownership")) is not dict
+            or type(current.get("native_setup")) is not dict):
+        raise Phase2Blocked("NATIVE_SETUP_WAITING_STATE_REQUIRED")
+    ownership = current["ownership"]
+    native_setup = current["native_setup"]
+    adapter = process_adapter or WindowsProcessAdapter()
+    if not adapter.matches(ownership):
+        raise Phase2Blocked("OWNED_SUPERVISOR_IDENTITY_MISMATCH")
+    try:
+        if native_setup != WindowsProcessAdapter._native_setup_binding(
+                manifest, ownership):
+            raise Phase2Blocked("NATIVE_SETUP_BINDING_DRIFT")
+        from tools import arms_one_click_runtime_phase3_v1 as phase3
+        phase3_state = phase3.status(directory)
+        handoff_runtime = phase3_state["handoff"]["runtime"]
+        expected_runtime = {
+            "runtime_directory": handoff_runtime["directory"],
+            "native_runtime_id": handoff_runtime["native_runtime_id"],
+            "live_inbox": handoff_runtime["live_inbox"],
+            "catchup_output_directory": handoff_runtime[
+                "catchup_output_directory"],
+            "claim_sha256": handoff_runtime["claim_sha256"],
+            "request_sha256": handoff_runtime["request_sha256"],
+        }
+        if (phase3_state["state"] != phase3.COMPLETE
+                or expected_runtime != native_setup):
+            raise Phase2Blocked("PHASE3_HANDOFF_COMPLETE_REQUIRED")
         result = adapter.wait_running(
             ownership=ownership, manifest=manifest,
+            native_setup=native_setup,
             timeout_seconds=readiness_timeout)
         _validate_running_result(result)
         return _transition(
             directory, manifest, bindings, state=RUNNING,
             transition="RUNTIME_RUNNING_DISABLED", clock=clock,
-            details={"ownership": ownership, "readiness": result},
-            expected_states=(STARTING,))
+            details={"ownership": ownership, "native_setup": native_setup,
+                     "phase3_handoff_sha256": phase3_state[
+                         "handoff_sha256"], "readiness": result},
+            expected_states=(AWAITING_NATIVE_SETUP,))
     except BaseException as error:
-        environment.pop(manifest["admin_token"]["environment_name"], None)
-        if ownership is not None:
-            try:
-                adapter.stop(ownership=ownership, manifest=manifest)
-            except BaseException:
-                pass
-        current, _ = _load_phase2(directory)
-        if current is not None and current["state"] == STARTING:
+        cleanup = _cleanup_after_failure(
+            adapter, ownership=ownership, manifest=manifest)
+        latest, _ = _load_phase2(directory)
+        if latest is not None and latest["state"] == AWAITING_NATIVE_SETUP:
             _transition(
                 directory, manifest, bindings, state=FAILED,
-                transition="RUNTIME_START_FAILED", clock=clock,
-                details={"reason": type(error).__name__},
-                expected_states=(STARTING,))
+                transition="RUNTIME_FINAL_READINESS_FAILED", clock=clock,
+                details={"ownership": ownership,
+                         "native_setup": native_setup,
+                         "reason": type(error).__name__,
+                         "cleanup_evidence": cleanup},
+                expected_states=(AWAITING_NATIVE_SETUP,))
         raise
 
 
@@ -582,20 +867,25 @@ def stop(run_directory, *, clock=None, process_adapter=None):
         return status(directory)
     if state["state"] == STOPPED:
         return status(directory)
-    if state["state"] != RUNNING or type(state.get("ownership")) is not dict:
-        raise Phase2Blocked("ONLY_RUNNING_DISABLED_CAN_CONTROLLED_STOP")
+    if (state["state"] not in {AWAITING_NATIVE_SETUP, RUNNING}
+            or type(state.get("ownership")) is not dict):
+        raise Phase2Blocked("ONLY_OWNED_RUNTIME_CAN_CONTROLLED_STOP")
     adapter = process_adapter or WindowsProcessAdapter()
     if not adapter.matches(state["ownership"]):
         raise Phase2Blocked("OWNED_SUPERVISOR_IDENTITY_MISMATCH")
     ownership = state["ownership"]
+    native_setup = state.get("native_setup")
+    stop_from = state["state"]
     _transition(
         directory, manifest, bindings, state=STOPPING,
         transition="CONTROLLED_STOPPING", clock=lambda: now,
-        details={"ownership": ownership}, expected_states=(RUNNING,))
+        details={"ownership": ownership, "native_setup": native_setup},
+        expected_states=(AWAITING_NATIVE_SETUP, RUNNING))
     adapter.stop(ownership=ownership, manifest=manifest)
     _transition(
         directory, manifest, bindings, state=STOPPED,
         transition="CONTROLLED_STOPPED", clock=clock,
+        details={"native_setup": native_setup, "stopped_from": stop_from},
         expected_states=(STOPPING,))
     return status(directory)
 
@@ -608,13 +898,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Authorized One-Click Phase 2 runtime transition")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("start", "status", "stop"):
+    for name in ("start", "continue", "status", "stop"):
         child = commands.add_parser(name)
         child.add_argument("--run", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "start":
             result = start(args.run)
+        elif args.command == "continue":
+            result = continue_after_native_setup(args.run)
         elif args.command == "stop":
             result = stop(args.run)
         else:

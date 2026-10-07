@@ -12,9 +12,55 @@ from backend.tests.test_arms_one_click_runtime_v1 import (
 )
 from tools import arms_one_click_runtime_v1 as phase1
 from tools import arms_one_click_runtime_phase2_v1 as phase2
+from tools import arms_one_click_runtime_phase3_v1 as phase3
 
 
 NOW = datetime(2026, 10, 6, 18, 30, tzinfo=timezone.utc)
+NATIVE_ID = "11111111-2222-4333-8444-555555555555"
+SESSION_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+
+
+def _write_runtime_artifacts(manifest, runtime_id=NATIVE_ID):
+    runtime = Path(manifest["targets"]["runtime_parent"]) / runtime_id
+    inbox = runtime / "inbox"
+    catchup = runtime / "chart-catchup"
+    inbox.mkdir(parents=True)
+    catchup.mkdir()
+    claim = {
+        "run_id": runtime_id,
+        "pid": 1234,
+        "process_start": 5678,
+        "mode": "ANALYSIS_ONLY",
+        "exporter_identity": {"authored_sha256": "a" * 64},
+        "bootstrap_sha256": manifest["inputs"]["bootstrap_evidence"]["sha256"],
+        "startup_chart_catchup_required": True,
+        "backend_url": f"http://127.0.0.1:{manifest['ports']['backend']}",
+        "dashboard_url": (
+            f"http://127.0.0.1:{manifest['ports']['frontend']}/market-analysis"),
+        "input_directory": str(inbox.resolve()),
+    }
+    request = {
+        "schema": "arms.startup-chart-catchup-request.v1",
+        "indicator": "ArmsChartCatchupBridgeV1",
+        "capture_enabled": True,
+        "output_directory": str(catchup.resolve()),
+        "live_output_directory": str(inbox.resolve()),
+        "expected_provider_enum": "Provider31",
+        "from_close_utc": "2026-10-06T17:38:00Z",
+        "through_close_utc": "LATEST_CLOSED",
+        "through_selection": "CHART_LATEST_CLOSED",
+        "absolute_time_authority": "NONE",
+        "range_contract": "EXACT_CONTIGUOUS_NO_TRUNCATION",
+        "range_duration_seconds": 26220,
+        "range_maximum_seconds": 172800,
+        "observation_only": True,
+        "runtime_admission": False,
+        "execution_authority": False,
+    }
+    (runtime / "claim.json").write_text(json.dumps(claim), encoding="utf-8")
+    (runtime / "chart-catchup-request.json").write_text(
+        json.dumps(request), encoding="utf-8")
+    return runtime
 
 
 class FakeProcessAdapter:
@@ -22,6 +68,8 @@ class FakeProcessAdapter:
         self.running = running
         self.identity = list(identity)
         self.start_calls = []
+        self.native_wait_calls = []
+        self.paper_wait_calls = []
         self.stop_calls = []
 
     def start(self, **kwargs):
@@ -33,9 +81,32 @@ class FakeProcessAdapter:
             "identity": list(self.identity),
             "command_sha256": sha256(
                 phase1._canonical(list(kwargs["command"]))).hexdigest(),
+            "runtime_directories_before_start": (
+                phase2.WindowsProcessAdapter._runtime_directories(
+                    kwargs["manifest"])),
         }
 
-    def wait_running(self, **_kwargs):
+    def wait_native_setup(self, **kwargs):
+        self.native_wait_calls.append(kwargs)
+        _write_runtime_artifacts(kwargs["manifest"])
+        binding = phase2.WindowsProcessAdapter._native_setup_binding(
+            kwargs["manifest"], kwargs["ownership"])
+        return {
+            "analysis_runtime_process_alive": True,
+            "supervisor_health": "PASS",
+            "control_plane_observable": True,
+            "frontend_observable": True,
+            "paper_readiness_required": False,
+            "paper_execution_enabled": False,
+            "live_execution_allowed": False,
+            "external_order_authority": False,
+            "broker_live_order_authority": False,
+            "ninjatrader_touched": False,
+            "native_setup": binding,
+        }
+
+    def wait_running(self, **kwargs):
+        self.paper_wait_calls.append(kwargs)
         return {
             "paper_runtime_process_alive": True,
             "analysis_runtime_process_alive": True,
@@ -114,6 +185,28 @@ def _start(run, authorization, adapter, token=None, clock=None):
         readiness_timeout=1)
 
 
+def _complete_phase3(run):
+    runtime = Path(phase2.status(run)["native_setup"]["runtime_directory"])
+    phase3.prepare_handoff(run, runtime, clock=lambda: NOW,
+                           hello_timeout_seconds=1)
+    authorization = phase3.operator_authorization(
+        run, clock=lambda: NOW, token_factory=lambda _: b"s" * 32)
+
+    class HelloObserver:
+        @staticmethod
+        def observe_evidence():
+            return {
+                "native_session_id": SESSION_ID,
+                "native_runtime_id": NATIVE_ID,
+                "provider": "Provider31",
+            }
+
+    return phase3.begin_operator_apply(
+        run, authorization["authorization_token"],
+        authorization["handoff_file_sha256"],
+        hello_observer=HelloObserver(), clock=lambda: NOW)
+
+
 def test_prepared_offline_cannot_spawn_without_authorization(tmp_path):
     _, run = _fixture(tmp_path)
     adapter = FakeProcessAdapter()
@@ -122,6 +215,15 @@ def test_prepared_offline_cannot_spawn_without_authorization(tmp_path):
             run, object(), b"x" * 32, clock=lambda: NOW,
             process_adapter=adapter)
     assert adapter.start_calls == []
+
+
+def test_legacy_phase2_state_projection_does_not_invent_native_binding():
+    event = phase2._phase2_event(
+        run_id="legacy", sequence=1,
+        timestamp="2026-10-06T18:30:00Z", previous=None,
+        transition="START_AUTHORIZED", state=phase2.AUTHORIZED,
+        bindings={"plan_sha256": "a" * 64}, details={})
+    assert "native_setup" not in phase2._state_from_event(event)
 
 
 def test_bad_token_cannot_spawn_and_authorization_is_consumed(tmp_path):
@@ -192,15 +294,19 @@ def test_arbitrary_resealed_command_cannot_authorize_or_spawn(tmp_path):
         _authorize(run)
 
 
-def test_valid_start_transitions_through_starting_to_running_disabled(tmp_path):
+def test_valid_start_reaches_durable_native_setup_wait_without_paper(tmp_path):
     fixture, run = _fixture(tmp_path)
     authorization = _authorize(run)
     adapter = FakeProcessAdapter()
     result = _start(run, authorization, adapter)
-    assert result["state"] == phase2.RUNNING
+    assert result["state"] == phase2.AWAITING_NATIVE_SETUP
+    assert result["native_setup"]["native_runtime_id"] == NATIVE_ID
+    assert len(adapter.native_wait_calls) == 1
+    assert adapter.paper_wait_calls == []
     events = json.loads((run / "phase2-events.json").read_text())["events"]
     assert [event["state"] for event in events] == [
-        phase2.AUTHORIZED, phase2.STARTING, phase2.STARTING, phase2.RUNNING]
+        phase2.AUTHORIZED, phase2.STARTING, phase2.STARTING,
+        phase2.AWAITING_NATIVE_SETUP]
     assert all(event["paper_execution_enabled"] is False for event in events)
     assert all(event["live_execution_allowed"] is False for event in events)
     assert all(event["external_order_authority"] is False for event in events)
@@ -209,6 +315,177 @@ def test_valid_start_transitions_through_starting_to_running_disabled(tmp_path):
     assert command == json.loads((run / "manifest.json").read_text())[
         "disabled_future_start_command"]
     assert command[0] == str(Path(fixture.profile["python_path"]).resolve())
+
+
+def test_intermediate_state_binds_only_runtime_created_after_start(tmp_path):
+    _, run = _fixture(tmp_path)
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    stale_id = "99999999-8888-4777-8666-555555555555"
+    stale = _write_runtime_artifacts(manifest, stale_id)
+    adapter = FakeProcessAdapter()
+    result = _start(run, _authorize(run), adapter)
+    assert result["native_setup"]["native_runtime_id"] == NATIVE_ID
+    assert result["native_setup"]["runtime_directory"] != str(stale.resolve())
+    assert str(stale.resolve()) in result["ownership"][
+        "runtime_directories_before_start"]
+
+
+def test_phase3_completion_allows_final_running_disabled_readiness(tmp_path):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    _complete_phase3(run)
+    result = phase2.continue_after_native_setup(
+        run, clock=lambda: NOW, process_adapter=adapter,
+        readiness_timeout=1)
+    assert result["state"] == phase2.RUNNING
+    assert len(adapter.paper_wait_calls) == 1
+    assert result["native_setup"]["native_runtime_id"] == NATIVE_ID
+    assert result["paper_execution_enabled"] is False
+    assert result["live_execution_allowed"] is False
+    assert result["external_order_authority"] is False
+    assert result["broker_live_order_authority"] is False
+    assert result["ninjatrader_control_authority"] is False
+
+
+def _final_readiness_evidence(tmp_path, **updates):
+    parent = tmp_path / "native-runtimes"
+    runtime = parent / NATIVE_ID
+    inbox = runtime / "inbox"
+    catchup = runtime / "chart-catchup"
+    inbox.mkdir(parents=True)
+    catchup.mkdir()
+    evidence = {
+        "run_id": NATIVE_ID,
+        "status": "FAILED",
+        "error_type": "ValueError",
+        "error_code": "UNEXPECTED_DATA_GAP",
+    }
+    evidence.update(updates)
+    (runtime / "shutdown-result.json").write_text(
+        json.dumps(evidence), encoding="utf-8")
+    manifest = {
+        "ports": {"backend": 41001, "frontend": 41002, "paper": 41003},
+        "targets": {
+            "runtime_parent": str(parent.resolve()),
+            "supervisor_report_directory": str((tmp_path / "reports").resolve()),
+        },
+    }
+    native_setup = {
+        "runtime_directory": str(runtime.resolve()),
+        "native_runtime_id": NATIVE_ID,
+        "live_inbox": str(inbox.resolve()),
+        "catchup_output_directory": str(catchup.resolve()),
+    }
+    return manifest, native_setup, runtime
+
+
+def test_valid_shutdown_evidence_surfaces_normalized_final_failure(
+        tmp_path, monkeypatch):
+    manifest, native_setup, _ = _final_readiness_evidence(tmp_path)
+    adapter = phase2.WindowsProcessAdapter()
+    monkeypatch.setattr(adapter, "matches", lambda ownership: False)
+
+    with pytest.raises(
+            phase2.Phase2Blocked,
+            match="^FINAL_READINESS_FAILED:UNEXPECTED_DATA_GAP$"):
+        adapter.wait_running(
+            ownership={}, manifest=manifest, native_setup=native_setup,
+            timeout_seconds=1)
+
+
+@pytest.mark.parametrize("mutation", (
+    "missing",
+    "malformed",
+    "wrong_run_id",
+    "wrong_status",
+    "unknown_code",
+))
+def test_invalid_shutdown_evidence_preserves_generic_exit_reason(
+        tmp_path, mutation):
+    updates = {}
+    if mutation == "wrong_run_id":
+        updates["run_id"] = "99999999-8888-4777-8666-555555555555"
+    elif mutation == "wrong_status":
+        updates["status"] = "PASS"
+    elif mutation == "unknown_code":
+        updates["error_code"] = "attacker-controlled"
+    manifest, native_setup, runtime = _final_readiness_evidence(
+        tmp_path, **updates)
+    shutdown = runtime / "shutdown-result.json"
+    if mutation == "missing":
+        shutdown.unlink()
+    elif mutation == "malformed":
+        shutdown.write_bytes(b"not-json")
+
+    assert phase2.WindowsProcessAdapter._final_readiness_exit_reason(
+        manifest=manifest, native_setup=native_setup
+    ) == "SUPERVISOR_EXITED_DURING_FINAL_READINESS"
+
+
+def test_unrelated_runtime_path_cannot_supply_final_failure(tmp_path):
+    manifest, native_setup, _ = _final_readiness_evidence(tmp_path / "bound")
+    _, forged_setup, _ = _final_readiness_evidence(tmp_path / "foreign")
+    forged_setup["native_runtime_id"] = native_setup["native_runtime_id"]
+
+    assert phase2.WindowsProcessAdapter._final_readiness_exit_reason(
+        manifest=manifest, native_setup=forged_setup
+    ) == "SUPERVISOR_EXITED_DURING_FINAL_READINESS"
+
+
+def test_phase3_failure_blocks_final_running_and_cleans_owned_runtime(tmp_path):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    runtime = Path(phase2.status(run)["native_setup"]["runtime_directory"])
+    phase3.prepare_handoff(
+        run, runtime, clock=lambda: NOW, hello_timeout_seconds=1)
+    authorization = phase3.authorize_setup(
+        run, clock=lambda: NOW, token_factory=lambda _: b"s" * 32)
+
+    class SetupAdapter:
+        @staticmethod
+        def apply_once(*, handoff):
+            return {
+                "schema": phase3.RECEIPT_SCHEMA,
+                "run_id": handoff["run_id"],
+                "native_runtime_id": handoff["runtime"]["native_runtime_id"],
+                "native_session_id": SESSION_ID,
+                "chart_contract": handoff["chart_contract"],
+                "settings": handoff["settings"],
+                "apply_count": 1,
+                "applied_utc": NOW.isoformat().replace("+00:00", "Z"),
+                **phase3._ZERO_AUTHORITY,
+            }
+
+    class NoHello:
+        @staticmethod
+        def observe():
+            return None
+
+    ticks = iter((0.0, 2.0))
+    with pytest.raises(phase3.Phase3Blocked, match="NATIVE_HELLO_TIMEOUT"):
+        phase3.execute_authorized(
+            run, authorization,
+            authorization.token_for_immediate_consumption(),
+            setup_adapter=SetupAdapter(), hello_observer=NoHello(),
+            clock=lambda: NOW, monotonic=lambda: next(ticks),
+            sleeper=lambda _: None)
+    assert phase3.status(run)["state"] == phase3.FAILED
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="PHASE3_HANDOFF_COMPLETE_REQUIRED"):
+        phase2.continue_after_native_setup(
+            run, clock=lambda: NOW, process_adapter=adapter,
+            readiness_timeout=1)
+    state = phase2.status(run)
+    assert state["state"] == phase2.FAILED
+    assert adapter.paper_wait_calls == []
+    assert len(adapter.stop_calls) == 1
+    assert state["paper_execution_enabled"] is False
+    assert state["live_execution_allowed"] is False
+    assert state["external_order_authority"] is False
+    assert state["broker_live_order_authority"] is False
+    assert state["ninjatrader_control_authority"] is False
 
 
 def test_process_admin_token_and_quote_age_are_child_scoped_and_not_persisted(
@@ -280,8 +557,12 @@ def test_running_postcondition_rejects_any_authority_escalation(tmp_path):
             return result
 
     adapter = Unsafe()
+    _start(run, authorization, adapter)
+    _complete_phase3(run)
     with pytest.raises(phase2.Phase2Blocked, match="SAFETY_POSTCONDITION"):
-        _start(run, authorization, adapter)
+        phase2.continue_after_native_setup(
+            run, clock=lambda: NOW, process_adapter=adapter,
+            readiness_timeout=1)
     assert adapter.stop_calls
     assert phase2.status(run)["state"] == phase2.FAILED
 
@@ -293,7 +574,10 @@ def test_controlled_stop_targets_only_exact_owned_process(tmp_path):
     result = phase2.stop(run, clock=lambda: NOW, process_adapter=adapter)
     assert result["state"] == phase2.STOPPED
     assert len(adapter.stop_calls) == 1
+    assert adapter.paper_wait_calls == []
     assert adapter.stop_calls[0]["ownership"]["pid"] == 43210
+    assert result["paper_execution_enabled"] is False
+    assert result["live_execution_allowed"] is False
 
 
 def test_cleanup_confirmation_requires_all_strong_evidence_fields():
@@ -333,7 +617,7 @@ def test_pid_reuse_cannot_target_unrelated_process(tmp_path):
     with pytest.raises(phase2.Phase2Blocked, match="IDENTITY_MISMATCH"):
         phase2.stop(run, clock=lambda: NOW, process_adapter=adapter)
     assert adapter.stop_calls == []
-    assert phase2.status(run)["state"] == phase2.RUNNING
+    assert phase2.status(run)["state"] == phase2.AWAITING_NATIVE_SETUP
 
 
 def test_canonical_history_is_unchanged_by_start_and_stop(tmp_path):
