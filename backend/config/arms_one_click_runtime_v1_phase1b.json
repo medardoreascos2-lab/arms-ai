@@ -83,11 +83,15 @@
     },
     "tools/arms_one_click_runtime_v1.py": {
       "path": "tools/arms_one_click_runtime_v1.py",
-      "sha256": "d7f4919f673bf98d8be031a1ed18d3572b4b1809e18470a2010e8f2bec9ba386"
+      "sha256": "5e9aacb698dddb2fc733c116c13f2f2186d3b684de212d8c4e67106055edffc8"
     },
     "tools/arms_one_click_runtime_phase2_v1.py": {
       "path": "tools/arms_one_click_runtime_phase2_v1.py",
       "sha256": "573a36e9da11dd1a103e8fa00b952aa6966a0d5992e160a8ed3a6d2a94c67876"
+    },
+    "tools/arms_one_click_runtime_phase3_v1.py": {
+      "path": "tools/arms_one_click_runtime_phase3_v1.py",
+      "sha256": "6c29249344fefe4904feaedeaf0213691814c1a2e38190d7c334e53ced6c97a2"
     },
     "tools/start_native_current_paper_v1.py": {
       "path": "tools/start_native_current_paper_v1.py",

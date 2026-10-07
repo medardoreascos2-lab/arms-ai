@@ -60,6 +60,7 @@ REVIEWED_SOURCE_NAMES = {
     "scripts/arms-runtime-v1.ps1",
     "tools/arms_one_click_runtime_v1.py",
     "tools/arms_one_click_runtime_phase2_v1.py",
+    "tools/arms_one_click_runtime_phase3_v1.py",
     "tools/start_native_current_paper_v1.py",
     "tools/windows_runtime_supervisor_v1.py",
     "tools/analysis_native_startup_v1.py",
