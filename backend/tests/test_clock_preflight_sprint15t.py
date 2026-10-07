@@ -431,8 +431,15 @@ def test_current_paper_preboundary_defer_artifact_is_offline_only():
         "backend/tests/test_certified_native_paper_bridge_v1.py":
             "6f2f543a3a4d8d6fae6dc7e22ff7d7de211a95d6025b14975ab0b8cd165b97cc",
     }
+    historical_source_paths = {
+        "backend/backtesting/certified_native_paper_bridge_v1.py":
+            "backend/tests/fixtures/certified_native_paper_bridge_v1.d4e5c2.py",
+        "backend/tests/test_certified_native_paper_bridge_v1.py":
+            "backend/tests/fixtures/test_certified_native_paper_bridge_v1.d4e5c2.py",
+    }
     for path, digest in artifact["source_sha256"].items():
-        assert hashlib.sha256(Path(path).read_text(encoding="utf-8").encode()).hexdigest() == digest
+        source = Path(historical_source_paths.get(path, path))
+        assert hashlib.sha256(source.read_text(encoding="utf-8").encode()).hexdigest() == digest
 
     historical = {
         "backend/tests/fixtures/certified_native_paper_bridge_v1.d4e4c.py":
@@ -540,8 +547,13 @@ def test_current_paper_preboundary_defer_live_artifact_certifies_ordered_no_exec
             "bcfe63f74c7d22880ed9d04288279743f92698273157d5944a7817db0c7f5561",
     }
     assert artifact["source_sha256"] == expected_sources
+    historical_live_source_paths = {
+        "backend/backtesting/certified_native_paper_bridge_v1.py":
+            "backend/tests/fixtures/certified_native_paper_bridge_v1.d4e5c2.py",
+    }
     for path, digest in expected_sources.items():
-        assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+        source = Path(historical_live_source_paths.get(path, path))
+        assert hashlib.sha256(source.read_bytes()).hexdigest() == digest
 
     assert artifact["native_market_evidence"]["prefix_bytes"] == 30082
     assert artifact["native_market_evidence"]["prefix_sha256"] == (
