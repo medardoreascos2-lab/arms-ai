@@ -1522,6 +1522,83 @@
         "POST"
       ],
       "reason": "TradeLifecycleServiceV2.submit_signal; EXECUTION_BOUNDARY; no direct market-data ingestion, provider query or current-quote projection."
+    },
+    {
+      "path": "/api/v1/beta/admin/users",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/admin/users",
+      "methods": [
+        "POST"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/admin/users/{user_id}/extend",
+      "methods": [
+        "POST"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/admin/users/{user_id}/status",
+      "methods": [
+        "PATCH"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/auth/login",
+      "methods": [
+        "POST"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/auth/logout",
+      "methods": [
+        "POST"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/auth/me",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/dashboard",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/history",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/live",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
+    },
+    {
+      "path": "/api/v1/beta/performance",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Isolated authenticated Beta identity/control or read-only PAPER dashboard projection; no direct market-data ingestion, provider publication, quote authority, trading execution or account-switch dispatch."
     }
   ]
 }

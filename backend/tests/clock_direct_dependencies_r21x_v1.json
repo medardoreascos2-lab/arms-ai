@@ -217,6 +217,13 @@
       "consequence": "CURRENT_MARKET_ADMISSION_AND_PROJECTION",
       "calls": [
         {
+          "owner": "CurrentPaperServiceV1.get_snapshot",
+          "callee": "g.clock",
+          "ordinal": 1,
+          "line": 605,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        },
+        {
           "owner": "CurrentPaperServiceV1.health_eligible",
           "callee": "self.gate.clock",
           "ordinal": 1,
@@ -231,10 +238,17 @@
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         },
         {
-          "owner": "CurrentPaperServiceV1.get_snapshot",
-          "callee": "g.clock",
+          "owner": "_CurrentRuntimeV1._authority_transition",
+          "callee": "datetime.now",
           "ordinal": 1,
-          "line": 605,
+          "line": 546,
+          "authority": "HOST_WALL_METADATA_ONLY; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "_CurrentRuntimeV1._authority_transition",
+          "callee": "self.gate.clock",
+          "ordinal": 1,
+          "line": 539,
           "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
       ]
@@ -1210,6 +1224,20 @@
           "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
         },
         {
+          "owner": "SimNativeL1AuthorityV1._poll_segmented",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 240,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
+          "owner": "SimNativeL1AuthorityV1.inspect",
+          "callee": "self.clock",
+          "ordinal": 1,
+          "line": 204,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+        },
+        {
           "owner": "SimNativeL1AuthorityV1.poll",
           "callee": "self.clock",
           "ordinal": 1,
@@ -1222,13 +1250,58 @@
           "ordinal": 2,
           "line": 157,
           "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
-        },
+        }
+      ]
+    },
+    {
+      "path": "backend/backtesting/controller_paper_enable_command_v1.py",
+      "consequence": "CURRENT_PAPER_ENTRY_TIME_ADMISSION",
+      "calls": [
         {
-          "owner": "SimNativeL1AuthorityV1.inspect",
+          "owner": "ControllerPaperEnableCommandV1.handle",
           "callee": "self.clock",
           "ordinal": 1,
-          "line": 204,
-          "authority": "HOST_WALL_OR_INJECTED_CLOCK; NO_ABSOLUTE_AUTHORITY"
+          "line": 192,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/beta_dashboard_projection_v1.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 22,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/dashboard/current_paper_read_model_v1.py",
+      "consequence": "READ_ONLY_PROJECTION_OR_REFRESH",
+      "calls": [
+        {
+          "owner": "_utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 23,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
+        }
+      ]
+    },
+    {
+      "path": "backend/security/beta_access_v1.py",
+      "consequence": "AUDIT_PERSISTENCE_AND_RECOVERY",
+      "calls": [
+        {
+          "owner": "_utc_now",
+          "callee": "datetime.now",
+          "ordinal": 1,
+          "line": 62,
+          "authority": "HOST_WALL_OR_INJECTED_CLOCK"
         }
       ]
     },

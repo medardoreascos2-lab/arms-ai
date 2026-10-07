@@ -1643,6 +1643,48 @@
         "backend/tests/test_phase1_consolidated_acceptance_v8.py::test_all_registered_application_state_is_rebound_on_account_switch",
         "backend/tests/test_phase1_api_route_account_scope_contract_v2.py::test_every_account_route_binds_to_new_publication"
       ]
+    },
+    {
+      "binding": "beta_current_paper_source_v1",
+      "account_identity_source": "Isolated CURRENT_MARKET_PAPER read source configured only from loopback/read-only storage; no trading-account selection authority",
+      "runtime_generation_source": "Recreated from environment for each published application; may be None when Beta PAPER source is not configured",
+      "can_read_other_account": "NO arbitrary account access; only configured loopback PAPER observation and query-only local history",
+      "can_mutate_other_account": "NO mutation; HTTP is GET-only and SQLite is opened query-only; source exposes no control method",
+      "switch_behavior": "Fresh source or None is installed for every new application; no execution owner is transferred",
+      "recovery_behavior": "Reconstructed from explicit loopback/read-only configuration; unavailable configuration fails closed",
+      "stale_reference_behavior": "Old read source remains scoped to retired application and has no order or runtime-control authority",
+      "evidence": [
+        "backend/dashboard/current_paper_read_model_v1.py",
+        "backend/tests/test_current_paper_read_model_v1.py"
+      ]
+    },
+    {
+      "binding": "beta_dashboard_projection_v1",
+      "account_identity_source": "Read-only Beta projection; no trading-account selector or broker identity",
+      "runtime_generation_source": "Fresh projection object is built with each published application",
+      "can_read_other_account": "NO direct trading-account ledger authority; consumes sanitized read-model inputs only",
+      "can_mutate_other_account": "NO mutation; projection contains no trading or runtime-control command path",
+      "switch_behavior": "Rebuilt with each published application and never transferred as an execution owner",
+      "recovery_behavior": "Stateless projection is reconstructed on application creation",
+      "stale_reference_behavior": "Retired projection cannot publish or mutate the current application",
+      "evidence": [
+        "backend/dashboard/beta_dashboard_projection_v1.py",
+        "backend/tests/test_beta_dashboard_v1.py"
+      ]
+    },
+    {
+      "binding": "beta_user_store_v1",
+      "account_identity_source": "Independent Beta identity store; not a trading-account identity or broker authority",
+      "runtime_generation_source": "Rebuilt for each published FastAPI application; persistent Beta database may be process-configured independently",
+      "can_read_other_account": "NO trading-account ledger access; admin role may enumerate Beta users only",
+      "can_mutate_other_account": "NO trading, broker, risk-policy or account mutation; may manage isolated Beta users and sessions",
+      "switch_behavior": "Fresh BetaUserStoreV1 object is attached to each newly published application; Beta identity remains independent of selected trading account",
+      "recovery_behavior": "Reload isolated Beta identity/session persistence from configured Beta store; never from trading snapshots",
+      "stale_reference_behavior": "Old store remains attached only to the retired application and has no execution authority",
+      "evidence": [
+        "backend/security/beta_access_v1.py",
+        "backend/tests/test_beta_dashboard_v1.py"
+      ]
     }
   ],
   "account_state_owners": [

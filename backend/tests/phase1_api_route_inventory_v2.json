@@ -3,12 +3,12 @@
   "baseline": "93039c140b7db486d0adab36de383b77dae1b55d",
   "counting": "Route registrations; GET+HEAD metadata counts as one registration. Includes docs and health. No unregistered router is assumed.",
   "certificate": {
-    "TOTAL_RELEVANT_ROUTES": 96,
-    "CLASSIFIED_ROUTES": 96,
+    "TOTAL_RELEVANT_ROUTES": 107,
+    "CLASSIFIED_ROUTES": 107,
     "UNCLASSIFIED_ROUTES": 0,
     "ACCOUNT_SCOPED_ROUTES": 63,
     "ADMIN_REQUIRED_ROUTES": 15,
-    "OBSERVATIONAL_ROUTES": 80,
+    "OBSERVATIONAL_ROUTES": 86,
     "EXECUTION_BOUNDARY_ROUTES": 5
   },
   "routes": [
@@ -3290,6 +3290,370 @@
       "scope_resolution": "AccountRuntimeApplicationV2 selects one published bundle; endpoint uses request.app.state or factory-bound owners from that same application.",
       "authorization_rationale": "Can invoke trading/lifecycle work; must authorize before owner dispatch.",
       "account_switch_effect": "NEW_PUBLISHED_APPLICATION"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/beta/admin/users",
+      "name": "list_users",
+      "endpoint": "backend.api.beta_dashboard_api_v1.list_users",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "store_for": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "75286ab4b478ef18f5a2f9323ca2f69bd3332d9bf5a7759c1b3a41e1b18296b1",
+      "state_fields": [],
+      "calls": [
+        "Depends",
+        "store_for",
+        "store_for(request).list_users"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "NONE",
+      "owner": "backend.security.beta_access_v1.BetaUserStoreV1",
+      "authorization_rationale": "Beta-specific authenticated admin role protects access; modifying routes also require CSRF. Authority is limited to Beta users/sessions and does not grant trading, broker, risk-policy or account-switch authority."
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/beta/admin/users",
+      "name": "create_user",
+      "endpoint": "backend.api.beta_dashboard_api_v1.create_user",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "store_for": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "00571101895064822619d679595cbf75fc3bad6fd67e1fd6027f4e1fc573f2ff",
+      "state_fields": [],
+      "calls": [
+        "Depends",
+        "HTTPException",
+        "store_for",
+        "store_for(request).create_user",
+        "str",
+        "user.to_public_dict"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "OTHER",
+      "owner": "backend.security.beta_access_v1.BetaUserStoreV1",
+      "authorization_rationale": "Beta-specific authenticated admin role protects access; modifying routes also require CSRF. Authority is limited to Beta users/sessions and does not grant trading, broker, risk-policy or account-switch authority."
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/beta/admin/users/{user_id}/extend",
+      "name": "extend_access",
+      "endpoint": "backend.api.beta_dashboard_api_v1.extend_access",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "store_for": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "078a39a3490784de18efd99d940a855a9cc21905720495d44f1810634e51edc8",
+      "state_fields": [],
+      "calls": [
+        "Depends",
+        "HTTPException",
+        "isinstance",
+        "store_for",
+        "store_for(request).extend_beta",
+        "str",
+        "user.to_public_dict"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "OTHER",
+      "owner": "backend.security.beta_access_v1.BetaUserStoreV1",
+      "authorization_rationale": "Beta-specific authenticated admin role protects access; modifying routes also require CSRF. Authority is limited to Beta users/sessions and does not grant trading, broker, risk-policy or account-switch authority."
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "path": "/api/v1/beta/admin/users/{user_id}/status",
+      "name": "set_status",
+      "endpoint": "backend.api.beta_dashboard_api_v1.set_status",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "store_for": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "1cae512eb226c3b7f0052eb909304baaeb815e9412852d449c16158b78c318aa",
+      "state_fields": [],
+      "calls": [
+        "Depends",
+        "HTTPException",
+        "store_for",
+        "store_for(request).set_enabled",
+        "user.to_public_dict"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "CONTROL_PLANE_ADMIN",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "OTHER",
+      "owner": "backend.security.beta_access_v1.BetaUserStoreV1",
+      "authorization_rationale": "Beta-specific authenticated admin role protects access; modifying routes also require CSRF. Authority is limited to Beta users/sessions and does not grant trading, broker, risk-policy or account-switch authority."
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/beta/auth/login",
+      "name": "login",
+      "endpoint": "backend.api.beta_dashboard_api_v1.login",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "store_for": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "118d112320665984aa00f91988267a09fcda593ec60fa2bfe871f1eec9a0e8f0",
+      "state_fields": [],
+      "calls": [
+        "HTTPException",
+        "response.set_cookie",
+        "session.user.to_public_dict",
+        "store_for",
+        "store_for(request).authenticate"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "OTHER_JUSTIFIED",
+      "authorization": "NONE_JUSTIFIED",
+      "mutation": "OTHER",
+      "owner": "backend.security.beta_access_v1.BetaUserStoreV1",
+      "authorization_rationale": "Credential authentication creates only an isolated Beta session; it grants no trading, PAPER-enable, LIVE, broker or account-switch authority."
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/v1/beta/auth/logout",
+      "name": "logout",
+      "endpoint": "backend.api.beta_dashboard_api_v1.logout",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "store_for": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "ebe4e6b8f48db1f8d9cd502147e0faaaeca7506368ac7b2a9c32de8ca8c5309a",
+      "state_fields": [],
+      "calls": [
+        "Cookie",
+        "Depends",
+        "response.delete_cookie",
+        "store_for",
+        "store_for(request).logout"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "OTHER_JUSTIFIED",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "OTHER",
+      "owner": "backend.security.beta_access_v1.BetaUserStoreV1",
+      "authorization_rationale": "Authenticated Beta session plus CSRF protection revokes only that Beta session; no trading or account mutation is reachable."
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/beta/auth/me",
+      "name": "me",
+      "endpoint": "backend.api.beta_dashboard_api_v1.me",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "store_for": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "32237b4087bafdb42b06e6a7cba3566ed83d7751072fe7c9ff7353d48f6230dc",
+      "state_fields": [],
+      "calls": [
+        "Cookie",
+        "Depends",
+        "identity.to_public_dict",
+        "store_for",
+        "store_for(request).rotate_csrf",
+        "str"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "NONE",
+      "owner": "backend.security.beta_access_v1.BetaUserStoreV1",
+      "authorization_rationale": "Authenticated Beta session is required; route exposes identity/session metadata only and no trading mutation."
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/beta/dashboard",
+      "name": "dashboard",
+      "endpoint": "backend.api.beta_dashboard_api_v1.dashboard",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "read_bundle": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "fd540419135fe9effaf88eb75f632ad2d22c0f5530fe4ae94233eb12f27d93d9",
+      "state_fields": [],
+      "calls": [
+        "Depends",
+        "read_bundle"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "NONE",
+      "owner": "backend.dashboard.beta_dashboard_projection_v1.BetaDashboardProjectionV1; backend.dashboard.current_paper_read_model_v1.CurrentPaperReadOnlySourceV1",
+      "authorization_rationale": "Authenticated Beta session is required. Projection is read-only, uses GET/query-only sources and exposes no order, runtime-control, PAPER-enable, LIVE-enable or NinjaTrader command path."
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/beta/history",
+      "name": "history",
+      "endpoint": "backend.api.beta_dashboard_api_v1.history",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "read_bundle": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "634734f25bb15d4fc41b3a62bf2ceb924b6961793630d43b0ff2ab47cb2737cb",
+      "state_fields": [],
+      "calls": [
+        "Depends",
+        "read_bundle"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "NONE",
+      "owner": "backend.dashboard.beta_dashboard_projection_v1.BetaDashboardProjectionV1; backend.dashboard.current_paper_read_model_v1.CurrentPaperReadOnlySourceV1",
+      "authorization_rationale": "Authenticated Beta session is required. Projection is read-only, uses GET/query-only sources and exposes no order, runtime-control, PAPER-enable, LIVE-enable or NinjaTrader command path."
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/beta/live",
+      "name": "live",
+      "endpoint": "backend.api.beta_dashboard_api_v1.live",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "read_bundle": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "ac922216f0799bf6f663d589182cfc59b4b9bf56ef8f37ab1f1d378b65d46956",
+      "state_fields": [],
+      "calls": [
+        "Depends",
+        "read_bundle"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "NONE",
+      "owner": "backend.dashboard.beta_dashboard_projection_v1.BetaDashboardProjectionV1; backend.dashboard.current_paper_read_model_v1.CurrentPaperReadOnlySourceV1",
+      "authorization_rationale": "Authenticated Beta session is required. Projection is read-only, uses GET/query-only sources and exposes no order, runtime-control, PAPER-enable, LIVE-enable or NinjaTrader command path."
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/v1/beta/performance",
+      "name": "performance",
+      "endpoint": "backend.api.beta_dashboard_api_v1.performance",
+      "module": "backend.api.beta_dashboard_api_v1",
+      "transport": "HTTP",
+      "canonical_admin_dependency": false,
+      "closure_owners": {
+        "read_bundle": {
+          "type": "builtins.function",
+          "state_bindings": []
+        }
+      },
+      "source_sha256": "5fea0afa57bc99a15ad1e1b3e22708f78660cbfc3f6e8bbd0bbab380c82639fb",
+      "state_fields": [],
+      "calls": [
+        "Depends",
+        "read_bundle"
+      ],
+      "account_scope": "GLOBAL",
+      "account_switch_effect": "UNCHANGED_DATA",
+      "scope_resolution": "Isolated Beta control plane or read-only CURRENT_MARKET_PAPER observation; independent of selected trading-account execution authority.",
+      "classification": "GLOBAL_OBSERVATIONAL",
+      "authorization": "OTHER_CANONICAL",
+      "mutation": "NONE",
+      "owner": "backend.dashboard.beta_dashboard_projection_v1.BetaDashboardProjectionV1; backend.dashboard.current_paper_read_model_v1.CurrentPaperReadOnlySourceV1",
+      "authorization_rationale": "Authenticated Beta session is required. Projection is read-only, uses GET/query-only sources and exposes no order, runtime-control, PAPER-enable, LIVE-enable or NinjaTrader command path."
     }
   ],
   "package_status": "GREEN",
