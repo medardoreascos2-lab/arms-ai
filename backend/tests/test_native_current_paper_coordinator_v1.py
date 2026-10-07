@@ -3,6 +3,7 @@
 No NinjaTrader process, broker, account discovery or LIVE execution.
 """
 
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import Mock
 from uuid import uuid4
@@ -17,9 +18,11 @@ from backend.market_data.analysis_startup_v1 import (
 )
 from backend.tests.test_certified_native_paper_bridge_v1 import (
     SESSION,
+    START,
     _hello,
     _paper,
     _record,
+    _record_for,
     _warm_bootstrap,
 )
 from backend.tests.test_fresh_native_adapter_sprint15y import (
@@ -536,6 +539,37 @@ def test_coordinator_delivers_live_closed_without_auto_enable(
     )
 
     assert runtime_paper.completed == []
+
+
+def test_recency_rejection_keeps_coordinator_observable_and_disabled(
+    tmp_path, monkeypatch, api_settings,
+):
+    coordinator, runtime, service, wall, _, _ = _coordinator(
+        tmp_path, monkeypatch, api_settings)
+    runtime.finish_health(backend_pid=runtime.pid, frontend_pid=99,
+        dashboard_status=200, allow_activation=True)
+    adapter = _make_live(runtime, monkeypatch)
+    wall[0] = START + timedelta(minutes=3)
+    adapter.live_handoff_records.append(_record())
+
+    blocked = coordinator.poll()
+    assert blocked["status"] == "WAITING_FOR_FRESH_DATA"
+    assert blocked["reason"] is None
+    assert blocked["bridge"]["status"] == "RECENCY_BLOCKED"
+    assert coordinator.stopped is False
+    assert service._stopped is False
+    assert service._runtime is None
+    assert "PAPER_DISABLED" in service.get_snapshot()["readiness_reasons"]
+    assert service.get_snapshot()["live_execution_allowed"] is False
+
+    label = START + timedelta(minutes=4)
+    wall[0] = label + timedelta(seconds=1)
+    adapter.live_handoff_records.append(_record_for(
+        label, 34, event_time="2026-09-21T14:04:00.0000000Z"))
+    recovered = coordinator.poll()
+    assert recovered["status"] == "LIVE"
+    assert recovered["bridge"]["delivered_closed"] == 1
+    assert service.get_snapshot()["paper_execution_enabled"] is False
 
 
 def test_l1_terminal_immediately_disables_and_journals_exact_reason(

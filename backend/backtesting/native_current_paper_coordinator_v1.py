@@ -277,6 +277,15 @@ class NativeCurrentPaperCoordinatorV1:
                 == "LIVE"
             ):
                 self.status = "LIVE"
+            elif (
+                bridge_snapshot.get("status")
+                == "RECENCY_BLOCKED"
+            ):
+                self.status = "WAITING_FOR_FRESH_DATA"
+                self.service.invalidate_health(
+                    reason="ABSOLUTE_RECENCY_UNPROVEN",
+                    initiating_path="CERTIFIED_NATIVE_PAPER_BRIDGE",
+                )
             else:
                 self.status = (
                     "WAITING_FOR_LIVE_TAIL"

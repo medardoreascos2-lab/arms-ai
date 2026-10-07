@@ -35,6 +35,10 @@ DELIVERY_SCHEMA = "arms.certified-native-live-closed.v1"
 PENDING_CLOSED_LIMIT = MAX_QUEUE
 
 
+class _AbsoluteRecencyUnproven(ValueError):
+    pass
+
+
 def _utc(value):
     if not isinstance(value, str):
         raise ValueError(
@@ -122,6 +126,9 @@ class CertifiedNativePaperBridgeV1:
         self.last_source_sequence = None
         self.pending_closed_records = deque()
         self.source_hello = None
+        self.recency_blocked = False
+        self.recency_rejection_reason = None
+        self.rejected_recency_events = 0
 
     def _metadata(self):
         if (
@@ -311,11 +318,16 @@ class CertifiedNativePaperBridgeV1:
                     "NATIVE_DELIVERY_SEQUENCE"
                 )
 
-            emitted = _utc(
-                record[
-                    "event_time"
-                ]
-            )
+            try:
+                emitted = _utc(
+                    record[
+                        "event_time"
+                    ]
+                )
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise _AbsoluteRecencyUnproven(
+                    "ABSOLUTE_RECENCY_UNPROVEN"
+                ) from exc
 
             label = _utc(
                 record[
@@ -350,7 +362,7 @@ class CertifiedNativePaperBridgeV1:
                 <= age
                 <= self.service.gate.maximum_age
             ):
-                raise ValueError(
+                raise _AbsoluteRecencyUnproven(
                     "ABSOLUTE_RECENCY_UNPROVEN"
                 )
 
@@ -438,6 +450,19 @@ class CertifiedNativePaperBridgeV1:
             self.reason
         )
 
+    def _reject_recency(self):
+        rejected = len(self.pending_closed_records)
+        self.pending_closed_records.clear()
+        self.recency_blocked = True
+        self.recency_rejection_reason = "ABSOLUTE_RECENCY_UNPROVEN"
+        self.rejected_recency_events += rejected
+        self.status = "RECENCY_BLOCKED"
+        self.service.invalidate_health(
+            reason="ABSOLUTE_RECENCY_UNPROVEN",
+            initiating_path="CERTIFIED_NATIVE_PAPER_BRIDGE",
+        )
+        return self.get_snapshot()
+
     def poll(self):
         with self.lock:
             if (
@@ -500,12 +525,15 @@ class CertifiedNativePaperBridgeV1:
 
                 self.pending_closed_records.extend(records)
 
-                events = (
-                    self._validated_events(
-                        self.pending_closed_records,
-                        now=now,
+                try:
+                    events = (
+                        self._validated_events(
+                            self.pending_closed_records,
+                            now=now,
+                        )
                     )
-                )
+                except _AbsoluteRecencyUnproven:
+                    return self._reject_recency()
 
                 if not self.connected:
                     gate = self.service.gate
@@ -526,6 +554,8 @@ class CertifiedNativePaperBridgeV1:
                     )
 
                     self.connected = True
+
+                delivered_before = self.delivered_closed
 
                 for (
                     event,
@@ -548,7 +578,15 @@ class CertifiedNativePaperBridgeV1:
 
                     self.delivered_closed += 1
 
-                self.status = "LIVE"
+                if self.delivered_closed > delivered_before:
+                    self.recency_blocked = False
+                    self.recency_rejection_reason = None
+
+                self.status = (
+                    "RECENCY_BLOCKED"
+                    if self.recency_blocked
+                    else "LIVE"
+                )
 
                 return self.get_snapshot(
                     native=native
@@ -591,6 +629,15 @@ class CertifiedNativePaperBridgeV1:
                     self.delivered_closed,
                 "last_source_sequence":
                     self.last_source_sequence,
+                "recency_status": (
+                    "UNPROVEN"
+                    if self.recency_blocked
+                    else "PROVEN"
+                ),
+                "recency_rejection_reason":
+                    self.recency_rejection_reason,
+                "rejected_recency_events":
+                    self.rejected_recency_events,
                 "paper":
                     paper,
                 "paper_auto_enable":

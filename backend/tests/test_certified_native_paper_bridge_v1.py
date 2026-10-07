@@ -519,10 +519,17 @@ def test_bridge_waits_for_complete_bootstrap_live_handoff(
     assert service._runtime is not None
 
 
-def test_stale_absolute_time_revokes_paper_before_financial_runtime(
+@pytest.mark.parametrize("event_time, clock_offset", [
+    ("2026-09-21T14:01:00.0000000Z", timedelta(minutes=3)),
+    ("2026-09-21T14:01:02.0000000Z", timedelta(minutes=1, seconds=1)),
+    ("not-an-instant", timedelta(minutes=1, seconds=1)),
+])
+def test_unproven_recency_blocks_without_terminating_and_fresh_recovers(
     tmp_path,
     monkeypatch,
     api_settings,
+    event_time,
+    clock_offset,
 ):
     adapter, _ = _native(
         tmp_path,
@@ -534,15 +541,10 @@ def test_stale_absolute_time_revokes_paper_before_financial_runtime(
         api_settings,
     )
 
-    clock[0] = (
-        START
-        + timedelta(
-            minutes=3,
-        )
-    )
+    clock[0] = START + clock_offset
 
     adapter.live_handoff_records.append(
-        _record()
+        _record(event_time=event_time)
     )
 
     bridge = CertifiedNativePaperBridgeV1(
@@ -551,26 +553,37 @@ def test_stale_absolute_time_revokes_paper_before_financial_runtime(
         wall_clock=lambda: clock[0],
     )
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            "CERTIFIED_NATIVE_"
-            "PAPER_BRIDGE_FAILED"
-        ),
-    ):
-        bridge.poll()
-
-    assert bridge.status == "REVOKED"
-
-    assert (
-        service.gate.fault
-        == (
-            "CERTIFIED_NATIVE_PAPER_"
-            "BRIDGE_RECOVERY_REQUIRED"
-        )
-    )
-
+    blocked = bridge.poll()
+    assert blocked["status"] == "RECENCY_BLOCKED"
+    assert blocked["recency_status"] == "UNPROVEN"
+    assert blocked["recency_rejection_reason"] == "ABSOLUTE_RECENCY_UNPROVEN"
+    assert blocked["rejected_recency_events"] == 1
+    assert bridge.reason is None
+    assert service.gate.fault is None
     assert service._runtime is None
+    assert "PAPER_DISABLED" in service.get_snapshot()["readiness_reasons"]
+    assert service.get_snapshot()["live_execution_allowed"] is False
+
+    label = START + timedelta(minutes=2)
+    clock[0] = label + timedelta(seconds=1)
+    adapter.live_handoff_records.append(_record_for(
+        label, 34, event_time="2026-09-21T14:02:00.0000000Z"))
+    recovered = bridge.poll()
+    assert recovered["status"] == "LIVE"
+    assert recovered["recency_status"] == "PROVEN"
+    assert recovered["delivered_closed"] == 1
+    paper = service.get_snapshot()
+    assert paper["source_observations_processed"] == 1
+    assert paper["paper_execution_enabled"] is False
+    runtime = service._runtime._paper.runtime
+    assert runtime.lifecycle.broker_connector_v2.get_orders() == []
+    assert runtime.lifecycle.broker_connector_v2.get_fills() == []
+    assert runtime.completed == []
+    counts = service._runtime._db.execute(
+        "SELECT count(*), count(distinct canonical_observation_id) "
+        "FROM decision_trace"
+    ).fetchone()
+    assert counts[0] == counts[1]
 
 
 def test_native_revocation_never_delivers_queued_paper_event(
@@ -1116,9 +1129,10 @@ def test_pending_staleness_fails_closed(tmp_path, monkeypatch, api_settings):
     bridge.poll()
     clock[0] = label + timedelta(
         seconds=service.gate.maximum_age + 1)
-    with pytest.raises(ValueError, match="CERTIFIED_NATIVE_PAPER_BRIDGE_FAILED"):
-        bridge.poll()
-    assert bridge.status == "REVOKED" and not bridge.pending_closed_records
+    blocked = bridge.poll()
+    assert blocked["status"] == "RECENCY_BLOCKED"
+    assert blocked["recency_rejection_reason"] == "ABSOLUTE_RECENCY_UNPROVEN"
+    assert not bridge.pending_closed_records
     assert service._runtime is None
 
 
@@ -1127,8 +1141,6 @@ def test_pending_staleness_fails_closed(tmp_path, monkeypatch, api_settings):
     {"session": "foreign-session"},
     {"handoff": "VERIFYING_OVERLAP"},
     {"source_open": "2026-09-21T13:59:00+00:00"},
-    {"event_time": "2026-09-21T14:00:59"},
-    {"event_time": "2026-09-21T14:00:20.0000000Z"},
     {"canonical_sequence": True},
 ])
 def test_malformed_early_delivery_fails_before_deferral(
@@ -1258,10 +1270,10 @@ def test_later_record_cannot_overtake_future_head(
     assert seen == [SESSION + ":20"]
     assert [r["canonical_sequence"] for r in bridge.pending_closed_records] == [34]
     clock[0] = second
-    with pytest.raises(ValueError, match="CERTIFIED_NATIVE_PAPER_BRIDGE_FAILED"):
-        bridge.poll()  # The second record is stale; it must not overtake or ingest.
+    blocked = bridge.poll()  # The second record is stale; it must not overtake or ingest.
+    assert blocked["status"] == "RECENCY_BLOCKED"
     assert seen == [SESSION + ":20"]
-    assert bridge.status == "REVOKED"
+    assert bridge.status == "RECENCY_BLOCKED"
     assert not bridge.pending_closed_records
     assert service._runtime is None
     _assert_disabled_and_empty(service)
