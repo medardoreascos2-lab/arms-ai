@@ -17,7 +17,8 @@ MAX_FUTURE_SKEW = timedelta(seconds=2)
 REQUIRED_READINESS = {
     'NATIVE_SPEC': 'PASS', 'NEWS': 'PASS', 'CATCHUP': 'PASS_CERTIFIED',
     'LIVE_STREAM': 'PASS', 'L1': 'PASS', 'ANALYSIS': 'PASS',
-    'SESSION_LINEAGE': 'PASS',
+    'SESSION_LINEAGE': 'PASS', 'PHASE2_STATE': 'RUNNING_DISABLED',
+    'MARKET_IDENTITY': 'PASS', 'SAFETY_AUTHORITIES': 'PASS',
 }
 REQUEST_FIELDS = {'schema', 'command', 'run_id', 'request_id', 'nonce',
                   'issued_at', 'explicit_operator_approval'}
@@ -152,9 +153,12 @@ class ControllerPaperEnableCommandV1:
                                    if type(reasons) is list else ['INVALID']),
             'execution_mode': value.get('execution_kind'),
             'sim_execution_authority': 'ENABLED' if paper else 'DISABLED',
-            'live_execution_allowed': False,
-            'external_order_authority': False,
-            'broker_live_order_authority': False,
+            'live_execution_allowed': value.get('live_execution_allowed'),
+            'external_order_authority': value.get('external_order_authority'),
+            'broker_live_order_authority': value.get(
+                'broker_live_order_authority'),
+            'ninjatrader_control_authority': value.get(
+                'ninjatrader_control_authority'),
             'thresholds_unchanged': safety_unchanged,
             'risk_unchanged': safety_unchanged,
         }
@@ -238,10 +242,13 @@ class ControllerPaperEnableCommandV1:
                 and post['live_execution_allowed'] is False
                 and post['external_order_authority'] is False
                 and post['broker_live_order_authority'] is False
+                and post['ninjatrader_control_authority'] is False
                 and post['thresholds_unchanged'] is True
                 and post['risk_unchanged'] is True
                 and enabled.get('live_execution_allowed') is False
-                and enabled.get('external_order_authority', False) is False)
+                and enabled.get('external_order_authority') is False
+                and enabled.get('broker_live_order_authority') is False
+                and enabled.get('ninjatrader_control_authority') is False)
             if not valid_post:
                 self._revoke_enable(request_id=request_id, nonce=nonce)
                 return self._reject('POST_ENABLE_STATE_INVALID',

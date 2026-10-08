@@ -44,6 +44,8 @@ class Harness:
         return {'paper_execution_enabled': True, 'paper_ready': True,
             'readiness_reasons': [], 'execution_kind': 'SIMULATED / PAPER',
             'live_execution_allowed': False, 'external_order_authority': False,
+            'broker_live_order_authority': False,
+            'ninjatrader_control_authority': False,
             'config_hash': 'config-id', 'effective_policy': deepcopy(self.policy)}
 
     def disable(self, **identity):
@@ -99,6 +101,7 @@ def test_valid_enable_is_one_shot_and_has_only_local_paper_authority(tmp_path):
     assert post['live_execution_allowed'] is False
     assert post['external_order_authority'] is False
     assert post['broker_live_order_authority'] is False
+    assert post['ninjatrader_control_authority'] is False
     assert post['thresholds_unchanged'] is post['risk_unchanged'] is True
     second = command.handle(request())
     assert second['reason'] == 'ENABLE_ALREADY_CONSUMED'
@@ -126,6 +129,13 @@ def test_stale_request_has_zero_enable_side_effect(tmp_path):
                     'REQUEST_STALE_OR_FUTURE')
 
 
+def test_future_request_has_zero_enable_side_effect(tmp_path):
+    command, harness = channel(tmp_path)
+    issued = (NOW + timedelta(seconds=3)).isoformat().replace('+00:00', 'Z')
+    assert_rejected(command, harness, request(issued_at=issued),
+                    'REQUEST_STALE_OR_FUTURE')
+
+
 def test_missing_approval_has_zero_enable_side_effect(tmp_path):
     command, harness = channel(tmp_path)
     assert_rejected(command, harness, request(explicit_operator_approval=False),
@@ -142,7 +152,10 @@ def test_additional_readiness_blocker_has_zero_enable_side_effect(
     assert blocker in result['readiness_snapshot']['readiness_blockers']
 
 
-@pytest.mark.parametrize('gate', ('NEWS', 'L1', 'ANALYSIS', 'SESSION_LINEAGE'))
+@pytest.mark.parametrize('gate', (
+    'NEWS', 'L1', 'ANALYSIS', 'SESSION_LINEAGE', 'PHASE2_STATE',
+    'MARKET_IDENTITY', 'SAFETY_AUTHORITIES',
+))
 def test_required_gate_failure_has_zero_enable_side_effect(tmp_path, gate):
     command, harness = channel(tmp_path)
     harness.statuses[gate] = 'BLOCKED'
@@ -159,12 +172,17 @@ def test_runtime_shutdown_and_live_command_are_inert(tmp_path):
     assert_rejected(command, harness, request(), 'RUNTIME_SHUTDOWN')
 
 
-def test_invalid_post_state_is_disabled_and_never_reports_accepted(tmp_path):
+@pytest.mark.parametrize('authority', (
+    'live_execution_allowed', 'external_order_authority',
+    'broker_live_order_authority', 'ninjatrader_control_authority',
+))
+def test_invalid_post_authority_is_disabled_and_never_reports_accepted(
+        tmp_path, authority):
     command, harness = channel(tmp_path)
     original = harness.enable
     def unsafe(**identity):
         value = original(**identity)
-        value['live_execution_allowed'] = True
+        value[authority] = True
         return value
     command.enable_call = unsafe
     result = command.handle(request())
@@ -204,12 +222,20 @@ def test_file_channel_and_operator_client_round_trip_without_token(tmp_path):
 
 def test_real_readiness_adapter_revalidates_every_required_source(tmp_path):
     spec = tmp_path / 'spec.json'
-    spec.write_bytes(b'{}')
+    spec_value = {'provider_enum': 'Provider31', 'order_authority': False,
+        'contract': {'provider': 'Provider31', 'instrument': 'NQ',
+            'contract': 'NQ DEC26',
+            'trading_hours_template': 'CME US Index Futures ETH',
+            'source_timezone': 'UTC', 'bar_label': 'CLOSE', 'fixture': False}}
+    spec.write_text(json.dumps(spec_value), encoding='utf-8')
     session, bootstrap = str(uuid4()), object()
     adapter = SimpleNamespace(reason=None, session=session, bootstrap=bootstrap)
     runtime = SimpleNamespace(phase='AWAITING_OPERATOR_ACTIVATION', reason=None,
         adapter=adapter, bootstrap=bootstrap, bootstrap_replacement_count=1)
     lifecycle_snapshot = {'worker_alive': True, 'status': 'LIVE',
+        'live_execution_allowed': False, 'broker_authority': False,
+        'ninjatrader_account_access': False, 'native_order_authority': False,
+        'order_submit_reachable': False,
         'coordinator': {'status': 'LIVE', 'source_adapter_status': 'LIVE_TAIL',
             'bridge': {'status': 'LIVE', 'source_session': session}}}
     lifecycle = SimpleNamespace(analysis_runtime=runtime,
@@ -225,17 +251,63 @@ def test_real_readiness_adapter_revalidates_every_required_source(tmp_path):
     authority = SimpleNamespace(news=news, l1=l1, settings=settings)
     paper = {'readiness_reasons': ['PAPER_DISABLED'],
         'paper_execution_enabled': False, 'config_hash': 'config-id',
+        'live_execution_allowed': False, 'external_order_authority': False,
+        'broker_live_order_authority': False,
+        'ninjatrader_control_authority': False,
         'effective_policy': {'risk_percent': 0.5}}
     service = SimpleNamespace(entry_authority=authority,
         gate=SimpleNamespace(clock=lambda: NOW), get_snapshot=lambda: paper)
     result = _controller_paper_readiness(lifecycle=lifecycle, service=service,
         expected_session=session, native_spec_path=spec,
-        reviewed_spec_sha256=sha256(spec.read_bytes()).hexdigest())
+        reviewed_spec_sha256=sha256(spec.read_bytes()).hexdigest(),
+        phase2_state_provider=lambda: {
+            'state': 'RUNNING_DISABLED', **{
+                key: False for key in ('paper_execution_enabled',
+                    'live_execution_allowed', 'external_order_authority',
+                    'broker_live_order_authority',
+                    'ninjatrader_control_authority')}})
     assert result['statuses'] == REQUIRED_READINESS
+
+    for field in ('live_execution_allowed', 'broker_authority',
+                  'ninjatrader_account_access', 'native_order_authority',
+                  'order_submit_reachable'):
+        original = lifecycle_snapshot[field]
+        lifecycle_snapshot[field] = True
+        unsafe = _controller_paper_readiness(lifecycle=lifecycle,
+            service=service, expected_session=session, native_spec_path=spec,
+            reviewed_spec_sha256=sha256(spec.read_bytes()).hexdigest(),
+            phase2_state_provider=lambda: {
+                'state': 'RUNNING_DISABLED', **{
+                    key: False for key in ('paper_execution_enabled',
+                        'live_execution_allowed', 'external_order_authority',
+                        'broker_live_order_authority',
+                        'ninjatrader_control_authority')}})
+        assert unsafe['statuses']['SAFETY_AUTHORITIES'] == 'BLOCKED'
+        lifecycle_snapshot[field] = original
+
+    for field in ('live_execution_allowed', 'external_order_authority',
+                  'broker_live_order_authority',
+                  'ninjatrader_control_authority'):
+        paper[field] = True
+        unsafe = _controller_paper_readiness(lifecycle=lifecycle,
+            service=service, expected_session=session, native_spec_path=spec,
+            reviewed_spec_sha256=sha256(spec.read_bytes()).hexdigest(),
+            phase2_state_provider=lambda: {
+                'state': 'RUNNING_DISABLED', **{
+                    key: False for key in ('paper_execution_enabled',
+                        'live_execution_allowed', 'external_order_authority',
+                        'broker_live_order_authority',
+                        'ninjatrader_control_authority')}})
+        assert unsafe['statuses']['SAFETY_AUTHORITIES'] == 'BLOCKED'
+        assert 'UNSAFE_AUTHORITY_PRESENT' in unsafe['readiness_blockers']
+        paper[field] = False
+
     spec.write_bytes(b'{ }')
     result = _controller_paper_readiness(lifecycle=lifecycle, service=service,
         expected_session=session, native_spec_path=spec,
-        reviewed_spec_sha256=sha256(b'{}').hexdigest())
+        reviewed_spec_sha256=sha256(
+            json.dumps(spec_value).encode('utf-8')).hexdigest(),
+        phase2_state_provider=lambda: {})
     assert result['statuses']['NATIVE_SPEC'] == 'BLOCKED'
 
 

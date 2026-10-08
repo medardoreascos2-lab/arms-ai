@@ -66,6 +66,7 @@ REVIEWED_SOURCE_NAMES = {
     "tools/windows_runtime_supervisor_v1.py",
     "tools/analysis_native_startup_v1.py",
     "tools/startup_chart_catchup_v1.py",
+    "tools/request_current_paper_enable_v1.py",
 }
 REVIEWED_PYTHON_IDENTITY = {
     "implementation": "CPython", "version": "3.13.16",
@@ -511,6 +512,7 @@ def _build_manifest(validated, run_id, run_directory, created_utc):
         "--native-spec-sha256", inputs["native_spec"]["sha256"],
         "--paper-config", inputs["paper_config"]["path"],
         "--runtime-parent", targets["runtime_parent"],
+        "--one-click-run-directory", targets["plan_directory"],
         "--paper-run-namespace", targets["paper_run_namespace"],
         "--current-paper-news-root", targets["current_paper_news_root"],
         "--current-paper-l1-directory", targets["current_paper_l1_directory"],
@@ -587,6 +589,7 @@ def _expected_future_command(manifest):
         "--native-spec-sha256", inputs["native_spec"]["sha256"],
         "--paper-config", inputs["paper_config"]["path"],
         "--runtime-parent", targets["runtime_parent"],
+        "--one-click-run-directory", targets["plan_directory"],
         "--paper-run-namespace", targets["paper_run_namespace"],
         "--current-paper-news-root", targets["current_paper_news_root"],
         "--current-paper-l1-directory", targets["current_paper_l1_directory"],

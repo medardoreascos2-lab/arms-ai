@@ -58,11 +58,14 @@ def _authenticated_paper_command(*, port, token, command,
 
 
 def _controller_paper_readiness(*, lifecycle, service, expected_session,
-                                native_spec_path, reviewed_spec_sha256):
+                                native_spec_path, reviewed_spec_sha256,
+                                phase2_state_provider):
     '''Fresh, fail-closed readiness used only immediately before PAPER enable.'''
     statuses = {key: 'BLOCKED' for key in (
         'NATIVE_SPEC', 'NEWS', 'CATCHUP', 'LIVE_STREAM', 'L1', 'ANALYSIS',
-        'SESSION_LINEAGE')}
+        'SESSION_LINEAGE', 'PHASE2_STATE', 'MARKET_IDENTITY',
+        'SAFETY_AUTHORITIES')}
+    spec = None
     try:
         current_spec = Path(native_spec_path).read_bytes()
         if (type(reviewed_spec_sha256) is str
@@ -70,7 +73,35 @@ def _controller_paper_readiness(*, lifecycle, service, expected_session,
                 and compare_digest(sha256(current_spec).hexdigest(),
                                    reviewed_spec_sha256)):
             statuses['NATIVE_SPEC'] = 'PASS'
-    except OSError:
+            spec = json.loads(current_spec.decode('utf-8'),
+                              object_pairs_hook=_unique)
+    except (OSError, UnicodeError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    if type(spec) is dict:
+        contract = spec.get('contract')
+        if (spec.get('provider_enum') == 'Provider31'
+                and type(contract) is dict
+                and contract.get('provider') == 'Provider31'
+                and contract.get('instrument') == 'NQ'
+                and contract.get('contract') == 'NQ DEC26'
+                and contract.get('trading_hours_template')
+                == 'CME US Index Futures ETH'
+                and contract.get('source_timezone') == 'UTC'
+                and contract.get('bar_label') == 'CLOSE'
+                and contract.get('fixture') is False
+                and spec.get('order_authority') is False):
+            statuses['MARKET_IDENTITY'] = 'PASS'
+    try:
+        phase2_state = phase2_state_provider()
+        if (type(phase2_state) is dict
+                and phase2_state.get('state') == 'RUNNING_DISABLED'
+                and phase2_state.get('paper_execution_enabled') is False
+                and phase2_state.get('live_execution_allowed') is False
+                and phase2_state.get('external_order_authority') is False
+                and phase2_state.get('broker_live_order_authority') is False
+                and phase2_state.get('ninjatrader_control_authority') is False):
+            statuses['PHASE2_STATE'] = 'RUNNING_DISABLED'
+    except (OSError, ValueError, RuntimeError, TypeError, KeyError):
         pass
     try:
         snapshot = lifecycle.check()
@@ -93,6 +124,12 @@ def _controller_paper_readiness(*, lifecycle, service, expected_session,
         if (expected_session is not None and adapter.session == expected_session
                 and bridge.get('source_session') == expected_session):
             statuses['SESSION_LINEAGE'] = 'PASS'
+        if (snapshot.get('live_execution_allowed') is False
+                and snapshot.get('broker_authority') is False
+                and snapshot.get('ninjatrader_account_access') is False
+                and snapshot.get('native_order_authority') is False
+                and snapshot.get('order_submit_reachable') is False):
+            statuses['SAFETY_AUTHORITIES'] = 'PASS'
     except (ValueError, RuntimeError, TypeError, AttributeError):
         pass
 
@@ -131,6 +168,12 @@ def _controller_paper_readiness(*, lifecycle, service, expected_session,
         reasons = ['READINESS_INVALID']
     if paper.get('paper_execution_enabled') is not False:
         reasons = list(dict.fromkeys(reasons + ['PAPER_ALREADY_ENABLED']))
+    if (paper.get('live_execution_allowed') is not False
+            or paper.get('external_order_authority') is not False
+            or paper.get('broker_live_order_authority') is not False
+            or paper.get('ninjatrader_control_authority') is not False):
+        statuses['SAFETY_AUTHORITIES'] = 'BLOCKED'
+        reasons = list(dict.fromkeys(reasons + ['UNSAFE_AUTHORITY_PRESENT']))
     config_hash = paper.get('config_hash')
     policy = paper.get('effective_policy')
     safety_identity = ((config_hash, deepcopy(policy))
@@ -148,7 +191,8 @@ class _PaperApiLifecycleV1:
 
     def __init__(self, *, analysis_runtime, service, server, bound_socket, clock,
                  command_directory, command_run_id, paper_port, admin_token,
-                 native_spec_path, reviewed_spec_sha256):
+                 native_spec_path, reviewed_spec_sha256,
+                 one_click_run_directory):
         self.lifecycle = NativeCurrentPaperLifecycleV1(
             analysis_runtime=analysis_runtime,
             service=service,
@@ -168,7 +212,10 @@ class _PaperApiLifecycleV1:
                 lifecycle=self.lifecycle, service=service,
                 expected_session=expected_session,
                 native_spec_path=native_spec_path,
-                reviewed_spec_sha256=reviewed_spec_sha256),
+                reviewed_spec_sha256=reviewed_spec_sha256,
+                phase2_state_provider=lambda: __import__(
+                    'tools.arms_one_click_runtime_phase2_v1',
+                    fromlist=['status']).status(one_click_run_directory)),
             enable_call=lambda **identity: _authenticated_paper_command(
                 port=paper_port, token=admin_token, command='enable',
                 request_id=identity.get('request_id'),
@@ -259,6 +306,10 @@ def run_current_paper(args):
     if not token or not token.strip():
         raise ValueError("EXPLICIT_ADMIN_TOKEN_REQUIRED")
     namespace = Path(args.paper_run_namespace)
+    one_click_run_directory = Path(args.one_click_run_directory).resolve(
+        strict=True)
+    if one_click_run_directory.name != namespace.name:
+        raise ValueError('ONE_CLICK_RUN_BINDING_REQUIRED')
     if namespace.exists():
         raise ValueError("FRESH_PAPER_RUN_NAMESPACE_REQUIRED")
 
@@ -330,6 +381,7 @@ def run_current_paper(args):
                 admin_token=token,
                 native_spec_path=args.native_spec,
                 reviewed_spec_sha256=args.native_spec_sha256,
+                one_click_run_directory=one_click_run_directory,
             )
             return owner
 
@@ -359,6 +411,7 @@ def main(argv=None):
     parser.add_argument("--paper-config", type=Path, required=True)
     parser.add_argument("--runtime-parent", type=Path, required=True)
     parser.add_argument("--paper-run-namespace", type=Path, required=True)
+    parser.add_argument("--one-click-run-directory", type=Path, required=True)
     parser.add_argument("--current-paper-news-root", type=Path, required=True)
     parser.add_argument("--current-paper-l1-directory", type=Path, required=True)
     parser.add_argument("--port", type=int, required=True)

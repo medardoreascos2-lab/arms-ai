@@ -35,11 +35,14 @@ def _args(tmp_path):
     (tmp_path / "loaded.jsonl").write_bytes(b"loaded")
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(spec), encoding="utf-8")
+    one_click_run_directory = tmp_path / "one-click" / "paper-run"
+    one_click_run_directory.mkdir(parents=True)
     from hashlib import sha256
     return SimpleNamespace(
         start_current_paper=True,
         port=18001, frontend_port=13001, paper_port=18002,
         startup_chart_catchup_timeout=300.0,
+        one_click_run_directory=one_click_run_directory,
         paper_run_namespace=tmp_path / "paper-run",
         current_paper_news_root=tmp_path / "current-paper-news",
         current_paper_l1_directory=tmp_path / "current-paper-l1",
@@ -312,6 +315,21 @@ def test_read_routes_cannot_enable_paper_and_post_requires_admin(
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
         assert client.get("/api/v2/paper/readiness").status_code == 200
+        observation = client.get("/api/v2/paper/operator-observation")
+        assert observation.status_code == 200
+        observed = observation.json()
+        assert observed["read_only"] is True
+        assert observed["paper_execution_enabled"] is False
+        assert observed["live_execution_allowed"] is False
+        assert observed["external_order_authority"] is False
+        assert observed["broker_live_order_authority"] is False
+        assert observed["ninjatrader_control_authority"] is False
+        assert {
+            "market_state", "latest_decision", "paper_ready",
+            "simulated_open_positions", "completed_simulated_trades",
+            "realized_pnl", "unrealized_pnl", "decision_trace_count",
+            "current_risk_status",
+        } <= set(observed)
         allowed = client.get("/api/v2/backtesting/dashboard", headers={"Origin": origin})
         rejected = client.get(
             "/api/v2/backtesting/dashboard", headers={"Origin": "http://127.0.0.1:13002"},

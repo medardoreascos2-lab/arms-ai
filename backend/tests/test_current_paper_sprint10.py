@@ -589,3 +589,24 @@ def test_paper_execution_enabled_snapshot_tracks_canonical_authority(
     assert s.get_snapshot()["paper_execution_enabled"] is False
 
     s.shutdown()
+
+
+def test_runtime_health_loss_revokes_paper_authority_fail_closed(
+        api_settings, tmp_path):
+    s, clock = service(tmp_path)
+    deliver(s, clock, event(0))
+    witness(s._runtime)
+    s.control("enable")
+    assert s.get_snapshot()["paper_execution_enabled"] is True
+
+    s.invalidate_health(reason="RUNTIME_HEALTH_LOSS",
+                        initiating_path="TEST_HEALTH_MONITOR")
+    snapshot = s.get_snapshot()
+    assert snapshot["paper_execution_enabled"] is False
+    assert snapshot["paper_ready"] is False
+    assert snapshot["live_execution_allowed"] is False
+    assert snapshot["external_order_authority"] is False
+    assert snapshot["broker_live_order_authority"] is False
+    assert snapshot["ninjatrader_control_authority"] is False
+    assert "CURRENT_PAPER_HEALTH_UNAVAILABLE" in snapshot["readiness_reasons"]
+    s.shutdown()

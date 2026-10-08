@@ -10,6 +10,71 @@ from backend.security.admin_authorization_v2 import AdminAuthorizationV2
 from backend.market_data.sim_binding_contract_v1 import native_sim_status
 
 
+def _operator_observation(service):
+    """One detached read model; this function has no control-plane access."""
+    snapshot = service.get_snapshot()
+    trace = service.get_decision_trace(limit=1)
+    records = trace.get("records") if isinstance(trace, dict) else None
+    latest_trace = records[0] if isinstance(records, list) and records else None
+    latest = latest_trace if isinstance(latest_trace, dict) else (
+        snapshot.get("latest_decision")
+        if isinstance(snapshot.get("latest_decision"), dict) else {})
+    metadata = latest.get("decision_metadata")
+    if not isinstance(metadata, dict):
+        metadata = latest.get("metadata")
+    metadata = metadata if isinstance(metadata, dict) else {}
+    submission = latest.get("submission_outcome")
+    blocking = (submission.get("blocking_reasons")
+                if isinstance(submission, dict) else None)
+    if not isinstance(blocking, list):
+        blocking = latest.get("progression_readiness_reasons")
+    if not isinstance(blocking, list):
+        blocking = snapshot.get("readiness_reasons")
+    account = snapshot.get("account_overview")
+    account = account if isinstance(account, dict) else {}
+    positions = snapshot.get("active_simulated_positions")
+    positions = positions if isinstance(positions, list) else []
+    risk = snapshot.get("risk_evaluation")
+    return {
+        "mode": "CURRENT_MARKET_PAPER",
+        "market_state": {
+            "market_data": snapshot.get("market_data"),
+            "session": snapshot.get("session_state"),
+            "freshness": snapshot.get("data_freshness"),
+        },
+        "latest_decision": {
+            "action": latest.get("action"),
+            "confidence": latest.get("confidence"),
+            "confluence": latest.get("confluence_score",
+                metadata.get("confluence_score")),
+            "trade_quality": latest.get("trade_quality_score"),
+            "blocking_reasons": list(blocking or []),
+            "reason": latest.get("decision_reason", latest.get("reason")),
+        },
+        "paper_ready": snapshot.get("paper_ready") is True,
+        "paper_execution_enabled": (
+            snapshot.get("paper_execution_enabled") is True),
+        "simulated_open_positions": positions,
+        "completed_simulated_trades": snapshot.get("completed_trades", 0),
+        "realized_pnl": account.get("realized_pnl"),
+        "unrealized_pnl": account.get("unrealized_pnl"),
+        "decision_trace_count": trace.get("total", 0),
+        "current_risk_status": {
+            "dashboard_status": snapshot.get("dashboard_status"),
+            "paper_authority_state": snapshot.get("paper_authority_state"),
+            "readiness_reasons": snapshot.get("readiness_reasons"),
+            "risk_evaluation": risk if isinstance(risk, dict) else None,
+        },
+        "live_execution_allowed": snapshot.get("live_execution_allowed"),
+        "external_order_authority": snapshot.get("external_order_authority"),
+        "broker_live_order_authority": snapshot.get(
+            "broker_live_order_authority"),
+        "ninjatrader_control_authority": snapshot.get(
+            "ninjatrader_control_authority"),
+        "read_only": True,
+    }
+
+
 def create_current_paper_app_v1(*, service, admin_token=None, dashboard_origin="http://localhost:3000"):
     if type(service) is not CurrentPaperServiceV1:
         raise TypeError("explicit isolated current PAPER service required")
@@ -38,6 +103,10 @@ def create_current_paper_app_v1(*, service, admin_token=None, dashboard_origin="
     @app.get("/api/v2/backtesting/dashboard")
     def dashboard():
         return {"paper_research": {**service.get_snapshot(), **native_sim_status()}}
+
+    @app.get("/api/v2/paper/operator-observation")
+    def operator_observation():
+        return _operator_observation(service)
 
     @app.get("/api/v2/paper/sim-readiness")
     def sim_readiness():

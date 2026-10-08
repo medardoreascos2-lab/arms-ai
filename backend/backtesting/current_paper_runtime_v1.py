@@ -939,6 +939,9 @@ class CurrentPaperServiceV1:
             reasons = list(dict.fromkeys(reasons))
             snapshot.update(mode="CURRENT_MARKET_PAPER", execution_kind="SIMULATED / PAPER",
                 clock="CURRENT_PROVIDER_CLOSED_BAR", live_execution_allowed=False,
+                external_order_authority=False,
+                broker_live_order_authority=False,
+                ninjatrader_control_authority=False,
                 strategy_bootstrap_mode=(
                     "NONEXECUTING_CONTEXT_ONLY"
                     if self._strategy_bootstrap is not None
