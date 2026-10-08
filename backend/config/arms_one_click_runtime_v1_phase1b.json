@@ -58,7 +58,7 @@
   },
   "installed_exporter": {
     "path": "C:/Users/Thecrazyboss/OneDrive/Documents/NinjaTrader 8/bin/Custom/Indicators/ArmsReadOnlyMarketV1.cs",
-    "sha256": "9051afef79ef6b80d4efe217b7bdef6c455ed6e0528e1f9468ba5638f0943d24"
+    "sha256": "4fa43dd0492ede46572155435f4760db74b700fa90eeafffb13022242eadcf62"
   },
   "bootstrap_evidence": {
     "path": ".arms-dev/analysis-native/869d169e-2a75-4366-aeb7-0ed113265576/certified-chart-catchup.bundle.json",
