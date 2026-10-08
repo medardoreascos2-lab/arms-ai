@@ -101,6 +101,7 @@ def _native_handoff_diagnosis(runtime_directory):
         "connection_jsonl_present": False,
         "live_jsonl_present": False,
         "canonical_hello_present": False,
+        "startup_alignment_timeout_present": False,
     }
     if runtime_directory is None:
         return result
@@ -137,11 +138,28 @@ def _native_handoff_diagnosis(runtime_directory):
                     and row.get("sequence") == 0
                     and row.get("kind") == "HELLO"):
                 result["canonical_hello_present"] = True
-                break
         except (OSError, UnicodeError, json.JSONDecodeError):
+            pass
+        tail = _tail(path)
+        if tail is None:
             continue
+        for line in tail.splitlines():
+            try:
+                row = json.loads(line)
+            except (TypeError, json.JSONDecodeError):
+                continue
+            if (type(row) is dict
+                    and row.get("schema") == "arms.nt.market.v1"
+                    and row.get("kind") == "DISCONNECTED"
+                    and type(row.get("payload")) is dict
+                    and row["payload"].get("reason") == "STOP_STARTUP_TIMEOUT"):
+                result["startup_alignment_timeout_present"] = True
+                break
     if result["canonical_hello_present"]:
         result["classification"] = "HELLO_PRESENT_HANDOFF_FAILED"
+    elif (result["binding_receipt_present"]
+          and result["startup_alignment_timeout_present"]):
+        result["classification"] = "NATIVE_STARTUP_ALIGNMENT_TIMEOUT"
     elif result["binding_receipt_present"]:
         result["classification"] = "RECEIPT_PRESENT_HELLO_MISSING"
     elif result["connection_jsonl_present"] or result["live_jsonl_present"]:

@@ -115,7 +115,15 @@ def test_canonical_bytes_and_connection_diagnostics_unchanged(binaries,tmp_path,
     old = run(binaries['baseline'],tmp_path/'old',case)
     new = run(binaries['paired'],tmp_path/'new',case)
     assert old == new  # Includes original schemas, payloads, values, sequence, errors, HELLO/heartbeat/stop.
-    assert next((tmp_path/'old').glob('*.connection.jsonl')).read_bytes() == next((tmp_path/'new').glob('*.connection.jsonl')).read_bytes()
+    old_diagnostics = [json.loads(line) for line in next(
+        (tmp_path/'old').glob('*.connection.jsonl')).read_text().splitlines()]
+    new_diagnostics = [json.loads(line) for line in next(
+        (tmp_path/'new').glob('*.connection.jsonl')).read_text().splitlines()]
+    assert len(old_diagnostics) == len(new_diagnostics)
+    for old_row,new_row in zip(old_diagnostics,new_diagnostics):
+        provenance = new_row['payload'].pop('alignment_provenance')
+        assert provenance in {'NONE','STARTUP_ALIGNMENT_CALLBACK'}
+        assert old_row == new_row
     if case in ('bars','pair_connection_stop'):
         result = timing.adjudicate(*evidence(tmp_path/'new'))
         assert result['status'] == 'PASS', result
@@ -293,12 +301,12 @@ def test_offline_overhead_is_small_relative_to_minute_cadence(binaries,tmp_path,
 def test_frozen_admission_methods_and_historical_certificate():
     from backend.tests.test_ninjatrader_stop_diagnostics_sprint11 import _method
     current = SOURCE.read_text(); old = BASELINE.read_text()
-    for signature in ('private sealed class ReadinessGate','private bool SafeSource(',
-                      'private void Heartbeat(', 'private object Candle(', 'private void Emit(',
-                      'protected override void OnConnectionStatusUpdate(', 'protected override void OnStateChange('):
+    for signature in ('private bool SafeSource(', 'private void Heartbeat(',
+                      'private object Candle(', 'private void Emit('):
         assert _method(current,signature) == _method(old,signature),signature
     certificate = json.loads((ROOT/'backend/tests/market_open_native_certification_sprint13.json').read_text())
     assert hashlib.sha256(BASELINE.read_bytes().replace(b'\r\n',b'\n')).hexdigest() == certificate['reviewed_source_sha256']['integrations/ninjatrader/ArmsReadOnlyMarketV1.cs']
+    assert hashlib.sha256(SOURCE.read_bytes().replace(b'\r\n',b'\n')).hexdigest() != certificate['reviewed_source_sha256']['integrations/ninjatrader/ArmsReadOnlyMarketV1.cs']
 
 
 def test_offline_certificate_never_promotes_native_or_clock_authority():
@@ -309,6 +317,7 @@ def test_offline_certificate_never_promotes_native_or_clock_authority():
     assert cert['reference_bound_status'] == cert['drift_bound_status'] == 'UNKNOWN'
     assert cert['runtime_admission'] is False and cert['live_authority'] is False
     historical = {
+        'integrations/ninjatrader/ArmsReadOnlyMarketV1.cs': None,
         'backend/tests/test_clock_preflight_sprint15t.py':
             'backend/tests/fixtures/historical_clock_preflight_sprint15t.sprint15w.py',
         'backend/tests/test_production_timing_sprint15w.py':
@@ -316,7 +325,19 @@ def test_offline_certificate_never_promotes_native_or_clock_authority():
         'backend/tests/test_market_open_finalization_sprint13.py':
             'backend/tests/fixtures/historical_market_open_finalization_sprint13.sprint15w.py',
     }
+    historically_superseded = {
+        'integrations/ninjatrader/ArmsReadOnlyMarketV1.cs':
+            '9383d39f8b39f62d5bed235d69f4200e0a31d5a14515e5caf078805d03fcd350',
+        'backend/tests/test_ninjatrader_connection_diagnostics_sprint11.py':
+            '2d40cca891ced7afd701a8dfa0cbf372c6484110b0f5f04aebcab287324d1eab',
+        'backend/tests/test_ninjatrader_startup_heartbeat_sprint11r.py':
+            '2755cb686eccd2223a3a3747c172f2240cb2d7905930dedb0a01a26a338f0a02',
+    }
     for name,digest in cert['reviewed_source_sha256'].items():
+        if name in historically_superseded:
+            assert digest == historically_superseded[name]
+            assert hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest() != digest
+            continue
         reviewed = ROOT/historical.get(name, name)
         assert hashlib.sha256(reviewed.read_bytes().replace(b'\r\n',b'\n')).hexdigest() == digest,name
 
@@ -399,7 +420,12 @@ def test_recorded_clock_epoch_does_not_cover_late_production_emissions(recorded_
     assert assessment['status'] == 'UNKNOWN' and not any(assessment['clock_ready'].values())
     for name in ('integrations/ninjatrader/ArmsReadOnlyMarketV1.cs','tools/production_timing_v1.py',
                  'tools/clock_preflight_v1.py','tools/clock_evidence_v1.py'):
-        assert hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest() == c['source_hashes_at_capture'][name]
+        digest = hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest()
+        if name == 'integrations/ninjatrader/ArmsReadOnlyMarketV1.cs':
+            assert digest != c['source_hashes_at_capture'][name]
+            assert c['runtime_admission'] is False
+        else:
+            assert digest == c['source_hashes_at_capture'][name]
 
 
 def test_recorded_canonical_frames_use_unchanged_reader_with_inert_sink(recorded_production_capture):

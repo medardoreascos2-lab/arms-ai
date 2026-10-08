@@ -40,6 +40,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         private int bindingGeneration, lastAcceptedBindingGeneration;
         private string lastAcceptedBindingRunId, lastAcceptedBindingNonce, lastAcceptedBindingClaimSha256, lastAcceptedBindingRuntimeId;
         private bool bindingSessionActive, bindingPollQueued;
+        private Connection startupAlignmentSource;
+        private string startupAlignmentPrice, startupAlignmentStatus, startupAlignmentProvider;
 
         [NinjaScriptProperty]
         [Display(Name = "One Click binding file", Order = 1, GroupName = "ARMS read only")]
@@ -182,7 +184,12 @@ namespace NinjaTrader.NinjaScript.Indicators
                         bindingGeneration = priorGeneration;
                         throw new InvalidOperationException();
                     }
-                    if (bindingGeneration == lastAcceptedBindingGeneration) return;
+                    if (bindingGeneration == lastAcceptedBindingGeneration)
+                    {
+                        if (bindingSessionActive && started && readiness.State == "STARTING")
+                            ObserveStartupAlignmentSnapshot();
+                        return;
+                    }
                     if (started) CloseObservation("BINDING_GENERATION_REPLACED", "NONE");
                     lastAcceptedBindingGeneration = bindingGeneration;
                     lastAcceptedBindingRunId = bindingRunId;
@@ -225,6 +232,11 @@ namespace NinjaTrader.NinjaScript.Indicators
                     FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false));
                 connectionWriter.AutoFlush = true;
                 if (!String.IsNullOrWhiteSpace(bindingNonce)) WriteBindingReceipt();
+                if (bindingSessionActive)
+                {
+                    ObserveStartupAlignmentSnapshot();
+                    if (failed) return;
+                }
                 firstRealtimeBar = -1;
                 startupStage = "DEADLINE_SCHEDULE";
                 startupDeadline = new System.Threading.Timer(_ => { lock (sync) {
@@ -240,6 +252,71 @@ namespace NinjaTrader.NinjaScript.Indicators
                 } }));
             }
             catch (Exception error) { Stop("STARTUP_" + startupStage + "_FAILED", ErrorCode(error)); }
+        }
+
+        private void ObserveStartupAlignmentSnapshot()
+        {
+            if (!bindingSessionActive || failed || writer == null || connectionWriter == null
+                || readiness.State != "STARTING") return;
+            if (!System.Threading.Monitor.TryEnter(Connection.Connections)) return;
+            try
+            {
+                var selected = source;
+                var feeds = Connection.Connections.Where(c => c != null
+                    && c.InstrumentTypes.Contains(InstrumentType.Future)).ToArray();
+                var registered = feeds.Length == 1 ? feeds[0] : null;
+                var price = selected == null ? "UNKNOWN" : StatusName(selected.PriceStatus);
+                var status = selected == null ? "UNKNOWN" : StatusName(selected.Status);
+                var provider = ProviderName(selected);
+                var priceAfter = selected == null ? "UNKNOWN" : StatusName(selected.PriceStatus);
+                var statusAfter = selected == null ? "UNKNOWN" : StatusName(selected.Status);
+                var providerAfter = ProviderName(selected);
+                var sourceStable = selected != null && Object.ReferenceEquals(source, selected)
+                    && Object.ReferenceEquals(registered, selected);
+                var scalarStable = price == priceAfter && status == statusAfter
+                    && provider == providerAfter;
+                var known = !new[] { price, status, provider, priceAfter, statusAfter,
+                    providerAfter }.Contains("UNKNOWN");
+                var identity = sourceStable && provider == ExpectedProvider
+                    && providerAfter == ExpectedProvider && ExpectedProvider == "Provider31";
+                var healthy = price == "Connected" && status == "Connected"
+                    && priceAfter == "Connected" && statusAfter == "Connected";
+                var sameCandidateSource = startupAlignmentSource == null
+                    || Object.ReferenceEquals(startupAlignmentSource, selected);
+                var sameCandidateValues = startupAlignmentSource == null
+                    || (startupAlignmentPrice == price && startupAlignmentStatus == status
+                        && startupAlignmentProvider == provider);
+                var decision = readiness.Snapshot(
+                    healthy, identity, known, scalarStable, sameCandidateSource,
+                    sameCandidateValues,
+                    startupClock.ElapsedMilliseconds);
+                if (startupAlignmentSource == null && decision == "WAIT_STARTUP_ALIGNMENT"
+                    && healthy && identity && known && scalarStable)
+                {
+                    startupAlignmentSource = selected;
+                    startupAlignmentPrice = price;
+                    startupAlignmentStatus = status;
+                    startupAlignmentProvider = provider;
+                }
+                connectionWriter.WriteLine(new JavaScriptSerializer().Serialize(new {
+                    schema = "arms.nt.connection-diagnostic.v1", session = session,
+                    sequence = connectionSequence++, event_time = DateTime.UtcNow.ToString("o"),
+                    callback_received_time = (string)null, market_next_sequence = sequence,
+                    kind = "STARTUP_ALIGNMENT_SNAPSHOT", payload = new {
+                        source_price_status = price, source_connection_status = status,
+                        source_price_status_after = priceAfter, source_connection_status_after = statusAfter,
+                        source_present = selected != null, source_registered = sourceStable,
+                        source_snapshot_stable = scalarStable, source_provider = provider,
+                        source_provider_after = providerAfter,
+                        same_candidate_source = sameCandidateSource,
+                        same_candidate_values = sameCandidateValues,
+                        observation_elapsed_ms = startupClock.ElapsedMilliseconds,
+                        alignment_provenance = readiness.AlignmentProvenance,
+                        decision = decision } }));
+                if (decision != "CONTINUE" && decision != "WAIT_STARTUP_ALIGNMENT") Stop(decision);
+            }
+            catch (Exception error) { Stop("STOP_STARTUP_ALIGNMENT_SNAPSHOT_FAILED", ErrorCode(error)); }
+            finally { System.Threading.Monitor.Exit(Connection.Connections); }
         }
 
         private static string Text(IDictionary<string, object> value, string key)
@@ -651,7 +728,9 @@ namespace NinjaTrader.NinjaScript.Indicators
                             source_price_status_after = currentPriceAfter, source_connection_status_after = currentStatusAfter,
                             same_source = same, source_present = selected != null, callback_present = callback != null,
                             source_snapshot_stable = stable, callback_provider = callbackProvider,
-                            source_provider = selectedProvider, decision = decision } }));
+                            source_provider = selectedProvider,
+                            alignment_provenance = readiness.AlignmentProvenance,
+                            decision = decision } }));
                     if (decision != "CONTINUE" && decision != "WAIT_STARTUP_ALIGNMENT") Stop(decision);
                 }
                 catch (Exception error) { Stop("STOP_CONNECTION_DIAGNOSTIC_FAILED", ErrorCode(error)); }
@@ -674,6 +753,9 @@ namespace NinjaTrader.NinjaScript.Indicators
         {
             public string State = "STARTING";
             private bool aligned;
+            private bool snapshotCandidate;
+            private double snapshotObservedAt;
+            public string AlignmentProvenance = "NONE";
             public string Event(bool healthy, bool identity, bool known, bool stable,
                 string price, string status, string previousPrice, string previousStatus)
             {
@@ -696,7 +778,43 @@ namespace NinjaTrader.NinjaScript.Indicators
                     return "WAIT_STARTUP_ALIGNMENT";
                 }
                 aligned = true;
+                if (State == "STARTING") AlignmentProvenance = "STARTUP_ALIGNMENT_CALLBACK";
                 return "CONTINUE"; // A callback cannot grant READY.
+            }
+
+            public string Snapshot(bool healthy, bool identity, bool known, bool stable,
+                bool sameCandidateSource, bool sameCandidateValues, double elapsed)
+            {
+                if (State == "STOPPED") return "STOP_LATCHED";
+                if (State != "STARTING") return "CONTINUE";
+                if (aligned) return "CONTINUE";
+                if (!known) return Revoke("STOP_UNKNOWN_CONNECTION_STATE");
+                if (!identity) return Revoke("STOP_CONNECTION_IDENTITY_MISMATCH");
+                if (snapshotCandidate && !sameCandidateSource)
+                    return Revoke("STOP_CONNECTION_IDENTITY_MISMATCH");
+                if (!stable || (snapshotCandidate && !sameCandidateValues))
+                    return Revoke("STOP_UNSTABLE_CONNECTION_STATE");
+                if (!healthy)
+                {
+                    if (snapshotCandidate) return Revoke("STOP_CURRENT_CONNECTION_NOT_READY");
+                    return "WAIT_STARTUP_ALIGNMENT";
+                }
+                if (!snapshotCandidate)
+                {
+                    snapshotCandidate = true;
+                    snapshotObservedAt = elapsed;
+                    return "WAIT_STARTUP_ALIGNMENT";
+                }
+                double separation = elapsed - snapshotObservedAt;
+                if (separation < 250) return "WAIT_STARTUP_ALIGNMENT";
+                if (separation > 1000)
+                {
+                    snapshotObservedAt = elapsed;
+                    return "WAIT_STARTUP_ALIGNMENT";
+                }
+                aligned = true;
+                AlignmentProvenance = "STARTUP_ALIGNMENT_STABLE_SNAPSHOT";
+                return "CONTINUE";
             }
 
             public bool Poll(bool healthy, double elapsed)
@@ -789,6 +907,8 @@ namespace NinjaTrader.NinjaScript.Indicators
             started = false;
             helloSent = false;
             source = null;
+            startupAlignmentSource = null;
+            startupAlignmentPrice = startupAlignmentStatus = startupAlignmentProvider = null;
             readiness = new ReadinessGate();
             startupClock.Reset();
             sequence = 0;

@@ -63,7 +63,7 @@ public class StartupHarness : Indicator {
     private long sequence;
     private int firstRealtimeBar;
     private bool failed, sourceHealthy = true;
-    private bool started, helloSent;
+    private bool started, helloSent, bindingSessionActive;
     private ReadinessGate readiness = new ReadinessGate();
     private TimingEvidence timing;
     private Stopwatch startupClock = new Stopwatch();
@@ -81,6 +81,7 @@ public class StartupHarness : Indicator {
     private bool SafeSource() { return sourceHealthy; }
     private void StartBindingWatcher() { throw new InvalidOperationException(); }
     private void WriteBindingReceipt() { throw new InvalidOperationException(); }
+    private void ObserveStartupAlignmentSnapshot() { throw new InvalidOperationException(); }
     private void Print(string text) {}
 ''' + methods + r'''
     public static void Main(string[] args) {

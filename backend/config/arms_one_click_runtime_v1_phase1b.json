@@ -83,7 +83,7 @@
     },
     "tools/arms_one_click_operator_v1.py": {
       "path": "tools/arms_one_click_operator_v1.py",
-      "sha256": "1740b282ce451c8989800c96ef688ea2ebfd834ebb07b72fe73666bc9d640777"
+      "sha256": "afbe4c090ec43fc734d56e6fb007239ba483cf3521906ad63281185114aa68d1"
     },
     "tools/arms_one_click_runtime_v1.py": {
       "path": "tools/arms_one_click_runtime_v1.py",

@@ -8,7 +8,7 @@ import re
 from backend.market_data.analysis_time_profile_v1 import require
 
 BOUNDARY = '#region NinjaScript generated code. Neither change nor remove.'
-AUTHORED_SHA256 = '5542b9b5ae859af42ad376e04b2ac68c300bf22a246f9efe0948a6512c75e12b'
+AUTHORED_SHA256 = '116017911409a46be37d312c8eb48c13196e610a65b662a5ef75f2d5478d449b'
 WRAPPER_TOKENS_SHA256 = '2486b08e800547e39c02fa8da0aa59637b9408eca89ff69c35f1e3fa5b4d05c3'
 
 

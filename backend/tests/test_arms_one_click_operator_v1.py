@@ -512,12 +512,14 @@ def test_native_hello_timeout_stops_without_retrying_apply(tmp_path):
         "connection_jsonl_present": False,
         "live_jsonl_present": False,
         "canonical_hello_present": False,
+        "startup_alignment_timeout_present": False,
     }
 
 
 @pytest.mark.parametrize(("evidence_kind", "classification"), [
     ("receipt", "RECEIPT_PRESENT_HELLO_MISSING"),
     ("hello", "HELLO_PRESENT_HANDOFF_FAILED"),
+    ("startup_timeout", "NATIVE_STARTUP_ALIGNMENT_TIMEOUT"),
 ])
 def test_native_hello_timeout_diagnostic_classifies_existing_evidence(
         tmp_path, evidence_kind, classification):
@@ -528,13 +530,21 @@ def test_native_hello_timeout_diagnostic_classifies_existing_evidence(
         callback(zero({"state": phase3.APPLYING, "apply_count": 1}))
         inbox = tmp_path / "native" / RUNTIME_ID / "inbox"
         session = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
-        if evidence_kind == "receipt":
+        if evidence_kind in {"receipt", "startup_timeout"}:
             (inbox / (session + ".one-click-binding.json")).write_text(
                 "{}\n", encoding="utf-8")
             native_apply_callback({
                 "kind": "BINDING_RECEIPT",
                 "native_session_id": session,
             })
+            if evidence_kind == "startup_timeout":
+                row = {
+                    "schema": "arms.nt.market.v1", "session": session,
+                    "sequence": 0, "event_time": 1, "kind": "DISCONNECTED",
+                    "payload": {"reason": "STOP_STARTUP_TIMEOUT"},
+                }
+                (inbox / (session + ".jsonl")).write_text(
+                    json.dumps(row) + "\n", encoding="utf-8")
         else:
             row = {
                 "schema": "arms.nt.market.v1", "session": session,

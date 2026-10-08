@@ -85,9 +85,12 @@ class Host:NinjaTrader.NinjaScript.Indicators.ArmsReadOnlyMarketV1 {
 class Harness {
  static string Read(string path){using(var f=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var r=new StreamReader(f))return r.ReadToEnd();}
  static void Check(bool ok){if(!ok)throw new Exception("Exporter invariant failed");}
+ static void SetField(object target,string name,object value){target.GetType().BaseType.GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).SetValue(target,value);}
+ static void Snapshot(object target){target.GetType().BaseType.GetMethod("ObserveStartupAlignmentSnapshot",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(target,null);}
  public static void Main(string[] args){
   string c=args[0]; var s=new Connection(); Connection.Connections.Add(s);
   var h=new Host(); h.Step(State.SetDefaults); h.OutputDirectory=args[1]; h.ExpectedProvider="Provider31";
+  bool passive=c.StartsWith("passive_"); if(passive)SetField(h,"bindingSessionActive",true);
   h.Step(State.Realtime); h.ChartControl.Dispatcher.Drain();
   var timer=System.Windows.Threading.DispatcherTimer.Last; var deadline=Doubles.Deadline.Last;
   h.Bar(0); h.Bar(1); h.Bar(2); // No candle admission during startup.
@@ -95,10 +98,18 @@ class Harness {
   Check(Read(path)=="");
   var e=new ConnectionStatusEventArgs{Connection=s,PriceStatus=ConnectionStatus.Connecting,Status=ConnectionStatus.Connecting,
      PreviousPriceStatus=ConnectionStatus.Disconnected,PreviousStatus=ConnectionStatus.Disconnected};
-  if(c!="no_callback_timeout")h.Send(e);
+  if(c!="no_callback_timeout" && !passive)h.Send(e);
   if(c=="startup_duplicates")h.Send(e);
   Doubles.Clock.Now=100; timer.Fire(); h.Bar(3); Check(Read(path)=="");
-  if(c=="timeout" || c=="deadline_without_heartbeat" || c=="no_callback_timeout"){
+  if(passive){
+   if(c=="passive_source_change"){Connection.Connections.Clear();Connection.Connections.Add(new Connection());}
+   if(c=="passive_provider_change")s.Options.Provider=Provider.Other;
+   if(c=="passive_price_not_connected")s.price=ConnectionStatus.Connecting;
+   if(c=="passive_status_not_connected")s.status=ConnectionStatus.Connecting;
+   if(c=="passive_unknown")s.price=(ConnectionStatus)999;
+   if(c=="passive_unstable")s.Flip=true;
+   Doubles.Clock.Now=500;if(c!="passive_single_snapshot")Snapshot(h);timer.Fire();
+  } else if(c=="timeout" || c=="deadline_without_heartbeat" || c=="no_callback_timeout"){
    Doubles.Clock.Now=30000; if(c=="timeout")timer.Fire();else deadline.Fire();
   } else {
    e.PreviousPriceStatus=e.PreviousStatus=ConnectionStatus.Connecting;e.PriceStatus=e.Status=ConnectionStatus.Connected;
@@ -138,7 +149,8 @@ class Harness {
   var before=Read(path);h.Step(State.Terminated);timer.Fire();deadline.Fire();
   Check(!timer.Running && deadline.Disposed);
   using(var f=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.None)){}
-  Console.WriteLine(new JavaScriptSerializer().Serialize(new{market=before,final=Read(path)}));
+  var diagnosticPath=Directory.GetFiles(args[1],"*.connection.jsonl").Single();
+  Console.WriteLine(new JavaScriptSerializer().Serialize(new{market=before,final=Read(path),diagnostic=Read(diagnosticPath)}));
  }
 }''')
     fw = Path("C:/Windows/Microsoft.NET/Framework64/v4.0.30319")
@@ -160,7 +172,11 @@ class Harness {
     ("realtime_reentry",1,0,True),
     ("late_transition_duplicate",1,0,True), ("recovery_callback",1,0,True),
     ("historical_reentry",1,0,True), ("no_callback_timeout",0,0,True), ("startup_duplicates",1,0,False),
-    ("registry_busy",1,0,True),
+    ("registry_busy",1,0,True), ("passive_connected",1,0,False),
+    ("passive_single_snapshot",0,0,False), ("passive_source_change",0,0,True),
+    ("passive_provider_change",0,0,True), ("passive_price_not_connected",0,0,True),
+    ("passive_status_not_connected",0,0,True), ("passive_unknown",0,0,True),
+    ("passive_unstable",0,0,True),
 ])
 def test_whole_exporter_admission(exporter_harness,tmp_path,case,hello,closed,stop):
     result = subprocess.run([str(exporter_harness),case,str(tmp_path)],capture_output=True,text=True)
@@ -181,6 +197,15 @@ def test_whole_exporter_admission(exporter_harness,tmp_path,case,hello,closed,st
         callbacks=[json.loads(line) for line in sidecar.read_text().splitlines()]
         assert [r["sequence"] for r in callbacks]==[0,1,2,3]
         assert [r["payload"]["decision"] for r in callbacks]==["WAIT_STARTUP_ALIGNMENT"]*2+["CONTINUE"]*2
+    if case == "passive_connected":
+        diagnostics = [json.loads(line) for line in data["diagnostic"].splitlines()]
+        assert [row["kind"] for row in diagnostics] == [
+            "STARTUP_ALIGNMENT_SNAPSHOT", "STARTUP_ALIGNMENT_SNAPSHOT"]
+        assert [row["payload"]["decision"] for row in diagnostics] == [
+            "WAIT_STARTUP_ALIGNMENT", "CONTINUE"]
+        assert diagnostics[-1]["payload"]["alignment_provenance"] == \
+            "STARTUP_ALIGNMENT_STABLE_SNAPSHOT"
+        assert rows[0]["kind"] == "HELLO" and rows[0]["sequence"] == 0
     if "timeout" in case or case=="deadline_without_heartbeat" or case=="late_heartbeat":
         assert rows[-1]["payload"]["reason"]=="STOP_STARTUP_TIMEOUT"
 

@@ -270,7 +270,7 @@ def test_actual_native_callback_adjudication(native_callback_harness, case, deci
             "callback_previous_connection_status", "source_price_status", "source_connection_status",
             "source_price_status_after", "source_connection_status_after", "same_source",
             "source_present", "callback_present", "source_snapshot_stable", "callback_provider",
-            "source_provider", "decision"}
+                "source_provider", "alignment_provenance", "decision"}
     if case == "previous_disconnected_connected":
         assert diagnostics[0]["payload"]["callback_previous_price_status"] == "Disconnected"
     if case == "disconnected_connected":

@@ -22,6 +22,25 @@ def readiness_harness(tmp_path_factory):
         var g = new ReadinessGate();
         Check(!g.Poll(true, 0)); // No callback evidence; no admission.
         var c = args[0];
+        if (c.StartsWith("snapshot_")) {
+            Check(g.Snapshot(true,true,true,true,true,true,0)=="WAIT_STARTUP_ALIGNMENT");
+            Check(!g.Poll(true,0));
+            if(c=="snapshot_single")return;
+            if(c=="snapshot_source_change")Check(g.Snapshot(true,true,true,true,false,true,500)=="STOP_CONNECTION_IDENTITY_MISMATCH");
+            else if(c=="snapshot_provider_change")Check(g.Snapshot(true,false,true,true,true,false,500)=="STOP_CONNECTION_IDENTITY_MISMATCH");
+            else if(c=="snapshot_unknown")Check(g.Snapshot(true,true,false,true,true,false,500)=="STOP_UNKNOWN_CONNECTION_STATE");
+            else if(c=="snapshot_unstable")Check(g.Snapshot(true,true,true,false,true,true,500)=="STOP_UNSTABLE_CONNECTION_STATE");
+            else if(c=="snapshot_price_not_connected")Check(g.Snapshot(false,true,true,true,true,false,500)=="STOP_UNSTABLE_CONNECTION_STATE");
+            else {
+                double second=c=="snapshot_too_soon"?100:c=="snapshot_too_late"?1500:500;
+                string expected=(second>=250 && second<=1000)?"CONTINUE":"WAIT_STARTUP_ALIGNMENT";
+                Check(g.Snapshot(true,true,true,true,true,true,second)==expected);
+                if(expected!="CONTINUE")Check(g.Snapshot(true,true,true,true,true,true,second+500)=="CONTINUE");
+                Check(g.AlignmentProvenance=="STARTUP_ALIGNMENT_STABLE_SNAPSHOT");
+                Check(g.Poll(true,second+500));Check(g.State=="READY");
+            }
+            return;
+        }
         bool healthy=true, identity=true, known=true, stable=true;
         string price="Connected", status="Connected", previous="Connecting";
         if (c == "provider_mismatch" || c == "source_mismatch") identity=false;
@@ -41,6 +60,7 @@ def readiness_harness(tmp_path_factory):
         bool safe=healthy && identity && known && stable && price=="Connected" && status=="Connected";
         Check(g.State != "READY"); // Callback grants nothing.
         Check(g.Poll(healthy, 5000) == safe);
+        if(safe)Check(g.AlignmentProvenance=="STARTUP_ALIGNMENT_CALLBACK");
         if (c == "duplicates") {
             for(int i=0;i<50;i++) Check(g.Event(true,true,true,true,"Connected","Connected","Connected","Connected")=="CONTINUE");
         }
@@ -67,3 +87,14 @@ def readiness_harness(tmp_path_factory):
 def test_readiness_invariants(readiness_harness, case):
     result = subprocess.run([str(readiness_harness), case], capture_output=True, text=True)
     assert result.returncode == 0, "Isolated readiness invariant failed"
+
+
+@pytest.mark.parametrize("case", [
+    "snapshot_single", "snapshot_stable", "snapshot_too_soon",
+    "snapshot_too_late", "snapshot_source_change", "snapshot_provider_change",
+    "snapshot_unknown", "snapshot_unstable", "snapshot_price_not_connected",
+])
+def test_stable_snapshot_alignment_invariants(readiness_harness, case):
+    result = subprocess.run(
+        [str(readiness_harness), case], capture_output=True, text=True)
+    assert result.returncode == 0, "Snapshot alignment invariant failed"

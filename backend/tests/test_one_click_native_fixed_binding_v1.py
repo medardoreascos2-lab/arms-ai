@@ -51,6 +51,17 @@ def test_passive_binding_validation_remains_fail_closed_and_observation_only():
         assert "revokedAuthorities.Any" in source
 
 
+def test_read_only_passive_startup_requires_two_bounded_stable_snapshots():
+    assert "ObserveStartupAlignmentSnapshot();" in READ_ONLY
+    assert 'kind = "STARTUP_ALIGNMENT_SNAPSHOT"' in READ_ONLY
+    assert 'ExpectedProvider == "Provider31"' in READ_ONLY
+    assert "Object.ReferenceEquals(startupAlignmentSource, selected)" in READ_ONLY
+    assert "if (separation < 250)" in READ_ONLY
+    assert "if (separation > 1000)" in READ_ONLY
+    assert 'AlignmentProvenance = "STARTUP_ALIGNMENT_STABLE_SNAPSHOT"' in READ_ONLY
+    assert 'AlignmentProvenance = "STARTUP_ALIGNMENT_CALLBACK"' in READ_ONLY
+
+
 def test_binding_paths_are_exact_uuid_children_and_reparse_points_are_blocked():
     for source in (READ_ONLY, CATCHUP):
         assert 'Path.Combine(runtime, "inbox")' in source
