@@ -58,7 +58,7 @@
   },
   "installed_exporter": {
     "path": "C:/Users/Thecrazyboss/OneDrive/Documents/NinjaTrader 8/bin/Custom/Indicators/ArmsReadOnlyMarketV1.cs",
-    "sha256": "231c2d0aa465e6ae4738474f2d55d6c6599263344f0bb7ba98fc011f37dfa2a3"
+    "sha256": "9051afef79ef6b80d4efe217b7bdef6c455ed6e0528e1f9468ba5638f0943d24"
   },
   "bootstrap_evidence": {
     "path": ".arms-dev/analysis-native/869d169e-2a75-4366-aeb7-0ed113265576/certified-chart-catchup.bundle.json",
@@ -66,7 +66,7 @@
   },
   "startup_chart_catchup_source": {
     "path": "C:/Users/Thecrazyboss/OneDrive/Documents/NinjaTrader 8/bin/Custom/Indicators/ArmsChartCatchupBridgeV1.cs",
-    "sha256": "809cefa3f3bca87c84995132a006d1b0b00e7c94e5835a291559f3e3fcfe9329"
+    "sha256": "51b6f38a4376d071c42e29edd8ba929533e065393891909db7cb2ddd90c32340"
   },
   "native_spec": {
     "path": "backend/config/native_capture_spec_20261006T223000Z.json",
