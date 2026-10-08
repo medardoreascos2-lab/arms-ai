@@ -672,3 +672,39 @@ def test_status_rejects_tampered_authority_evidence(tmp_path):
     _write_json(events_path, events)
     with pytest.raises(phase3.Phase3Blocked, match="PHASE3_EVENT_CHAIN_INVALID"):
         phase3.status(run)
+
+
+def test_revoked_binding_generation_allows_only_exact_next_generation(tmp_path):
+    _, run, *_ = _prepare(tmp_path)
+    _, manifest, handoff, handoff_sha = phase3._load_handoff(run)
+    binding_path = phase3._binding_file(manifest)
+    _write_json(binding_path, phase3._revoked_binding(
+        run_id=handoff["run_id"],
+        native_runtime_id=handoff["runtime"]["native_runtime_id"],
+        timestamp=NOW.isoformat().replace("+00:00", "Z"),
+        generation=7,
+    ))
+
+    assert phase3._next_binding_generation(manifest) == 8
+    claim = phase3._binding_claim(
+        handoff, handoff_sha, {}, NOW, b"g" * 32, generation=8)
+    claim_sha = phase3._publish_active_binding(manifest, claim)
+    assert claim_sha == phase3._digest(claim)
+
+    phase3._revoke_binding(
+        manifest,
+        run_id=handoff["run_id"],
+        native_runtime_id=handoff["runtime"]["native_runtime_id"],
+        clock=lambda: NOW,
+        expected_claim_sha256=claim_sha,
+    )
+    revoked = json.loads(binding_path.read_text(encoding="utf-8"))
+    assert revoked["state"] == "REVOKED"
+    assert revoked["generation"] == 8
+
+    replay = phase3._binding_claim(
+        handoff, handoff_sha, {}, NOW, b"h" * 32, generation=8)
+    with pytest.raises(
+            phase3.Phase3Blocked,
+            match="NATIVE_BINDING_GENERATION_INVALID"):
+        phase3._publish_active_binding(manifest, replay)

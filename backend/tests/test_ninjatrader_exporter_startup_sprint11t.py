@@ -24,7 +24,7 @@ using System; using System.IO; using System.Linq; using System.Collections.Gener
 using System.Reflection; using System.Web.Script.Serialization;
 using NinjaTrader.Cbi; using NinjaTrader.NinjaScript;
 namespace Doubles {
- public class Clock { public static long Now; public long ElapsedMilliseconds { get { return Now; } } public void Start() {} }
+ public class Clock { public static long Now; public long ElapsedMilliseconds { get { return Now; } } public void Start() {} public void Restart() {} public void Reset() {} }
  public class Deadline : IDisposable {
   public static Deadline Last; public bool Disposed; private Action<object> action;
   public Deadline(Action<object> a, object s, int due, int period) { Last=this; action=a; }
@@ -74,6 +74,7 @@ namespace NinjaTrader.NinjaScript {
   public double[] Open={100,100},High={101,101},Low={99,99},Close={100,100},Volume={1,1};
   public DateTime[] Time={DateTime.UtcNow,DateTime.UtcNow.AddMinutes(-1)};
   protected virtual void OnStateChange(){} protected virtual void OnBarUpdate(){} protected virtual void OnConnectionStatusUpdate(ConnectionStatusEventArgs e){}
+  protected void TriggerCustomEvent(Action<object> action, object state){action(state);}
   protected void Print(string text){if(text.Contains("PRIVATE_SENTINEL"))throw new Exception("Leak");}
  }
 }

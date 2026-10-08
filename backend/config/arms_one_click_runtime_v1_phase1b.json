@@ -83,7 +83,7 @@
     },
     "tools/arms_one_click_operator_v1.py": {
       "path": "tools/arms_one_click_operator_v1.py",
-      "sha256": "181911f80ebf0299adc20f8d39398201ac282e65483f3b7ee06628158c44f15d"
+      "sha256": "1740b282ce451c8989800c96ef688ea2ebfd834ebb07b72fe73666bc9d640777"
     },
     "tools/arms_one_click_runtime_v1.py": {
       "path": "tools/arms_one_click_runtime_v1.py",
@@ -95,7 +95,7 @@
     },
     "tools/arms_one_click_runtime_phase3_v1.py": {
       "path": "tools/arms_one_click_runtime_phase3_v1.py",
-      "sha256": "ede3375f6c156ea38c780bd1b21de554c5c873e4cf793645ea434525819960b1"
+      "sha256": "e19d4743f2d9c415d50a06c63d8725770e8777698b8c1014894920035f309932"
     },
     "tools/start_native_current_paper_v1.py": {
       "path": "tools/start_native_current_paper_v1.py",

@@ -30,12 +30,16 @@ namespace NinjaTrader.NinjaScript.Indicators
         private int firstRealtimeBar;
         private bool failed;
         private Connection source;
-        private readonly ReadinessGate readiness = new ReadinessGate();
+        private ReadinessGate readiness = new ReadinessGate();
         private readonly Stopwatch startupClock = new Stopwatch();
         private System.Threading.Timer startupDeadline;
+        private System.Threading.Timer bindingWatcher;
         private bool helloSent, started;
         private TimingEvidence timing;
-        private string bindingRuntimeId, bindingNonce, bindingClaimSha256, bindingHandoffSha256;
+        private string bindingRunId, bindingRuntimeId, bindingNonce, bindingClaimSha256, bindingHandoffSha256;
+        private int bindingGeneration, lastAcceptedBindingGeneration;
+        private string lastAcceptedBindingRunId, lastAcceptedBindingNonce, lastAcceptedBindingClaimSha256, lastAcceptedBindingRuntimeId;
+        private bool bindingSessionActive, bindingPollQueued;
 
         [NinjaScriptProperty]
         [Display(Name = "One Click binding file", Order = 1, GroupName = "ARMS read only")]
@@ -67,69 +71,175 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 lock (sync)
                 {
-                    if (started || failed) { Stop("STOP_LIFECYCLE_REENTRY"); return; }
-                    started = true;
-                    startupClock.Start();
-                    string startupStage = "SOURCE_VALIDATION";
-                    try
-                    {
-                        if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) ResolveOneClickBinding();
-                        contract = Instrument.FullName;
-                        template = Bars.TradingHours.Name;
-                        expiry = Instrument.Expiry.ToString("yyyy-MM-dd");
-                        if (String.IsNullOrWhiteSpace(OutputDirectory) || !Path.IsPathRooted(OutputDirectory)
-                            || Path.GetPathRoot(OutputDirectory).StartsWith(@"\\")
-                            || !Directory.Exists(OutputDirectory)
-                            || !SafeSource()) throw new InvalidOperationException();
-                        session = Guid.NewGuid().ToString();
-                        startupStage = "FILE_OPEN";
-                        var file = new FileStream(Path.Combine(OutputDirectory, session + ".jsonl"),
-                            FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                        writer = new StreamWriter(file, new UTF8Encoding(false));
-                        writer.AutoFlush = true;
-                        startupStage = "CONNECTION_DIAGNOSTIC_OPEN";
-                        connectionWriter = new StreamWriter(new FileStream(
-                            Path.Combine(OutputDirectory, session + ".connection.jsonl"),
-                            FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false));
-                        connectionWriter.AutoFlush = true;
-                        if (!String.IsNullOrWhiteSpace(bindingNonce)) WriteBindingReceipt();
-                        firstRealtimeBar = -1;
-                        // No HELLO (reader readiness) or candles during STARTING.
-                        startupStage = "DEADLINE_SCHEDULE";
-                        startupDeadline = new System.Threading.Timer(_ => {
-                            lock (sync)
-                            {
-                                if (!failed && readiness.State == "STARTING") Stop("STOP_STARTUP_TIMEOUT");
-                            }
-                        }, null, Math.Max(1, 30000 - (int)startupClock.ElapsedMilliseconds), System.Threading.Timeout.Infinite);
-                        // Indicator dispatcher timer, as used by the native BarTimer.
-                        startupStage = "HEARTBEAT_SCHEDULE";
-                        if (ChartControl == null) { Stop("CHART_UNAVAILABLE"); return; }
-                        ChartControl.Dispatcher.InvokeAsync(new Action(() => {
-                            lock (sync)
-                            {
-                                if (failed || writer == null) return;
-                                try
-                                {
-                                    timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                                    timer.Tick += Heartbeat;
-                                    timer.Start();
-                                }
-                                catch (Exception error) { Stop("HEARTBEAT_START_FAILED", ErrorCode(error)); }
-                            }
-                        }));
-                    }
-                    catch (Exception error) { Stop("STARTUP_" + startupStage + "_FAILED", ErrorCode(error)); }
+                    if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) StartBindingWatcher();
+                    else if (started) Stop("STOP_LIFECYCLE_REENTRY");
+                    else StartObservation();
                 }
             }
             else if (State == State.Terminated)
             {
-                lock (sync) Stop("TERMINATED");
+                lock (sync)
+                {
+                    if (bindingWatcher != null)
+                    {
+                        try { bindingWatcher.Dispose(); } catch { }
+                        bindingWatcher = null;
+                    }
+                    Stop("TERMINATED");
+                }
             }
             else if (started)
             {
                 lock (sync) Stop("STOP_LIFECYCLE_CHANGED");
             }
+        }
+
+        private void StartBindingWatcher()
+        {
+            if (bindingWatcher != null || failed) return;
+            if (!SafeBindingControlPath(OneClickBindingFile)
+                || Path.GetFileName(OneClickBindingFile) != "active-binding.json"
+                || new DirectoryInfo(Path.GetDirectoryName(OneClickBindingFile)).Name != "one-click-native-control")
+            { Stop("BINDING_WATCH_PATH_INVALID"); return; }
+            bindingWatcher = new System.Threading.Timer(_ => QueueBindingPoll(), null, 0, 500);
+        }
+
+        private void QueueBindingPoll()
+        {
+            lock (sync)
+            {
+                if (failed || bindingPollQueued) return;
+                bindingPollQueued = true;
+            }
+            try { TriggerCustomEvent(_ => PollBinding(), null); }
+            catch { lock (sync) bindingPollQueued = false; }
+        }
+
+        private void PollBinding()
+        {
+            lock (sync)
+            {
+                bindingPollQueued = false;
+                if (failed) return;
+                try
+                {
+                    var info = new FileInfo(OneClickBindingFile);
+                    if (!info.Exists || info.Length <= 0 || info.Length > 65536) return;
+                    string text;
+                    using (var input = new FileStream(OneClickBindingFile, FileMode.Open, FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.SequentialScan))
+                    using (var reader = new StreamReader(input, new UTF8Encoding(false, true)))
+                    {
+                        if (input.Length <= 0 || input.Length > 65536) return;
+                        char[] buffer = new char[65537];
+                        int count = reader.ReadBlock(buffer, 0, buffer.Length);
+                        if (count <= 0 || count > 65536 || reader.Read() != -1) return;
+                        text = new string(buffer, 0, count);
+                    }
+                    var control = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(text);
+                    string state = Text(control, "state");
+                    if (state == "REVOKED")
+                    {
+                        string[] revokedAuthorities = { "execution_authority", "order_authority", "paper_execution_authority",
+                            "live_execution_authority", "broker_authority", "strategy_enable_authority",
+                            "ninjatrader_control_authority", "paper_execution_enabled", "live_execution_allowed",
+                            "external_order_authority", "broker_live_order_authority" };
+                        int revokedGeneration = control.ContainsKey("generation")
+                            ? Convert.ToInt32(control["generation"], CultureInfo.InvariantCulture) : 0;
+                        string revokedRun = Text(control, "one_click_run_id");
+                        string revokedRuntime = Text(control, "native_runtime_id");
+                        Guid revokedGuid;
+                        if ((control.Count != 16 && control.Count != 17)
+                            || Text(control, "schema") != "arms.one-click-native-binding-control.v1"
+                            || revokedAuthorities.Any(key => !control.ContainsKey(key) || !(control[key] is bool) || (bool)control[key])
+                            || revokedGeneration < 0
+                            || !Regex.IsMatch(revokedRun, @"^[0-9]{8}T[0-9]{6}Z-oneclick-[0-9a-f]{12}$")
+                            || !Guid.TryParseExact(revokedRuntime, "D", out revokedGuid)
+                            || revokedGuid.ToString("D") != revokedRuntime) return;
+                        if (lastAcceptedBindingGeneration > 0
+                            && (revokedGeneration != lastAcceptedBindingGeneration
+                                || revokedRun != lastAcceptedBindingRunId
+                                || revokedRuntime != lastAcceptedBindingRuntimeId)) return;
+                        bindingSessionActive = false;
+                        return;
+                    }
+                    if (state != "ACTIVE") return;
+                    string priorRun = bindingRunId, priorRuntime = bindingRuntimeId, priorNonce = bindingNonce;
+                    string priorClaim = bindingClaimSha256, priorHandoff = bindingHandoffSha256;
+                    string priorOutput = OutputDirectory, priorProvider = ExpectedProvider;
+                    int priorGeneration = bindingGeneration;
+                    ResolveOneClickBinding(text);
+                    if (bindingGeneration < lastAcceptedBindingGeneration
+                        || (bindingGeneration == lastAcceptedBindingGeneration
+                            && (bindingNonce != lastAcceptedBindingNonce
+                                || bindingClaimSha256 != lastAcceptedBindingClaimSha256
+                                || bindingRuntimeId != lastAcceptedBindingRuntimeId
+                                || bindingRunId != lastAcceptedBindingRunId)))
+                    {
+                        bindingRunId = priorRun; bindingRuntimeId = priorRuntime; bindingNonce = priorNonce;
+                        bindingClaimSha256 = priorClaim; bindingHandoffSha256 = priorHandoff;
+                        OutputDirectory = priorOutput; ExpectedProvider = priorProvider;
+                        bindingGeneration = priorGeneration;
+                        throw new InvalidOperationException();
+                    }
+                    if (bindingGeneration == lastAcceptedBindingGeneration) return;
+                    if (started) CloseObservation("BINDING_GENERATION_REPLACED", "NONE");
+                    lastAcceptedBindingGeneration = bindingGeneration;
+                    lastAcceptedBindingRunId = bindingRunId;
+                    lastAcceptedBindingNonce = bindingNonce;
+                    lastAcceptedBindingClaimSha256 = bindingClaimSha256;
+                    lastAcceptedBindingRuntimeId = bindingRuntimeId;
+                    bindingSessionActive = true;
+                    StartObservation();
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+                catch (InvalidOperationException) { }
+                catch (ArgumentException) { }
+                catch (FormatException) { }
+            }
+        }
+
+        private void StartObservation()
+        {
+            if (started || failed) return;
+            started = true;
+            startupClock.Restart();
+            string startupStage = "SOURCE_VALIDATION";
+            try
+            {
+                contract = Instrument.FullName;
+                template = Bars.TradingHours.Name;
+                expiry = Instrument.Expiry.ToString("yyyy-MM-dd");
+                if (String.IsNullOrWhiteSpace(OutputDirectory) || !Path.IsPathRooted(OutputDirectory)
+                    || Path.GetPathRoot(OutputDirectory).StartsWith(@"\\")
+                    || !Directory.Exists(OutputDirectory) || !SafeSource()) throw new InvalidOperationException();
+                session = Guid.NewGuid().ToString();
+                startupStage = "FILE_OPEN";
+                writer = new StreamWriter(new FileStream(Path.Combine(OutputDirectory, session + ".jsonl"),
+                    FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false));
+                writer.AutoFlush = true;
+                startupStage = "CONNECTION_DIAGNOSTIC_OPEN";
+                connectionWriter = new StreamWriter(new FileStream(
+                    Path.Combine(OutputDirectory, session + ".connection.jsonl"),
+                    FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false));
+                connectionWriter.AutoFlush = true;
+                if (!String.IsNullOrWhiteSpace(bindingNonce)) WriteBindingReceipt();
+                firstRealtimeBar = -1;
+                startupStage = "DEADLINE_SCHEDULE";
+                startupDeadline = new System.Threading.Timer(_ => { lock (sync) {
+                    if (!failed && readiness.State == "STARTING") Stop("STOP_STARTUP_TIMEOUT");
+                } }, null, Math.Max(1, 30000 - (int)startupClock.ElapsedMilliseconds), System.Threading.Timeout.Infinite);
+                startupStage = "HEARTBEAT_SCHEDULE";
+                if (ChartControl == null) { Stop("CHART_UNAVAILABLE"); return; }
+                ChartControl.Dispatcher.InvokeAsync(new Action(() => { lock (sync) {
+                    if (failed || writer == null) return;
+                    try { timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                        timer.Tick += Heartbeat; timer.Start(); }
+                    catch (Exception error) { Stop("HEARTBEAT_START_FAILED", ErrorCode(error)); }
+                } }));
+            }
+            catch (Exception error) { Stop("STARTUP_" + startupStage + "_FAILED", ErrorCode(error)); }
         }
 
         private static string Text(IDictionary<string, object> value, string key)
@@ -155,6 +265,22 @@ namespace NinjaTrader.NinjaScript.Indicators
             return new System.IO.DriveInfo(Path.GetPathRoot(full)).DriveType == System.IO.DriveType.Fixed;
         }
 
+        private static bool SafeBindingControlPath(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value) || !Path.IsPathRooted(value)
+                || Path.GetPathRoot(value).StartsWith(@"\\")) return false;
+            string full = Path.GetFullPath(value);
+            if (full != value || String.IsNullOrWhiteSpace(Path.GetFileName(full))) return false;
+            DirectoryInfo item = new FileInfo(full).Directory;
+            if (item == null || !item.Exists) return false;
+            while (item != null)
+            {
+                if ((item.Attributes & FileAttributes.ReparsePoint) != 0) return false;
+                item = item.Parent;
+            }
+            return new DriveInfo(Path.GetPathRoot(full)).DriveType == DriveType.Fixed;
+        }
+
         private static string HexSha256(string value)
         {
             using (var hash = SHA256.Create())
@@ -168,14 +294,14 @@ namespace NinjaTrader.NinjaScript.Indicators
                     || (character >= 'a' && character <= 'f'));
         }
 
-        private void ResolveOneClickBinding()
+        private void ResolveOneClickBinding(string controlJson)
         {
             if (!SafeLocalPath(OneClickBindingFile, false)
                 || Path.GetFileName(OneClickBindingFile) != "active-binding.json"
                 || new DirectoryInfo(Path.GetDirectoryName(OneClickBindingFile)).Name != "one-click-native-control")
                 throw new InvalidOperationException();
             var serializer = new JavaScriptSerializer();
-            var control = serializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(OneClickBindingFile, Encoding.UTF8));
+            var control = serializer.Deserialize<Dictionary<string, object>>(controlJson);
             if (control.Count != 4 || Text(control, "schema") != "arms.one-click-native-binding-control.v1"
                 || Text(control, "state") != "ACTIVE") throw new InvalidOperationException();
             string claimJson = Text(control, "claim_json");
@@ -188,7 +314,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 "external_order_authority", "broker_live_order_authority" };
             if (claim.Count != 32 || Text(claim, "schema") != "arms.one-click-native-binding-claim.v1"
                 || authorities.Any(key => !claim.ContainsKey(key) || !(claim[key] is bool) || (bool)claim[key])
-                || Convert.ToInt32(claim["generation"], CultureInfo.InvariantCulture) != 1
+                || Convert.ToInt32(claim["generation"], CultureInfo.InvariantCulture) <= 0
                 || Convert.ToInt32(claim["apply_limit"], CultureInfo.InvariantCulture) != 1)
                 throw new InvalidOperationException();
             DateTime created, expires;
@@ -197,7 +323,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 || !DateTime.TryParse(Text(claim, "expires_utc"), CultureInfo.InvariantCulture,
                     DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out expires)
                 || created > DateTime.UtcNow || DateTime.UtcNow > expires
-                || expires <= created || expires - created > TimeSpan.FromSeconds(60))
+                || expires <= created || expires - created > TimeSpan.FromSeconds(900))
                 throw new InvalidOperationException();
             string runtime = Text(claim, "runtime_directory");
             string parent = Text(claim, "runtime_parent");
@@ -225,9 +351,11 @@ namespace NinjaTrader.NinjaScript.Indicators
             OutputDirectory = inbox;
             ExpectedProvider = Text(claim, "expected_provider");
             bindingRuntimeId = runtimeId;
+            bindingRunId = Text(claim, "one_click_run_id");
             bindingNonce = Text(claim, "binding_nonce");
             bindingClaimSha256 = claimSha;
             bindingHandoffSha256 = Text(claim, "handoff_file_sha256");
+            bindingGeneration = Convert.ToInt32(claim["generation"], CultureInfo.InvariantCulture);
         }
 
         private void WriteBindingReceipt()
@@ -630,6 +758,42 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
             if (timing != null) { timing.Close(sequence, canonicalClosed, terminalWritten); timing = null; }
             // No native error strings, account identifiers or personal paths logged.
+        }
+
+        private void CloseObservation(string reason, string errorCode)
+        {
+            if (startupDeadline != null)
+            {
+                try { startupDeadline.Dispose(); } catch { }
+                startupDeadline = null;
+            }
+            try { Print("ARMS_READ_ONLY_STOP reason=" + reason + " error=" + errorCode); } catch { }
+            if (timer != null)
+            {
+                try { timer.Stop(); timer.Tick -= Heartbeat; } catch { }
+                timer = null;
+            }
+            bool canonicalClosed = false, terminalWritten = false;
+            if (writer != null)
+            {
+                try { Emit("DISCONNECTED", new { connected = false, reason = reason, error_code = errorCode }); terminalWritten = true; } catch { }
+                try { writer.Dispose(); canonicalClosed = true; } catch { }
+                writer = null;
+            }
+            if (connectionWriter != null)
+            {
+                try { connectionWriter.Dispose(); } catch { }
+                connectionWriter = null;
+            }
+            if (timing != null) { timing.Close(sequence, canonicalClosed, terminalWritten); timing = null; }
+            started = false;
+            helloSent = false;
+            source = null;
+            readiness = new ReadinessGate();
+            startupClock.Reset();
+            sequence = 0;
+            connectionSequence = 0;
+            firstRealtimeBar = -1;
         }
     }
 }

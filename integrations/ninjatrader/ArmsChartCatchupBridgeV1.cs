@@ -31,7 +31,11 @@ namespace NinjaTrader.NinjaScript.Indicators
         private StreamWriter lifecycleWriter;
         private int lifecycleSequence;
         private string lifecycleState;
-        private string bindingRuntimeId, bindingNonce, bindingClaimSha256, bindingHandoffSha256;
+        private string bindingRunId, bindingRuntimeId, bindingNonce, bindingClaimSha256, bindingHandoffSha256;
+        private System.Threading.Timer bindingWatcher;
+        private int bindingGeneration, lastAcceptedBindingGeneration;
+        private string lastAcceptedBindingRunId, lastAcceptedBindingNonce, lastAcceptedBindingClaimSha256, lastAcceptedBindingRuntimeId;
+        private bool bindingSessionActive, bindingPollQueued;
 
         [NinjaScriptProperty]
         [Display(
@@ -115,47 +119,23 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 lock (sync)
                 {
-                    if (
-                        attempted
-                        || terminal
-                    )
-                        return;
-
                     try
                     {
-                        if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) ResolveOneClickBinding();
-                        OpenLifecycle();
-
-                        RecordLifecycle(
-                            "WAITING_FOR_LIVE_HELLO",
-                            null
-                        );
-
-                        if (
-                            String.Equals(
-                                ThroughCloseUtc,
-                                "LATEST_CLOSED",
-                                StringComparison.Ordinal
-                            )
-                        )
-                            return;
-
-                        attempted = true;
-                        ExecuteCapture();
+                        if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) StartBindingWatcher();
+                        else ActivateCapture();
                     }
-                    catch (Exception error)
-                    {
-                        FailCapture(
-                            ErrorCode(error),
-                            false
-                        );
-                    }
+                    catch (Exception error) { FailCapture(ErrorCode(error), false); }
                 }
             }
             else if (State == State.Terminated)
             {
                 lock (sync)
                 {
+                    if (bindingWatcher != null)
+                    {
+                        try { bindingWatcher.Dispose(); } catch { }
+                        bindingWatcher = null;
+                    }
                     if (
                         CaptureEnabled
                         && !terminal
@@ -171,6 +151,138 @@ namespace NinjaTrader.NinjaScript.Indicators
                     CloseLifecycle();
                 }
             }
+        }
+
+        private void StartBindingWatcher()
+        {
+            if (bindingWatcher != null) return;
+            Need(SafeBindingControlPath(OneClickBindingFile)
+                && Path.GetFileName(OneClickBindingFile) == "active-binding.json"
+                && new DirectoryInfo(Path.GetDirectoryName(OneClickBindingFile)).Name == "one-click-native-control");
+            bindingWatcher = new System.Threading.Timer(_ => QueueBindingPoll(), null, 0, 500);
+        }
+
+        private void QueueBindingPoll()
+        {
+            lock (sync)
+            {
+                if (bindingPollQueued) return;
+                bindingPollQueued = true;
+            }
+            try { TriggerCustomEvent(_ => PollBinding(), null); }
+            catch { lock (sync) bindingPollQueued = false; }
+        }
+
+        private void PollBinding()
+        {
+            lock (sync)
+            {
+                bindingPollQueued = false;
+                try
+                {
+                    var info = new FileInfo(OneClickBindingFile);
+                    if (!info.Exists || info.Length <= 0 || info.Length > 65536) return;
+                    string text;
+                    using (var input = new FileStream(OneClickBindingFile, FileMode.Open, FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.SequentialScan))
+                    using (var reader = new StreamReader(input, new UTF8Encoding(false, true)))
+                    {
+                        if (input.Length <= 0 || input.Length > 65536) return;
+                        char[] buffer = new char[65537];
+                        int count = reader.ReadBlock(buffer, 0, buffer.Length);
+                        if (count <= 0 || count > 65536 || reader.Read() != -1) return;
+                        text = new string(buffer, 0, count);
+                    }
+                    var control = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(text);
+                    string state = BindingText(control, "state");
+                    if (state == "REVOKED")
+                    {
+                        string[] revokedAuthorities = { "execution_authority", "order_authority", "paper_execution_authority",
+                            "live_execution_authority", "broker_authority", "strategy_enable_authority",
+                            "ninjatrader_control_authority", "paper_execution_enabled", "live_execution_allowed",
+                            "external_order_authority", "broker_live_order_authority" };
+                        int revokedGeneration = control.ContainsKey("generation")
+                            ? Convert.ToInt32(control["generation"], CultureInfo.InvariantCulture) : 0;
+                        string revokedRun = BindingText(control, "one_click_run_id");
+                        string revokedRuntime = BindingText(control, "native_runtime_id");
+                        Guid revokedGuid;
+                        if ((control.Count != 16 && control.Count != 17)
+                            || BindingText(control, "schema") != "arms.one-click-native-binding-control.v1"
+                            || revokedAuthorities.Any(key => !control.ContainsKey(key) || !(control[key] is bool) || (bool)control[key])
+                            || revokedGeneration < 0
+                            || !Regex.IsMatch(revokedRun, @"^[0-9]{8}T[0-9]{6}Z-oneclick-[0-9a-f]{12}$")
+                            || !Guid.TryParseExact(revokedRuntime, "D", out revokedGuid)
+                            || revokedGuid.ToString("D") != revokedRuntime) return;
+                        if (lastAcceptedBindingGeneration > 0
+                            && (revokedGeneration != lastAcceptedBindingGeneration
+                                || revokedRun != lastAcceptedBindingRunId
+                                || revokedRuntime != lastAcceptedBindingRuntimeId)) return;
+                        bindingSessionActive = false;
+                        return;
+                    }
+                    if (state != "ACTIVE") return;
+                    string priorRun = bindingRunId, priorRuntime = bindingRuntimeId, priorNonce = bindingNonce;
+                    string priorClaim = bindingClaimSha256, priorHandoff = bindingHandoffSha256;
+                    string priorOutput = OutputDirectory, priorLive = LiveOutputDirectory;
+                    string priorProvider = ExpectedProvider, priorFrom = FromCloseUtc, priorThrough = ThroughCloseUtc;
+                    int priorGeneration = bindingGeneration;
+                    ResolveOneClickBinding(text);
+                    if (bindingGeneration < lastAcceptedBindingGeneration)
+                    {
+                        bindingRunId = priorRun; bindingRuntimeId = priorRuntime; bindingNonce = priorNonce;
+                        bindingClaimSha256 = priorClaim; bindingHandoffSha256 = priorHandoff;
+                        OutputDirectory = priorOutput; LiveOutputDirectory = priorLive;
+                        ExpectedProvider = priorProvider; FromCloseUtc = priorFrom; ThroughCloseUtc = priorThrough;
+                        bindingGeneration = priorGeneration;
+                        throw new InvalidOperationException();
+                    }
+                    if (bindingGeneration == lastAcceptedBindingGeneration)
+                    {
+                        if (bindingNonce != lastAcceptedBindingNonce
+                            || bindingClaimSha256 != lastAcceptedBindingClaimSha256
+                            || bindingRuntimeId != lastAcceptedBindingRuntimeId
+                            || bindingRunId != lastAcceptedBindingRunId)
+                        {
+                            bindingRunId = priorRun; bindingRuntimeId = priorRuntime; bindingNonce = priorNonce;
+                            bindingClaimSha256 = priorClaim; bindingHandoffSha256 = priorHandoff;
+                            OutputDirectory = priorOutput; LiveOutputDirectory = priorLive;
+                            ExpectedProvider = priorProvider; FromCloseUtc = priorFrom; ThroughCloseUtc = priorThrough;
+                            bindingGeneration = priorGeneration;
+                            throw new InvalidOperationException();
+                        }
+                        return;
+                    }
+                    if (lifecycleWriter != null) CloseLifecycle();
+                    attempted = false; terminal = false; liveHelloAccepted = false;
+                    liveAlignmentBar = -1; lifecycleSequence = 0; lifecycleState = null;
+                    lastAcceptedBindingGeneration = bindingGeneration;
+                    lastAcceptedBindingRunId = bindingRunId;
+                    lastAcceptedBindingNonce = bindingNonce;
+                    lastAcceptedBindingClaimSha256 = bindingClaimSha256;
+                    lastAcceptedBindingRuntimeId = bindingRuntimeId;
+                    bindingSessionActive = true;
+                    ActivateCapture();
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+                catch (InvalidOperationException) { }
+                catch (ArgumentException) { }
+                catch (FormatException) { }
+            }
+        }
+
+        private void ActivateCapture()
+        {
+            if (attempted || terminal) return;
+            try
+            {
+                OpenLifecycle();
+                RecordLifecycle("WAITING_FOR_LIVE_HELLO", null);
+                if (String.Equals(ThroughCloseUtc, "LATEST_CLOSED", StringComparison.Ordinal)) return;
+                attempted = true;
+                ExecuteCapture();
+            }
+            catch (Exception error) { FailCapture(ErrorCode(error), false); }
         }
 
         private static void Need(bool value)
@@ -201,6 +313,22 @@ namespace NinjaTrader.NinjaScript.Indicators
             return new System.IO.DriveInfo(Path.GetPathRoot(full)).DriveType == System.IO.DriveType.Fixed;
         }
 
+        private static bool SafeBindingControlPath(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value) || !Path.IsPathRooted(value)
+                || Path.GetPathRoot(value).StartsWith(@"\\")) return false;
+            string full = Path.GetFullPath(value);
+            if (full != value || String.IsNullOrWhiteSpace(Path.GetFileName(full))) return false;
+            DirectoryInfo item = new FileInfo(full).Directory;
+            if (item == null || !item.Exists) return false;
+            while (item != null)
+            {
+                if ((item.Attributes & FileAttributes.ReparsePoint) != 0) return false;
+                item = item.Parent;
+            }
+            return new DriveInfo(Path.GetPathRoot(full)).DriveType == DriveType.Fixed;
+        }
+
         private static bool BindingHex(string value, int length)
         {
             return value != null && value.Length == length
@@ -208,13 +336,13 @@ namespace NinjaTrader.NinjaScript.Indicators
                     || (character >= 'a' && character <= 'f'));
         }
 
-        private void ResolveOneClickBinding()
+        private void ResolveOneClickBinding(string controlJson)
         {
             Need(SafeBoundPath(OneClickBindingFile, false)
                 && Path.GetFileName(OneClickBindingFile) == "active-binding.json"
                 && new DirectoryInfo(Path.GetDirectoryName(OneClickBindingFile)).Name == "one-click-native-control");
             var serializer = new JavaScriptSerializer();
-            var control = serializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(OneClickBindingFile, Encoding.UTF8));
+            var control = serializer.Deserialize<Dictionary<string, object>>(controlJson);
             Need(control.Count == 4
                 && BindingText(control, "schema") == "arms.one-click-native-binding-control.v1"
                 && BindingText(control, "state") == "ACTIVE");
@@ -229,7 +357,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             Need(claim.Count == 32
                 && BindingText(claim, "schema") == "arms.one-click-native-binding-claim.v1"
                 && !authorities.Any(key => !claim.ContainsKey(key) || !(claim[key] is bool) || (bool)claim[key])
-                && Convert.ToInt32(claim["generation"], CultureInfo.InvariantCulture) == 1
+                && Convert.ToInt32(claim["generation"], CultureInfo.InvariantCulture) > 0
                 && Convert.ToInt32(claim["apply_limit"], CultureInfo.InvariantCulture) == 1);
             DateTime created, expires;
             Need(DateTime.TryParse(BindingText(claim, "created_utc"), CultureInfo.InvariantCulture,
@@ -237,7 +365,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 && DateTime.TryParse(BindingText(claim, "expires_utc"), CultureInfo.InvariantCulture,
                     DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out expires)
                 && created <= DateTime.UtcNow && DateTime.UtcNow <= expires
-                && expires > created && expires - created <= TimeSpan.FromSeconds(60));
+                && expires > created && expires - created <= TimeSpan.FromSeconds(900));
             string runtime = BindingText(claim, "runtime_directory");
             string parent = BindingText(claim, "runtime_parent");
             string inbox = BindingText(claim, "live_inbox");
@@ -269,9 +397,11 @@ namespace NinjaTrader.NinjaScript.Indicators
             FromCloseUtc = BindingText(claim, "from_close_utc");
             ThroughCloseUtc = BindingText(claim, "through_close_utc");
             bindingRuntimeId = runtimeId;
+            bindingRunId = BindingText(claim, "one_click_run_id");
             bindingNonce = BindingText(claim, "binding_nonce");
             bindingClaimSha256 = claimSha;
             bindingHandoffSha256 = BindingText(claim, "handoff_file_sha256");
+            bindingGeneration = Convert.ToInt32(claim["generation"], CultureInfo.InvariantCulture);
         }
 
         private void ValidateBindingReceipt(string directory, string session)

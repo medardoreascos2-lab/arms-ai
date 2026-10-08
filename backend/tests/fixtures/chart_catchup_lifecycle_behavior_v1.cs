@@ -122,6 +122,7 @@ namespace NinjaTrader.NinjaScript
 
         protected virtual void OnStateChange() { }
         protected virtual void OnBarUpdate() { }
+        protected void TriggerCustomEvent(Action<object> action, object state) { action(state); }
         protected void Print(string value) { }
     }
 }

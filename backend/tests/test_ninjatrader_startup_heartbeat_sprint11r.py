@@ -21,7 +21,7 @@ def startup_harness(tmp_path_factory):
     source = (Path(__file__).resolve().parents[2] /
               "integrations/ninjatrader/ArmsReadOnlyMarketV1.cs").read_text()
     methods = "\n".join(_method(source, signature) for signature in (
-        "protected override void OnStateChange(", "private void Heartbeat(",
+        "protected override void OnStateChange(", "private void StartObservation(", "private void Heartbeat(",
         "private sealed class TimingEvidence", "private void Emit(", "private static string ErrorCode(", "private void Stop(", "private sealed class ReadinessGate"))
     harness = r'''
 using System;
@@ -68,6 +68,7 @@ public class StartupHarness : Indicator {
     private TimingEvidence timing;
     private Stopwatch startupClock = new Stopwatch();
     private System.Threading.Timer startupDeadline;
+    private System.Threading.Timer bindingWatcher;
     private string bindingNonce;
     public string OneClickBindingFile { get; set; }
     private string OutputDirectory, ExpectedProvider = "Provider31", Name, Description;
@@ -78,7 +79,7 @@ public class StartupHarness : Indicator {
     private BarInfo Bars = new BarInfo();
     private Chart ChartControl = new Chart();
     private bool SafeSource() { return sourceHealthy; }
-    private void ResolveOneClickBinding() { throw new InvalidOperationException(); }
+    private void StartBindingWatcher() { throw new InvalidOperationException(); }
     private void WriteBindingReceipt() { throw new InvalidOperationException(); }
     private void Print(string text) {}
 ''' + methods + r'''

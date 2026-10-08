@@ -15,11 +15,40 @@ def test_both_indicators_use_the_same_optional_active_binding_contract():
     for source in (READ_ONLY, CATCHUP):
         assert "public string OneClickBindingFile { get; set; }" in source
         assert 'OneClickBindingFile = "";' in source
-        assert "if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) ResolveOneClickBinding();" in source
+        assert "if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) StartBindingWatcher();" in source
+        assert "new System.Threading.Timer(_ => QueueBindingPoll(), null, 0, 500)" in source
+        assert "TriggerCustomEvent(_ => PollBinding(), null)" in source
+        assert "ResolveOneClickBinding(text);" in source
         assert '"arms.one-click-native-binding-control.v1"' in source
         assert '"ACTIVE"' in source
         assert '"arms.one-click-native-binding-claim.v1"' in source
         assert '"apply_limit"' in source
+
+
+def test_passive_watchers_are_bounded_retry_safe_and_replay_protected():
+    for source in (READ_ONLY, CATCHUP):
+        assert "input.Length > 65536" in source
+        assert "new UTF8Encoding(false, true)" in source
+        assert "catch (IOException) { }" in source
+        assert "catch (UnauthorizedAccessException) { }" in source
+        assert "bindingGeneration <" in source or "bindingGeneration >=" in source
+        assert "lastAcceptedBindingNonce" in source
+        assert "lastAcceptedBindingClaimSha256" in source
+        assert "lastAcceptedBindingRuntimeId" in source
+        assert "lastAcceptedBindingRunId" in source
+        assert 'state == "REVOKED"' in source
+        assert "bindingGeneration == lastAcceptedBindingGeneration" in source
+
+
+def test_passive_binding_validation_remains_fail_closed_and_observation_only():
+    for source in (READ_ONLY, CATCHUP):
+        assert "claim.Count == 32" in source or "claim.Count != 32" in source
+        assert "TimeSpan.FromSeconds(900)" in source
+        assert 'Text(claim, "expected_provider") != "Provider31"' in source or 'BindingText(claim, "expected_provider") == "Provider31"' in source
+        assert '"NQ DEC26"' in source
+        assert "FileAttributes.ReparsePoint" in source
+        assert "bindingSessionActive = true" in source
+        assert "revokedAuthorities.Any" in source
 
 
 def test_binding_paths_are_exact_uuid_children_and_reparse_points_are_blocked():

@@ -1,4 +1,4 @@
-"""Single-command, operator-assisted ARMS One Click orchestration.
+"""Single-command, passive fixed-binding ARMS One Click orchestration.
 
 This command composes the sealed Phase 1/2/3 APIs.  It has no GUI control,
 NinjaTrader control, PAPER execution, LIVE execution, or order authority.
@@ -32,14 +32,11 @@ ZERO_AUTHORITY = {
 }
 APPLY_BANNER = (
     "============================================================\n"
-    "ARMS AI — OPERATOR ACTION REQUIRED\n"
-    "AHORA SI PRESIONA APPLY EN NINJATRADER — UNA SOLA VEZ\n"
-    "TIENES HASTA 5 MINUTOS\n"
-    "NO CAMBIES NINGUNA RUTA\n"
+    "WAITING FOR AUTOMATIC EXACT BINDING RECEIPT AND CANONICAL HELLO\n"
     "============================================================"
 )
-DO_NOT_APPLY = "DO NOT PRESS APPLY YET"
-APPLY_DETECTED = "APPLY DETECTED — DO NOT PRESS APPLY AGAIN"
+DO_NOT_APPLY = "DO NOT PRESS APPLY — NATIVE BINDING IS AUTOMATIC"
+APPLY_DETECTED = "NATIVE BINDING DETECTED — NO APPLY REQUIRED"
 DEFAULT_APPLY_TIMEOUT_SECONDS = 300
 MIN_APPLY_TIMEOUT_SECONDS = 1
 MAX_APPLY_TIMEOUT_SECONDS = 900
@@ -474,7 +471,6 @@ def run(profile, *, workspace=phase1.DEFAULT_WORKSPACE, services=None,
                 or not MIN_APPLY_TIMEOUT_SECONDS <= apply_timeout_seconds
                 <= MAX_APPLY_TIMEOUT_SECONDS):
             _raise("PRECHECK", "APPLY_TIMEOUT_SECONDS_INVALID")
-        output(DO_NOT_APPLY)
         precheck = _precheck(profile, workspace, services)
         stage = "PHASE1"
         phase1_state = services.prepare_phase1(profile, workspace)
@@ -530,13 +526,10 @@ def run(profile, *, workspace=phase1.DEFAULT_WORKSPACE, services=None,
             prompts += 1
             if prompts != 1:
                 _raise(stage, "APPLY_INSTRUCTION_LIMIT_EXCEEDED")
-            banner = APPLY_BANNER
-            if apply_timeout_seconds != DEFAULT_APPLY_TIMEOUT_SECONDS:
-                banner = banner.replace(
-                    "TIENES HASTA 5 MINUTOS",
-                    "TIENES HASTA " + str(apply_timeout_seconds)
-                    + " SEGUNDOS")
-            output(banner)
+            output(APPLY_BANNER.replace(
+                "CANONICAL HELLO",
+                "CANONICAL HELLO (UP TO "
+                + str(apply_timeout_seconds) + " SECONDS)"))
 
         def native_apply_detected(evidence):
             nonlocal native_observations

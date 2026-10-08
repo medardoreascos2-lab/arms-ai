@@ -322,13 +322,14 @@ def _settings(runtime, binding_file):
     }
 
 
-def _revoked_binding(*, run_id, native_runtime_id, timestamp):
+def _revoked_binding(*, run_id, native_runtime_id, timestamp, generation=0):
     return {
         "schema": BINDING_CONTROL_SCHEMA,
         "state": "REVOKED",
         "one_click_run_id": run_id,
         "native_runtime_id": native_runtime_id,
         "revoked_utc": timestamp,
+        "generation": generation,
         **_ZERO_AUTHORITY,
     }
 
@@ -351,6 +352,7 @@ def _initialize_revoked_binding(manifest, *, run_id, native_runtime_id, clock):
     lock = _binding_lock(manifest)
     try:
         path = _binding_file(manifest)
+        generation = 0
         if path.exists():
             current, _ = phase1._read_json(path, BINDING_CONTROL_SCHEMA)
             if current.get("state") == "ACTIVE":
@@ -364,11 +366,16 @@ def _initialize_revoked_binding(manifest, *, run_id, native_runtime_id, clock):
                         "NATIVE_BINDING_CONTROL_INVALID") from error
                 if now <= expires:
                     raise Phase3Blocked("NATIVE_BINDING_ALREADY_ACTIVE")
+                generation = claim.get("generation", 0)
             elif current.get("state") != "REVOKED":
+                raise Phase3Blocked("NATIVE_BINDING_CONTROL_INVALID")
+            else:
+                generation = current.get("generation", 0)
+            if type(generation) is not int or generation < 0:
                 raise Phase3Blocked("NATIVE_BINDING_CONTROL_INVALID")
         phase1._atomic_json(path, _revoked_binding(
             run_id=run_id, native_runtime_id=native_runtime_id,
-            timestamp=_utc(now)))
+            timestamp=_utc(now), generation=generation))
     finally:
         lock.unlink(missing_ok=True)
 
@@ -379,23 +386,29 @@ def _revoke_binding(manifest, *, run_id, native_runtime_id, clock,
     lock = _binding_lock(manifest)
     try:
         current, _ = phase1._read_json(path, BINDING_CONTROL_SCHEMA)
+        generation = current.get("generation", 0)
         if current.get("state") == "ACTIVE":
             if (expected_claim_sha256 is None
                     or current.get("claim_sha256") != expected_claim_sha256):
                 raise Phase3Blocked("NATIVE_BINDING_OWNERSHIP_MISMATCH")
+            try:
+                generation = json.loads(current["claim_json"])["generation"]
+            except (KeyError, TypeError, ValueError,
+                    json.JSONDecodeError) as error:
+                raise Phase3Blocked("NATIVE_BINDING_CONTROL_INVALID") from error
         elif (current.get("state") != "REVOKED"
                 or current.get("one_click_run_id") != run_id
                 or current.get("native_runtime_id") != native_runtime_id):
             raise Phase3Blocked("NATIVE_BINDING_OWNERSHIP_MISMATCH")
         phase1._atomic_json(path, _revoked_binding(
             run_id=run_id, native_runtime_id=native_runtime_id,
-            timestamp=_utc(_now(clock))))
+            timestamp=_utc(_now(clock)), generation=generation))
     finally:
         lock.unlink(missing_ok=True)
 
 
 def _binding_claim(handoff, handoff_file_sha, authorization_record, now,
-                   nonce):
+                   nonce, generation=1):
     if type(nonce) is not bytes or len(nonce) < 32:
         raise Phase3Blocked("CRYPTOGRAPHIC_BINDING_NONCE_REQUIRED")
     claim = {
@@ -419,7 +432,7 @@ def _binding_claim(handoff, handoff_file_sha, authorization_record, now,
         "phase3_source_sha256": handoff["bindings"][
             "phase3_source_sha256"],
         "binding_nonce": nonce.hex(),
-        "generation": 1,
+        "generation": generation,
         "created_utc": _utc(now),
         "expires_utc": _utc(
             now + timedelta(seconds=handoff["hello_timeout_seconds"])),
@@ -464,11 +477,12 @@ def _validate_binding_claim(claim, *, handoff, handoff_file_sha, now):
         "through_close_utc": handoff["runtime"]["through_close_utc"],
         "handoff_file_sha256": handoff_file_sha,
         "phase3_source_sha256": handoff["bindings"]["phase3_source_sha256"],
-        "generation": 1,
         "apply_limit": 1,
     }
     if (runtime_id != claim["native_runtime_id"]
             or len(nonce) < 32
+            or type(claim.get("generation")) is not int
+            or claim["generation"] <= 0
             or any(claim.get(key) != value
                    for key, value in expected_values.items())
             or not created <= now <= expires
@@ -504,6 +518,16 @@ def _binding_claim_fields(handoff, handoff_file_sha):
     }
 
 
+def _next_binding_generation(manifest):
+    value, _ = phase1._read_json(
+        _binding_file(manifest), BINDING_CONTROL_SCHEMA)
+    generation = value.get("generation", 0)
+    if (value.get("state") != "REVOKED"
+            or type(generation) is not int or generation < 0):
+        raise Phase3Blocked("NATIVE_BINDING_CONTROL_INVALID")
+    return generation + 1
+
+
 def _publish_active_binding(manifest, claim):
     claim_json = phase1._canonical(claim).decode("utf-8")
     value = {
@@ -522,6 +546,10 @@ def _publish_active_binding(manifest, claim):
                 or current.get("native_runtime_id")
                 != claim["native_runtime_id"]):
             raise Phase3Blocked("NATIVE_BINDING_OWNERSHIP_MISMATCH")
+        current_generation = current.get("generation", 0)
+        if (type(current_generation) is not int
+                or claim.get("generation") != current_generation + 1):
+            raise Phase3Blocked("NATIVE_BINDING_GENERATION_INVALID")
         phase1._atomic_json(path, value)
     finally:
         lock.unlink(missing_ok=True)
@@ -849,10 +877,11 @@ def begin_operator_apply(run_directory, supplied_token,
         raise Phase3Blocked(reason)
 
     binding_claim = _binding_claim(
-        handoff, handoff_file_sha, record, now, nonce_factory(32))
+        handoff, handoff_file_sha, record, now, nonce_factory(32),
+        generation=_next_binding_generation(manifest))
     observer = hello_observer or NativeHelloObserver(handoff, binding_claim)
     attempt = {
-        "mode": "OPERATOR_ASSISTED_ONE_SHOT",
+        "mode": "PASSIVE_FIXED_BINDING_ONE_SHOT",
         "authorization_token_sha256": record["token_sha256"],
         "confirmed_handoff_file_sha256": confirmed_handoff_sha256,
         "binding_nonce": binding_claim["binding_nonce"],
@@ -994,7 +1023,7 @@ def execute_authorized(run_directory, authorization, supplied_token, *,
     authorization_record = state["details"]["authorization"]
     binding_claim = _binding_claim(
         handoff, handoff_file_sha, authorization_record, now,
-        nonce_factory(32))
+        nonce_factory(32), generation=_next_binding_generation(manifest))
     observer = hello_observer or NativeHelloObserver(handoff, binding_claim)
     adapter = setup_adapter or NativeSetupAdapter()
     _transition(directory, handoff, state=APPLYING,
@@ -1095,7 +1124,9 @@ def terminalize_failed_historical_cleanup(
         "schema", "state", "one_click_run_id", "native_runtime_id",
         "revoked_utc", *_ZERO_AUTHORITY,
     }
-    if (set(binding) != expected_binding_fields
+    if (set(binding) not in {
+            frozenset(expected_binding_fields),
+            frozenset((*expected_binding_fields, "generation"))}
             or binding.get("state") != "REVOKED"
             or binding.get("one_click_run_id") != manifest["run_id"]
             or binding.get("native_runtime_id")

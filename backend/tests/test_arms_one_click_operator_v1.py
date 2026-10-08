@@ -173,7 +173,7 @@ def execute(tmp_path, services=None, *, apply_timeout_seconds=300):
     return result, messages
 
 
-def test_full_happy_path_is_one_command_and_one_apply_instruction(tmp_path):
+def test_full_happy_path_is_one_command_and_automatic_binding(tmp_path):
     services = FakeServices(tmp_path)
     result, messages = execute(tmp_path, services)
     transcript = "\n".join(messages)
@@ -190,11 +190,13 @@ def test_full_happy_path_is_one_command_and_one_apply_instruction(tmp_path):
     assert services.hello_detected is True
     assert services.prepare_timeout == 300
     assert services.authorization_timeout == 300
-    assert transcript.count("AHORA SI PRESIONA APPLY") == 1
+    assert transcript.count("DO NOT PRESS APPLY — NATIVE BINDING IS AUTOMATIC") == 1
+    assert "AHORA SI PRESIONA APPLY" not in transcript
+    assert "NATIVE BINDING DETECTED — NO APPLY REQUIRED" in transcript
     assert transcript.index(operator.DO_NOT_APPLY) < transcript.index(
-        "AHORA SI PRESIONA APPLY")
+        "WAITING FOR AUTOMATIC EXACT BINDING RECEIPT")
     assert transcript.index(operator.APPLY_DETECTED) > transcript.index(
-        "AHORA SI PRESIONA APPLY")
+        "WAITING FOR AUTOMATIC EXACT BINDING RECEIPT")
     assert "HANDOFF_COMPLETE=PASS" in transcript
     assert "FINAL_STATE=RUNNING_DISABLED" in transcript
     assert "secret-token" not in transcript
@@ -209,7 +211,7 @@ def test_configured_apply_window_is_bound_to_handoff_and_authorization(tmp_path)
     assert result["state"] == phase2.RUNNING
     assert services.prepare_timeout == 420
     assert services.authorization_timeout == 420
-    assert "TIENES HASTA 420 SEGUNDOS" in "\n".join(messages)
+    assert "UP TO 420 SECONDS" in "\n".join(messages)
 
 
 @pytest.mark.parametrize("timeout", [0, 901, True, 1.5])
@@ -476,7 +478,8 @@ def test_handoff_failure_does_not_continue_or_request_second_apply(tmp_path):
     transcript = "\n".join(messages)
     assert result["state"] == phase1.BLOCKED
     assert "continue" not in services.calls
-    assert transcript.count("AHORA SI PRESIONA APPLY") == 1
+    assert transcript.count("DO NOT PRESS APPLY — NATIVE BINDING IS AUTOMATIC") == 1
+    assert "AHORA SI PRESIONA APPLY" not in transcript
     assert operator.APPLY_DETECTED not in transcript
 
 
@@ -496,7 +499,8 @@ def test_native_hello_timeout_stops_without_retrying_apply(tmp_path):
     assert services.calls.count("phase1") == 1
     assert services.calls.count("begin_apply") == 1
     assert "continue" not in services.calls
-    assert transcript.count("AHORA SI PRESIONA APPLY") == 1
+    assert transcript.count("DO NOT PRESS APPLY — NATIVE BINDING IS AUTOMATIC") == 1
+    assert "AHORA SI PRESIONA APPLY" not in transcript
     assert operator.APPLY_DETECTED not in transcript
     assert services.stop_calls == [RUN_ID]
     diagnostic = json.loads(
