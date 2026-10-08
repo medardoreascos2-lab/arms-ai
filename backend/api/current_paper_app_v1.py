@@ -75,7 +75,9 @@ def _operator_observation(service):
     }
 
 
-def create_current_paper_app_v1(*, service, admin_token=None, dashboard_origin="http://localhost:3000"):
+def create_current_paper_app_v1(*, service, admin_token=None,
+                                dashboard_origin="http://localhost:3000",
+                                runtime_health_provider=None):
     if type(service) is not CurrentPaperServiceV1:
         raise TypeError("explicit isolated current PAPER service required")
 
@@ -93,7 +95,24 @@ def create_current_paper_app_v1(*, service, admin_token=None, dashboard_origin="
 
     @app.get("/health")
     def health():
-        return {"status": "PROCESS_HEALTHY", "mode": "CURRENT_MARKET_PAPER", "live_execution_allowed": False}
+        lifecycle = (runtime_health_provider()
+                     if callable(runtime_health_provider) else None)
+        snapshot = service.get_snapshot()
+        return {
+            "status": "PROCESS_HEALTHY",
+            "mode": "CURRENT_MARKET_PAPER",
+            "runtime_lifecycle": lifecycle,
+            "paper_execution_enabled": snapshot.get(
+                "paper_execution_enabled"),
+            "live_execution_allowed": snapshot.get(
+                "live_execution_allowed"),
+            "external_order_authority": snapshot.get(
+                "external_order_authority"),
+            "broker_live_order_authority": snapshot.get(
+                "broker_live_order_authority"),
+            "ninjatrader_control_authority": snapshot.get(
+                "ninjatrader_control_authority"),
+        }
 
     @app.get("/api/v2/paper/readiness")
     def readiness():

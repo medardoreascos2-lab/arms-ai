@@ -57,6 +57,8 @@ PATH_TEMPLATE_FIELDS = {
     "current_paper_news_root", "local_dumps", "runtime_evidence_directory",
 }
 REVIEWED_SOURCE_NAMES = {
+    "backend/services/sim_native_l1_authority_v1.py",
+    "integrations/ninjatrader/ArmsReadOnlyL1V1.cs",
     "scripts/arms-runtime-v1.ps1",
     "tools/arms_one_click_operator_v1.py",
     "tools/arms_one_click_runtime_v1.py",

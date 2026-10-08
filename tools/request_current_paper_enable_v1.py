@@ -83,17 +83,13 @@ def controlled_enable(*, run_directory, approved, timeout=10.0,
     if approved is not True:
         raise ValueError('EXPLICIT_OPERATOR_APPROVAL_REQUIRED')
     directory, manifest, _state, _events, validated = phase1._load_and_verify(
-        run_directory)
-    audit = phase1.audit(directory)
-    if (audit.get('status') != 'PASS'
-            or audit.get('source_binding') != phase1.SOURCE_BINDING_PASS
-            or audit.get('profile_status') != 'VALID'):
-        raise ValueError('SEALED_RUN_VALIDATION_FAILED')
+        run_directory, allow_runtime_targets=True)
     market = validated['profile'].get('market_identity')
     if market != phase1.REVIEWED_MARKET_IDENTITY:
         raise ValueError('REVIEWED_NQ_MARKET_IDENTITY_REQUIRED')
 
-    runtime = phase2.status(directory)
+    runtime = phase2.validate_running_runtime(
+        directory, readiness_timeout=min(timeout, 3.0))
     if runtime.get('state') != phase2.RUNNING:
         raise ValueError('RUNNING_DISABLED_REQUIRED')
     if any(runtime.get(key) is not expected

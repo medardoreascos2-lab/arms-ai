@@ -90,6 +90,8 @@ class FakeProcessAdapter:
     def wait_native_setup(self, **kwargs):
         self.native_wait_calls.append(kwargs)
         _write_runtime_artifacts(kwargs["manifest"])
+        Path(kwargs['manifest']['targets'][
+            'current_paper_l1_directory']).mkdir(parents=True)
         binding = phase2.WindowsProcessAdapter._native_setup_binding(
             kwargs["manifest"], kwargs["ownership"])
         return {
@@ -113,10 +115,14 @@ class FakeProcessAdapter:
             "analysis_runtime_process_alive": True,
             "supervisor_health": "PASS",
             "control_plane_observable": True,
+            "lifecycle_worker_alive": True,
+            "lifecycle_failure_absent": True,
+            "l1_terminal_revocation_absent": True,
             "paper_execution_enabled": False,
             "live_execution_allowed": False,
             "external_order_authority": False,
             "broker_live_order_authority": False,
+            "ninjatrader_control_authority": False,
             "ninjatrader_touched": False,
         }
 
@@ -297,7 +303,9 @@ def test_reused_token_cannot_spawn_second_time(tmp_path):
     token = authorization.token_for_immediate_consumption()
     adapter = FakeProcessAdapter()
     _start(run, authorization, adapter, token=token)
-    with pytest.raises(phase2.Phase2Blocked, match="AUTHORIZED_START_REQUIRED"):
+    with pytest.raises(
+            (phase2.Phase2Blocked, phase1.OfflineBlocked),
+            match="AUTHORIZED_START_REQUIRED|RUNTIME_SIDE_EFFECT_DETECTED"):
         _start(run, authorization, adapter, token=token)
     assert len(adapter.start_calls) == 1
 
@@ -596,6 +604,104 @@ def test_running_postcondition_rejects_any_authority_escalation(tmp_path):
     assert phase2.status(run)["state"] == phase2.FAILED
 
 
+def test_runtime_aware_paper_admission_rechecks_owner_worker_and_l1_health(
+        tmp_path):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    _complete_phase3(run)
+    phase2.continue_after_native_setup(
+        run, clock=lambda: NOW, process_adapter=adapter,
+        readiness_timeout=1)
+
+    admitted = phase2.validate_running_runtime(
+        run, process_adapter=adapter, readiness_timeout=1)
+    assert admitted['state'] == phase2.RUNNING
+    assert admitted['runtime_readiness']['lifecycle_worker_alive'] is True
+    assert admitted['runtime_readiness'][
+        'l1_terminal_revocation_absent'] is True
+
+    adapter.running = False
+    with pytest.raises(
+            phase2.Phase2Blocked,
+            match='OWNED_SUPERVISOR_IDENTITY_MISMATCH'):
+        phase2.validate_running_runtime(
+            run, process_adapter=adapter, readiness_timeout=1)
+
+
+def test_runtime_aware_paper_admission_rejects_terminal_l1_revocation(
+        tmp_path):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    _complete_phase3(run)
+    phase2.continue_after_native_setup(
+        run, clock=lambda: NOW, process_adapter=adapter,
+        readiness_timeout=1)
+
+    class RevokedL1(FakeProcessAdapter):
+        def wait_running(self, **kwargs):
+            result = super().wait_running(**kwargs)
+            result['l1_terminal_revocation_absent'] = False
+            return result
+
+    unsafe = RevokedL1()
+    with pytest.raises(
+            phase2.Phase2Blocked,
+            match='RUNNING_DISABLED_SAFETY_POSTCONDITION_FAILED'):
+        phase2.validate_running_runtime(
+            run, process_adapter=unsafe, readiness_timeout=1)
+
+
+def _paper_runtime_health_payload():
+    return {
+        'status': 'PROCESS_HEALTHY',
+        'mode': 'CURRENT_MARKET_PAPER',
+        'runtime_lifecycle': {
+            'status': 'LIVE', 'reason': None, 'worker_alive': True,
+            'coordinator': {
+                'status': 'LIVE', 'reason': None,
+                'l1': {'status': 'FRESH', 'reason': None},
+            },
+        },
+        'paper_execution_enabled': False,
+        'live_execution_allowed': False,
+        'external_order_authority': False,
+        'broker_live_order_authority': False,
+        'ninjatrader_control_authority': False,
+    }
+
+
+@pytest.mark.parametrize('mutation', ('dead_worker', 'worker_failure',
+                                      'coordinator_revoked', 'l1_revoked'))
+def test_final_readiness_rejects_terminal_runtime_health(mutation):
+    health = _paper_runtime_health_payload()
+    lifecycle = health['runtime_lifecycle']
+    if mutation == 'dead_worker':
+        lifecycle['worker_alive'] = False
+    elif mutation == 'worker_failure':
+        lifecycle['reason'] = 'NATIVE_CURRENT_PAPER_LIFECYCLE_WORKER_FAILED'
+    elif mutation == 'coordinator_revoked':
+        lifecycle['coordinator']['status'] = 'REVOKED'
+    else:
+        lifecycle['coordinator']['l1'] = {
+            'status': 'REVOKED', 'reason': 'PRIVATE_PATH_REQUIRED'}
+    with pytest.raises(
+            phase2.Phase2Blocked,
+            match='PAPER_RUNTIME_LIFECYCLE_UNHEALTHY'):
+        phase2._validate_runtime_health_payload(health)
+
+
+def test_final_readiness_accepts_live_worker_without_granting_authority():
+    health = _paper_runtime_health_payload()
+    lifecycle = phase2._validate_runtime_health_payload(health)
+    assert lifecycle['worker_alive'] is True
+    assert all(health[key] is False for key in (
+        'paper_execution_enabled', 'live_execution_allowed',
+        'external_order_authority', 'broker_live_order_authority',
+        'ninjatrader_control_authority'))
+
+
 def test_controlled_stop_targets_only_exact_owned_process(tmp_path):
     _, run = _fixture(tmp_path)
     adapter = FakeProcessAdapter()
@@ -797,7 +903,7 @@ def test_pre_paper_operator_nine_pin_run_is_recognized_and_cleaned(
 
 
 @pytest.mark.parametrize("version", (
-    "PRE_OPERATOR_V1", "ONE_CLICK_OPERATOR_V1",
+    "PRE_OPERATOR_V1", "ONE_CLICK_OPERATOR_V1", "PAPER_OPERATOR_V1",
 ))
 def test_sealed_historical_descriptor_identity_selects_one_generation(version):
     identity = phase2.HISTORICAL_CLEANUP_SOURCE_IDENTITIES[version]
@@ -813,14 +919,14 @@ def test_sealed_historical_descriptor_identity_selects_one_generation(version):
     assert phase2._historical_source_inventory(pins) == version
 
 
-def test_current_paper_operator_inventory_is_still_recognized_and_cleaned(
+def test_current_l1_binding_inventory_is_recognized_and_cleaned(
         tmp_path):
     _, run = _fixture(tmp_path, repo_source_pins=True)
     adapter = FakeProcessAdapter()
     _start(run, _authorize(run), adapter)
     manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
     assert frozenset(manifest["source_pins"]) == (
-        phase2.HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1)
+        phase2.SOURCE_INVENTORY_L1_AUTOMATIC_BINDING_V1)
 
     result = phase2.stop_owned_stale_run_for_cleanup(
         run, clock=lambda: NOW, process_adapter=adapter)

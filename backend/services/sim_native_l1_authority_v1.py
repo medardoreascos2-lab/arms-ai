@@ -7,8 +7,10 @@ a new exporter session. Existing market-hours/news authorities are untouched.
 from datetime import datetime
 from hashlib import sha256
 from math import isfinite
+import os
 from pathlib import Path
 import re
+import subprocess
 from threading import RLock
 from time import monotonic
 from uuid import UUID
@@ -39,6 +41,49 @@ def utc(value):
     return datetime.fromisoformat(value)
 
 
+def _strict_private_acl(path):
+    """Require the protected current-user/SYSTEM directory ACL exactly."""
+    environment = dict(os.environ, ARMS_L1_ACL_PATH=str(path))
+    powershell = (Path(os.environ['WINDIR'])
+        / 'System32/WindowsPowerShell/v1.0/powershell.exe')
+    script = (
+        "$ErrorActionPreference='Stop';"
+        "$a=Get-Acl -LiteralPath $env:ARMS_L1_ACL_PATH;"
+        "$s=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;"
+        "$r=@($a.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]));"
+        "if(!$a.AreAccessRulesProtected){exit 1};"
+        "if($a.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $s){exit 1};"
+        "if($r.Count -ne 2){exit 1};"
+        "foreach($x in $r){"
+        "if($x.IdentityReference.Value -notin @($s,'S-1-5-18')"
+        "-or $x.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow"
+        "-or $x.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl"
+        "-or $x.InheritanceFlags -ne ([Security.AccessControl.InheritanceFlags]::ContainerInherit"
+        "-bor [Security.AccessControl.InheritanceFlags]::ObjectInherit)"
+        "-or $x.PropagationFlags -ne [Security.AccessControl.PropagationFlags]::None"
+        "-or $x.IsInherited){exit 1}};"
+        "if(@($r.IdentityReference.Value|Select-Object -Unique).Count -ne 2){exit 1}")
+    result = subprocess.run(
+        [str(powershell), '-NoProfile', '-NonInteractive', '-Command', script],
+        env=environment, capture_output=True, timeout=15,
+        creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    require(result.returncode == 0, 'PRIVATE_PATH_REQUIRED')
+
+
+def private_directory_identity(value):
+    """Validate an existing private directory without accepting substitution."""
+    directory = local_path(auth.safe_path(value, authority=True))
+    before = directory.stat()
+    require(before.st_ino != 0 and directory.is_dir(), 'DIRECTORY_IDENTITY')
+    checked = private_path(directory)
+    _strict_private_acl(checked)
+    after = checked.stat()
+    require((before.st_dev, before.st_ino) == (after.st_dev, after.st_ino)
+        and after.st_ino != 0 and checked.is_dir(),
+        'DIRECTORY_REPLACED_DURING_VALIDATION')
+    return checked, (after.st_dev, after.st_ino)
+
+
 class _NativeQuotes(RuntimeQuoteAuthorityV2):
     def __init__(self, owner):
         super().__init__()
@@ -55,7 +100,8 @@ class _NativeQuotes(RuntimeQuoteAuthorityV2):
 
 
 class SimNativeL1AuthorityV1:
-    def __init__(self, *, admission, context, clock, directory=None, elapsed=monotonic):
+    def __init__(self, *, admission, context, clock, directory=None,
+                 expected_directory_identity=None, elapsed=monotonic):
         require(admission.settings.maximum_quote_age_seconds == MAX_AGE
                 and admission.settings.maximum_spread_points == 5, 'COMMISSIONING_POLICY_CHANGED')
         self.admission, self.context, self.clock, self.elapsed = admission, context, clock, elapsed
@@ -68,7 +114,16 @@ class SimNativeL1AuthorityV1:
         self.internal_reason = None
         self.first_failed_check = None
         self.validation_error = None
-        self.tail = self.session = self.directory_identity = None
+        if (expected_directory_identity is not None
+                and (type(expected_directory_identity) not in (tuple, list)
+                     or len(expected_directory_identity) != 2
+                     or any(type(value) is not int or isinstance(value, bool)
+                            or value < 0
+                            for value in expected_directory_identity))):
+            raise ValueError('DIRECTORY_IDENTITY')
+        self.tail = self.session = None
+        self.directory_identity = (None if expected_directory_identity is None
+            else tuple(expected_directory_identity))
         self.manifest_path = self.manifest_sha256 = self.manifest = None
         self.segment_index = 0
         self.sealed_segments = {}
@@ -89,10 +144,7 @@ class SimNativeL1AuthorityV1:
             self.tail = None
 
     def _directory(self):
-        directory = private_path(self.directory)
-        info = directory.stat()
-        require(info.st_ino != 0 and directory.is_dir(), 'DIRECTORY_IDENTITY')
-        identity = (info.st_dev, info.st_ino)
+        directory, identity = private_directory_identity(self.directory)
         require(self.directory_identity in (None, identity), 'DIRECTORY_REPLACED')
         return directory, identity
 

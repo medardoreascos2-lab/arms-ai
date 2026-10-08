@@ -67,6 +67,11 @@ HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1 = frozenset({
     *HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1,
     "tools/request_current_paper_enable_v1.py",
 })
+SOURCE_INVENTORY_L1_AUTOMATIC_BINDING_V1 = frozenset({
+    *HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1,
+    "backend/services/sim_native_l1_authority_v1.py",
+    "integrations/ninjatrader/ArmsReadOnlyL1V1.cs",
+})
 # These immutable descriptor identities were transcribed from genuine sealed
 # manifests.  The repository-relative path is repeated deliberately so a
 # source name cannot be rebound to a different path with the same digest.
@@ -77,6 +82,9 @@ HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1 = frozenset({
 # ONE_CLICK_OPERATOR_V1:
 #   run 20261008T044321Z-oneclick-cd9a3a30326f
 #   manifest b70ecb3382c0ccf819ffa41a4a8cef94a0568331299df3e8ccace115e7421799
+# PAPER_OPERATOR_V1:
+#   run 20261008T052816Z-oneclick-20a0329c8a4a
+#   manifest c43b8543e2b018a3701e58579ebb2c753187a9b1121d5f6eedd68b335ef6c368
 HISTORICAL_CLEANUP_SOURCE_IDENTITIES = MappingProxyType({
     "PRE_OPERATOR_V1": (
         ("scripts/arms-runtime-v1.ps1", "scripts/arms-runtime-v1.ps1",
@@ -131,12 +139,43 @@ HISTORICAL_CLEANUP_SOURCE_IDENTITIES = MappingProxyType({
          "tools/windows_runtime_supervisor_v1.py",
          "add171d4c722f84481cbc9ddd852b575e2b97d9a9849b95278142582e945ef73", 25512),
     ),
+    "PAPER_OPERATOR_V1": (
+        ("scripts/arms-runtime-v1.ps1", "scripts/arms-runtime-v1.ps1",
+         "dc8b8a59c4b013d6da44486857e89281a12a4c0fadf9ad19517b224a6fca688f", 615),
+        ("tools/analysis_native_startup_v1.py",
+         "tools/analysis_native_startup_v1.py",
+         "5c94aca17bd9f1b7789c5ab39b7972fd5c8685ab5434114628d136a8525aea94", 31642),
+        ("tools/arms_one_click_operator_v1.py",
+         "tools/arms_one_click_operator_v1.py",
+         "afbe4c090ec43fc734d56e6fb007239ba483cf3521906ad63281185114aa68d1", 26918),
+        ("tools/arms_one_click_runtime_phase2_v1.py",
+         "tools/arms_one_click_runtime_phase2_v1.py",
+         "fdfebc230c0c911828c160443a87f62ddd0c8d1a3d0308e401639f6aae068810", 68505),
+        ("tools/arms_one_click_runtime_phase3_v1.py",
+         "tools/arms_one_click_runtime_phase3_v1.py",
+         "e19d4743f2d9c415d50a06c63d8725770e8777698b8c1014894920035f309932", 53681),
+        ("tools/arms_one_click_runtime_v1.py",
+         "tools/arms_one_click_runtime_v1.py",
+         "27bd04dae35f9bce0bfd5a3351256d80dfe07f107141d3941871cbf3354dcc92", 48077),
+        ("tools/request_current_paper_enable_v1.py",
+         "tools/request_current_paper_enable_v1.py",
+         "70b9ed05c688a641aa6f61cd0c37f129038d65146e4cd7f66b4608db4200460f", 6742),
+        ("tools/start_native_current_paper_v1.py",
+         "tools/start_native_current_paper_v1.py",
+         "799a8e470a3bc8db6e4575be836c86022aec9c3cdf3bdb4c7cd4d8a85f149e64", 19027),
+        ("tools/startup_chart_catchup_v1.py",
+         "tools/startup_chart_catchup_v1.py",
+         "d73851944bde8c53c3c7d91777ec817542312e34938e7459dc2caaa2598bc724", 20994),
+        ("tools/windows_runtime_supervisor_v1.py",
+         "tools/windows_runtime_supervisor_v1.py",
+         "add171d4c722f84481cbc9ddd852b575e2b97d9a9849b95278142582e945ef73", 25512),
+    ),
 })
 HISTORICAL_CLEANUP_SOURCE_INVENTORIES = MappingProxyType({
     version: frozenset(item[0] for item in identity)
     for version, identity in HISTORICAL_CLEANUP_SOURCE_IDENTITIES.items()
 })
-CURRENT_SOURCE_INVENTORY_VERSION = "PAPER_OPERATOR_V1"
+CURRENT_SOURCE_INVENTORY_VERSION = "L1_AUTOMATIC_BINDING_V1"
 CURRENT_REVIEWED_PROFILE_PATH = (
     phase1.REPO_ROOT / "backend/config/arms_one_click_runtime_v1_phase1b.json")
 
@@ -287,7 +326,7 @@ def _source_descriptor_matches(descriptor, *, relative_path, digest, size):
             and descriptor["bytes"] == size)
 
 
-def _current_paper_source_identity_matches(source_pins):
+def _current_source_identity_matches(source_pins):
     """Validate the unsealed-current generation against its reviewed profile."""
     try:
         profile, _ = phase1._read_json(
@@ -304,10 +343,10 @@ def _current_paper_source_identity_matches(source_pins):
             or profile.get("external_order_authority") is not False
             or profile.get("future_runtime_execution_enabled") is not False
             or type(reviewed) is not dict
-            or set(reviewed) != HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1
-            or set(source_pins) != HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1):
+            or set(reviewed) != SOURCE_INVENTORY_L1_AUTOMATIC_BINDING_V1
+            or set(source_pins) != SOURCE_INVENTORY_L1_AUTOMATIC_BINDING_V1):
         return False
-    for name in HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1:
+    for name in SOURCE_INVENTORY_L1_AUTOMATIC_BINDING_V1:
         reviewed_descriptor = reviewed.get(name)
         if (type(reviewed_descriptor) is not dict
                 or set(reviewed_descriptor) != {"path", "sha256"}
@@ -346,7 +385,7 @@ def _historical_source_inventory(source_pins):
                 digest=digest, size=size)
                for name, relative_path, digest, size in identity):
             matches.append(version)
-    if _current_paper_source_identity_matches(source_pins):
+    if _current_source_identity_matches(source_pins):
         matches.append(CURRENT_SOURCE_INVENTORY_VERSION)
     if len(matches) != 1 or PHASE2_SOURCE not in source_pins:
         raise Phase2Blocked("HISTORICAL_SOURCE_PIN_INVENTORY_INVALID")
@@ -365,7 +404,7 @@ def _expected_historical_future_command(manifest, inventory_version=None):
             raise Phase2Blocked(
                 "HISTORICAL_COMMAND_CONTRACT_INVALID") from error
         command = [*command[:index], *command[index + 2:]]
-    elif version != "PAPER_OPERATOR_V1":
+    elif version not in {"PAPER_OPERATOR_V1", "L1_AUTOMATIC_BINDING_V1"}:
         raise Phase2Blocked("HISTORICAL_SOURCE_PIN_INVENTORY_INVALID")
     return command
 
@@ -698,6 +737,34 @@ def _revoke(directory, manifest, bindings, reason, clock):
         details={"reason": reason}, expected_states=(AUTHORIZED,))
 
 
+def _validate_runtime_health_payload(value):
+    lifecycle = value.get('runtime_lifecycle') if type(value) is dict else None
+    coordinator = (lifecycle.get('coordinator')
+                   if type(lifecycle) is dict else None)
+    l1 = coordinator.get('l1') if type(coordinator) is dict else None
+    zero_authority = (
+        'paper_execution_enabled', 'live_execution_allowed',
+        'external_order_authority', 'broker_live_order_authority',
+        'ninjatrader_control_authority')
+    if (type(value) is not dict
+            or value.get('status') != 'PROCESS_HEALTHY'
+            or value.get('mode') != 'CURRENT_MARKET_PAPER'
+            or any(value.get(key) is not False for key in zero_authority)
+            or type(lifecycle) is not dict
+            or lifecycle.get('worker_alive') is not True
+            or lifecycle.get('reason') is not None
+            or lifecycle.get('status') not in {'RUNNING', 'LIVE'}
+            or type(coordinator) is not dict
+            or coordinator.get('reason') is not None
+            or coordinator.get('status') in {
+                None, 'REVOKED', 'STOPPED', 'FAILED'}
+            or type(l1) is not dict
+            or l1.get('reason') is not None
+            or l1.get('status') == 'REVOKED'):
+        raise Phase2Blocked('PAPER_RUNTIME_LIFECYCLE_UNHEALTHY')
+    return lifecycle
+
+
 class WindowsProcessAdapter:
     @staticmethod
     def _runtime_directories(manifest):
@@ -812,6 +879,9 @@ class WindowsProcessAdapter:
             "arms.startup-chart-catchup-request.v1")
         inbox = (runtime / "inbox").resolve(strict=True)
         catchup = (runtime / "chart-catchup").resolve(strict=True)
+        l1_directory = Path(
+            manifest["targets"]["current_paper_l1_directory"]
+        ).resolve(strict=True)
         expected_claim = {
             "run_id": runtime.name,
             "mode": "ANALYSIS_ONLY",
@@ -841,6 +911,7 @@ class WindowsProcessAdapter:
             "native_runtime_id": runtime.name,
             "live_inbox": str(inbox),
             "catchup_output_directory": str(catchup),
+            "l1_output_directory": str(l1_directory),
             "claim_sha256": sha256(claim_raw).hexdigest(),
             "request_sha256": sha256(request_raw).hexdigest(),
         }
@@ -964,20 +1035,30 @@ class WindowsProcessAdapter:
                     pass
                 paper = self._get_json(
                     f"http://127.0.0.1:{ports['paper']}/api/v2/backtesting/dashboard")
+                paper_health = self._get_json(
+                    f"http://127.0.0.1:{ports['paper']}/health")
                 snapshot = paper.get("paper_research")
                 if type(snapshot) is not dict:
                     raise Phase2Blocked("PAPER_SNAPSHOT_INVALID")
+                _validate_runtime_health_payload(paper_health)
                 return {
                     "paper_runtime_process_alive": True,
                     "analysis_runtime_process_alive": True,
                     "supervisor_health": "PASS",
                     "control_plane_observable": bool(analysis),
+                    "lifecycle_worker_alive": True,
+                    "lifecycle_failure_absent": True,
+                    "l1_terminal_revocation_absent": True,
                     "paper_execution_enabled": snapshot.get(
                         "paper_execution_enabled"),
                     "live_execution_allowed": snapshot.get(
                         "live_execution_allowed"),
-                    "external_order_authority": False,
-                    "broker_live_order_authority": False,
+                    "external_order_authority": snapshot.get(
+                        "external_order_authority"),
+                    "broker_live_order_authority": snapshot.get(
+                        "broker_live_order_authority"),
+                    "ninjatrader_control_authority": snapshot.get(
+                        "ninjatrader_control_authority"),
                     "ninjatrader_touched": False,
                 }
             except (OSError, ValueError, TypeError, KeyError,
@@ -1070,10 +1151,14 @@ def _validate_running_result(result):
         "analysis_runtime_process_alive": True,
         "supervisor_health": "PASS",
         "control_plane_observable": True,
+        "lifecycle_worker_alive": True,
+        "lifecycle_failure_absent": True,
+        "l1_terminal_revocation_absent": True,
         "paper_execution_enabled": False,
         "live_execution_allowed": False,
         "external_order_authority": False,
         "broker_live_order_authority": False,
+        "ninjatrader_control_authority": False,
         "ninjatrader_touched": False,
     }
     if type(result) is not dict or any(result.get(key) != value
@@ -1230,6 +1315,8 @@ def continue_after_native_setup(run_directory, *, clock=None,
             "live_inbox": handoff_runtime["live_inbox"],
             "catchup_output_directory": handoff_runtime[
                 "catchup_output_directory"],
+            "l1_output_directory": handoff_runtime[
+                "l1_output_directory"],
             "claim_sha256": handoff_runtime["claim_sha256"],
             "request_sha256": handoff_runtime["request_sha256"],
         }
@@ -1262,6 +1349,33 @@ def continue_after_native_setup(run_directory, *, clock=None,
                          "cleanup_evidence": cleanup},
                 expected_states=(AWAITING_NATIVE_SETUP,))
         raise
+
+
+def validate_running_runtime(run_directory, *, process_adapter=None,
+                             readiness_timeout=3):
+    """Read-only admission of the exact owned RUNNING_DISABLED runtime."""
+    directory, manifest, phase1_state, _, _ = _load_plan(
+        run_directory, now=_now(), allow_runtime_targets=True,
+        require_current_spec=False)
+    current, _ = _load_phase2(directory)
+    if (current is None or current.get('state') != RUNNING
+            or current.get('bindings') != _bindings(manifest, phase1_state)
+            or type(current.get('ownership')) is not dict
+            or type(current.get('native_setup')) is not dict):
+        raise Phase2Blocked('RUNNING_DISABLED_REQUIRED')
+    adapter = process_adapter or WindowsProcessAdapter()
+    ownership = current['ownership']
+    if not adapter.matches(ownership):
+        raise Phase2Blocked('OWNED_SUPERVISOR_IDENTITY_MISMATCH')
+    native_setup = WindowsProcessAdapter._native_setup_binding(
+        manifest, ownership)
+    if native_setup != current['native_setup']:
+        raise Phase2Blocked('NATIVE_SETUP_BINDING_DRIFT')
+    readiness = adapter.wait_running(
+        ownership=ownership, manifest=manifest, native_setup=native_setup,
+        timeout_seconds=readiness_timeout)
+    _validate_running_result(readiness)
+    return {**current, 'runtime_readiness': readiness}
 
 
 def start(run_directory, *, clock=None, process_adapter=None,

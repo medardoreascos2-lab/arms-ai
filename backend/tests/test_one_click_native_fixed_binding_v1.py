@@ -9,10 +9,13 @@ READ_ONLY = Path(
 CATCHUP = Path(
     "integrations/ninjatrader/ArmsChartCatchupBridgeV1.cs"
 ).read_text(encoding="utf-8")
+L1 = Path(
+    "integrations/ninjatrader/ArmsReadOnlyL1V1.cs"
+).read_text(encoding="utf-8")
 
 
-def test_both_indicators_use_the_same_optional_active_binding_contract():
-    for source in (READ_ONLY, CATCHUP):
+def test_all_indicators_use_the_same_optional_active_binding_contract():
+    for source in (READ_ONLY, CATCHUP, L1):
         assert "public string OneClickBindingFile { get; set; }" in source
         assert 'OneClickBindingFile = "";' in source
         assert "if (!String.IsNullOrWhiteSpace(OneClickBindingFile)) StartBindingWatcher();" in source
@@ -26,7 +29,7 @@ def test_both_indicators_use_the_same_optional_active_binding_contract():
 
 
 def test_passive_watchers_are_bounded_retry_safe_and_replay_protected():
-    for source in (READ_ONLY, CATCHUP):
+    for source in (READ_ONLY, CATCHUP, L1):
         assert "input.Length > 65536" in source
         assert "new UTF8Encoding(false, true)" in source
         assert "catch (IOException) { }" in source
@@ -41,7 +44,7 @@ def test_passive_watchers_are_bounded_retry_safe_and_replay_protected():
 
 
 def test_passive_binding_validation_remains_fail_closed_and_observation_only():
-    for source in (READ_ONLY, CATCHUP):
+    for source in (READ_ONLY, CATCHUP, L1):
         assert "claim.Count == 32" in source or "claim.Count != 32" in source
         assert "TimeSpan.FromSeconds(900)" in source
         assert 'Text(claim, "expected_provider") != "Provider31"' in source or 'BindingText(claim, "expected_provider") == "Provider31"' in source
@@ -63,7 +66,7 @@ def test_read_only_passive_startup_requires_two_bounded_stable_snapshots():
 
 
 def test_binding_paths_are_exact_uuid_children_and_reparse_points_are_blocked():
-    for source in (READ_ONLY, CATCHUP):
+    for source in (READ_ONLY, CATCHUP, L1):
         assert 'Path.Combine(runtime, "inbox")' in source
         assert 'Path.Combine(runtime, "chart-catchup")' in source
         assert "Guid.TryParseExact(runtimeId, \"D\"" in source
@@ -81,12 +84,21 @@ def test_read_only_receipt_binds_hello_lineage_without_changing_hello_payload():
     assert "ValidateBindingReceipt(" in CATCHUP
 
 
+def test_l1_binding_is_exactly_run_scoped_private_and_generation_replaceable():
+    assert 'Environment.SpecialFolder.LocalApplicationData' in L1
+    assert '"current-paper-l1-v1", runId' in L1
+    assert 'Path.GetFullPath(OutputDirectory) != expectedL1' in L1
+    assert 'CloseObservation("BINDING_GENERATION_REPLACED")' in L1
+    assert 'CloseObservation("BINDING_REVOKED")' in L1
+    assert 'FileMode.CreateNew' in L1
+
+
 def test_binding_mode_contains_no_execution_or_workspace_mutation_surface():
     forbidden = (
         "EnterLong", "EnterShort", "SubmitOrder", "Account.CreateOrder",
         "ChangeOrder", "CancelOrder", "Workspaces.xml", "workspace.xml",
     )
-    for source in (READ_ONLY, CATCHUP):
+    for source in (READ_ONLY, CATCHUP, L1):
         assert not any(token in source for token in forbidden)
         for authority in (
             "paper_execution_enabled", "live_execution_allowed",

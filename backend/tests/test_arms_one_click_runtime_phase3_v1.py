@@ -147,16 +147,27 @@ def test_handoff_derives_exact_dynamic_paths_and_preserves_zero_authority(tmp_pa
     assert handoff["runtime"]["live_inbox"] == str((runtime / "inbox").resolve())
     assert handoff["runtime"]["catchup_output_directory"] == str(
         (runtime / "chart-catchup").resolve())
+    assert handoff['runtime']['l1_output_directory'] == str(
+        Path(fixture.profile['path_templates']['external_private_l1_root']
+             .replace('{RUN_ID}', run.name)).resolve())
     assert handoff["runtime"]["from_close_utc"] == request["from_close_utc"]
     assert handoff["runtime"]["through_close_utc"] == "LATEST_CLOSED"
     assert handoff["chart_contract"] == phase3._CHART
     binding_file = Path(handoff["native_binding"]["control_file"])
+    assert set(handoff['settings']) == {
+        'ArmsReadOnlyMarketV1', 'ArmsChartCatchupBridgeV1',
+        'ArmsReadOnlyL1V1'}
     assert handoff["settings"]["ArmsReadOnlyMarketV1"] == {
         "OneClickBindingFile": str(binding_file),
         "OutputDirectory": "",
         "ExpectedProvider": "Provider31",
     }
     assert handoff["settings"]["ArmsChartCatchupBridgeV1"]["CaptureEnabled"] is True
+    assert handoff['settings']['ArmsReadOnlyL1V1'] == {
+        'OneClickBindingFile': str(binding_file),
+        'OutputDirectory': handoff['runtime']['l1_output_directory'],
+        'ExpectedProvider': 'Provider31',
+    }
     assert result["ninjatrader_setup_authority"] is False
     assert all(result[key] is False for key in phase3._ZERO_AUTHORITY)
     assert phase2.status(run)["ninjatrader_control_authority"] is False
@@ -204,6 +215,8 @@ def test_run_derived_from_close_is_bound_before_phase3_prepare(tmp_path):
         ThroughCloseUtc="2026-10-06T18:00:00Z"),
     lambda r: r["settings"]["ArmsChartCatchupBridgeV1"].update(
         LiveOutputDirectory="C:/foreign/inbox"),
+    lambda r: r["settings"]["ArmsReadOnlyL1V1"].update(
+        OutputDirectory="C:/foreign/private-l1"),
 ])
 def test_apply_receipt_must_match_exact_chart_and_settings(tmp_path, mutation):
     _, run, *_ = _prepare(tmp_path)
@@ -252,6 +265,13 @@ def test_operator_authorize_exposes_exact_sealed_values_and_zero_authority(
     assert catchup["FromCloseUtc"] == ""
     assert catchup["ThroughCloseUtc"] == ""
     assert catchup["LiveOutputDirectory"] == ""
+    assert result['settings']['ArmsReadOnlyL1V1'] == {
+        'OneClickBindingFile': str(binding_file),
+        'OutputDirectory': str(Path(
+            phase3.status(run)['handoff']['runtime'][
+                'l1_output_directory'])),
+        'ExpectedProvider': 'Provider31',
+    }
     assert result["ninjatrader_setup_authority"] is True
     assert all(result[key] is False for key in phase3._ZERO_AUTHORITY)
     persisted = phase3.status(run)

@@ -88,6 +88,10 @@ def _offline_wiring(
     shared = []
     bound = _Socket(events)
     monkeypatch.setattr(launcher, '_restrict_directory', lambda path: None)
+    l1_identity = (1, 2)
+    monkeypatch.setattr(
+        launcher, '_prepare_current_paper_l1_directory',
+        lambda **kwargs: (Path(kwargs['requested']), l1_identity))
     monkeypatch.setenv(args.admin_token_env, "test-only-secret")
     monkeypatch.setenv('ARMS_WINDOWS_JOB_SUPERVISED_V1', args.paper_run_namespace.name)
     for name in PRIVATE_FRONTEND_MARKERS:
@@ -186,8 +190,11 @@ def test_separate_cli_single_service_seam_loopback_and_shutdown_order(
     assert shared[1][1]["service"] is service
     assert shared[2][1] is service
     assert shared[0][1]["state_path"] == args.paper_run_namespace / "paper.sqlite"
+    assert shared[0][1]["l1_directory"] == args.current_paper_l1_directory
+    assert shared[0][1]["l1_directory_identity"] == (1, 2)
     assert shared[1][1]["admin_token"] == "test-only-secret"
     assert shared[1][1]["dashboard_origin"] == f"http://127.0.0.1:{args.frontend_port}"
+    assert callable(shared[1][1]["runtime_health_provider"])
     assert events.index("attach_at_seam") < events.index("worker_start")
     assert events.index("worker_start") < events.index("api_start")
     assert events.index("worker_stop") < events.index("coordinator_close")
@@ -302,6 +309,82 @@ def test_current_paper_rejects_unsupervised_runtime_before_construction(
     assert not args.paper_run_namespace.exists()
 
 
+def _prepare_l1_fixture(tmp_path, monkeypatch):
+    run = tmp_path / 'one-click-run'
+    run.mkdir()
+    parent = tmp_path / 'private-l1'
+    parent.mkdir()
+    target = parent / run.name
+    manifest = {'targets': {'current_paper_l1_directory': str(target)}}
+    import tools.arms_one_click_runtime_v1 as phase1
+    monkeypatch.setattr(
+        phase1, '_load_and_verify',
+        lambda directory, allow_runtime_targets: (
+            Path(directory), manifest, {}, [], {}))
+    monkeypatch.setattr(
+        launcher.native_auth, 'safe_path',
+        lambda value, authority: Path(value).resolve())
+    monkeypatch.setattr(
+        launcher, 'private_directory_identity',
+        lambda path: (
+            Path(path).resolve(),
+            (Path(path).stat().st_dev, Path(path).stat().st_ino)))
+    return run, target
+
+
+def test_l1_startup_prepares_exact_sealed_target_once(tmp_path, monkeypatch):
+    run, target = _prepare_l1_fixture(tmp_path, monkeypatch)
+    restricted = []
+    directory, identity = launcher._prepare_current_paper_l1_directory(
+        requested=target, one_click_run_directory=run,
+        restrict_directory=lambda path: restricted.append(Path(path)))
+    assert directory == target.resolve()
+    assert identity == (target.stat().st_dev, target.stat().st_ino)
+    assert restricted == [target.resolve()]
+    with pytest.raises(
+            ValueError, match='FRESH_CURRENT_PAPER_L1_DIRECTORY_REQUIRED'):
+        launcher._prepare_current_paper_l1_directory(
+            requested=target, one_click_run_directory=run,
+            restrict_directory=lambda path: None)
+
+
+def test_l1_startup_rejects_path_outside_sealed_target(tmp_path, monkeypatch):
+    run, _ = _prepare_l1_fixture(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match='CURRENT_PAPER_L1_BINDING_MISMATCH'):
+        launcher._prepare_current_paper_l1_directory(
+            requested=tmp_path / 'substituted-l1',
+            one_click_run_directory=run,
+            restrict_directory=lambda path: None)
+
+
+def test_l1_startup_acl_failure_is_fail_closed_and_preserves_evidence(
+    tmp_path, monkeypatch,
+):
+    run, target = _prepare_l1_fixture(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match='PRIVATE_PATH_REQUIRED'):
+        launcher._prepare_current_paper_l1_directory(
+            requested=target, one_click_run_directory=run,
+            restrict_directory=lambda path: (_ for _ in ()).throw(
+                ValueError('PRIVATE_PATH_REQUIRED')))
+    assert target.is_dir()
+
+
+def test_l1_startup_rejects_directory_replacement_during_acl(
+    tmp_path, monkeypatch,
+):
+    run, target = _prepare_l1_fixture(tmp_path, monkeypatch)
+
+    def replace(path):
+        original = Path(path)
+        original.rename(original.with_name(original.name + '-replaced'))
+        original.mkdir()
+
+    with pytest.raises(ValueError, match='CURRENT_PAPER_L1_DIRECTORY_REPLACED'):
+        launcher._prepare_current_paper_l1_directory(
+            requested=target, one_click_run_directory=run,
+            restrict_directory=replace)
+
+
 def test_read_routes_cannot_enable_paper_and_post_requires_admin(
     tmp_path, api_settings, monkeypatch,
 ):
@@ -313,7 +396,18 @@ def test_read_routes_cannot_enable_paper_and_post_requires_admin(
         service=service, admin_token="test-admin", dashboard_origin=origin,
     )
     with TestClient(app) as client:
-        assert client.get("/health").status_code == 200
+        health = client.get("/health")
+        assert health.status_code == 200
+        assert health.json() == {
+            "status": "PROCESS_HEALTHY",
+            "mode": "CURRENT_MARKET_PAPER",
+            "runtime_lifecycle": None,
+            "paper_execution_enabled": False,
+            "live_execution_allowed": False,
+            "external_order_authority": False,
+            "broker_live_order_authority": False,
+            "ninjatrader_control_authority": False,
+        }
         assert client.get("/api/v2/paper/readiness").status_code == 200
         observation = client.get("/api/v2/paper/operator-observation")
         assert observation.status_code == 200
@@ -344,6 +438,29 @@ def test_read_routes_cannot_enable_paper_and_post_requires_admin(
             "/api/v2/paper/enable", headers={"X-ARMS-ADMIN-TOKEN": "test-admin"},
         ).status_code == 409
     assert control.call_count == 1
+
+
+def test_health_exposes_fresh_runtime_lifecycle_without_control_side_effects(
+        tmp_path, api_settings, monkeypatch):
+    service, _ = _paper(tmp_path, api_settings)
+    control = Mock(side_effect=AssertionError('health must remain read only'))
+    monkeypatch.setattr(service, 'control', control)
+    lifecycle = {
+        'status': 'LIVE', 'reason': None, 'worker_alive': True,
+        'coordinator': {
+            'status': 'LIVE', 'reason': None,
+            'l1': {'status': 'FRESH', 'reason': None},
+        },
+    }
+    app = create_current_paper_app_v1(
+        service=service, admin_token='test-admin',
+        runtime_health_provider=lambda: lifecycle)
+    with TestClient(app) as client:
+        payload = client.get('/health').json()
+    assert payload['runtime_lifecycle'] == lifecycle
+    assert payload['paper_execution_enabled'] is False
+    assert payload['live_execution_allowed'] is False
+    assert control.call_count == 0
 
 
 def test_public_analysis_cli_and_old_operational_owner_are_not_imported():

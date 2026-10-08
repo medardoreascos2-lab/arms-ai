@@ -104,6 +104,8 @@ class FakeServices:
         runtime.mkdir(parents=True)
         (runtime / "inbox").mkdir()
         (runtime / "chart-catchup").mkdir()
+        self.l1_directory = self.tmp_path / 'private-l1' / RUN_ID
+        self.l1_directory.mkdir(parents=True)
         return zero({
             "state": phase2.AWAITING_NATIVE_SETUP,
             "native_setup": {
@@ -111,6 +113,7 @@ class FakeServices:
                 "runtime_directory": str(runtime),
                 "live_inbox": str(runtime / "inbox"),
                 "catchup_output_directory": str(runtime / "chart-catchup"),
+                "l1_output_directory": str(self.l1_directory),
                 "request_sha256": "b" * 64, "claim_sha256": "c" * 64,
             },
         })
@@ -126,11 +129,15 @@ class FakeServices:
             "handoff": {
                 "chart_contract": dict(phase3._CHART),
                 "native_binding": {"control_file": str(binding)},
+                "runtime": {"l1_output_directory": str(self.l1_directory)},
                 "settings": {
                     "ArmsReadOnlyMarketV1": {
                         "OneClickBindingFile": str(binding)},
                     "ArmsChartCatchupBridgeV1": {
                         "OneClickBindingFile": str(binding)},
+                    "ArmsReadOnlyL1V1": {
+                        "OneClickBindingFile": str(binding),
+                        "OutputDirectory": str(self.l1_directory)},
                 },
             },
         })

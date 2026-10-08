@@ -58,7 +58,7 @@ def _utc(value):
 def create_certified_current_paper_service_v1(
     *, spec_bytes, reviewed_spec_sha256, template_bytes,
     loaded_calendar_bytes, config, settings, state_path, clock,
-    news_root=None, l1_directory=None,
+    news_root=None, l1_directory=None, l1_directory_identity=None,
 ):
     """Build one fresh service from hash-pinned, ordinary native inputs.
 
@@ -182,7 +182,8 @@ def create_certified_current_paper_service_v1(
         news = CurrentPaperEconomicNewsAuthorityV1(base=base, clock=clock,
             root=news_root)
         l1_reader = current_paper_l1_reader(settings=settings, gate=gate,
-            directory=l1_directory, clock=clock)
+            directory=l1_directory, clock=clock,
+            expected_directory_identity=l1_directory_identity)
         entry_authority = CurrentPaperEntryAuthorityV1(gate=gate, news=news,
             l1=l1_reader, settings=settings, clock=clock)
     service = CurrentPaperServiceV1(

@@ -77,33 +77,41 @@
     "sha256": "64ae9e48ad87ecd9ac5e4e573c78b9453ce5744c78ae79a5c0c350b56fc5ccd3"
   },
   "reviewed_source_pins": {
+    "backend/services/sim_native_l1_authority_v1.py": {
+      "path": "backend/services/sim_native_l1_authority_v1.py",
+      "sha256": "90b64b19bff6c248d12d0c994228ea0887226551b321796de01f91c1216cef1e"
+    },
+    "integrations/ninjatrader/ArmsReadOnlyL1V1.cs": {
+      "path": "integrations/ninjatrader/ArmsReadOnlyL1V1.cs",
+      "sha256": "3bfee8aa6d2e9a6e2a46717f3f218d432fb1f4fe1ddc3b1b07c1f273e4ee6621"
+    },
     "scripts/arms-runtime-v1.ps1": {
       "path": "scripts/arms-runtime-v1.ps1",
       "sha256": "dc8b8a59c4b013d6da44486857e89281a12a4c0fadf9ad19517b224a6fca688f"
     },
     "tools/arms_one_click_operator_v1.py": {
       "path": "tools/arms_one_click_operator_v1.py",
-      "sha256": "afbe4c090ec43fc734d56e6fb007239ba483cf3521906ad63281185114aa68d1"
+      "sha256": "bc0abfa5be73007f313405df50c379cdd8e587fc3e6b0a6b2c64509f32fb5c6a"
     },
     "tools/arms_one_click_runtime_v1.py": {
       "path": "tools/arms_one_click_runtime_v1.py",
-      "sha256": "27bd04dae35f9bce0bfd5a3351256d80dfe07f107141d3941871cbf3354dcc92"
+      "sha256": "4c37c2df66e8963caf100f0068438fb50defcd1f682b7c14ef45f9317991bc82"
     },
     "tools/arms_one_click_runtime_phase2_v1.py": {
       "path": "tools/arms_one_click_runtime_phase2_v1.py",
-      "sha256": "fdfebc230c0c911828c160443a87f62ddd0c8d1a3d0308e401639f6aae068810"
+      "sha256": "824ce2be117d1ee34cf68b479c2208ca90241bbc5a7b38d545878607e78dfdea"
     },
     "tools/arms_one_click_runtime_phase3_v1.py": {
       "path": "tools/arms_one_click_runtime_phase3_v1.py",
-      "sha256": "e19d4743f2d9c415d50a06c63d8725770e8777698b8c1014894920035f309932"
+      "sha256": "eb7eceb30791a4586a1a6249de3fb62d4da15475762e8b9d6198dabcd7e461b7"
     },
     "tools/start_native_current_paper_v1.py": {
       "path": "tools/start_native_current_paper_v1.py",
-      "sha256": "799a8e470a3bc8db6e4575be836c86022aec9c3cdf3bdb4c7cd4d8a85f149e64"
+      "sha256": "0e98fc4ba48d62f9c262d89be66497af8806409467a45ae0e0a80cb493654cf6"
     },
     "tools/request_current_paper_enable_v1.py": {
       "path": "tools/request_current_paper_enable_v1.py",
-      "sha256": "70b9ed05c688a641aa6f61cd0c37f129038d65146e4cd7f66b4608db4200460f"
+      "sha256": "acf071b8b20e6e0ed83e143c2b9e136c839003e83c0f57915c1f6113586ef9d6"
     },
     "tools/windows_runtime_supervisor_v1.py": {
       "path": "tools/windows_runtime_supervisor_v1.py",

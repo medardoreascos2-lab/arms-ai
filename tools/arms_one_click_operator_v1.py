@@ -369,9 +369,13 @@ def _assert_exact_handoff_binding(handoff, runtime_directory, stage):
         payload.get("native_binding", {}).get("control_file"),
         settings.get("ArmsReadOnlyMarketV1", {}).get("OneClickBindingFile"),
         settings.get("ArmsChartCatchupBridgeV1", {}).get("OneClickBindingFile"),
+        settings.get("ArmsReadOnlyL1V1", {}).get("OneClickBindingFile"),
     }
     if observed != {str(expected.resolve(strict=False))}:
         _raise(stage, "FIXED_BINDING_PATH_MISMATCH")
+    if settings.get('ArmsReadOnlyL1V1', {}).get('OutputDirectory') != (
+            payload.get('runtime', {}).get('l1_output_directory')):
+        _raise(stage, 'L1_BINDING_PATH_MISMATCH')
 
 
 def _diagnostic_path(workspace, run_id):

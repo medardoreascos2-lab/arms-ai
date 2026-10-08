@@ -27,14 +27,14 @@ def _install_valid_run(monkeypatch, tmp_path, *, state="RUNNING_DISABLED",
     phase2_state = {"state": state, **operator.ZERO_AUTHORITY}
     phase2_state.update(authority_overrides or {})
     monkeypatch.setattr(operator.phase1, "_load_and_verify",
-        lambda directory: (Path(directory), manifest, {}, [], validated))
-    monkeypatch.setattr(operator.phase1, "audit", lambda directory: {
-        "status": "PASS",
-        "source_binding": operator.phase1.SOURCE_BINDING_PASS,
-        "profile_status": "VALID",
-    })
+        lambda directory, allow_runtime_targets: (
+            Path(directory), manifest, {}, [], validated))
+    monkeypatch.setattr(operator.phase1, "audit", lambda directory: (
+        _ for _ in ()).throw(AssertionError('offline audit must not run')))
     monkeypatch.setattr(operator.phase1, "REVIEWED_MARKET_IDENTITY", MARKET)
-    monkeypatch.setattr(operator.phase2, "status", lambda directory: phase2_state)
+    monkeypatch.setattr(
+        operator.phase2, "validate_running_runtime",
+        lambda directory, readiness_timeout: phase2_state)
     return run_directory, channel
 
 
@@ -103,6 +103,25 @@ def test_controlled_enable_rejects_any_state_other_than_running_disabled(
     monkeypatch.setattr(operator, "request_enable", lambda **kwargs: called.append(kwargs))
     with pytest.raises(ValueError, match="RUNNING_DISABLED_REQUIRED"):
         operator.controlled_enable(run_directory=run_directory, approved=True)
+    assert called == []
+
+
+def test_controlled_enable_rejects_dead_or_revoked_runtime_health(
+        tmp_path, monkeypatch):
+    run_directory, _ = _install_valid_run(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        operator.phase2, 'validate_running_runtime',
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            operator.phase2.Phase2Blocked(
+                'PAPER_RUNTIME_LIFECYCLE_UNHEALTHY')))
+    called = []
+    monkeypatch.setattr(
+        operator, 'request_enable', lambda **kwargs: called.append(kwargs))
+    with pytest.raises(
+            operator.phase2.Phase2Blocked,
+            match='PAPER_RUNTIME_LIFECYCLE_UNHEALTHY'):
+        operator.controlled_enable(
+            run_directory=run_directory, approved=True)
     assert called == []
 
 

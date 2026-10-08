@@ -37,6 +37,8 @@ class Stream:
         self.session, self.seq = str(uuid4()), 0
         self.path = directory/(self.session+'.l1.jsonl')
         monkeypatch.setattr(m, 'private_path', lambda p: Path(p))
+        monkeypatch.setattr(m, 'private_directory_identity', lambda p: (
+            Path(p), (Path(p).stat().st_dev, Path(p).stat().st_ino)))
         self.admission = admission or RuntimeAdmissionV2(settings=load().api_settings)
         self.reader = m.SimNativeL1AuthorityV1(admission=self.admission, context=lambda:None,
             clock=clock or (lambda:self.now), elapsed=lambda:self.tick, directory=directory)
@@ -70,6 +72,8 @@ class SegmentedStream(Stream):
         self.path.touch()
         self.manifest_path = directory/(self.session+'.l1.manifest.json')
         monkeypatch.setattr(m, 'private_path', lambda p: Path(p))
+        monkeypatch.setattr(m, 'private_directory_identity', lambda p: (
+            Path(p), (Path(p).stat().st_dev, Path(p).stat().st_ino)))
         self.admission = RuntimeAdmissionV2(settings=load().api_settings)
         self.reader = m.SimNativeL1AuthorityV1(admission=self.admission, context=lambda:None,
             clock=lambda:self.now, elapsed=lambda:self.tick, directory=directory)
@@ -117,6 +121,119 @@ def stream(tmp_path,monkeypatch):
     s=Stream(tmp_path/'l1',monkeypatch)
     yield s
     s.reader.close()
+
+
+def _empty_reader(directory):
+    admission = RuntimeAdmissionV2(settings=load().api_settings)
+    return m.SimNativeL1AuthorityV1(
+        admission=admission, context=lambda: None, clock=lambda: NOW,
+        elapsed=lambda: 0, directory=directory)
+
+
+def test_missing_valid_l1_directory_waits_without_acl_or_revocation(
+    tmp_path,monkeypatch,
+):
+    directory = tmp_path/'missing-private-l1'
+    acl_calls = []
+    monkeypatch.setattr(m.auth, 'safe_path', lambda value, authority: Path(value))
+    monkeypatch.setattr(m, 'local_path', lambda value: Path(value))
+    monkeypatch.setattr(m, '_strict_private_acl', lambda path: acl_calls.append(path))
+    reader = _empty_reader(directory)
+    try:
+        reader.poll()
+        snapshot = reader.get_snapshot()
+        assert snapshot['status'] == 'WAITING_FOR_STREAM'
+        assert snapshot['reason'] is None
+        assert snapshot['first_failed_check'] is None
+        assert reader.directory_identity is None
+        assert acl_calls == []
+    finally:
+        reader.close()
+
+
+def test_existing_l1_directory_requires_strict_private_acl(
+    tmp_path,monkeypatch,
+):
+    directory = tmp_path/'insecure-private-l1'
+    directory.mkdir()
+    monkeypatch.setattr(m.auth, 'safe_path', lambda value, authority: Path(value))
+    monkeypatch.setattr(m, 'local_path', lambda value: Path(value))
+    monkeypatch.setattr(m, 'private_path', lambda value: Path(value))
+    monkeypatch.setattr(m, '_strict_private_acl',
+        lambda path: (_ for _ in ()).throw(ValueError('PRIVATE_PATH_REQUIRED')))
+    reader = _empty_reader(directory)
+    try:
+        reader.poll()
+        snapshot = reader.get_snapshot()
+        assert snapshot['status'] == 'REVOKED'
+        assert snapshot['first_failed_check'] == 'PRIVATE_PATH_REQUIRED'
+        assert snapshot['validation_error'] == 'ValueError:PRIVATE_PATH_REQUIRED'
+    finally:
+        reader.close()
+
+
+def test_existing_valid_private_l1_directory_records_stable_identity(
+    tmp_path,monkeypatch,
+):
+    directory = tmp_path/'valid-private-l1'
+    directory.mkdir()
+    acl_calls = []
+    monkeypatch.setattr(m.auth, 'safe_path', lambda value, authority: Path(value))
+    monkeypatch.setattr(m, 'local_path', lambda value: Path(value))
+    monkeypatch.setattr(m, 'private_path', lambda value: Path(value))
+    monkeypatch.setattr(m, '_strict_private_acl', lambda path: acl_calls.append(path))
+    expected = (directory.stat().st_dev, directory.stat().st_ino)
+    reader = _empty_reader(directory)
+    try:
+        reader.poll()
+        assert reader.status == 'WAITING_FOR_STREAM'
+        assert reader.directory_identity == expected
+        assert acl_calls == [directory]
+    finally:
+        reader.close()
+
+
+def test_l1_directory_substitution_during_acl_check_is_rejected(
+    tmp_path,monkeypatch,
+):
+    directory = tmp_path/'replace-private-l1'
+    replaced = tmp_path/'replaced-private-l1'
+    directory.mkdir()
+    monkeypatch.setattr(m.auth, 'safe_path', lambda value, authority: Path(value))
+    monkeypatch.setattr(m, 'local_path', lambda value: Path(value))
+    monkeypatch.setattr(m, 'private_path', lambda value: Path(value))
+
+    def replace(_path):
+        directory.rename(replaced)
+        directory.mkdir()
+
+    monkeypatch.setattr(m, '_strict_private_acl', replace)
+    reader = _empty_reader(directory)
+    try:
+        reader.poll()
+        snapshot = reader.get_snapshot()
+        assert snapshot['status'] == 'REVOKED'
+        assert snapshot['first_failed_check'] == (
+            'DIRECTORY_REPLACED_DURING_VALIDATION')
+    finally:
+        reader.close()
+
+
+def test_l1_reparse_or_redirected_path_remains_fail_closed(
+    tmp_path,monkeypatch,
+):
+    directory = tmp_path/'redirected-private-l1'
+    directory.mkdir()
+    monkeypatch.setattr(m.auth, 'safe_path', lambda value, authority: (
+        _ for _ in ()).throw(ValueError('redirected path prohibited')))
+    reader = _empty_reader(directory)
+    try:
+        reader.poll()
+        snapshot = reader.get_snapshot()
+        assert snapshot['status'] == 'REVOKED'
+        assert snapshot['first_failed_check'] == 'redirected path prohibited'
+    finally:
+        reader.close()
 
 
 def test_segmented_reader_continuity_hashes_and_exact_terminal(tmp_path,monkeypatch):

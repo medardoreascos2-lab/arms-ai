@@ -250,6 +250,8 @@ def _validate_runtime(manifest, runtime_directory):
         "arms.startup-chart-catchup-request.v1")
     inbox = (runtime / "inbox").resolve(strict=True)
     catchup = (runtime / "chart-catchup").resolve(strict=True)
+    l1_output = Path(
+        manifest['targets']['current_paper_l1_directory']).resolve(strict=True)
     expected_claim = {
         "run_id": native_runtime_id,
         "mode": "ANALYSIS_ONLY",
@@ -282,6 +284,7 @@ def _validate_runtime(manifest, runtime_directory):
     return {
         "directory": str(runtime), "native_runtime_id": native_runtime_id,
         "live_inbox": str(inbox), "catchup_output_directory": str(catchup),
+        "l1_output_directory": str(l1_output),
         "claim_sha256": claim_sha, "request_sha256": request_sha,
         "from_close_utc": request["from_close_utc"],
         "through_close_utc": request["through_close_utc"],
@@ -318,6 +321,11 @@ def _settings(runtime, binding_file):
             "FromCloseUtc": "",
             "ThroughCloseUtc": "",
             "LiveOutputDirectory": "",
+        },
+        "ArmsReadOnlyL1V1": {
+            "OneClickBindingFile": str(binding_file),
+            "OutputDirectory": runtime["l1_output_directory"],
+            "ExpectedProvider": runtime["expected_provider"],
         },
     }
 
@@ -701,6 +709,7 @@ def prepare_handoff(run_directory, runtime_directory, *, clock=None,
         "native_runtime_id": runtime["native_runtime_id"],
         "live_inbox": runtime["live_inbox"],
         "catchup_output_directory": runtime["catchup_output_directory"],
+        "l1_output_directory": runtime["l1_output_directory"],
         "claim_sha256": runtime["claim_sha256"],
         "request_sha256": runtime["request_sha256"],
     }

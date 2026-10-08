@@ -29,6 +29,10 @@ from backend.backtesting.certified_current_paper_authority_factory_v1 import (
 from backend.backtesting.native_current_paper_lifecycle_v1 import (
     NativeCurrentPaperLifecycleV1,
 )
+from backend.services import sim_native_authority_v3 as native_auth
+from backend.services.sim_native_l1_authority_v1 import (
+    private_directory_identity,
+)
 from backend.services.sim_native_authority_v3 import _restrict_directory
 
 
@@ -255,6 +259,14 @@ class _PaperApiLifecycleV1:
         if self.thread is None or not self.thread.is_alive() or not self.server.started:
             raise RuntimeError("PAPER_API_LOST")
 
+    def runtime_health(self):
+        """Return fresh lifecycle evidence or fail the health request closed."""
+        snapshot = self.lifecycle.check()
+        coordinator = snapshot.get('coordinator')
+        if type(coordinator) is not dict:
+            raise RuntimeError('PAPER_RUNTIME_COORDINATOR_INVALID')
+        return snapshot
+
     def close(self):
         if self.closed:
             return
@@ -290,6 +302,41 @@ def _reserve_paper_port(port):
     except BaseException:
         bound.close()
         raise
+
+
+def _prepare_current_paper_l1_directory(
+    *, requested, one_click_run_directory,
+    restrict_directory=_restrict_directory,
+):
+    """Create exactly the sealed L1 target once and bind its file identity."""
+    from tools import arms_one_click_runtime_v1 as phase1
+
+    _, manifest, _, _, _ = phase1._load_and_verify(
+        one_click_run_directory, allow_runtime_targets=True)
+    expected = native_auth.safe_path(
+        Path(manifest['targets']['current_paper_l1_directory']),
+        authority=True)
+    requested = native_auth.safe_path(Path(requested), authority=True)
+    if requested != expected:
+        raise ValueError('CURRENT_PAPER_L1_BINDING_MISMATCH')
+    if requested.exists():
+        raise ValueError('FRESH_CURRENT_PAPER_L1_DIRECTORY_REQUIRED')
+
+    parent, _ = private_directory_identity(requested.parent)
+    if parent != requested.parent:
+        raise ValueError('CURRENT_PAPER_L1_PARENT_IDENTITY_MISMATCH')
+    requested.mkdir(parents=False, exist_ok=False)
+    created = requested.stat()
+    created_identity = (created.st_dev, created.st_ino)
+    try:
+        restrict_directory(requested)
+        checked, checked_identity = private_directory_identity(requested)
+    except BaseException:
+        # Keep the failed, run-scoped directory as evidence. Never reuse it.
+        raise
+    if checked != requested or checked_identity != created_identity:
+        raise ValueError('CURRENT_PAPER_L1_DIRECTORY_REPLACED')
+    return checked, checked_identity
 
 
 def run_current_paper(args):
@@ -336,6 +383,9 @@ def run_current_paper(args):
     settings = APISettings()
     config = PaperResearchConfigV1.load(args.paper_config)
     clock = lambda: datetime.now(timezone.utc)
+    l1_directory, l1_directory_identity = _prepare_current_paper_l1_directory(
+        requested=args.current_paper_l1_directory,
+        one_click_run_directory=one_click_run_directory)
     service = create_certified_current_paper_service_v1(
         spec_bytes=spec_bytes,
         reviewed_spec_sha256=args.native_spec_sha256,
@@ -346,17 +396,25 @@ def run_current_paper(args):
         state_path=namespace / "paper.sqlite",
         clock=clock,
         news_root=args.current_paper_news_root,
-        l1_directory=args.current_paper_l1_directory,
+        l1_directory=l1_directory,
+        l1_directory_identity=l1_directory_identity,
     )
 
     bound = None
     owner = None
     try:
         bound = _reserve_paper_port(args.paper_port)
+
+        def runtime_health_provider():
+            if owner is None:
+                raise RuntimeError('PAPER_RUNTIME_LIFECYCLE_NOT_ATTACHED')
+            return owner.runtime_health()
+
         app = create_current_paper_app_v1(
             service=service,
             admin_token=token,
             dashboard_origin=f"http://127.0.0.1:{args.frontend_port}",
+            runtime_health_provider=runtime_health_provider,
         )
         server = uvicorn.Server(uvicorn.Config(
             app, host="127.0.0.1", port=args.paper_port,

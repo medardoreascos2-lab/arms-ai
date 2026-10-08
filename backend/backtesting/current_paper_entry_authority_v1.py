@@ -19,7 +19,8 @@ class _PaperQuoteAdmissionV1:
         self.runtime_spread_authority = None
 
 
-def current_paper_l1_reader(*, settings, gate, directory, clock, elapsed=None):
+def current_paper_l1_reader(*, settings, gate, directory, clock,
+                            expected_directory_identity=None, elapsed=None):
     if gate.contract.provider != "NINJATRADER:Provider31" or gate.contract.contract != "NQ DEC26":
         raise ValueError("CURRENT_PAPER_NATIVE_L1_BINDING_REQUIRED")
     digest, config = gate.digest, gate.contract
@@ -31,7 +32,8 @@ def current_paper_l1_reader(*, settings, gate, directory, clock, elapsed=None):
 
     kwargs = {} if elapsed is None else {"elapsed": elapsed}
     return SimNativeL1AuthorityV1(admission=_PaperQuoteAdmissionV1(settings),
-        context=context, clock=clock, directory=directory, **kwargs)
+        context=context, clock=clock, directory=directory,
+        expected_directory_identity=expected_directory_identity, **kwargs)
 
 
 class CurrentPaperEntryAuthorityV1:
