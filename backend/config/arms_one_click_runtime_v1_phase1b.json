@@ -81,9 +81,13 @@
       "path": "scripts/arms-runtime-v1.ps1",
       "sha256": "dc8b8a59c4b013d6da44486857e89281a12a4c0fadf9ad19517b224a6fca688f"
     },
+    "tools/arms_one_click_operator_v1.py": {
+      "path": "tools/arms_one_click_operator_v1.py",
+      "sha256": "16cf1af75f45e299ac646b7100dd19cd48e6ee0973b02c57164619bc5cdfaa9e"
+    },
     "tools/arms_one_click_runtime_v1.py": {
       "path": "tools/arms_one_click_runtime_v1.py",
-      "sha256": "5e9aacb698dddb2fc733c116c13f2f2186d3b684de212d8c4e67106055edffc8"
+      "sha256": "c098aaf0b4224cb1e1e7030bc4ae932091ec7c9aea672084ee546b8bd09514be"
     },
     "tools/arms_one_click_runtime_phase2_v1.py": {
       "path": "tools/arms_one_click_runtime_phase2_v1.py",

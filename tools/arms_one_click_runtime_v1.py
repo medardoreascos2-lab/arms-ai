@@ -58,6 +58,7 @@ PATH_TEMPLATE_FIELDS = {
 }
 REVIEWED_SOURCE_NAMES = {
     "scripts/arms-runtime-v1.ps1",
+    "tools/arms_one_click_operator_v1.py",
     "tools/arms_one_click_runtime_v1.py",
     "tools/arms_one_click_runtime_phase2_v1.py",
     "tools/arms_one_click_runtime_phase3_v1.py",
