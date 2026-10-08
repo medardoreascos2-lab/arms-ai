@@ -17,6 +17,7 @@ from secrets import compare_digest, token_bytes, token_urlsafe
 import socket
 import subprocess
 import time
+from types import MappingProxyType
 import urllib.request
 from uuid import UUID
 
@@ -48,12 +49,96 @@ FINAL_READINESS_ERROR_CODES = frozenset({
 })
 _FINAL_READINESS_EXIT_FALLBACK = (
     "SUPERVISOR_EXITED_DURING_FINAL_READINESS")
-HISTORICAL_CLEANUP_SOURCE_INVENTORIES = frozenset({
-    frozenset(phase1.REVIEWED_SOURCE_NAMES),
-    frozenset(phase1.REVIEWED_SOURCE_NAMES - {
-        "tools/arms_one_click_operator_v1.py",
-    }),
+HISTORICAL_SOURCE_INVENTORY_PRE_OPERATOR_V1 = frozenset({
+    "scripts/arms-runtime-v1.ps1",
+    "tools/analysis_native_startup_v1.py",
+    "tools/arms_one_click_runtime_phase2_v1.py",
+    "tools/arms_one_click_runtime_phase3_v1.py",
+    "tools/arms_one_click_runtime_v1.py",
+    "tools/start_native_current_paper_v1.py",
+    "tools/startup_chart_catchup_v1.py",
+    "tools/windows_runtime_supervisor_v1.py",
 })
+HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1 = frozenset({
+    *HISTORICAL_SOURCE_INVENTORY_PRE_OPERATOR_V1,
+    "tools/arms_one_click_operator_v1.py",
+})
+HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1 = frozenset({
+    *HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1,
+    "tools/request_current_paper_enable_v1.py",
+})
+# These immutable descriptor identities were transcribed from genuine sealed
+# manifests.  The repository-relative path is repeated deliberately so a
+# source name cannot be rebound to a different path with the same digest.
+#
+# PRE_OPERATOR_V1:
+#   run 20261007T235633Z-oneclick-75c4bbb44dd3
+#   manifest 41f25e562ffbc8ad0ea2504c11ae11e64fd1ffbffe9e04383c81a82cbd3656a6
+# ONE_CLICK_OPERATOR_V1:
+#   run 20261008T044321Z-oneclick-cd9a3a30326f
+#   manifest b70ecb3382c0ccf819ffa41a4a8cef94a0568331299df3e8ccace115e7421799
+HISTORICAL_CLEANUP_SOURCE_IDENTITIES = MappingProxyType({
+    "PRE_OPERATOR_V1": (
+        ("scripts/arms-runtime-v1.ps1", "scripts/arms-runtime-v1.ps1",
+         "dc8b8a59c4b013d6da44486857e89281a12a4c0fadf9ad19517b224a6fca688f", 615),
+        ("tools/analysis_native_startup_v1.py",
+         "tools/analysis_native_startup_v1.py",
+         "5c94aca17bd9f1b7789c5ab39b7972fd5c8685ab5434114628d136a8525aea94", 31642),
+        ("tools/arms_one_click_runtime_phase2_v1.py",
+         "tools/arms_one_click_runtime_phase2_v1.py",
+         "056972065d834712390b718634d6410f0e81b31766e2f9a9cedb3683bdc3d5a1", 41345),
+        ("tools/arms_one_click_runtime_phase3_v1.py",
+         "tools/arms_one_click_runtime_phase3_v1.py",
+         "0b1684f7ff3d6d3d9c64d1f1e14b6313deadd2504c54db3146c6ab9552aa81cf", 47025),
+        ("tools/arms_one_click_runtime_v1.py",
+         "tools/arms_one_click_runtime_v1.py",
+         "5e9aacb698dddb2fc733c116c13f2f2186d3b684de212d8c4e67106055edffc8", 47858),
+        ("tools/start_native_current_paper_v1.py",
+         "tools/start_native_current_paper_v1.py",
+         "527ae80310ade683854e3ab9e6e605cad5b43772152b4e8c7639a41dfd1b1830", 15943),
+        ("tools/startup_chart_catchup_v1.py",
+         "tools/startup_chart_catchup_v1.py",
+         "d73851944bde8c53c3c7d91777ec817542312e34938e7459dc2caaa2598bc724", 20994),
+        ("tools/windows_runtime_supervisor_v1.py",
+         "tools/windows_runtime_supervisor_v1.py",
+         "add171d4c722f84481cbc9ddd852b575e2b97d9a9849b95278142582e945ef73", 25512),
+    ),
+    "ONE_CLICK_OPERATOR_V1": (
+        ("scripts/arms-runtime-v1.ps1", "scripts/arms-runtime-v1.ps1",
+         "dc8b8a59c4b013d6da44486857e89281a12a4c0fadf9ad19517b224a6fca688f", 615),
+        ("tools/analysis_native_startup_v1.py",
+         "tools/analysis_native_startup_v1.py",
+         "5c94aca17bd9f1b7789c5ab39b7972fd5c8685ab5434114628d136a8525aea94", 31642),
+        ("tools/arms_one_click_operator_v1.py",
+         "tools/arms_one_click_operator_v1.py",
+         "afbe4c090ec43fc734d56e6fb007239ba483cf3521906ad63281185114aa68d1", 26918),
+        ("tools/arms_one_click_runtime_phase2_v1.py",
+         "tools/arms_one_click_runtime_phase2_v1.py",
+         "b4c2cbcd330490afc62d5b55b5c9dc5c8a6f47d853ba3feb1ea2ca8a98c355ac", 59544),
+        ("tools/arms_one_click_runtime_phase3_v1.py",
+         "tools/arms_one_click_runtime_phase3_v1.py",
+         "e19d4743f2d9c415d50a06c63d8725770e8777698b8c1014894920035f309932", 53681),
+        ("tools/arms_one_click_runtime_v1.py",
+         "tools/arms_one_click_runtime_v1.py",
+         "c098aaf0b4224cb1e1e7030bc4ae932091ec7c9aea672084ee546b8bd09514be", 47901),
+        ("tools/start_native_current_paper_v1.py",
+         "tools/start_native_current_paper_v1.py",
+         "527ae80310ade683854e3ab9e6e605cad5b43772152b4e8c7639a41dfd1b1830", 15943),
+        ("tools/startup_chart_catchup_v1.py",
+         "tools/startup_chart_catchup_v1.py",
+         "d73851944bde8c53c3c7d91777ec817542312e34938e7459dc2caaa2598bc724", 20994),
+        ("tools/windows_runtime_supervisor_v1.py",
+         "tools/windows_runtime_supervisor_v1.py",
+         "add171d4c722f84481cbc9ddd852b575e2b97d9a9849b95278142582e945ef73", 25512),
+    ),
+})
+HISTORICAL_CLEANUP_SOURCE_INVENTORIES = MappingProxyType({
+    version: frozenset(item[0] for item in identity)
+    for version, identity in HISTORICAL_CLEANUP_SOURCE_IDENTITIES.items()
+})
+CURRENT_SOURCE_INVENTORY_VERSION = "PAPER_OPERATOR_V1"
+CURRENT_REVIEWED_PROFILE_PATH = (
+    phase1.REPO_ROOT / "backend/config/arms_one_click_runtime_v1_phase1b.json")
 
 
 class Phase2Blocked(RuntimeError):
@@ -187,6 +272,104 @@ def _historical_descriptor(value, name):
         raise Phase2Blocked("HISTORICAL_DESCRIPTOR_INVALID:" + name)
 
 
+def _expected_repository_source_path(relative_path):
+    path = Path(relative_path)
+    if path.is_absolute() or ".." in path.parts:
+        raise Phase2Blocked("HISTORICAL_SOURCE_PIN_INVENTORY_INVALID")
+    return (phase1.REPO_ROOT / path).resolve(strict=False)
+
+
+def _source_descriptor_matches(descriptor, *, relative_path, digest, size):
+    expected_path = _expected_repository_source_path(relative_path)
+    actual_path = Path(descriptor["path"]).resolve(strict=False)
+    return (actual_path == expected_path
+            and descriptor["sha256"] == digest
+            and descriptor["bytes"] == size)
+
+
+def _current_paper_source_identity_matches(source_pins):
+    """Validate the unsealed-current generation against its reviewed profile."""
+    try:
+        profile, _ = phase1._read_json(
+            CURRENT_REVIEWED_PROFILE_PATH, phase1.PROFILE_SCHEMA)
+    except (OSError, ValueError, phase1.OfflineBlocked):
+        return False
+    reviewed = profile.get("reviewed_source_pins")
+    if (set(profile) != phase1.REVIEWED_PROFILE_FIELDS
+            or profile.get("reviewed_profile_version")
+            != phase1.REVIEWED_PROFILE_VERSION
+            or profile.get("mode") != "OFFLINE_ONLY"
+            or profile.get("execution_authority") is not False
+            or profile.get("live_authority") is not False
+            or profile.get("external_order_authority") is not False
+            or profile.get("future_runtime_execution_enabled") is not False
+            or type(reviewed) is not dict
+            or set(reviewed) != HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1
+            or set(source_pins) != HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1):
+        return False
+    for name in HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1:
+        reviewed_descriptor = reviewed.get(name)
+        if (type(reviewed_descriptor) is not dict
+                or set(reviewed_descriptor) != {"path", "sha256"}
+                or reviewed_descriptor.get("path") != name
+                or not phase1._validate_hash(reviewed_descriptor.get("sha256"))):
+            return False
+        try:
+            _, digest, size = phase1._hash_stable_file(
+                _expected_repository_source_path(name),
+                reviewed_descriptor["sha256"])
+        except (OSError, ValueError, phase1.OfflineBlocked):
+            return False
+        if not _source_descriptor_matches(
+                source_pins[name], relative_path=name,
+                digest=digest, size=size):
+            return False
+    return True
+
+
+def _historical_source_inventory(source_pins):
+    """Accept one exact reviewed descriptor identity, never just a name set."""
+    if type(source_pins) is not dict:
+        raise Phase2Blocked("HISTORICAL_SOURCE_PIN_INVENTORY_INVALID")
+    for name, descriptor in source_pins.items():
+        _historical_descriptor(descriptor, "source:" + name)
+        if Path(descriptor["path"]).resolve(strict=False) != (
+                _expected_repository_source_path(name)):
+            raise Phase2Blocked("HISTORICAL_SOURCE_PIN_PATH_INVALID:" + name)
+
+    matches = []
+    for version, identity in HISTORICAL_CLEANUP_SOURCE_IDENTITIES.items():
+        if set(source_pins) != {item[0] for item in identity}:
+            continue
+        if all(_source_descriptor_matches(
+                source_pins[name], relative_path=relative_path,
+                digest=digest, size=size)
+               for name, relative_path, digest, size in identity):
+            matches.append(version)
+    if _current_paper_source_identity_matches(source_pins):
+        matches.append(CURRENT_SOURCE_INVENTORY_VERSION)
+    if len(matches) != 1 or PHASE2_SOURCE not in source_pins:
+        raise Phase2Blocked("HISTORICAL_SOURCE_PIN_INVENTORY_INVALID")
+    return matches[0]
+
+
+def _expected_historical_future_command(manifest, inventory_version=None):
+    """Reconstruct the exact launcher contract for a reviewed generation."""
+    version = (inventory_version or
+               _historical_source_inventory(manifest.get("source_pins")))
+    command = phase1._expected_future_command(manifest)
+    if version in {"PRE_OPERATOR_V1", "ONE_CLICK_OPERATOR_V1"}:
+        try:
+            index = command.index("--one-click-run-directory")
+        except ValueError as error:
+            raise Phase2Blocked(
+                "HISTORICAL_COMMAND_CONTRACT_INVALID") from error
+        command = [*command[:index], *command[index + 2:]]
+    elif version != "PAPER_OPERATOR_V1":
+        raise Phase2Blocked("HISTORICAL_SOURCE_PIN_INVENTORY_INVALID")
+    return command
+
+
 def _historical_supervisor_report_directory(manifest):
     """Derive the run-scoped supervisor evidence path from sealed history."""
     if type(manifest) is not dict or type(manifest.get("run_id")) is not str:
@@ -267,13 +450,7 @@ def _load_historical_owned_cleanup_plan(
     for name, descriptor in inputs.items():
         _historical_descriptor(descriptor, "input:" + name)
     source_pins = manifest.get("source_pins")
-    if (type(source_pins) is not dict
-            or frozenset(source_pins) not in (
-                HISTORICAL_CLEANUP_SOURCE_INVENTORIES)
-            or PHASE2_SOURCE not in source_pins):
-        raise Phase2Blocked("HISTORICAL_SOURCE_PIN_INVENTORY_INVALID")
-    for name, descriptor in source_pins.items():
-        _historical_descriptor(descriptor, "source:" + name)
+    inventory_version = _historical_source_inventory(source_pins)
 
     ports = manifest.get("ports")
     if (type(ports) is not dict or set(ports) != phase1.PORT_FIELDS
@@ -323,7 +500,8 @@ def _load_historical_owned_cleanup_plan(
     command = manifest.get("disabled_future_start_command")
     if (type(command) is not list or not command
             or any(type(item) is not str or not item for item in command)
-            or command != phase1._expected_future_command(manifest)):
+            or command != _expected_historical_future_command(
+                manifest, inventory_version)):
         raise Phase2Blocked("HISTORICAL_COMMAND_CONTRACT_INVALID")
 
     events = events_value.get("events")
@@ -829,7 +1007,7 @@ class WindowsProcessAdapter:
         report_directory = _historical_supervisor_report_directory(manifest)
         start, _ = phase1._read_json(
             report_directory / "supervisor-start.json", supervisor.SCHEMA)
-        expected_launcher = phase1._expected_future_command(manifest)
+        expected_launcher = _expected_historical_future_command(manifest)
         separator = expected_launcher.index("--")
         if (start.get("run_id") != manifest["run_id"]
                 or start.get("supervisor_pid") != ownership["pid"]

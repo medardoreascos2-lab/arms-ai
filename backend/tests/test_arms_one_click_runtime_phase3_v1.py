@@ -74,8 +74,9 @@ def _write_json(path, value):
     path.write_text(json.dumps(value), encoding="utf-8")
 
 
-def _fixture(tmp_path):
-    fixture, run = phase2_fixture(tmp_path)
+def _fixture(tmp_path, *, repo_source_pins=False):
+    fixture, run = phase2_fixture(
+        tmp_path, repo_source_pins=repo_source_pins)
     fixture.active.write_text("DO NOT TOUCH", encoding="utf-8")
     authorization = phase2_authorize(run)
     phase2_start(run, authorization, FakeProcessAdapter())
@@ -87,8 +88,9 @@ def _fixture(tmp_path):
     return fixture, run, runtime, claim, request, authorization
 
 
-def _prepare(tmp_path, *, timeout=2):
-    fixture, run, runtime, claim, request, phase2_authorization = _fixture(tmp_path)
+def _prepare(tmp_path, *, timeout=2, repo_source_pins=False):
+    fixture, run, runtime, claim, request, phase2_authorization = _fixture(
+        tmp_path, repo_source_pins=repo_source_pins)
     result = phase3.prepare_handoff(
         run, runtime, clock=lambda: NOW, hello_timeout_seconds=timeout)
     return fixture, run, runtime, claim, request, phase2_authorization, result
@@ -373,7 +375,8 @@ def test_operator_hello_timeout_preserves_failed_attempt_evidence(tmp_path):
 
 
 def test_failed_handoff_terminalizes_only_interrupted_verified_cleanup(tmp_path):
-    _, run, *_ = _prepare(tmp_path, timeout=1)
+    _, run, *_ = _prepare(
+        tmp_path, timeout=1, repo_source_pins=True)
     authorization = _operator_authorize(run)
     timer = FakeTime()
     with pytest.raises(phase3.Phase3Blocked, match="NATIVE_HELLO_TIMEOUT"):
@@ -440,7 +443,8 @@ def test_failed_handoff_terminalizes_only_interrupted_verified_cleanup(tmp_path)
 
 
 def test_applying_handoff_cannot_terminalize_interrupted_cleanup(tmp_path):
-    _, run, *_ = _prepare(tmp_path, timeout=1)
+    _, run, *_ = _prepare(
+        tmp_path, timeout=1, repo_source_pins=True)
     authorization = _operator_authorize(run)
     _, _, handoff, _ = phase3._load_handoff(run)
     current, _ = phase3._load_evidence(run, handoff)

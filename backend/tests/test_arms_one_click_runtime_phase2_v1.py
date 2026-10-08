@@ -149,8 +149,17 @@ class FakeProcessAdapter:
                 "child_cleanup_confirmed": True}
 
 
-def _fixture(tmp_path):
+def _fixture(tmp_path, *, repo_source_pins=False):
     fixture = _reviewed_fixture(tmp_path)
+    if repo_source_pins:
+        fixture.profile["reviewed_source_pins"] = {
+            name: {
+                "path": str((phase1.REPO_ROOT / name).resolve()),
+                "sha256": sha256(
+                    (phase1.REPO_ROOT / name).read_bytes()).hexdigest(),
+            }
+            for name in phase1.REVIEWED_SOURCE_NAMES
+        }
     template = tmp_path / "inputs" / "calendar.xml"
     loaded = tmp_path / "inputs" / "loaded-calendar.jsonl"
     template.write_bytes(b"reviewed-template")
@@ -646,6 +655,78 @@ def _drift_historical_profile(run):
     profile.write_text("{}", encoding="utf-8")
 
 
+def _running_historical_inventory(tmp_path, monkeypatch, inventory):
+    current = set(phase1.REVIEWED_SOURCE_NAMES)
+    current_expected_command = phase1._expected_future_command
+    monkeypatch.setattr(phase1, "REVIEWED_SOURCE_NAMES", set(inventory))
+    fixture, run = _fixture(tmp_path, repo_source_pins=True)
+    manifest_path = run / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    command = manifest["disabled_future_start_command"]
+    index = command.index("--one-click-run-directory")
+    manifest["disabled_future_start_command"] = [
+        *command[:index], *command[index + 2:]]
+    manifest_hash = phase1._atomic_json(manifest_path, manifest)
+    phase1._atomic_json(run / "seal.json", {
+        "schema": phase1.SEAL_SCHEMA,
+        "run_id": manifest["run_id"],
+        "manifest_sha256": manifest_hash,
+        "sealed_utc": manifest["created_utc"],
+    })
+    events = json.loads((run / "events.json").read_text(encoding="utf-8"))
+    phase1._atomic_json(
+        run / "state.json",
+        phase1._state_from_event(events["events"][-1], manifest_hash))
+
+    def historical_expected_command(value):
+        expected = current_expected_command(value)
+        position = expected.index("--one-click-run-directory")
+        return [*expected[:position], *expected[position + 2:]]
+
+    monkeypatch.setattr(
+        phase1, "_expected_future_command", historical_expected_command)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    monkeypatch.setattr(phase1, "REVIEWED_SOURCE_NAMES", current)
+    monkeypatch.setattr(
+        phase1, "_expected_future_command", current_expected_command)
+    versions = [
+        version for version, names in
+        phase2.HISTORICAL_CLEANUP_SOURCE_INVENTORIES.items()
+        if frozenset(inventory) == names
+    ]
+    assert len(versions) == 1
+    identity = phase2.HISTORICAL_CLEANUP_SOURCE_IDENTITIES[versions[0]]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["source_pins"] = {
+        name: {
+            "path": str((phase1.REPO_ROOT / relative_path).resolve()),
+            "sha256": digest,
+            "bytes": size,
+        }
+        for name, relative_path, digest, size in identity
+    }
+    _reseal_manifest_and_bindings(run, manifest)
+    return fixture, run, adapter
+
+
+def _reseal_manifest_and_bindings(run, manifest):
+    manifest_hash = phase1._atomic_json(run / "manifest.json", manifest)
+    phase1._atomic_json(run / "seal.json", {
+        "schema": phase1.SEAL_SCHEMA,
+        "run_id": manifest["run_id"],
+        "manifest_sha256": manifest_hash,
+        "sealed_utc": manifest["created_utc"],
+    })
+    events = json.loads((run / "events.json").read_text(encoding="utf-8"))
+    phase1._atomic_json(
+        run / "state.json",
+        phase1._state_from_event(events["events"][-1], manifest_hash))
+    _rewrite_phase2_events(
+        run, lambda event: event["bindings"].__setitem__(
+            "plan_sha256", manifest_hash))
+
+
 def _rewrite_phase2_events(run, mutate):
     path = run / "phase2-events.json"
     value = json.loads(path.read_text(encoding="utf-8"))
@@ -665,7 +746,7 @@ def _rewrite_phase2_events(run, mutate):
 
 
 def test_historical_source_drift_allows_only_verified_owned_cleanup(tmp_path):
-    _, run = _fixture(tmp_path)
+    _, run = _fixture(tmp_path, repo_source_pins=True)
     adapter = FakeProcessAdapter()
     _start(run, _authorize(run), adapter)
     immutable = {
@@ -693,11 +774,172 @@ def test_historical_source_drift_allows_only_verified_owned_cleanup(tmp_path):
         "ninjatrader_control_authority"))
 
 
-def test_historical_windows_cleanup_uses_sealed_report_directory(
+def test_pre_paper_operator_nine_pin_run_is_recognized_and_cleaned(
         tmp_path, monkeypatch):
-    _, run = _fixture(tmp_path)
-    start_adapter = FakeProcessAdapter()
-    _start(run, _authorize(run), start_adapter)
+    _, run, adapter = _running_historical_inventory(
+        tmp_path, monkeypatch,
+        phase2.HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1)
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    assert frozenset(manifest["source_pins"]) == (
+        phase2.HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1)
+    assert "tools/request_current_paper_enable_v1.py" not in manifest["source_pins"]
+
+    result = phase2.stop_owned_stale_run_for_cleanup(
+        run, clock=lambda: NOW, process_adapter=adapter)
+
+    assert result["state"] == phase2.STOPPED
+    assert len(adapter.stop_calls) == 1
+    assert adapter.running is False
+    assert all(result[name] is False for name in (
+        "paper_execution_enabled", "live_execution_allowed",
+        "external_order_authority", "broker_live_order_authority",
+        "ninjatrader_control_authority"))
+
+
+@pytest.mark.parametrize("version", (
+    "PRE_OPERATOR_V1", "ONE_CLICK_OPERATOR_V1",
+))
+def test_sealed_historical_descriptor_identity_selects_one_generation(version):
+    identity = phase2.HISTORICAL_CLEANUP_SOURCE_IDENTITIES[version]
+    pins = {
+        name: {
+            "path": str((phase1.REPO_ROOT / relative_path).resolve()),
+            "sha256": digest,
+            "bytes": size,
+        }
+        for name, relative_path, digest, size in identity
+    }
+
+    assert phase2._historical_source_inventory(pins) == version
+
+
+def test_current_paper_operator_inventory_is_still_recognized_and_cleaned(
+        tmp_path):
+    _, run = _fixture(tmp_path, repo_source_pins=True)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    assert frozenset(manifest["source_pins"]) == (
+        phase2.HISTORICAL_SOURCE_INVENTORY_PAPER_OPERATOR_V1)
+
+    result = phase2.stop_owned_stale_run_for_cleanup(
+        run, clock=lambda: NOW, process_adapter=adapter)
+
+    assert result["state"] == phase2.STOPPED
+    assert len(adapter.stop_calls) == 1
+
+
+@pytest.mark.parametrize("mutation", ("sha256", "bytes"))
+def test_historical_inventory_changed_identity_is_rejected_after_reseal(
+        tmp_path, monkeypatch, mutation):
+    _, run, adapter = _running_historical_inventory(
+        tmp_path, monkeypatch,
+        phase2.HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1)
+    manifest_path = run / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    pin = manifest["source_pins"][phase2.PHASE2_SOURCE]
+    if mutation == "sha256":
+        pin["sha256"] = ("0" * 64 if pin["sha256"] != "0" * 64
+                         else "1" * 64)
+    else:
+        pin["bytes"] += 1
+    _reseal_manifest_and_bindings(run, manifest)
+
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="HISTORICAL_SOURCE_PIN_INVENTORY_INVALID"):
+        phase2.stop_owned_stale_run_for_cleanup(
+            run, clock=lambda: NOW, process_adapter=adapter)
+    assert adapter.stop_calls == []
+
+
+def test_historical_inventory_path_substitution_is_rejected_after_reseal(
+        tmp_path, monkeypatch):
+    _, run, adapter = _running_historical_inventory(
+        tmp_path, monkeypatch,
+        phase2.HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1)
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    manifest["source_pins"][phase2.PHASE2_SOURCE]["path"] = str(
+        (phase1.REPO_ROOT / "tools/arms_one_click_runtime_v1.py").resolve())
+    _reseal_manifest_and_bindings(run, manifest)
+
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="HISTORICAL_SOURCE_PIN_PATH_INVALID"):
+        phase2.stop_owned_stale_run_for_cleanup(
+            run, clock=lambda: NOW, process_adapter=adapter)
+    assert adapter.stop_calls == []
+
+
+@pytest.mark.parametrize("mutation", ("missing", "unexpected"))
+def test_historical_inventory_shape_rejects_missing_or_unexpected_pin(
+        tmp_path, monkeypatch, mutation):
+    _, run, _ = _running_historical_inventory(
+        tmp_path, monkeypatch,
+        phase2.HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1)
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    pins = manifest["source_pins"]
+    if mutation == "missing":
+        pins.pop("tools/startup_chart_catchup_v1.py")
+    else:
+        pins["tools/unreviewed_cleanup_source.py"] = {
+            "path": str((phase1.REPO_ROOT /
+                         "tools/unreviewed_cleanup_source.py").resolve()),
+            "sha256": "a" * 64,
+            "bytes": 1,
+        }
+
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="HISTORICAL_SOURCE_PIN_INVENTORY_INVALID"):
+        phase2._historical_source_inventory(pins)
+
+
+def test_unknown_inventory_generation_is_rejected(tmp_path):
+    _, run = _fixture(tmp_path, repo_source_pins=True)
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="HISTORICAL_SOURCE_PIN_INVENTORY_INVALID"):
+        phase2._expected_historical_future_command(
+            manifest, inventory_version="UNKNOWN_V1")
+
+
+def test_historical_cleanup_requires_zero_process_port_and_job_postconditions(
+        tmp_path, monkeypatch):
+    _, run, adapter = _running_historical_inventory(
+        tmp_path, monkeypatch,
+        phase2.HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1)
+
+    def incomplete_stop(**kwargs):
+        adapter.stop_calls.append(kwargs)
+        adapter.running = False
+        return {
+            "controlled_stop_requested": True,
+            "run_id": kwargs["manifest"]["run_id"],
+            "run_scoped_process_count": 0,
+            "run_scoped_ports_open": 1,
+            "job_membership_remains": 0,
+            "cleanup_evidence_status": "PASS",
+            "child_cleanup_confirmed": True,
+        }
+
+    adapter.stop = incomplete_stop
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="HISTORICAL_CLEANUP_UNPROVEN"):
+        phase2.stop_owned_stale_run_for_cleanup(
+            run, clock=lambda: NOW, process_adapter=adapter)
+    assert len(adapter.stop_calls) == 1
+
+
+@pytest.mark.parametrize("old_nine_pin_inventory", (False, True))
+def test_historical_windows_cleanup_uses_sealed_report_directory(
+        tmp_path, monkeypatch, old_nine_pin_inventory):
+    if old_nine_pin_inventory:
+        _, run, start_adapter = _running_historical_inventory(
+            tmp_path, monkeypatch,
+            phase2.HISTORICAL_SOURCE_INVENTORY_ONE_CLICK_OPERATOR_V1)
+    else:
+        _, run = _fixture(tmp_path, repo_source_pins=True)
+        start_adapter = FakeProcessAdapter()
+        _start(run, _authorize(run), start_adapter)
     _drift_historical_profile(run)
 
     manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
@@ -705,7 +947,7 @@ def test_historical_windows_cleanup_uses_sealed_report_directory(
     report_directory = Path(
         manifest["targets"]["supervisor_report_directory"])
     report_directory.mkdir(parents=True)
-    expected_launcher = phase1._expected_future_command(manifest)
+    expected_launcher = phase2._expected_historical_future_command(manifest)
     separator = expected_launcher.index("--")
     phase1._atomic_json(report_directory / "supervisor-start.json", {
         "schema": phase2.supervisor.SCHEMA,
@@ -769,7 +1011,7 @@ def test_historical_cleanup_report_directory_must_be_run_scoped(tmp_path):
 
 
 def test_historical_cleanup_can_terminalize_proven_prior_exit(tmp_path):
-    _, run = _fixture(tmp_path)
+    _, run = _fixture(tmp_path, repo_source_pins=True)
     start_adapter = FakeProcessAdapter()
     _start(run, _authorize(run), start_adapter)
     _drift_historical_profile(run)
@@ -809,7 +1051,7 @@ def test_historical_cleanup_can_terminalize_proven_prior_exit(tmp_path):
 @pytest.mark.parametrize("failure", ("pid_missing", "pid_reused"))
 def test_historical_cleanup_pid_identity_failure_never_stops(
         tmp_path, failure):
-    _, run = _fixture(tmp_path)
+    _, run = _fixture(tmp_path, repo_source_pins=True)
     adapter = FakeProcessAdapter()
     _start(run, _authorize(run), adapter)
     _drift_historical_profile(run)
@@ -827,7 +1069,7 @@ def test_historical_cleanup_pid_identity_failure_never_stops(
 
 
 def test_historical_cleanup_requires_recorded_ownership(tmp_path):
-    _, run = _fixture(tmp_path)
+    _, run = _fixture(tmp_path, repo_source_pins=True)
     adapter = FakeProcessAdapter()
     _start(run, _authorize(run), adapter)
     _drift_historical_profile(run)
@@ -844,7 +1086,7 @@ def test_historical_cleanup_requires_recorded_ownership(tmp_path):
 
 
 def test_historical_cleanup_rejects_any_authority_true(tmp_path):
-    _, run = _fixture(tmp_path)
+    _, run = _fixture(tmp_path, repo_source_pins=True)
     adapter = FakeProcessAdapter()
     _start(run, _authorize(run), adapter)
     _drift_historical_profile(run)
@@ -861,7 +1103,7 @@ def test_historical_cleanup_rejects_any_authority_true(tmp_path):
 
 
 def test_historical_cleanup_rejects_command_identity_drift(tmp_path):
-    _, run = _fixture(tmp_path)
+    _, run = _fixture(tmp_path, repo_source_pins=True)
     adapter = FakeProcessAdapter()
     _start(run, _authorize(run), adapter)
     _drift_historical_profile(run)
