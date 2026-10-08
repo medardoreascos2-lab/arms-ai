@@ -132,8 +132,8 @@ class OperatorServices:
     def ownership_matches(self, ownership):
         return phase2.WindowsProcessAdapter().matches(ownership)
 
-    def stop(self, run):
-        return phase2.stop(run)
+    def stop_owned_stale_run_for_cleanup(self, run):
+        return phase2.stop_owned_stale_run_for_cleanup(run)
 
     def prepare_phase1(self, profile, workspace):
         return phase1.prepare(profile, workspace=workspace)
@@ -216,7 +216,7 @@ def _reconcile_old_runs(workspace, services):
         ownership = state.get("ownership")
         if current in {phase2.AWAITING_NATIVE_SETUP, phase2.RUNNING}:
             try:
-                stopped = services.stop(run)
+                stopped = services.stop_owned_stale_run_for_cleanup(run)
             except Exception as error:
                 _raise("PRECHECK", "OWNED_STALE_RUN_STOP_FAILED:" + run.name + ":" + str(error))
             if stopped.get("state") != phase2.STOPPED:

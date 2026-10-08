@@ -27,6 +27,7 @@ class FakeServices:
         self.calls = []
         self.stale = {}
         self.stop_calls = []
+        self.port_checks = 0
         self.observed_internal_token = None
         self.observed_internal_sha = None
         self.receipt_detected = False
@@ -56,6 +57,7 @@ class FakeServices:
 
     def port_states(self, ports):
         assert set(ports) == {54920, 54921, 54922}
+        self.port_checks += 1
         return self.ports
 
     def phase2_state(self, run):
@@ -72,7 +74,7 @@ class FakeServices:
     def ownership_matches(ownership):
         return ownership.get("owned", False)
 
-    def stop(self, run):
+    def stop_owned_stale_run_for_cleanup(self, run):
         self.stop_calls.append(Path(run).name)
         return zero({"state": phase2.STOPPED})
 
@@ -243,6 +245,51 @@ def test_stale_owned_run_uses_only_verified_phase2_stop(tmp_path):
     assert result["state"] == phase1.BLOCKED
     assert services.stop_calls == [stale_id]
     assert result["run_id"] is None
+
+
+def test_verified_stale_cleanup_precedes_port_recheck_and_one_new_run(tmp_path):
+    workspace = tmp_path / "workspace"
+    stale_id = "20261007T110000Z-oneclick-cccccccccccc"
+    (workspace / stale_id).mkdir(parents=True)
+    services = FakeServices(tmp_path)
+    services.stale[stale_id] = zero({
+        "state": phase2.AWAITING_NATIVE_SETUP,
+        "ownership": {"pid": 9, "identity": [1, 2], "owned": True},
+    })
+    original_ports = services.port_states
+
+    def ports_after_cleanup(ports):
+        assert services.stop_calls == [stale_id]
+        return original_ports(ports)
+
+    services.port_states = ports_after_cleanup
+    result, _ = execute(tmp_path, services)
+    assert result["state"] == phase2.RUNNING
+    assert services.stop_calls == [stale_id]
+    assert services.calls.count("phase1") == 1
+    assert services.port_checks == 1
+    assert {path.name for path in workspace.iterdir()} == {RUN_ID, stale_id}
+
+
+def test_port_collision_is_rechecked_after_verified_stale_cleanup(tmp_path):
+    workspace = tmp_path / "workspace"
+    stale_id = "20261007T110000Z-oneclick-dddddddddddd"
+    (workspace / stale_id).mkdir(parents=True)
+    services = FakeServices(
+        tmp_path,
+        ports={54920: {"LISTENING"}, 54921: {"TIME_WAIT"}, 54922: set()},
+    )
+    services.stale[stale_id] = zero({
+        "state": phase2.AWAITING_NATIVE_SETUP,
+        "ownership": {"pid": 9, "identity": [1, 2], "owned": True},
+    })
+
+    result, _ = execute(tmp_path, services)
+    assert result["state"] == phase1.BLOCKED
+    assert result["primary_reason"] == "REQUIRED_PORT_LISTENING:54920"
+    assert services.stop_calls == [stale_id]
+    assert services.port_checks == 1
+    assert "phase1" not in services.calls
 
 
 def test_unrelated_or_uncontrollable_process_is_never_stopped(tmp_path):

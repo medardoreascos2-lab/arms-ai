@@ -81,6 +81,7 @@ class FakeProcessAdapter:
             "identity": list(self.identity),
             "command_sha256": sha256(
                 phase1._canonical(list(kwargs["command"]))).hexdigest(),
+            "spawn_challenge_sha256": "c" * 64,
             "runtime_directories_before_start": (
                 phase2.WindowsProcessAdapter._runtime_directories(
                     kwargs["manifest"])),
@@ -122,6 +123,17 @@ class FakeProcessAdapter:
     def matches(self, ownership):
         return (self.running and ownership["pid"] == 43210
                 and ownership["identity"] == self.identity)
+
+    def verify_cleanup_ownership(self, **kwargs):
+        if not self.matches(kwargs["ownership"]):
+            raise phase2.Phase2Blocked(
+                "OWNED_SUPERVISOR_IDENTITY_MISMATCH")
+        expected = sha256(phase1._canonical(
+            kwargs["manifest"]["disabled_future_start_command"])).hexdigest()
+        if kwargs["ownership"]["command_sha256"] != expected:
+            raise phase2.Phase2Blocked(
+                "OWNED_SUPERVISOR_EVIDENCE_MISMATCH")
+        return {"state": "RUNNING"}
 
     def stop(self, **kwargs):
         if not self.matches(kwargs["ownership"]):
@@ -626,6 +638,170 @@ def test_pid_reuse_cannot_target_unrelated_process(tmp_path):
         phase2.stop(run, clock=lambda: NOW, process_adapter=adapter)
     assert adapter.stop_calls == []
     assert phase2.status(run)["state"] == phase2.AWAITING_NATIVE_SETUP
+
+
+def _drift_historical_profile(run):
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    profile = Path(manifest["profile"]["path"])
+    profile.write_text("{}", encoding="utf-8")
+
+
+def _rewrite_phase2_events(run, mutate):
+    path = run / "phase2-events.json"
+    value = json.loads(path.read_text(encoding="utf-8"))
+    previous = None
+    for event in value["events"]:
+        mutate(event)
+        event["previous_event_sha256"] = previous
+        event["event_sha256"] = phase2._digest({
+            key: item for key, item in event.items()
+            if key != "event_sha256"
+        })
+        previous = event["event_sha256"]
+    path.write_text(json.dumps(value), encoding="utf-8")
+    state = phase2._state_from_event(value["events"][-1])
+    (run / "phase2-state.json").write_text(
+        json.dumps(state), encoding="utf-8")
+
+
+def test_historical_source_drift_allows_only_verified_owned_cleanup(tmp_path):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    immutable = {
+        name: (run / name).read_bytes()
+        for name in ("manifest.json", "seal.json", "events.json", "state.json")
+    }
+    _drift_historical_profile(run)
+
+    with pytest.raises(phase1.OfflineBlocked, match="PROFILE"):
+        phase2.continue_after_native_setup(
+            run, clock=lambda: NOW, process_adapter=adapter,
+            readiness_timeout=1)
+    with pytest.raises(phase1.OfflineBlocked, match="PROFILE"):
+        phase2.stop(run, clock=lambda: NOW, process_adapter=adapter)
+
+    result = phase2.stop_owned_stale_run_for_cleanup(
+        run, clock=lambda: NOW, process_adapter=adapter)
+    assert result["state"] == phase2.STOPPED
+    assert len(adapter.stop_calls) == 1
+    assert all((run / name).read_bytes() == raw
+               for name, raw in immutable.items())
+    assert all(result[name] is False for name in (
+        "paper_execution_enabled", "live_execution_allowed",
+        "external_order_authority", "broker_live_order_authority",
+        "ninjatrader_control_authority"))
+
+
+def test_historical_cleanup_can_terminalize_proven_prior_exit(tmp_path):
+    _, run = _fixture(tmp_path)
+    start_adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), start_adapter)
+    _drift_historical_profile(run)
+
+    class AlreadyExited(FakeProcessAdapter):
+        def __init__(self):
+            super().__init__(running=False)
+
+        def verify_cleanup_ownership(self, **kwargs):
+            return {
+                "state": "ALREADY_EXITED",
+                "shutdown": {
+                    "run_id": kwargs["manifest"]["run_id"],
+                    "supervisor_pid": kwargs["ownership"]["pid"],
+                    "controlled_stop_requested": False,
+                    "run_scoped_process_count": 0,
+                    "run_scoped_ports_open": 0,
+                    "job_membership_remains": 0,
+                    "cleanup_evidence_status": "PASS",
+                    "child_cleanup_confirmed": True,
+                },
+            }
+
+        def stop(self, **kwargs):
+            raise AssertionError("an exited process must never be stopped")
+
+    adapter = AlreadyExited()
+    result = phase2.stop_owned_stale_run_for_cleanup(
+        run, clock=lambda: NOW, process_adapter=adapter)
+    assert result["state"] == phase2.STOPPED
+    assert adapter.stop_calls == []
+    events = json.loads((run / "phase2-events.json").read_text())["events"]
+    assert events[-1]["details"]["cleanup_basis"] == (
+        "EXISTING_SHUTDOWN_REPORT")
+
+
+@pytest.mark.parametrize("failure", ("pid_missing", "pid_reused"))
+def test_historical_cleanup_pid_identity_failure_never_stops(
+        tmp_path, failure):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    _drift_historical_profile(run)
+    if failure == "pid_missing":
+        adapter.running = False
+    else:
+        adapter.identity = [999, 999]
+
+    with pytest.raises(phase2.Phase2Blocked, match="IDENTITY_MISMATCH"):
+        phase2.stop_owned_stale_run_for_cleanup(
+            run, clock=lambda: NOW, process_adapter=adapter)
+    assert adapter.stop_calls == []
+    assert phase2._load_phase2(run)[0]["state"] == (
+        phase2.AWAITING_NATIVE_SETUP)
+
+
+def test_historical_cleanup_requires_recorded_ownership(tmp_path):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    _drift_historical_profile(run)
+
+    def remove_ownership(event):
+        if event["state"] == phase2.AWAITING_NATIVE_SETUP:
+            event["details"]["ownership"] = None
+
+    _rewrite_phase2_events(run, remove_ownership)
+    with pytest.raises(phase2.Phase2Blocked, match="OWNERSHIP_INVALID"):
+        phase2.stop_owned_stale_run_for_cleanup(
+            run, clock=lambda: NOW, process_adapter=adapter)
+    assert adapter.stop_calls == []
+
+
+def test_historical_cleanup_rejects_any_authority_true(tmp_path):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    _drift_historical_profile(run)
+
+    def escalate(event):
+        if event["state"] == phase2.AWAITING_NATIVE_SETUP:
+            event["paper_execution_enabled"] = True
+
+    _rewrite_phase2_events(run, escalate)
+    with pytest.raises(phase2.Phase2Blocked, match="EVENT_CHAIN_INVALID"):
+        phase2.stop_owned_stale_run_for_cleanup(
+            run, clock=lambda: NOW, process_adapter=adapter)
+    assert adapter.stop_calls == []
+
+
+def test_historical_cleanup_rejects_command_identity_drift(tmp_path):
+    _, run = _fixture(tmp_path)
+    adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), adapter)
+    _drift_historical_profile(run)
+
+    def forge_command(event):
+        ownership = event.get("details", {}).get("ownership")
+        if ownership is not None:
+            ownership["command_sha256"] = "f" * 64
+
+    _rewrite_phase2_events(run, forge_command)
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="COMMAND_IDENTITY_MISMATCH"):
+        phase2.stop_owned_stale_run_for_cleanup(
+            run, clock=lambda: NOW, process_adapter=adapter)
+    assert adapter.stop_calls == []
 
 
 def test_canonical_history_is_unchanged_by_start_and_stop(tmp_path):

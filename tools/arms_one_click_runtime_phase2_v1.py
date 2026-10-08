@@ -48,6 +48,12 @@ FINAL_READINESS_ERROR_CODES = frozenset({
 })
 _FINAL_READINESS_EXIT_FALLBACK = (
     "SUPERVISOR_EXITED_DURING_FINAL_READINESS")
+HISTORICAL_CLEANUP_SOURCE_INVENTORIES = frozenset({
+    frozenset(phase1.REVIEWED_SOURCE_NAMES),
+    frozenset(phase1.REVIEWED_SOURCE_NAMES - {
+        "tools/arms_one_click_operator_v1.py",
+    }),
+})
 
 
 class Phase2Blocked(RuntimeError):
@@ -167,6 +173,213 @@ def _bindings(manifest, state):
         "profile_sha256": manifest["profile"]["sha256"],
         "capture_spec_sha256": manifest["inputs"]["native_spec"]["sha256"],
     }
+
+
+def _historical_descriptor(value, name):
+    if (type(value) is not dict
+            or set(value) != {"path", "sha256", "bytes"}
+            or type(value.get("path")) is not str
+            or not Path(value["path"]).is_absolute()
+            or not phase1._validate_hash(value.get("sha256"))
+            or type(value.get("bytes")) is not int
+            or isinstance(value.get("bytes"), bool)
+            or value["bytes"] <= 0):
+        raise Phase2Blocked("HISTORICAL_DESCRIPTOR_INVALID:" + name)
+
+
+def _load_historical_owned_cleanup_plan(run_directory):
+    """Verify sealed historical evidence without accepting it for reuse."""
+    candidate = Path(run_directory)
+    if candidate.is_symlink():
+        raise Phase2Blocked("HISTORICAL_RUN_DIRECTORY_INVALID")
+    directory = candidate.resolve(strict=True)
+    if not directory.is_dir():
+        raise Phase2Blocked("HISTORICAL_RUN_DIRECTORY_INVALID")
+    manifest, manifest_raw = phase1._read_json(
+        directory / "manifest.json", phase1.MANIFEST_SCHEMA)
+    seal, _ = phase1._read_json(
+        directory / "seal.json", phase1.SEAL_SCHEMA)
+    phase1_state, _ = phase1._read_json(
+        directory / "state.json", phase1.STATE_SCHEMA)
+    events_value, _ = phase1._read_json(
+        directory / "events.json", phase1.EVENT_SCHEMA)
+
+    run_id = manifest.get("run_id")
+    manifest_hash = sha256(manifest_raw).hexdigest()
+    if (type(run_id) is not str
+            or not phase1.RUN_ID_PATTERN.fullmatch(run_id)
+            or directory.name != run_id
+            or seal != {
+                "schema": phase1.SEAL_SCHEMA,
+                "run_id": run_id,
+                "manifest_sha256": manifest_hash,
+                "sealed_utc": manifest.get("created_utc"),
+            }):
+        raise Phase2Blocked("HISTORICAL_RUN_IDENTITY_INVALID")
+
+    manifest_fields = {
+        "schema", "phase", "run_id", "created_utc", "mode",
+        "execution_authority", "live_authority", "external_order_authority",
+        "native_apply_authority", "process_start_authority", "profile",
+        "inputs", "source_pins", "ports", "targets", "runtime_environment",
+        "startup_chart_catchup_timeout_seconds", "admin_token",
+        "disabled_future_start_command", "command_execution_performed",
+    }
+    authority_fields = (
+        "execution_authority", "live_authority", "external_order_authority",
+        "native_apply_authority", "process_start_authority",
+    )
+    if (set(manifest) != manifest_fields or manifest.get("phase") != 1
+            or manifest.get("mode") != "OFFLINE_ONLY"
+            or any(manifest.get(name) is not False
+                   for name in authority_fields)
+            or manifest.get("command_execution_performed") is not False):
+        raise Phase2Blocked("HISTORICAL_ZERO_AUTHORITY_MANIFEST_REQUIRED")
+
+    profile = manifest.get("profile")
+    if (type(profile) is not dict or set(profile) != {"path", "sha256"}
+            or type(profile.get("path")) is not str
+            or not Path(profile["path"]).is_absolute()
+            or not phase1._validate_hash(profile.get("sha256"))):
+        raise Phase2Blocked("HISTORICAL_PROFILE_IDENTITY_INVALID")
+    inputs = manifest.get("inputs")
+    if (type(inputs) is not dict
+            or set(inputs) != {"python", *phase1.ARTIFACT_FIELDS}):
+        raise Phase2Blocked("HISTORICAL_INPUT_INVENTORY_INVALID")
+    for name, descriptor in inputs.items():
+        _historical_descriptor(descriptor, "input:" + name)
+    source_pins = manifest.get("source_pins")
+    if (type(source_pins) is not dict
+            or frozenset(source_pins) not in (
+                HISTORICAL_CLEANUP_SOURCE_INVENTORIES)
+            or PHASE2_SOURCE not in source_pins):
+        raise Phase2Blocked("HISTORICAL_SOURCE_PIN_INVENTORY_INVALID")
+    for name, descriptor in source_pins.items():
+        _historical_descriptor(descriptor, "source:" + name)
+
+    ports = manifest.get("ports")
+    if (type(ports) is not dict or set(ports) != phase1.PORT_FIELDS
+            or any(type(value) is not int or isinstance(value, bool)
+                   or not 1024 <= value <= 65535 for value in ports.values())
+            or len(set(ports.values())) != 3):
+        raise Phase2Blocked("HISTORICAL_PORTS_INVALID")
+    timeout = manifest.get("startup_chart_catchup_timeout_seconds")
+    if (type(timeout) not in (int, float) or isinstance(timeout, bool)
+            or not 0 < timeout <= 900):
+        raise Phase2Blocked("HISTORICAL_CATCHUP_TIMEOUT_INVALID")
+    admin_token = manifest.get("admin_token")
+    if (type(admin_token) is not dict or set(admin_token) != {
+            "environment_name", "value_captured", "validated_offline"}
+            or type(admin_token.get("environment_name")) is not str
+            or not phase1.ENV_NAME_PATTERN.fullmatch(
+                admin_token.get("environment_name", ""))
+            or admin_token.get("value_captured") is not False
+            or admin_token.get("validated_offline") is not False):
+        raise Phase2Blocked("HISTORICAL_ADMIN_TOKEN_EVIDENCE_INVALID")
+    if manifest.get("runtime_environment") != phase1.REVIEWED_RUNTIME_ENVIRONMENT:
+        raise Phase2Blocked("HISTORICAL_RUNTIME_ENVIRONMENT_INVALID")
+
+    targets = manifest.get("targets")
+    target_fields = {
+        "plan_directory", "supervisor_report_directory", "runtime_parent",
+        "paper_run_namespace", "current_paper_news_root",
+        "current_paper_l1_directory", "supervisor_stop_request",
+    }
+    if type(targets) is not dict or set(targets) != target_fields:
+        raise Phase2Blocked("HISTORICAL_TARGET_INVENTORY_INVALID")
+    if targets["plan_directory"] != str(directory):
+        raise Phase2Blocked("HISTORICAL_PLAN_PATH_INVALID")
+    stop_request = Path(targets["supervisor_stop_request"]).resolve(
+        strict=False)
+    if stop_request != (directory / "phase2-stop-request.json"):
+        raise Phase2Blocked("HISTORICAL_STOP_REQUEST_PATH_INVALID")
+    report_directory = Path(targets["supervisor_report_directory"]).resolve(
+        strict=False)
+    if (report_directory.name != "supervisor"
+            or report_directory.parent.name != run_id):
+        raise Phase2Blocked("HISTORICAL_REPORT_PATH_INVALID")
+    for name in ("paper_run_namespace", "current_paper_news_root",
+                 "current_paper_l1_directory"):
+        value = targets.get(name)
+        if type(value) is not str or Path(value).resolve(strict=False).name != run_id:
+            raise Phase2Blocked("HISTORICAL_TARGET_RUN_ID_INVALID:" + name)
+    if (type(targets.get("runtime_parent")) is not str
+            or not Path(targets["runtime_parent"]).is_absolute()):
+        raise Phase2Blocked("HISTORICAL_RUNTIME_PARENT_INVALID")
+    command = manifest.get("disabled_future_start_command")
+    if (type(command) is not list or not command
+            or any(type(item) is not str or not item for item in command)
+            or command != phase1._expected_future_command(manifest)):
+        raise Phase2Blocked("HISTORICAL_COMMAND_CONTRACT_INVALID")
+
+    events = events_value.get("events")
+    if (set(events_value) != {"schema", "events"}
+            or type(events) is not list or len(events) != 1):
+        raise Phase2Blocked("HISTORICAL_PHASE1_EVENTS_INVALID")
+    event = events[0]
+    expected_event_fields = {
+        "schema", "run_id", "sequence", "timestamp_utc",
+        "previous_event_sha256", "transition", "state",
+        "execution_started", "process_control_performed", "event_sha256",
+    }
+    if (type(event) is not dict or set(event) != expected_event_fields
+            or event.get("run_id") != run_id or event.get("sequence") != 1
+            or event.get("previous_event_sha256") is not None
+            or event.get("transition") != "OFFLINE_PLAN_PREPARED"
+            or event.get("state") != PREPARED
+            or event.get("execution_started") is not False
+            or event.get("process_control_performed") is not False
+            or event.get("event_sha256") != phase1._event_digest(event)
+            or phase1_state != phase1._state_from_event(
+                event, manifest_hash)):
+        raise Phase2Blocked("HISTORICAL_PHASE1_CHAIN_INVALID")
+
+    bindings = _bindings(manifest, phase1_state)
+    phase2_state, phase2_events = _load_phase2(directory)
+    if phase2_state is None:
+        raise Phase2Blocked("HISTORICAL_PHASE2_EVIDENCE_REQUIRED")
+    expected_chain = [
+        ("START_AUTHORIZED", AUTHORIZED),
+        ("PROCESS_STARTING", STARTING),
+        ("PROCESS_OWNERSHIP_RECORDED", STARTING),
+        ("RUNTIME_NATIVE_SETUP_REQUIRED", AWAITING_NATIVE_SETUP),
+    ]
+    if phase2_state["state"] == RUNNING:
+        expected_chain.append(("RUNTIME_RUNNING_DISABLED", RUNNING))
+    if (phase2_state["state"] not in {AWAITING_NATIVE_SETUP, RUNNING}
+            or len(phase2_events) != len(expected_chain)):
+        raise Phase2Blocked("ONLY_OWNED_RUNTIME_CAN_HISTORICAL_CLEANUP")
+    for item, expected in zip(phase2_events, expected_chain):
+        if (item.get("run_id") != run_id
+                or item.get("bindings") != bindings
+                or (item.get("transition"), item.get("state")) != expected):
+            raise Phase2Blocked("HISTORICAL_PHASE2_CHAIN_INVALID")
+    ownership = phase2_state.get("ownership")
+    ownership_fields = {
+        "pid", "identity", "command_sha256", "spawn_challenge_sha256",
+        "runtime_directories_before_start",
+    }
+    if (type(ownership) is not dict or set(ownership) != ownership_fields
+            or type(ownership.get("pid")) is not int
+            or isinstance(ownership.get("pid"), bool) or ownership["pid"] <= 0
+            or type(ownership.get("identity")) is not list
+            or len(ownership["identity"]) != 2
+            or any(type(value) is not int or isinstance(value, bool)
+                   for value in ownership["identity"])
+            or not phase1._validate_hash(ownership.get("command_sha256"))
+            or not phase1._validate_hash(
+                ownership.get("spawn_challenge_sha256"))
+            or type(ownership.get("runtime_directories_before_start")) is not list
+            or any(type(value) is not str
+                   for value in ownership["runtime_directories_before_start"])):
+        raise Phase2Blocked("HISTORICAL_OWNERSHIP_INVALID")
+    expected_command_sha256 = sha256(phase1._canonical(command)).hexdigest()
+    if ownership["command_sha256"] != expected_command_sha256:
+        raise Phase2Blocked("HISTORICAL_COMMAND_IDENTITY_MISMATCH")
+    for item in phase2_events[2:]:
+        if item.get("details", {}).get("ownership") != ownership:
+            raise Phase2Blocked("HISTORICAL_OWNERSHIP_CHAIN_INVALID")
+    return directory, manifest, phase2_state, bindings
 
 
 def _capture_spec_current(manifest, now):
@@ -586,9 +799,7 @@ class WindowsProcessAdapter:
             and result.get("child_cleanup_confirmed") is True
         )
 
-    def stop(self, *, ownership, manifest, timeout_seconds=30):
-        if not self.matches(ownership):
-            raise Phase2Blocked("OWNED_SUPERVISOR_IDENTITY_MISMATCH")
+    def verify_cleanup_ownership(self, *, ownership, manifest):
         report_directory = Path(
             manifest["targets"]["supervisor_report_directory"])
         start, _ = phase1._read_json(
@@ -602,6 +813,31 @@ class WindowsProcessAdapter:
                 != ownership["spawn_challenge_sha256"]
                 or start.get("command") != expected_launcher[separator + 1:]):
             raise Phase2Blocked("OWNED_SUPERVISOR_EVIDENCE_MISMATCH")
+        current_identity = supervisor._pid_identity(ownership["pid"])
+        if current_identity == tuple(ownership["identity"]):
+            return {"state": "RUNNING", "start": start}
+        if current_identity is not None:
+            raise Phase2Blocked("OWNED_SUPERVISOR_PID_REUSED")
+        shutdown, _ = phase1._read_json(
+            report_directory / "external-shutdown-result.json",
+            supervisor.REPORT_SCHEMA)
+        cleanup_passes = (
+            self._cleanup_report_passes(
+                shutdown, run_id=manifest["run_id"], controlled_stop=True)
+            or self._cleanup_report_passes(
+                shutdown, run_id=manifest["run_id"], controlled_stop=False)
+        )
+        if (not cleanup_passes
+                or shutdown.get("supervisor_pid") != ownership["pid"]):
+            raise Phase2Blocked("OWNED_SUPERVISOR_EXIT_UNPROVEN")
+        return {"state": "ALREADY_EXITED", "start": start,
+                "shutdown": shutdown}
+
+    def stop(self, *, ownership, manifest, timeout_seconds=30):
+        verified = self.verify_cleanup_ownership(
+            ownership=ownership, manifest=manifest)
+        if verified.get("state") != "RUNNING":
+            raise Phase2Blocked("OWNED_SUPERVISOR_NOT_RUNNING")
         request = {
             "schema": "arms.windows-runtime-stop-request.v1",
             "run_id": manifest["run_id"],
@@ -888,6 +1124,61 @@ def stop(run_directory, *, clock=None, process_adapter=None):
         details={"native_setup": native_setup, "stopped_from": stop_from},
         expected_states=(STOPPING,))
     return status(directory)
+
+
+def stop_owned_stale_run_for_cleanup(run_directory, *, clock=None,
+                                     process_adapter=None):
+    """Stop one exact historical owned runtime; never authorize its reuse."""
+    now = _now(clock)
+    directory, manifest, state, bindings = (
+        _load_historical_owned_cleanup_plan(run_directory))
+    ownership = state["ownership"]
+    native_setup = state.get("native_setup")
+    stop_from = state["state"]
+    adapter = process_adapter or WindowsProcessAdapter()
+    verifier = getattr(adapter, "verify_cleanup_ownership", None)
+    if not callable(verifier):
+        raise Phase2Blocked("HISTORICAL_CLEANUP_VERIFIER_REQUIRED")
+    verified = verifier(ownership=ownership, manifest=manifest)
+    if (type(verified) is not dict
+            or verified.get("state") not in {"RUNNING", "ALREADY_EXITED"}):
+        raise Phase2Blocked("HISTORICAL_CLEANUP_VERIFICATION_INVALID")
+    _transition(
+        directory, manifest, bindings, state=STOPPING,
+        transition="CONTROLLED_STOPPING", clock=lambda: now,
+        details={"ownership": ownership, "native_setup": native_setup,
+                 "historical_cleanup_only": True},
+        expected_states=(AWAITING_NATIVE_SETUP, RUNNING))
+    if verified["state"] == "RUNNING":
+        result = adapter.stop(ownership=ownership, manifest=manifest)
+        if (not WindowsProcessAdapter._cleanup_report_passes(
+                result, run_id=manifest["run_id"], controlled_stop=True)
+                or adapter.matches(ownership)):
+            raise Phase2Blocked("HISTORICAL_CLEANUP_UNPROVEN")
+        cleanup_basis = "CONTROLLED_STOP"
+    else:
+        result = verified.get("shutdown")
+        prior_cleanup_passes = (
+            WindowsProcessAdapter._cleanup_report_passes(
+                result, run_id=manifest["run_id"], controlled_stop=True)
+            or WindowsProcessAdapter._cleanup_report_passes(
+                result, run_id=manifest["run_id"], controlled_stop=False)
+        )
+        if (not prior_cleanup_passes
+                or result.get("supervisor_pid") != ownership["pid"]
+                or adapter.matches(ownership)):
+            raise Phase2Blocked("HISTORICAL_CLEANUP_UNPROVEN")
+        cleanup_basis = "EXISTING_SHUTDOWN_REPORT"
+    final = _transition(
+        directory, manifest, bindings, state=STOPPED,
+        transition="CONTROLLED_STOPPED", clock=clock,
+        details={"native_setup": native_setup, "stopped_from": stop_from,
+                 "historical_cleanup_only": True,
+                 "cleanup_evidence_status": "PASS",
+                 "cleanup_basis": cleanup_basis},
+        expected_states=(STOPPING,))
+    _, events = _load_phase2(directory)
+    return {**final, "event_count": len(events)}
 
 
 def _print(value):
