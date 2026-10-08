@@ -627,7 +627,9 @@ LIVE trading, autonomous trading, or physical broker submission.
 
 ## 13. CURRENT NEXT ACTION
 
-Proceed to Phase 2 planning: Data and Market Intelligence; keep LIVE disabled.
+The current sequence is governed by the latest dated checkpoint in section 16.
+The Phase 1 sequence below is preserved as historical planning evidence. LIVE
+remains disabled.
 
 ### Historical Phase 1 closure sequence
 
@@ -676,12 +678,15 @@ The following remain binding:
 
 ---
 
-## 15. OCTOBER 2026 OPERATIONAL CHECKPOINT
+## 15. HISTORICAL OCTOBER 2026 OPERATIONAL CHECKPOINT
 
 <!-- ARMS_OCTOBER_2026_ROADMAP_CHECKPOINT -->
 
 
-The roadmap has advanced beyond the earlier generic Phase 2 planning statement.
+**Status:** Superseded as the current blocker and next-action sequence by the
+2026-10-08 checkpoint in section 16. Preserved as historical evidence.
+
+The roadmap had advanced beyond the earlier generic Phase 2 planning statement.
 
 ### Current repository checkpoint
 
@@ -708,7 +713,7 @@ The following current work is locally implemented and targeted-tested:
 - recoverable fail-closed recency handling;
 - authenticated read-only PAPER Beta Dashboard integration.
 
-### Current operational blocker
+### Historical operational blocker
 
 The most recent genuine One-Click Phase 2 startup terminated fail closed with:
 
@@ -718,7 +723,7 @@ The runtime was waiting for native preactivation/live-quarantine evidence.
 
 This gate must not be bypassed or converted into permissive startup behavior.
 
-### Immediate roadmap sequence
+### Historical immediate roadmap sequence
 
 ```text
 aggregate current-source regression
@@ -760,3 +765,64 @@ This checkpoint does not authorize:
 
 Operational success requires genuine native evidence, not replacement of a
 blocking safety gate with permissive behavior.
+
+---
+
+## 16. 2026-10-08 ONE CLICK E2E PASS CHECKPOINT
+
+Current HEAD: `041eef79` —
+`fix(one-click): reset catchup lineage across binding generations`.
+
+The genuine One Click E2E path passed through automatic fixed binding without a
+manual Apply and reached:
+
+```text
+NATIVE_HELLO=PASS
+HANDOFF_COMPLETE=PASS
+PHASE2_CONTINUE=PASS
+FINAL_STATE=RUNNING_DISABLED
+PAPER_EXECUTION_ENABLED=FALSE
+LIVE_EXECUTION_ALLOWED=FALSE
+EXTERNAL_ORDER_AUTHORITY=FALSE
+BROKER_LIVE_ORDER_AUTHORITY=FALSE
+NINJATRADER_CONTROL_AUTHORITY=FALSE
+```
+
+The catch-up root cause was stale `liveLineageRootSession` and
+`liveLineageLeafSession` state retained across binding generations. Both values
+now reset when the bridge accepts a new generation. Existing provider,
+chart-contract, gap, timestamp, source-identity, lifecycle, ownership, and
+authority gates remain fail closed.
+
+The canonical current PAPER snapshot now publishes
+`paper_execution_enabled=self._enabled` for an existing runtime and explicit
+`paper_execution_enabled=False` before runtime creation. This is an authority
+projection, not an authority grant.
+
+The historical `STARTUP_LIVE_QUARANTINE_TIMEOUT`, native chart-preparation
+blocker, and controlled manual-Apply procedure in section 15 are resolved for
+the verified normal One Click path. They remain recorded as prior checkpoints.
+
+### Current roadmap sequence
+
+```text
+final aggregate source certification
+→ MEDAR consistency review
+→ controlled push
+→ controlled PAPER/Sim runtime observation
+→ collect decision/stability/drawdown/execution evidence
+→ validate NQ first and later MNQ
+→ no LIVE progression until separate safety/account/broker gates exist
+```
+
+### Current safety boundary
+
+- The successful startup state is `RUNNING_DISABLED`.
+- PAPER execution is not enabled automatically.
+- LIVE execution remains prohibited.
+- External and broker LIVE order authority remain false.
+- NinjaTrader control authority remains false.
+- NQ is the first controlled validation market; MNQ follows only after NQ
+  evidence is reviewed.
+- LIVE progression requires separate safety, account, and broker gates that do
+  not exist in this checkpoint.

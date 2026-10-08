@@ -801,7 +801,7 @@ The ten local commits ahead of the remote are:
 10. `9c2009edfa506df21b73f0e2efa30f8abf03968e`
     — integrate authenticated PAPER Beta Dashboard.
 
-### Current runtime evidence
+### Historical runtime evidence — superseded 2026-10-08
 
 The latest One-Click Phase 2 startup reached process ownership and then failed
 closed with:
@@ -847,12 +847,14 @@ The current local changes additionally certify:
 - authenticated Beta Dashboard remains an observation/read-only PAPER product
   surface.
 
-### Current NinjaTrader boundary
+### Historical NinjaTrader boundary — superseded 2026-10-08
 
 No NinjaTrader mutation was performed during the terminal/MEDAR recovery
 sequence documented by this checkpoint.
 
-The native chart preparation remains a separate operational gate.
+At this checkpoint, native chart preparation remained a separate operational
+gate. The 2026-10-08 One Click E2E checkpoint below supersedes this as the
+current blocker while preserving it as historical evidence.
 
 The currently intended native chart contract remains:
 
@@ -863,9 +865,10 @@ The currently intended native chart contract remains:
 - chart components:
   `ArmsReadOnlyMarketV1` and `ArmsChartCatchupBridgeV1`.
 
-The controlled single-Apply chart-preparation budget remains reserved according
-to the current operator checkpoint. No additional Apply is authorized until the
-chart fields and capture namespace are verified.
+At this checkpoint, the controlled single-Apply chart-preparation budget was
+reserved pending verification of the chart fields and capture namespace. This
+manual-preparation requirement is historical and is superseded for the normal
+One Click path by the 2026-10-08 checkpoint below.
 
 ### Current safety status
 
@@ -880,7 +883,7 @@ The following remain binding:
 - Autonomous LIVE trading remains blocked.
 - Physical real-money broker submission remains blocked.
 
-### Current next action
+### Historical next action — superseded 2026-10-08
 
 Complete current-source regression certification for the ten local commits,
 then perform controlled remote synchronization only if all applicable gates
@@ -891,3 +894,75 @@ chart preparation and evidence capture for the preactivation/live quarantine
 and chart catch-up lifecycle.
 
 Do not weaken or bypass `STARTUP_LIVE_QUARANTINE_TIMEOUT` to make startup pass.
+This remains the correct historical fail-closed disposition; it is no longer
+the current blocker.
+
+---
+
+## 2026-10-08 — ONE CLICK MVP TECHNICAL E2E PASS
+
+Current local HEAD:
+
+`041eef79` — `fix(one-click): reset catchup lineage across binding generations`
+
+A genuine local NinjaTrader One Click end-to-end validation completed successfully
+with the reviewed fixed-binding architecture.
+
+Observed terminal result:
+
+```text
+ARMS AI ONE CLICK — PASS
+PHASE1=PASS
+PHASE2_NATIVE_SETUP=PASS
+PHASE3_PREPARE=PASS
+AUTHORIZATION=PASS
+APPLY_COUNT=1
+FIXED_BINDING=PASS
+BINDING_RECEIPT=PASS
+NATIVE_HELLO=PASS
+HANDOFF_COMPLETE=PASS
+PHASE2_CONTINUE=PASS
+FINAL_STATE=RUNNING_DISABLED
+PAPER_EXECUTION_ENABLED=FALSE
+LIVE_EXECUTION_ALLOWED=FALSE
+EXTERNAL_ORDER_AUTHORITY=FALSE
+BROKER_LIVE_ORDER_AUTHORITY=FALSE
+NINJATRADER_CONTROL_AUTHORITY=FALSE
+```
+
+The normal One Click path now activates the already prepared passive native
+components through automatic fixed binding. It does not require a manual Apply.
+`APPLY_COUNT=1` records the single automatic binding application observed in
+the successful run; it does not grant NinjaTrader control or trading authority.
+
+The final catch-up defect was generation-scoped state leaking across runs:
+`ArmsChartCatchupBridgeV1` retained `liveLineageRootSession` and
+`liveLineageLeafSession` after accepting a new binding generation. The bridge
+now clears both lineage fields with the other per-generation capture state.
+Provider, chart-contract, gap, timestamp, source-identity, and lifecycle
+validation remain unchanged and fail closed.
+
+The canonical current PAPER snapshot now explicitly projects
+`paper_execution_enabled=self._enabled` after runtime creation and
+`paper_execution_enabled=False` before runtime creation. This makes the
+authority state explicit without enabling PAPER execution.
+
+The prior `STARTUP_LIVE_QUARANTINE_TIMEOUT`, native chart-preparation, and
+manual-Apply statements above remain historical evidence. They are superseded
+only as descriptions of the current blocker and current operating procedure.
+
+### Current next action
+
+```text
+final aggregate source certification
+→ MEDAR consistency review
+→ controlled push
+→ controlled PAPER/Sim runtime observation
+→ collect decision/stability/drawdown/execution evidence
+→ validate NQ first and later MNQ
+→ no LIVE progression until separate safety/account/broker gates exist
+```
+
+No PAPER, LIVE, external-order, broker-LIVE-order, or NinjaTrader-control
+authority is granted by this technical startup PASS. `RUNNING_DISABLED` remains
+the required terminal state for this checkpoint.

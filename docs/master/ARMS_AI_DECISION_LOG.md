@@ -1184,3 +1184,100 @@ as the immediate work item.
 DEC-0019 Phase 1 closure, DEC-0020 through DEC-0022 scoped evidence, or any
 permanent PAPER/LIVE, risk, freshness, account, recovery, or real-broker safety
 boundary.
+
+**Superseded by**
+
+DEC-0024 only for the current operational blocker, normal-path manual Apply
+requirement, and next-action sequence. DEC-0023 remains authoritative historical
+evidence for fail-closed startup and supervision safety.
+
+---
+
+## DEC-0024 — Accept passive fixed binding and generation-scoped catch-up state
+
+**Date:** 2026-10-08
+
+**Status:** Accepted for the controlled, disabled One Click startup architecture.
+
+**Area:** One Click fixed binding, chart catch-up lifecycle, and canonical PAPER authority projection.
+
+**Context**
+
+A genuine One Click E2E run at HEAD `041eef79` completed with
+`NATIVE_HELLO=PASS`, `HANDOFF_COMPLETE=PASS`, `PHASE2_CONTINUE=PASS`, and
+`FINAL_STATE=RUNNING_DISABLED`. The normal path used automatic fixed binding and
+did not require a manual Apply.
+
+The last catch-up failure was caused by `ArmsChartCatchupBridgeV1` retaining
+`liveLineageRootSession` and `liveLineageLeafSession` across accepted binding
+generations. The stale lineage made the next valid session fail lifecycle
+validation before sealing.
+
+The current PAPER snapshot also required one canonical, explicit projection of
+whether PAPER execution is enabled, including a false value before runtime
+creation.
+
+**Decision**
+
+1. Accept passive fixed binding as the normal One Click startup architecture.
+2. Treat catch-up lineage as generation-scoped state and reset both lineage
+   fields whenever a new binding generation is accepted.
+3. Publish `paper_execution_enabled=self._enabled` from an existing current
+   PAPER runtime and `paper_execution_enabled=False` before runtime creation.
+4. Do not require manual Apply during normal One Click startup when the verified
+   fixed binding is already present.
+5. Preserve all provider, chart-contract, gap, timestamp, source-identity,
+   lifecycle, ownership, account, risk, and authority validation as fail closed.
+
+**Evidence**
+
+```text
+ARMS AI ONE CLICK — PASS
+PHASE1=PASS
+PHASE2_NATIVE_SETUP=PASS
+PHASE3_PREPARE=PASS
+AUTHORIZATION=PASS
+APPLY_COUNT=1
+FIXED_BINDING=PASS
+BINDING_RECEIPT=PASS
+NATIVE_HELLO=PASS
+HANDOFF_COMPLETE=PASS
+PHASE2_CONTINUE=PASS
+FINAL_STATE=RUNNING_DISABLED
+PAPER_EXECUTION_ENABLED=FALSE
+LIVE_EXECUTION_ALLOWED=FALSE
+EXTERNAL_ORDER_AUTHORITY=FALSE
+BROKER_LIVE_ORDER_AUTHORITY=FALSE
+NINJATRADER_CONTROL_AUTHORITY=FALSE
+```
+
+Relevant pre-E2E regression evidence includes the current PAPER regression,
+catch-up lifecycle regression, One Click Phase 2/3, Windows supervisor, native
+startup, fixed-binding tests, and the broader result of 415 passed with two
+warnings. The earlier focused current-PAPER result was 160 passed with one
+warning.
+
+**Consequences**
+
+The prior `STARTUP_LIVE_QUARANTINE_TIMEOUT`, native chart-preparation blocker,
+and manual-Apply procedure remain historical checkpoints but are not the current
+normal-path status.
+
+This decision grants no PAPER or LIVE execution authority, no external-order or
+broker-LIVE-order authority, and no NinjaTrader-control authority. A successful
+startup remains observational and disabled until separately authorized gates
+are satisfied.
+
+The current sequence is final aggregate source certification, MEDAR consistency
+review, controlled push, controlled PAPER/Sim runtime observation, evidence
+collection, NQ validation followed later by MNQ, and no LIVE progression until
+separate safety, account, and broker gates exist.
+
+**Supersedes**
+
+DEC-0023 only for its current blocker, manual-Apply, and next-action statements.
+
+**Does not supersede**
+
+Any permanent execution, risk, freshness, ownership, recovery, account,
+PAPER/LIVE separation, or real-broker safety boundary.
