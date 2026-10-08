@@ -255,6 +255,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                     if (lifecycleWriter != null) CloseLifecycle();
                     attempted = false; terminal = false; liveHelloAccepted = false;
                     liveAlignmentBar = -1; lifecycleSequence = 0; lifecycleState = null;
+                    liveLineageRootSession = null; liveLineageLeafSession = null;
                     lastAcceptedBindingGeneration = bindingGeneration;
                     lastAcceptedBindingRunId = bindingRunId;
                     lastAcceptedBindingNonce = bindingNonce;

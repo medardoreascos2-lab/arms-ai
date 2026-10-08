@@ -66,7 +66,7 @@
   },
   "startup_chart_catchup_source": {
     "path": "C:/Users/Thecrazyboss/OneDrive/Documents/NinjaTrader 8/bin/Custom/Indicators/ArmsChartCatchupBridgeV1.cs",
-    "sha256": "51b6f38a4376d071c42e29edd8ba929533e065393891909db7cb2ddd90c32340"
+    "sha256": "188db720f89b97bdaca32ab25c10e466190d207f3377c4a3455c4dce3a289f3c"
   },
   "native_spec": {
     "path": "backend/config/native_capture_spec_20261006T223000Z.json",

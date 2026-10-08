@@ -569,3 +569,23 @@ def test_reconnect_across_actual_dst_weekend_preserves_gap(friday,sunday,offsets
     htf.update_completed(first.candle())
     htf.update_completed(last.candle())
     assert htf.emitted_counts == {"15m":0,"1h":0}
+
+
+def test_paper_execution_enabled_snapshot_tracks_canonical_authority(
+        api_settings, tmp_path):
+    s, clock = service(tmp_path)
+
+    # No runtime exists yet: fail closed must be explicit, not None/missing.
+    assert s.get_snapshot()["paper_execution_enabled"] is False
+
+    deliver(s, clock, event(0))
+    assert s.get_snapshot()["paper_execution_enabled"] is False
+
+    witness(s._runtime)
+    s.control("enable")
+    assert s.get_snapshot()["paper_execution_enabled"] is True
+
+    s.control("disable")
+    assert s.get_snapshot()["paper_execution_enabled"] is False
+
+    s.shutdown()

@@ -760,6 +760,7 @@ class _CurrentRuntimeV1(PaperRuntimeV1):
                 self.strategy_bootstrap_bar_count
             ),
             strategy_bootstrap_execution_authority=False,
+            paper_execution_enabled=self._enabled,
             paper_authority_state=self._authority_state_name,
             paper_authority_transition_count=self._authority_transition_count,
             latest_paper_authority_transition=deepcopy(
@@ -926,6 +927,7 @@ class CurrentPaperServiceV1:
             g = self.gate
             snapshot = (self._runtime.get_snapshot() if self._runtime is not None else
                         dict(account_overview=None, paper_ready=False, config_hash=g.digest,
+                             paper_execution_enabled=False,
                              readiness_reasons=["AWAITING_MARKET_DATA", "PAPER_DISABLED"],
                              session_decision_summary=_empty_decision_summary()))
             reasons = list(dict.fromkeys(snapshot["readiness_reasons"] + g.reasons()

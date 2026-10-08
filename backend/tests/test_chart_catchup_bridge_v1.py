@@ -20,6 +20,7 @@ from backend.market_data.chart_catchup_bridge_v1 import (
     CURRENT_EXPORTER_SHA256,
     EXPORTER_SHA256,
     LEGACY_EXPORTER_SHA256,
+    PRIOR_EXPORTER_SHA256,
     MERGED_SOURCE,
     NATIVE_SOURCE,
     REVIEWED_EXPORTER_HASHES,
@@ -379,11 +380,27 @@ def test_current_and_reviewed_legacy_exporter_identities_are_exact():
     assert EXPORTER_SHA256 == CURRENT_EXPORTER_SHA256
     assert REVIEWED_EXPORTER_HASHES == frozenset((
         CURRENT_EXPORTER_SHA256,
+        PRIOR_EXPORTER_SHA256,
         LEGACY_EXPORTER_SHA256,
     ))
 
     raw, _, current = certified()
     assert current.source == MERGED_SOURCE
+
+    prior_raw = with_exporter_identity(
+        raw,
+        PRIOR_EXPORTER_SHA256,
+    )
+    prior = certify_bootstrap(
+        prior_raw,
+        expected_sha256=sha256(prior_raw).hexdigest(),
+    )
+    assert prior.sha256 != current.sha256
+    assert prior.bars == current.bars
+    assert prior.sessions == current.sessions
+    assert prior.gap_count == current.gap_count
+    assert prior.gap_report == current.gap_report
+    assert prior.source == current.source
 
     legacy_raw = with_exporter_identity(
         raw,

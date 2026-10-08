@@ -131,3 +131,34 @@ def test_actual_csharp_bridge_rejects_unterminated_predecessor_with_seal(
         match="STARTUP_CATCHUP_CAPTURE_FAILED",
     ):
         capture_status(output)
+
+
+def test_actual_csharp_bridge_resets_live_lineage_between_binding_generations(
+    bridge_binary,
+    tmp_path,
+):
+    output = tmp_path / "capture"
+    live = tmp_path / "live"
+    result = subprocess.run(
+        [
+            str(bridge_binary),
+            str(output),
+            str(live),
+            "generation-rotation",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report == {
+        "classification": "SYNTHETIC_CSHARP_BEHAVIOR_NO_NINJATRADER_RUNTIME",
+        "consecutive_binding_generations": True,
+        "first_states": list(EXPECTED_STATES),
+        "second_states": list(EXPECTED_STATES),
+        "captures": 2,
+        "real_native_api_calls": 0,
+        "order_calls": 0,
+    }
