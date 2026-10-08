@@ -204,7 +204,8 @@ def _historical_supervisor_report_directory(manifest):
     return report_directory
 
 
-def _load_historical_owned_cleanup_plan(run_directory):
+def _load_historical_owned_cleanup_plan(
+        run_directory, *, allow_interrupted_stopping=False):
     """Verify sealed historical evidence without accepting it for reuse."""
     candidate = Path(run_directory)
     if candidate.is_symlink():
@@ -359,7 +360,13 @@ def _load_historical_owned_cleanup_plan(run_directory):
     ]
     if phase2_state["state"] == RUNNING:
         expected_chain.append(("RUNTIME_RUNNING_DISABLED", RUNNING))
-    if (phase2_state["state"] not in {AWAITING_NATIVE_SETUP, RUNNING}
+    elif (phase2_state["state"] == STOPPING
+          and allow_interrupted_stopping):
+        expected_chain.append(("CONTROLLED_STOPPING", STOPPING))
+    allowed_cleanup_states = {AWAITING_NATIVE_SETUP, RUNNING}
+    if allow_interrupted_stopping:
+        allowed_cleanup_states.add(STOPPING)
+    if (phase2_state["state"] not in allowed_cleanup_states
             or len(phase2_events) != len(expected_chain)):
         raise Phase2Blocked("ONLY_OWNED_RUNTIME_CAN_HISTORICAL_CLEANUP")
     for item, expected in zip(phase2_events, expected_chain):
@@ -392,6 +399,12 @@ def _load_historical_owned_cleanup_plan(run_directory):
     for item in phase2_events[2:]:
         if item.get("details", {}).get("ownership") != ownership:
             raise Phase2Blocked("HISTORICAL_OWNERSHIP_CHAIN_INVALID")
+    if phase2_state["state"] == STOPPING:
+        details = phase2_events[-1].get("details", {})
+        if (details.get("historical_cleanup_only") is not True
+                or details.get("native_setup")
+                != phase2_state.get("native_setup")):
+            raise Phase2Blocked("HISTORICAL_STOPPING_EVIDENCE_INVALID")
     return directory, manifest, phase2_state, bindings
 
 
@@ -1189,6 +1202,50 @@ def stop_owned_stale_run_for_cleanup(run_directory, *, clock=None,
                  "historical_cleanup_only": True,
                  "cleanup_evidence_status": "PASS",
                  "cleanup_basis": cleanup_basis},
+        expected_states=(STOPPING,))
+    _, events = _load_phase2(directory)
+    return {**final, "event_count": len(events)}
+
+
+def _terminalize_interrupted_historical_cleanup(
+        run_directory, *, clock=None, process_adapter=None):
+    """Finish an already-requested historical stop from certified shutdown."""
+    directory, manifest, state, bindings = (
+        _load_historical_owned_cleanup_plan(
+            run_directory, allow_interrupted_stopping=True))
+    if state["state"] != STOPPING:
+        raise Phase2Blocked("INTERRUPTED_HISTORICAL_STOPPING_REQUIRED")
+    ownership = state["ownership"]
+    adapter = process_adapter or WindowsProcessAdapter()
+    verifier = getattr(adapter, "verify_cleanup_ownership", None)
+    if not callable(verifier):
+        raise Phase2Blocked("HISTORICAL_CLEANUP_VERIFIER_REQUIRED")
+    verified = verifier(ownership=ownership, manifest=manifest)
+    if (type(verified) is not dict
+            or verified.get("state") != "ALREADY_EXITED"):
+        raise Phase2Blocked("INTERRUPTED_HISTORICAL_CLEANUP_EXIT_UNPROVEN")
+    result = verified.get("shutdown")
+    cleanup_passes = (
+        WindowsProcessAdapter._cleanup_report_passes(
+            result, run_id=manifest["run_id"], controlled_stop=True)
+        or WindowsProcessAdapter._cleanup_report_passes(
+            result, run_id=manifest["run_id"], controlled_stop=False)
+    )
+    if (not cleanup_passes
+            or result.get("supervisor_pid") != ownership["pid"]
+            or adapter.matches(ownership)):
+        raise Phase2Blocked("INTERRUPTED_HISTORICAL_CLEANUP_UNPROVEN")
+    final = _transition(
+        directory, manifest, bindings, state=STOPPED,
+        transition="CONTROLLED_STOPPED", clock=clock,
+        details={
+            "native_setup": state.get("native_setup"),
+            "stopped_from": STOPPING,
+            "historical_cleanup_only": True,
+            "interrupted_cleanup_terminalization": True,
+            "cleanup_evidence_status": "PASS",
+            "cleanup_basis": "EXISTING_SHUTDOWN_REPORT",
+        },
         expected_states=(STOPPING,))
     _, events = _load_phase2(directory)
     return {**final, "event_count": len(events)}

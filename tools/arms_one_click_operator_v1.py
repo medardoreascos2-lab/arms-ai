@@ -192,6 +192,9 @@ class OperatorServices:
     def stop_owned_stale_run_for_cleanup(self, run):
         return phase2.stop_owned_stale_run_for_cleanup(run)
 
+    def terminalize_failed_historical_cleanup(self, run):
+        return phase3.terminalize_failed_historical_cleanup(run)
+
     def prepare_phase1(self, profile, workspace):
         return phase1.prepare(profile, workspace=workspace)
 
@@ -283,6 +286,20 @@ def _reconcile_old_runs(workspace, services):
             if stopped.get("state") != phase2.STOPPED:
                 _raise("PRECHECK", "OWNED_STALE_RUN_STOP_UNPROVEN:" + run.name)
             results.append({"run_id": run.name, "action": "VERIFIED_PHASE2_STOP"})
+        elif current == phase2.STOPPING:
+            try:
+                stopped = services.terminalize_failed_historical_cleanup(run)
+            except Exception as error:
+                _raise(
+                    "PRECHECK",
+                    "INCOMPLETE_ONE_CLICK_TRANSITION:"
+                    + run.name + ":" + str(error))
+            if stopped.get("state") != phase2.STOPPED:
+                _raise("PRECHECK", "OWNED_STALE_RUN_STOP_UNPROVEN:" + run.name)
+            results.append({
+                "run_id": run.name,
+                "action": "VERIFIED_INTERRUPTED_CLEANUP_TERMINALIZATION",
+            })
         elif (type(ownership) is dict
               and services.ownership_matches(ownership)):
             _raise("PRECHECK", "CONFLICTING_RUNTIME_NOT_SAFELY_STOPPABLE:" + run.name)

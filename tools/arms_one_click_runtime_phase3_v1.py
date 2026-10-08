@@ -1051,6 +1051,71 @@ def status(run_directory):
     return {**state, "event_count": len(events), "handoff": handoff}
 
 
+def terminalize_failed_historical_cleanup(
+        run_directory, *, clock=None, process_adapter=None):
+    """Finish only a revoked, failed handoff's interrupted Phase 2 stop."""
+    directory, manifest, phase2_state, bindings = (
+        phase2._load_historical_owned_cleanup_plan(
+            run_directory, allow_interrupted_stopping=True))
+    if phase2_state["state"] != phase2.STOPPING:
+        raise Phase3Blocked("INTERRUPTED_HISTORICAL_STOPPING_REQUIRED")
+    handoff, _ = phase1._read_json(
+        directory / _HANDOFF_NAME, HANDOFF_SCHEMA)
+    expected_bindings = {
+        **bindings,
+        "phase3_source_sha256": manifest["source_pins"][
+            PHASE3_SOURCE]["sha256"],
+        "phase2_native_setup_sha256": _digest(
+            phase2_state["native_setup"]),
+    }
+    if (handoff.get("run_id") != manifest["run_id"]
+            or handoff.get("bindings") != expected_bindings
+            or handoff.get("runtime", {}).get("native_runtime_id")
+            != phase2_state["native_setup"].get("native_runtime_id")
+            or handoff.get("ninjatrader_setup_authority") is not False
+            or any(handoff.get(key) is not False for key in _ZERO_AUTHORITY)):
+        raise Phase3Blocked("HISTORICAL_FAILED_HANDOFF_BINDING_INVALID")
+    phase3_state, _ = _load_evidence(directory, handoff)
+    if (phase3_state["state"] != FAILED
+            or type(phase3_state.get("details", {}).get("reason")) is not str
+            or not phase3_state["details"]["reason"]
+            or phase3_state.get("ninjatrader_setup_authority") is not False
+            or any(phase3_state.get(key) is not False
+                   for key in _ZERO_AUTHORITY)):
+        raise Phase3Blocked("TERMINAL_FAILED_HANDOFF_REQUIRED")
+
+    runtime_parent = Path(
+        manifest["targets"]["runtime_parent"]).resolve(strict=False)
+    binding_file = (runtime_parent.parent / _BINDING_DIRECTORY_NAME
+                    / _BINDING_FILE_NAME).resolve(strict=False)
+    if handoff.get("native_binding", {}).get("control_file") != str(binding_file):
+        raise Phase3Blocked("HISTORICAL_BINDING_PATH_INVALID")
+    binding, _ = phase1._read_json(binding_file, BINDING_CONTROL_SCHEMA)
+    expected_binding_fields = {
+        "schema", "state", "one_click_run_id", "native_runtime_id",
+        "revoked_utc", *_ZERO_AUTHORITY,
+    }
+    if (set(binding) != expected_binding_fields
+            or binding.get("state") != "REVOKED"
+            or binding.get("one_click_run_id") != manifest["run_id"]
+            or binding.get("native_runtime_id")
+            != handoff["runtime"]["native_runtime_id"]
+            or any(binding.get(key) is not False for key in _ZERO_AUTHORITY)):
+        raise Phase3Blocked("HISTORICAL_BINDING_NOT_REVOKED")
+    _parse_utc(binding.get("revoked_utc"), "HISTORICAL_BINDING_NOT_REVOKED")
+
+    phase3_before = {
+        name: (directory / name).read_bytes()
+        for name in (_HANDOFF_NAME, _EVENTS_NAME, _STATE_NAME)
+    }
+    final = phase2._terminalize_interrupted_historical_cleanup(
+        directory, clock=clock, process_adapter=process_adapter)
+    if any((directory / name).read_bytes() != raw
+           for name, raw in phase3_before.items()):
+        raise Phase3Blocked("PHASE3_HISTORY_MUTATED_DURING_CLEANUP")
+    return final
+
+
 def _print(value):
     print(json.dumps(value, sort_keys=True, indent=2, allow_nan=False))
 

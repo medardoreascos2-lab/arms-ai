@@ -27,6 +27,7 @@ class FakeServices:
         self.calls = []
         self.stale = {}
         self.stop_calls = []
+        self.terminalize_calls = []
         self.port_checks = 0
         self.observed_internal_token = None
         self.observed_internal_sha = None
@@ -78,6 +79,10 @@ class FakeServices:
 
     def stop_owned_stale_run_for_cleanup(self, run):
         self.stop_calls.append(Path(run).name)
+        return zero({"state": phase2.STOPPED})
+
+    def terminalize_failed_historical_cleanup(self, run):
+        self.terminalize_calls.append(Path(run).name)
         return zero({"state": phase2.STOPPED})
 
     def prepare_phase1(self, profile, workspace):
@@ -302,6 +307,55 @@ def test_verified_stale_cleanup_precedes_port_recheck_and_one_new_run(tmp_path):
     assert services.calls.count("phase1") == 1
     assert services.port_checks == 1
     assert {path.name for path in workspace.iterdir()} == {RUN_ID, stale_id}
+
+
+def test_failed_handoff_interrupted_stop_is_terminalized_before_one_new_run(
+        tmp_path):
+    workspace = tmp_path / "workspace"
+    stale_id = "20261008T002941Z-oneclick-ff240a7dc948"
+    (workspace / stale_id).mkdir(parents=True)
+    services = FakeServices(tmp_path)
+    services.stale[stale_id] = zero({
+        "state": phase2.STOPPING,
+        "ownership": {"pid": 9, "identity": [1, 2], "owned": True},
+    })
+    original_ports = services.port_states
+
+    def ports_after_terminalization(ports):
+        assert services.terminalize_calls == [stale_id]
+        return original_ports(ports)
+
+    services.port_states = ports_after_terminalization
+    result, _ = execute(tmp_path, services)
+    assert result["state"] == phase2.RUNNING
+    assert services.terminalize_calls == [stale_id]
+    assert services.stop_calls == []
+    assert services.calls.count("phase1") == 1
+    assert services.port_checks == 1
+    assert {path.name for path in workspace.iterdir()} == {RUN_ID, stale_id}
+
+
+def test_unproven_interrupted_stop_remains_incomplete_and_creates_no_run(
+        tmp_path):
+    workspace = tmp_path / "workspace"
+    stale_id = "20261008T002941Z-oneclick-ff240a7dc948"
+    (workspace / stale_id).mkdir(parents=True)
+    services = FakeServices(tmp_path)
+    services.stale[stale_id] = zero({
+        "state": phase2.STOPPING,
+        "ownership": {"pid": 9, "identity": [1, 2], "owned": True},
+    })
+
+    def blocked(_run):
+        raise phase3.Phase3Blocked("TERMINAL_FAILED_HANDOFF_REQUIRED")
+
+    services.terminalize_failed_historical_cleanup = blocked
+    result, _ = execute(tmp_path, services)
+    assert result["state"] == phase1.BLOCKED
+    assert result["primary_reason"].startswith(
+        "INCOMPLETE_ONE_CLICK_TRANSITION:" + stale_id)
+    assert "phase1" not in services.calls
+    assert services.stop_calls == []
 
 
 def test_port_collision_is_rechecked_after_verified_stale_cleanup(tmp_path):

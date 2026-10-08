@@ -83,7 +83,7 @@
     },
     "tools/arms_one_click_operator_v1.py": {
       "path": "tools/arms_one_click_operator_v1.py",
-      "sha256": "f9248df5f7fd85978f2991dc96fbeedddfc2b8ee15d2d0763d740dc6f9e4cc56"
+      "sha256": "181911f80ebf0299adc20f8d39398201ac282e65483f3b7ee06628158c44f15d"
     },
     "tools/arms_one_click_runtime_v1.py": {
       "path": "tools/arms_one_click_runtime_v1.py",
@@ -91,11 +91,11 @@
     },
     "tools/arms_one_click_runtime_phase2_v1.py": {
       "path": "tools/arms_one_click_runtime_phase2_v1.py",
-      "sha256": "e3f1ee4b92184e0c7a9ac2db07c16b61a182de9565147a5eb08559f54ce2c6f5"
+      "sha256": "b4c2cbcd330490afc62d5b55b5c9dc5c8a6f47d853ba3feb1ea2ca8a98c355ac"
     },
     "tools/arms_one_click_runtime_phase3_v1.py": {
       "path": "tools/arms_one_click_runtime_phase3_v1.py",
-      "sha256": "d8d166a0a5158dcfae6d714ee2605b6c5baf1f19953284d0fafe4f7ec21cb5cd"
+      "sha256": "ede3375f6c156ea38c780bd1b21de554c5c873e4cf793645ea434525819960b1"
     },
     "tools/start_native_current_paper_v1.py": {
       "path": "tools/start_native_current_paper_v1.py",

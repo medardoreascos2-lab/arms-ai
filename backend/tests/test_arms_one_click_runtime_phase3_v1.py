@@ -10,7 +10,8 @@ import pytest
 
 from backend.tests.test_arms_one_click_runtime_phase2_v1 import (
     FakeProcessAdapter, NATIVE_ID, NOW, _authorize as phase2_authorize,
-    _fixture as phase2_fixture, _start as phase2_start,
+    _drift_historical_profile, _fixture as phase2_fixture,
+    _start as phase2_start,
 )
 from tools import arms_one_click_runtime_phase2_v1 as phase2
 from tools import arms_one_click_runtime_phase3_v1 as phase3
@@ -369,6 +370,109 @@ def test_operator_hello_timeout_preserves_failed_attempt_evidence(tmp_path):
     assert all(state[key] is False for key in phase3._ZERO_AUTHORITY)
     binding_file = Path(state["handoff"]["native_binding"]["control_file"])
     assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "REVOKED"
+
+
+def test_failed_handoff_terminalizes_only_interrupted_verified_cleanup(tmp_path):
+    _, run, *_ = _prepare(tmp_path, timeout=1)
+    authorization = _operator_authorize(run)
+    timer = FakeTime()
+    with pytest.raises(phase3.Phase3Blocked, match="NATIVE_HELLO_TIMEOUT"):
+        phase3.begin_operator_apply(
+            run, authorization["authorization_token"],
+            authorization["handoff_file_sha256"],
+            hello_observer=FakeOperatorHelloObserver([]),
+            clock=lambda: NOW, monotonic=timer.monotonic,
+            sleeper=timer.sleep)
+    phase3_before = {
+        name: (run / name).read_bytes()
+        for name in ("phase3-handoff.json", "phase3-events.json",
+                     "phase3-state.json")
+    }
+    _drift_historical_profile(run)
+
+    class InterruptedStop(FakeProcessAdapter):
+        def stop(self, **kwargs):
+            raise NameError("report_directory is not defined")
+
+    with pytest.raises(NameError, match="report_directory"):
+        phase2.stop_owned_stale_run_for_cleanup(
+            run, clock=lambda: NOW, process_adapter=InterruptedStop())
+    assert phase2._load_phase2(run)[0]["state"] == phase2.STOPPING
+
+    class CertifiedPriorExit(FakeProcessAdapter):
+        def __init__(self):
+            super().__init__(running=False)
+
+        def verify_cleanup_ownership(self, **kwargs):
+            return {
+                "state": "ALREADY_EXITED",
+                "shutdown": {
+                    "run_id": kwargs["manifest"]["run_id"],
+                    "supervisor_pid": kwargs["ownership"]["pid"],
+                    "controlled_stop_requested": True,
+                    "run_scoped_process_count": 0,
+                    "run_scoped_ports_open": 0,
+                    "job_membership_remains": 0,
+                    "cleanup_evidence_status": "PASS",
+                    "child_cleanup_confirmed": True,
+                },
+            }
+
+        def stop(self, **kwargs):
+            raise AssertionError("terminalization must not signal a process")
+
+    result = phase3.terminalize_failed_historical_cleanup(
+        run, clock=lambda: NOW, process_adapter=CertifiedPriorExit())
+    assert result["state"] == phase2.STOPPED
+    assert all((run / name).read_bytes() == raw
+               for name, raw in phase3_before.items())
+    phase3_events = json.loads(
+        (run / "phase3-events.json").read_text(encoding="utf-8"))["events"]
+    phase2_events = json.loads(
+        (run / "phase2-events.json").read_text(encoding="utf-8"))["events"]
+    assert phase2_events[-1]["details"][
+        "interrupted_cleanup_terminalization"] is True
+    assert phase3_events[-1]["state"] == phase3.FAILED
+    assert all(event["state"] != phase3.COMPLETE for event in phase3_events)
+    assert all(event["state"] != phase2.RUNNING for event in phase2_events)
+    assert all(result[key] is False for key in phase3._ZERO_AUTHORITY
+               if key in result)
+
+
+def test_applying_handoff_cannot_terminalize_interrupted_cleanup(tmp_path):
+    _, run, *_ = _prepare(tmp_path, timeout=1)
+    authorization = _operator_authorize(run)
+    _, _, handoff, _ = phase3._load_handoff(run)
+    current, _ = phase3._load_evidence(run, handoff)
+    phase3._transition(
+        run, handoff, state=phase3.APPLYING,
+        transition="OPERATOR_APPLY_CONFIRMED", clock=lambda: NOW,
+        apply_count=1, details=current["details"],
+        expected_states=(phase3.AUTHORIZED,))
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    binding_file = Path(
+        handoff["native_binding"]["control_file"])
+    claim = phase3._binding_claim(
+        handoff, phase3._digest(handoff), current["details"]["authorization"],
+        NOW, b"n" * 32)
+    phase3._publish_active_binding(manifest, claim)
+    phase2_state, _ = phase2._load_phase2(run)
+    phase2._transition(
+        run, manifest, phase2_state["bindings"], state=phase2.STOPPING,
+        transition="CONTROLLED_STOPPING", clock=lambda: NOW,
+        details={"ownership": phase2_state["ownership"],
+                 "native_setup": phase2_state["native_setup"],
+                 "historical_cleanup_only": True},
+        expected_states=(phase2.AWAITING_NATIVE_SETUP,))
+    _drift_historical_profile(run)
+
+    with pytest.raises(phase3.Phase3Blocked,
+                       match="TERMINAL_FAILED_HANDOFF_REQUIRED"):
+        phase3.terminalize_failed_historical_cleanup(
+            run, clock=lambda: NOW,
+            process_adapter=FakeProcessAdapter(running=False))
+    assert phase2._load_phase2(run)[0]["state"] == phase2.STOPPING
+    assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "ACTIVE"
 
 
 def test_valid_binding_receipt_ends_operator_action_before_hello(tmp_path):
