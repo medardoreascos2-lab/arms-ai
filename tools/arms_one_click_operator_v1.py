@@ -34,13 +34,15 @@ APPLY_BANNER = (
     "============================================================\n"
     "ARMS AI — OPERATOR ACTION REQUIRED\n"
     "AHORA SI PRESIONA APPLY EN NINJATRADER — UNA SOLA VEZ\n"
+    "TIENES HASTA 5 MINUTOS\n"
     "NO CAMBIES NINGUNA RUTA\n"
-    "NO PRESIONES APPLY DOS VECES\n"
-    "VUELVE A ESTA TERMINAL DESPUES DEL APPLY\n"
     "============================================================"
 )
 DO_NOT_APPLY = "DO NOT PRESS APPLY YET"
 APPLY_DETECTED = "APPLY DETECTED — DO NOT PRESS APPLY AGAIN"
+DEFAULT_APPLY_TIMEOUT_SECONDS = 300
+MIN_APPLY_TIMEOUT_SECONDS = 1
+MAX_APPLY_TIMEOUT_SECONDS = 900
 LOG_TAIL_BYTES = 16 * 1024
 
 
@@ -95,6 +97,61 @@ def _bounded_inventory(root, suffix, limit=100):
     return {"files": sorted(files), "truncated": False}
 
 
+def _native_handoff_diagnosis(runtime_directory):
+    result = {
+        "classification": "APPLY_NOT_OBSERVED",
+        "binding_receipt_present": False,
+        "connection_jsonl_present": False,
+        "live_jsonl_present": False,
+        "canonical_hello_present": False,
+    }
+    if runtime_directory is None:
+        return result
+    inbox = Path(runtime_directory) / "inbox"
+    if not inbox.is_dir() or inbox.is_symlink():
+        return result
+    try:
+        entries = tuple(path for path in inbox.iterdir() if path.is_file())
+    except OSError:
+        return result
+    receipts = tuple(
+        path for path in entries
+        if path.name.endswith(".one-click-binding.json"))
+    connections = tuple(
+        path for path in entries if path.name.endswith(".connection.jsonl"))
+    live = tuple(
+        path for path in entries
+        if path.name.endswith(".jsonl")
+        and not path.name.endswith(".connection.jsonl"))
+    result.update({
+        "binding_receipt_present": bool(receipts),
+        "connection_jsonl_present": bool(connections),
+        "live_jsonl_present": bool(live),
+    })
+    for path in live:
+        try:
+            with path.open("rb") as stream:
+                raw = stream.readline(phase1.MAX_JSON_BYTES + 1)
+            if len(raw) > phase1.MAX_JSON_BYTES or not raw.endswith(b"\n"):
+                continue
+            row = json.loads(raw.decode("utf-8"))
+            if (type(row) is dict
+                    and row.get("schema") == "arms.nt.market.v1"
+                    and row.get("sequence") == 0
+                    and row.get("kind") == "HELLO"):
+                result["canonical_hello_present"] = True
+                break
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+    if result["canonical_hello_present"]:
+        result["classification"] = "HELLO_PRESENT_HANDOFF_FAILED"
+    elif result["binding_receipt_present"]:
+        result["classification"] = "RECEIPT_PRESENT_HELLO_MISSING"
+    elif result["connection_jsonl_present"] or result["live_jsonl_present"]:
+        result["classification"] = "NATIVE_STARTUP_PARTIAL_EVIDENCE"
+    return result
+
+
 class OperatorServices:
     """Production adapters; tests replace this object deterministically."""
 
@@ -147,15 +204,19 @@ class OperatorServices:
             run, authorization,
             authorization.token_for_immediate_consumption())
 
-    def prepare_phase3(self, run, runtime):
-        return phase3.prepare_handoff(run, runtime)
+    def prepare_phase3(self, run, runtime, apply_timeout_seconds):
+        return phase3.prepare_handoff(
+            run, runtime, hello_timeout_seconds=apply_timeout_seconds)
 
-    def authorize_phase3(self, run):
-        return phase3.operator_authorization(run, ttl_seconds=60)
+    def authorize_phase3(self, run, apply_timeout_seconds):
+        return phase3.operator_authorization(
+            run, ttl_seconds=apply_timeout_seconds)
 
-    def begin_apply(self, run, token, handoff_sha, callback):
+    def begin_apply(self, run, token, handoff_sha, callback,
+                    native_apply_callback):
         return phase3.begin_operator_apply(
-            run, token, handoff_sha, on_apply_recorded=callback)
+            run, token, handoff_sha, on_apply_recorded=callback,
+            on_native_apply_observed=native_apply_callback)
 
     def continue_phase2(self, run):
         return phase2.continue_after_native_setup(run)
@@ -291,10 +352,12 @@ def _diagnostic_path(workspace, run_id):
 
 
 def _write_diagnostic(workspace, *, stage, reason, run_id, runtime_id,
-                      profile, precheck, cleanup):
+                      runtime_directory, profile, precheck, cleanup):
     path = _diagnostic_path(workspace, run_id)
     run = workspace / run_id if run_id else None
     evidence = {}
+    runtime = (Path(runtime_directory)
+               if runtime_directory is not None else None)
     if run is not None and run.is_dir():
         for name in (
                 "manifest.json", "state.json", "phase2-state.json",
@@ -319,8 +382,9 @@ def _write_diagnostic(workspace, *, stage, reason, run_id, runtime_id,
             native_setup = (phase2_evidence.get("native_setup", {})
                             if type(phase2_evidence) is dict else {})
             runtime_value = native_setup.get("runtime_directory")
-            if type(runtime_value) is str and runtime_value:
+            if runtime is None and type(runtime_value) is str and runtime_value:
                 runtime = Path(runtime_value)
+            if runtime is not None:
                 for name in ("shutdown-result.json", "claim.json",
                              "chart-catchup-request.json"):
                     evidence[name] = _read_optional_json(runtime / name)
@@ -330,6 +394,9 @@ def _write_diagnostic(workspace, *, stage, reason, run_id, runtime_id,
                     runtime, ".jsonl")
                 evidence["done_inventory"] = _bounded_inventory(
                     runtime, ".done.json")
+        if reason == "NATIVE_HELLO_TIMEOUT":
+            evidence["native_handoff_diagnosis"] = (
+                _native_handoff_diagnosis(runtime))
     value = {
         "schema": DIAGNOSTIC_SCHEMA,
         "created_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -374,16 +441,22 @@ def _blocked(output, *, stage, reason, run_id, runtime_id, diagnostic):
 
 
 def run(profile, *, workspace=phase1.DEFAULT_WORKSPACE, services=None,
-        output=print):
+        output=print,
+        apply_timeout_seconds=DEFAULT_APPLY_TIMEOUT_SECONDS):
     services = services or OperatorServices()
     profile = Path(profile)
     workspace = Path(workspace).resolve(strict=False)
     stage = "PRECHECK"
     run_id = None
     runtime_id = None
+    runtime_directory = None
     precheck = None
     cleanup = None
     try:
+        if (type(apply_timeout_seconds) is not int
+                or not MIN_APPLY_TIMEOUT_SECONDS <= apply_timeout_seconds
+                <= MAX_APPLY_TIMEOUT_SECONDS):
+            _raise("PRECHECK", "APPLY_TIMEOUT_SECONDS_INVALID")
         output(DO_NOT_APPLY)
         precheck = _precheck(profile, workspace, services)
         stage = "PHASE1"
@@ -409,7 +482,8 @@ def run(profile, *, workspace=phase1.DEFAULT_WORKSPACE, services=None,
         runtime_directory = Path(native["runtime_directory"])
 
         stage = "PHASE3_PREPARE"
-        handoff = services.prepare_phase3(run_directory, runtime_directory)
+        handoff = services.prepare_phase3(
+            run_directory, runtime_directory, apply_timeout_seconds)
         _assert_zero_authority(handoff, stage)
         _assert_exact_handoff_binding(handoff, runtime_directory, stage)
         if (handoff.get("state") != phase3.PREPARED
@@ -420,7 +494,8 @@ def run(profile, *, workspace=phase1.DEFAULT_WORKSPACE, services=None,
 
         output(DO_NOT_APPLY)
         stage = "AUTHORIZATION"
-        authorization = services.authorize_phase3(run_directory)
+        authorization = services.authorize_phase3(
+            run_directory, apply_timeout_seconds)
         _assert_zero_authority(authorization, stage)
         if (authorization.get("state") != phase3.AUTHORIZED
                 or authorization.get("apply_limit") != 1):
@@ -428,6 +503,7 @@ def run(profile, *, workspace=phase1.DEFAULT_WORKSPACE, services=None,
 
         stage = "APPLY_AND_HANDOFF"
         prompts = 0
+        native_observations = 0
 
         def announce(applying):
             nonlocal prompts
@@ -437,16 +513,34 @@ def run(profile, *, workspace=phase1.DEFAULT_WORKSPACE, services=None,
             prompts += 1
             if prompts != 1:
                 _raise(stage, "APPLY_INSTRUCTION_LIMIT_EXCEEDED")
-            output(APPLY_BANNER)
+            banner = APPLY_BANNER
+            if apply_timeout_seconds != DEFAULT_APPLY_TIMEOUT_SECONDS:
+                banner = banner.replace(
+                    "TIENES HASTA 5 MINUTOS",
+                    "TIENES HASTA " + str(apply_timeout_seconds)
+                    + " SEGUNDOS")
+            output(banner)
+
+        def native_apply_detected(evidence):
+            nonlocal native_observations
+            if (type(evidence) is not dict
+                    or evidence.get("kind") not in {
+                        "BINDING_RECEIPT", "NATIVE_HELLO"}):
+                _raise(stage, "NATIVE_APPLY_EVIDENCE_INVALID")
+            native_observations += 1
+            if native_observations != 1:
+                _raise(stage, "NATIVE_APPLY_EVIDENCE_DUPLICATE")
+            output(APPLY_DETECTED)
 
         completed = services.begin_apply(
             run_directory, authorization["authorization_token"],
-            authorization["handoff_file_sha256"], announce)
+            authorization["handoff_file_sha256"], announce,
+            native_apply_detected)
         _assert_zero_authority(completed, stage)
-        if (prompts != 1 or completed.get("state") != phase3.COMPLETE
+        if (prompts != 1 or native_observations != 1
+                or completed.get("state") != phase3.COMPLETE
                 or completed.get("apply_count") != 1):
             _raise(stage, "HANDOFF_COMPLETE_REQUIRED")
-        output(APPLY_DETECTED)
 
         stage = "PHASE2_CONTINUE"
         final = services.continue_phase2(run_directory)
@@ -467,14 +561,20 @@ def run(profile, *, workspace=phase1.DEFAULT_WORKSPACE, services=None,
                 state = services.phase2_state(workspace / run_id)
                 if state is not None and state.get("state") in {
                         phase2.AWAITING_NATIVE_SETUP, phase2.RUNNING}:
-                    cleanup = services.stop(workspace / run_id)
+                    cleanup = services.stop_owned_stale_run_for_cleanup(
+                        workspace / run_id)
+                    if cleanup.get("state") != phase2.STOPPED:
+                        cleanup = {
+                            "status": "FAILED",
+                            "reason": "VERIFIED_PHASE2_STOP_UNPROVEN",
+                        }
             except Exception as cleanup_error:
                 cleanup = {"status": "FAILED", "reason": str(cleanup_error)}
         try:
             diagnostic = _write_diagnostic(
                 workspace, stage=stage, reason=reason, run_id=run_id,
-                runtime_id=runtime_id, profile=profile, precheck=precheck,
-                cleanup=cleanup)
+                runtime_id=runtime_id, runtime_directory=runtime_directory,
+                profile=profile, precheck=precheck, cleanup=cleanup)
         except Exception as diagnostic_error:
             diagnostic = ("UNAVAILABLE:"
                           + (str(diagnostic_error)
@@ -491,8 +591,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--workspace", type=Path, default=phase1.DEFAULT_WORKSPACE)
+    parser.add_argument(
+        "--apply-timeout-seconds", type=int,
+        default=DEFAULT_APPLY_TIMEOUT_SECONDS)
     args = parser.parse_args(argv)
-    result = run(args.profile, workspace=args.workspace)
+    result = run(
+        args.profile, workspace=args.workspace,
+        apply_timeout_seconds=args.apply_timeout_seconds)
     return 0 if result["state"] == phase2.RUNNING else 2
 
 

@@ -1,6 +1,7 @@
 """Offline Windows process-tree supervision; no ARMS runtime or order path."""
 import json
 from pathlib import Path
+import socket
 import subprocess
 import sys
 from threading import Thread
@@ -261,11 +262,19 @@ def test_high_process_churn_cleanup_remains_complete(tmp_path):
         "[subprocess.run([sys.executable,'-c','pass'],check=True) "
         "for _ in range(40)]"
     )
+    probes = [socket.socket() for _ in range(3)]
+    try:
+        for probe in probes:
+            probe.bind(('127.0.0.1', 0))
+        owned_ports = tuple(probe.getsockname()[1] for probe in probes)
+    finally:
+        for probe in probes:
+            probe.close()
     report = supervise(
         command=[sys.executable, '-c', code],
         report_directory=tmp_path/'high-churn-report',
         run_id='offline-high-churn', cwd=Path.cwd(),
-        owned_ports=(54920, 54921, 54922))
+        owned_ports=owned_ports)
 
     assert report['windows_exit_code'] == 0
     assert report['run_scoped_process_count'] == 0

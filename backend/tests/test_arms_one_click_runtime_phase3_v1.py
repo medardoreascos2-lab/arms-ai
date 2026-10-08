@@ -263,6 +263,7 @@ def test_operator_attempt_is_recorded_before_hello_and_is_one_shot(tmp_path):
     _, run, *_ = _prepare(tmp_path)
     authorization = _operator_authorize(run)
     announcements = []
+    native_observations = []
 
     class InspectingObserver:
         @staticmethod
@@ -292,11 +293,14 @@ def test_operator_attempt_is_recorded_before_hello_and_is_one_shot(tmp_path):
         run, authorization["authorization_token"],
         authorization["handoff_file_sha256"],
         hello_observer=InspectingObserver(), clock=lambda: NOW,
-        on_apply_recorded=announcements.append)
+        on_apply_recorded=announcements.append,
+        on_native_apply_observed=native_observations.append)
     assert result["state"] == phase3.COMPLETE
     assert result["apply_count"] == 1
     assert result["ninjatrader_setup_authority"] is False
     assert all(result[key] is False for key in phase3._ZERO_AUTHORITY)
+    assert native_observations == [{
+        "kind": "NATIVE_HELLO", "native_session_id": SESSION_ID}]
     binding_file = Path(result["details"]["operator_attempt"]["binding_control_file"])
     assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "REVOKED"
     with pytest.raises(phase3.Phase3Blocked,
@@ -365,6 +369,51 @@ def test_operator_hello_timeout_preserves_failed_attempt_evidence(tmp_path):
     assert all(state[key] is False for key in phase3._ZERO_AUTHORITY)
     binding_file = Path(state["handoff"]["native_binding"]["control_file"])
     assert json.loads(binding_file.read_text(encoding="utf-8"))["state"] == "REVOKED"
+
+
+def test_valid_binding_receipt_ends_operator_action_before_hello(tmp_path):
+    _, run, *_ = _prepare(tmp_path, timeout=1)
+    authorization = _operator_authorize(run)
+    timer = FakeTime()
+    observations = []
+
+    class ReceiptOnlyObserver:
+        emitted = False
+
+        def observe_binding_receipt_evidence(self):
+            if self.emitted:
+                return None
+            self.emitted = True
+            return {"session": SESSION_ID}
+
+        @staticmethod
+        def observe_evidence():
+            return None
+
+    with pytest.raises(phase3.Phase3Blocked, match="NATIVE_HELLO_TIMEOUT"):
+        phase3.begin_operator_apply(
+            run, authorization["authorization_token"],
+            authorization["handoff_file_sha256"],
+            hello_observer=ReceiptOnlyObserver(), clock=lambda: NOW,
+            monotonic=timer.monotonic, sleeper=timer.sleep,
+            on_native_apply_observed=observations.append)
+    assert observations == [{
+        "kind": "BINDING_RECEIPT", "native_session_id": SESSION_ID}]
+    assert phase3.status(run)["state"] == phase3.FAILED
+
+
+def test_five_minute_authorization_and_binding_get_full_sealed_window(tmp_path):
+    _, run, *_ = _prepare(tmp_path, timeout=300)
+    authorization = _operator_authorize(run, ttl=300)
+    _, _, handoff, handoff_sha = phase3._load_handoff(run)
+    state, _ = phase3._load_evidence(run, handoff)
+    begin = NOW + timedelta(seconds=10)
+    claim = phase3._binding_claim(
+        handoff, handoff_sha, state["details"]["authorization"], begin,
+        b"n" * 32)
+    assert phase3._parse_utc(
+        claim["expires_utc"], "TEST") == begin + timedelta(seconds=300)
+    assert authorization["state"] == phase3.AUTHORIZED
 
 
 @pytest.mark.parametrize("fault", [

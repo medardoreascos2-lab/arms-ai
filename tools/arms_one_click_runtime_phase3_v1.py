@@ -39,7 +39,7 @@ AWAITING_HELLO = "AWAITING_NATIVE_HELLO"
 COMPLETE = "HANDOFF_COMPLETE"
 FAILED = "HANDOFF_FAILED"
 REVOKED = "SETUP_AUTHORIZATION_REVOKED"
-AUTHORIZATION_TTL_SECONDS = 60
+AUTHORIZATION_TTL_SECONDS = 900
 _HANDOFF_NAME = "phase3-handoff.json"
 _EVENTS_NAME = "phase3-events.json"
 _STATE_NAME = "phase3-state.json"
@@ -127,6 +127,22 @@ class NativeHelloObserver:
     def observe(self):
         return self._adapter.validate_preactivation_buffer(
             "PHASE3_NATIVE_HELLO_INVALID")
+
+    def observe_binding_receipt_evidence(self):
+        suffix = ".one-click-binding.json"
+        receipts = sorted(
+            path for path in self._adapter.directory.iterdir()
+            if path.is_file() and path.name.endswith(suffix))
+        if not receipts:
+            return None
+        if len(receipts) != 1:
+            raise Phase3Blocked("PHASE3_NATIVE_BINDING_RECEIPT_INVALID")
+        session = self._adapter._preactivation_session_from_name(
+            receipts[0].name, suffix,
+            "PHASE3_NATIVE_BINDING_RECEIPT_INVALID")
+        return self._adapter._validate_one_click_binding_receipt(
+            receipts[0], session,
+            "PHASE3_NATIVE_BINDING_RECEIPT_INVALID")
 
     def observe_evidence(self):
         session = self.observe()
@@ -405,7 +421,8 @@ def _binding_claim(handoff, handoff_file_sha, authorization_record, now,
         "binding_nonce": nonce.hex(),
         "generation": 1,
         "created_utc": _utc(now),
-        "expires_utc": authorization_record["expires_utc"],
+        "expires_utc": _utc(
+            now + timedelta(seconds=handoff["hello_timeout_seconds"])),
         "apply_limit": 1,
         **_ZERO_AUTHORITY,
     }
@@ -813,6 +830,7 @@ def begin_operator_apply(run_directory, supplied_token,
                          confirmed_handoff_sha256, *, hello_observer=None,
                          clock=None, monotonic=time.monotonic,
                          sleeper=time.sleep, on_apply_recorded=None,
+                         on_native_apply_observed=None,
                          nonce_factory=token_bytes):
     now = _now(clock)
     directory, manifest, handoff, handoff_file_sha = _load_handoff(run_directory)
@@ -861,11 +879,30 @@ def begin_operator_apply(run_directory, supplied_token,
             apply_count=1, details={"operator_attempt": attempt},
             expected_states=(APPLYING,))
         deadline = monotonic() + handoff["hello_timeout_seconds"]
+        native_apply_observed = False
         while monotonic() <= deadline:
+            receipt_observer = getattr(
+                observer, "observe_binding_receipt_evidence", None)
+            if not native_apply_observed and callable(receipt_observer):
+                receipt = receipt_observer()
+                if receipt is not None:
+                    native_apply_observed = True
+                    if on_native_apply_observed is not None:
+                        on_native_apply_observed({
+                            "kind": "BINDING_RECEIPT",
+                            "native_session_id": receipt["session"],
+                        })
             evidence = observer.observe_evidence()
             if evidence is not None:
                 session = _validate_operator_hello(
                     evidence, handoff, binding_claim)
+                if not native_apply_observed:
+                    native_apply_observed = True
+                    if on_native_apply_observed is not None:
+                        on_native_apply_observed({
+                            "kind": "NATIVE_HELLO",
+                            "native_session_id": session,
+                        })
                 _revoke_binding(
                     manifest, run_id=handoff["run_id"],
                     native_runtime_id=handoff["runtime"]["native_runtime_id"],

@@ -32,6 +32,8 @@ class FakeServices:
         self.observed_internal_sha = None
         self.receipt_detected = False
         self.hello_detected = False
+        self.prepare_timeout = None
+        self.authorization_timeout = None
 
     def _call(self, name):
         self.calls.append(name)
@@ -95,6 +97,8 @@ class FakeServices:
         self._call("phase2")
         runtime = self.tmp_path / "native" / RUNTIME_ID
         runtime.mkdir(parents=True)
+        (runtime / "inbox").mkdir()
+        (runtime / "chart-catchup").mkdir()
         return zero({
             "state": phase2.AWAITING_NATIVE_SETUP,
             "native_setup": {
@@ -106,8 +110,9 @@ class FakeServices:
             },
         })
 
-    def prepare_phase3(self, run, runtime):
+    def prepare_phase3(self, run, runtime, apply_timeout_seconds):
         self._call("phase3_prepare")
+        self.prepare_timeout = apply_timeout_seconds
         binding = (Path(runtime).parent.parent
                    / phase3._BINDING_DIRECTORY_NAME / phase3._BINDING_FILE_NAME)
         return zero({
@@ -125,20 +130,24 @@ class FakeServices:
             },
         })
 
-    def authorize_phase3(self, run):
+    def authorize_phase3(self, run, apply_timeout_seconds):
         self._call("authorize")
+        self.authorization_timeout = apply_timeout_seconds
         return zero({
             "state": phase3.AUTHORIZED, "apply_limit": 1,
             "authorization_token": "secret-token",
             "handoff_file_sha256": "d" * 64,
         })
 
-    def begin_apply(self, run, token, handoff_sha, callback):
+    def begin_apply(self, run, token, handoff_sha, callback,
+                    native_apply_callback):
         self._call("begin_apply")
         self.observed_internal_token = token
         self.observed_internal_sha = handoff_sha
         callback(zero({"state": phase3.APPLYING, "apply_count": 1}))
         self.receipt_detected = True
+        native_apply_callback({
+            "kind": "BINDING_RECEIPT", "native_session_id": "session"})
         self.hello_detected = True
         return zero({"state": phase3.COMPLETE, "apply_count": 1})
 
@@ -147,14 +156,15 @@ class FakeServices:
         return zero({"state": phase2.RUNNING})
 
 
-def execute(tmp_path, services=None):
+def execute(tmp_path, services=None, *, apply_timeout_seconds=300):
     profile = tmp_path / "profile.json"
     profile.write_text("{}", encoding="utf-8")
     workspace = tmp_path / "workspace"
     messages = []
     result = operator.run(
         profile, workspace=workspace,
-        services=services or FakeServices(tmp_path), output=messages.append)
+        services=services or FakeServices(tmp_path), output=messages.append,
+        apply_timeout_seconds=apply_timeout_seconds)
     return result, messages
 
 
@@ -173,6 +183,8 @@ def test_full_happy_path_is_one_command_and_one_apply_instruction(tmp_path):
     assert services.observed_internal_sha == "d" * 64
     assert services.receipt_detected is True
     assert services.hello_detected is True
+    assert services.prepare_timeout == 300
+    assert services.authorization_timeout == 300
     assert transcript.count("AHORA SI PRESIONA APPLY") == 1
     assert transcript.index(operator.DO_NOT_APPLY) < transcript.index(
         "AHORA SI PRESIONA APPLY")
@@ -183,6 +195,27 @@ def test_full_happy_path_is_one_command_and_one_apply_instruction(tmp_path):
     assert "secret-token" not in transcript
     assert "d" * 64 not in transcript
     assert all(result[key] is False for key in operator.ZERO_AUTHORITY)
+
+
+def test_configured_apply_window_is_bound_to_handoff_and_authorization(tmp_path):
+    services = FakeServices(tmp_path)
+    result, messages = execute(
+        tmp_path, services, apply_timeout_seconds=420)
+    assert result["state"] == phase2.RUNNING
+    assert services.prepare_timeout == 420
+    assert services.authorization_timeout == 420
+    assert "TIENES HASTA 420 SEGUNDOS" in "\n".join(messages)
+
+
+@pytest.mark.parametrize("timeout", [0, 901, True, 1.5])
+def test_apply_window_is_safely_bounded_before_any_run(tmp_path, timeout):
+    services = FakeServices(tmp_path)
+    result, messages = execute(
+        tmp_path, services, apply_timeout_seconds=timeout)
+    assert result["state"] == phase1.BLOCKED
+    assert result["primary_reason"] == "APPLY_TIMEOUT_SECONDS_INVALID"
+    assert services.calls == []
+    assert "AHORA SI PRESIONA APPLY" not in "\n".join(messages)
 
 
 def test_time_wait_is_harmless_but_listening_fails_closed(tmp_path):
@@ -348,7 +381,7 @@ def test_each_failure_stops_advancement_and_writes_one_diagnostic(
 def test_bad_applying_postcondition_never_prints_apply_instruction(tmp_path):
     services = FakeServices(tmp_path)
 
-    def bad_begin(run, token, handoff_sha, callback):
+    def bad_begin(run, token, handoff_sha, callback, native_apply_callback):
         services._call("begin_apply")
         callback(zero({"state": phase3.AUTHORIZED, "apply_count": 0}))
 
@@ -362,8 +395,8 @@ def test_phase3_fixed_binding_path_must_be_exact(tmp_path):
     services = FakeServices(tmp_path)
     original = services.prepare_phase3
 
-    def wrong_binding(run, runtime):
-        result = original(run, runtime)
+    def wrong_binding(run, runtime, apply_timeout_seconds):
+        result = original(run, runtime, apply_timeout_seconds)
         result["handoff"]["settings"]["ArmsReadOnlyMarketV1"][
             "OneClickBindingFile"] = str(tmp_path / "foreign-binding.json")
         return result
@@ -379,7 +412,7 @@ def test_phase3_fixed_binding_path_must_be_exact(tmp_path):
 def test_handoff_failure_does_not_continue_or_request_second_apply(tmp_path):
     services = FakeServices(tmp_path)
 
-    def incomplete(run, token, handoff_sha, callback):
+    def incomplete(run, token, handoff_sha, callback, native_apply_callback):
         services._call("begin_apply")
         callback(zero({"state": phase3.APPLYING, "apply_count": 1}))
         return zero({"state": phase3.FAILED, "apply_count": 1})
@@ -396,7 +429,7 @@ def test_handoff_failure_does_not_continue_or_request_second_apply(tmp_path):
 def test_native_hello_timeout_stops_without_retrying_apply(tmp_path):
     services = FakeServices(tmp_path)
 
-    def timeout(run, token, handoff_sha, callback):
+    def timeout(run, token, handoff_sha, callback, native_apply_callback):
         services._call("begin_apply")
         callback(zero({"state": phase3.APPLYING, "apply_count": 1}))
         raise phase3.Phase3Blocked("NATIVE_HELLO_TIMEOUT")
@@ -411,6 +444,56 @@ def test_native_hello_timeout_stops_without_retrying_apply(tmp_path):
     assert "continue" not in services.calls
     assert transcript.count("AHORA SI PRESIONA APPLY") == 1
     assert operator.APPLY_DETECTED not in transcript
+    assert services.stop_calls == [RUN_ID]
+    diagnostic = json.loads(
+        Path(result["diagnostic_report"]).read_text(encoding="utf-8"))
+    assert diagnostic["cleanup"]["state"] == phase2.STOPPED
+    assert diagnostic["evidence"]["native_handoff_diagnosis"] == {
+        "classification": "APPLY_NOT_OBSERVED",
+        "binding_receipt_present": False,
+        "connection_jsonl_present": False,
+        "live_jsonl_present": False,
+        "canonical_hello_present": False,
+    }
+
+
+@pytest.mark.parametrize(("evidence_kind", "classification"), [
+    ("receipt", "RECEIPT_PRESENT_HELLO_MISSING"),
+    ("hello", "HELLO_PRESENT_HANDOFF_FAILED"),
+])
+def test_native_hello_timeout_diagnostic_classifies_existing_evidence(
+        tmp_path, evidence_kind, classification):
+    services = FakeServices(tmp_path)
+
+    def timeout(run, token, handoff_sha, callback, native_apply_callback):
+        services._call("begin_apply")
+        callback(zero({"state": phase3.APPLYING, "apply_count": 1}))
+        inbox = tmp_path / "native" / RUNTIME_ID / "inbox"
+        session = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        if evidence_kind == "receipt":
+            (inbox / (session + ".one-click-binding.json")).write_text(
+                "{}\n", encoding="utf-8")
+            native_apply_callback({
+                "kind": "BINDING_RECEIPT",
+                "native_session_id": session,
+            })
+        else:
+            row = {
+                "schema": "arms.nt.market.v1", "session": session,
+                "sequence": 0, "event_time": 1, "kind": "HELLO",
+                "payload": {},
+            }
+            (inbox / (session + ".jsonl")).write_text(
+                json.dumps(row) + "\n", encoding="utf-8")
+        raise phase3.Phase3Blocked("NATIVE_HELLO_TIMEOUT")
+
+    services.begin_apply = timeout
+    result, _ = execute(tmp_path, services)
+    diagnostic = json.loads(
+        Path(result["diagnostic_report"]).read_text(encoding="utf-8"))
+    diagnosis = diagnostic["evidence"]["native_handoff_diagnosis"]
+    assert diagnosis["classification"] == classification
+    assert services.stop_calls == [RUN_ID]
 
 
 def test_strict_waiting_and_gap_guards_are_not_changed():
