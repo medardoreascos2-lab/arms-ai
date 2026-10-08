@@ -693,6 +693,81 @@ def test_historical_source_drift_allows_only_verified_owned_cleanup(tmp_path):
         "ninjatrader_control_authority"))
 
 
+def test_historical_windows_cleanup_uses_sealed_report_directory(
+        tmp_path, monkeypatch):
+    _, run = _fixture(tmp_path)
+    start_adapter = FakeProcessAdapter()
+    _start(run, _authorize(run), start_adapter)
+    _drift_historical_profile(run)
+
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    ownership = phase2._load_phase2(run)[0]["ownership"]
+    report_directory = Path(
+        manifest["targets"]["supervisor_report_directory"])
+    report_directory.mkdir(parents=True)
+    expected_launcher = phase1._expected_future_command(manifest)
+    separator = expected_launcher.index("--")
+    phase1._atomic_json(report_directory / "supervisor-start.json", {
+        "schema": phase2.supervisor.SCHEMA,
+        "run_id": manifest["run_id"],
+        "supervisor_pid": ownership["pid"],
+        "supervisor_identity": ownership["identity"],
+        "spawn_challenge_sha256": ownership["spawn_challenge_sha256"],
+        "command": expected_launcher[separator + 1:],
+    })
+    phase1._atomic_json(
+        report_directory / "external-shutdown-result.json", {
+            "schema": phase2.supervisor.REPORT_SCHEMA,
+            "run_id": manifest["run_id"],
+            "supervisor_pid": ownership["pid"],
+            "controlled_stop_requested": True,
+            "run_scoped_process_count": 0,
+            "run_scoped_ports_open": 0,
+            "job_membership_remains": 0,
+            "cleanup_evidence_status": "PASS",
+            "child_cleanup_confirmed": True,
+        })
+    monkeypatch.setattr(
+        phase2.supervisor, "_pid_identity",
+        lambda pid: tuple(ownership["identity"]))
+
+    class ExitedAfterRequest(phase2.WindowsProcessAdapter):
+        def matches(self, candidate):
+            return False
+
+    result = phase2.stop_owned_stale_run_for_cleanup(
+        run, clock=lambda: NOW, process_adapter=ExitedAfterRequest())
+
+    assert result["state"] == phase2.STOPPED
+    assert Path(manifest["targets"]["supervisor_stop_request"]).is_file()
+    assert all(result[name] is False for name in (
+        "paper_execution_enabled", "live_execution_allowed",
+        "external_order_authority", "broker_live_order_authority",
+        "ninjatrader_control_authority"))
+
+
+@pytest.mark.parametrize("value", (
+    None,
+    "",
+    "relative/run/supervisor",
+))
+def test_historical_cleanup_report_directory_must_be_absolute(value):
+    manifest = {"run_id": "20261008T002941Z-oneclick-ff240a7dc948",
+                "targets": {"supervisor_report_directory": value}}
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="HISTORICAL_REPORT_PATH_INVALID"):
+        phase2._historical_supervisor_report_directory(manifest)
+
+
+def test_historical_cleanup_report_directory_must_be_run_scoped(tmp_path):
+    manifest = {"run_id": "20261008T002941Z-oneclick-ff240a7dc948",
+                "targets": {"supervisor_report_directory": str(
+                    (tmp_path / "different-run" / "supervisor").resolve())}}
+    with pytest.raises(phase2.Phase2Blocked,
+                       match="HISTORICAL_REPORT_PATH_INVALID"):
+        phase2._historical_supervisor_report_directory(manifest)
+
+
 def test_historical_cleanup_can_terminalize_proven_prior_exit(tmp_path):
     _, run = _fixture(tmp_path)
     start_adapter = FakeProcessAdapter()

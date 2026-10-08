@@ -187,6 +187,23 @@ def _historical_descriptor(value, name):
         raise Phase2Blocked("HISTORICAL_DESCRIPTOR_INVALID:" + name)
 
 
+def _historical_supervisor_report_directory(manifest):
+    """Derive the run-scoped supervisor evidence path from sealed history."""
+    if type(manifest) is not dict or type(manifest.get("run_id")) is not str:
+        raise Phase2Blocked("HISTORICAL_REPORT_PATH_INVALID")
+    targets = manifest.get("targets")
+    if type(targets) is not dict:
+        raise Phase2Blocked("HISTORICAL_REPORT_PATH_INVALID")
+    value = targets.get("supervisor_report_directory")
+    if type(value) is not str or not value or not Path(value).is_absolute():
+        raise Phase2Blocked("HISTORICAL_REPORT_PATH_INVALID")
+    report_directory = Path(value).resolve(strict=False)
+    if (report_directory.name != "supervisor"
+            or report_directory.parent.name != manifest["run_id"]):
+        raise Phase2Blocked("HISTORICAL_REPORT_PATH_INVALID")
+    return report_directory
+
+
 def _load_historical_owned_cleanup_plan(run_directory):
     """Verify sealed historical evidence without accepting it for reuse."""
     candidate = Path(run_directory)
@@ -293,11 +310,7 @@ def _load_historical_owned_cleanup_plan(run_directory):
         strict=False)
     if stop_request != (directory / "phase2-stop-request.json"):
         raise Phase2Blocked("HISTORICAL_STOP_REQUEST_PATH_INVALID")
-    report_directory = Path(targets["supervisor_report_directory"]).resolve(
-        strict=False)
-    if (report_directory.name != "supervisor"
-            or report_directory.parent.name != run_id):
-        raise Phase2Blocked("HISTORICAL_REPORT_PATH_INVALID")
+    _historical_supervisor_report_directory(manifest)
     for name in ("paper_run_namespace", "current_paper_news_root",
                  "current_paper_l1_directory"):
         value = targets.get(name)
@@ -800,8 +813,7 @@ class WindowsProcessAdapter:
         )
 
     def verify_cleanup_ownership(self, *, ownership, manifest):
-        report_directory = Path(
-            manifest["targets"]["supervisor_report_directory"])
+        report_directory = _historical_supervisor_report_directory(manifest)
         start, _ = phase1._read_json(
             report_directory / "supervisor-start.json", supervisor.SCHEMA)
         expected_launcher = phase1._expected_future_command(manifest)
@@ -838,6 +850,7 @@ class WindowsProcessAdapter:
             ownership=ownership, manifest=manifest)
         if verified.get("state") != "RUNNING":
             raise Phase2Blocked("OWNED_SUPERVISOR_NOT_RUNNING")
+        report_directory = _historical_supervisor_report_directory(manifest)
         request = {
             "schema": "arms.windows-runtime-stop-request.v1",
             "run_id": manifest["run_id"],
